@@ -188,7 +188,7 @@ class Generator:
         adults = [a for a in agents if a.age > 21]
         chd = [a for a in agents if a not in adults]
         # Assume there are more adults than families
-        # First, distribute adults as equally as possible
+        # First, distribute adults as equal as possible
         for i in range(len(adults)):
             if not adults[i].belongs_to_family:
                 fams[i % len(fams)].add_agent(adults[i])
@@ -203,6 +203,7 @@ class Generator:
     def get_random_points_in_polygon(self, region, number_addresses=1, addresses=None):
         """ Addresses within the region. Additional details so that address fall in urban areas, given percentage"""
         # TODO. Check all crs...
+        # TODO. Check all self.random
         if addresses is None:
             addresses = list()
         if hasattr(region, 'addresses'):
@@ -215,12 +216,10 @@ class Generator:
         x = self.seed_np.uniform(minx, maxx, number_addresses * 3)
         y = self.seed_np.uniform(miny, maxy, number_addresses * 3)
         data = pd.DataFrame()
-        data['points'] = list(zip(x, y))
-        data['points'] = data['points'].apply(Point)
+        data['points'] = [Point(coord) for coord in zip(x, y)]
         gdf_points = gpd.GeoDataFrame(data, geometry='points', crs='epsg:4674')
         sjoin = gpd.tools.sjoin(gdf_points, right_df, predicate='within', how='left')
         addresses += sjoin.loc[sjoin.index_right >= 0, 'points'].tolist()
-        # TODO: check addresses is never less than needed
         # Check to see if number has been reached
         while len(addresses) < number_addresses:
             addresses += self.get_random_points_in_polygon(region,
@@ -293,11 +292,10 @@ class Generator:
             family.owned_houses.append(house)
 
     def create_firms(self, num_firms, region):
-        # TODO: make get addresses vectorized using spatial join from geopandas
         sector = {}
         num_construction_firms = math.ceil(num_firms * self.sim.PARAMS['PERCENT_CONSTRUCTION_FIRMS'])
         addresses = self.get_random_points_in_polygon(region, number_addresses=num_firms)
-        balances = self.seed_np.beta(1.5, 10) * 10000
+        balances = self.seed_np.beta(1.5, 10, size=num_firms) * 10000
         for i in range(num_firms):
             firm_id = self.gen_id()
             if i < num_construction_firms:

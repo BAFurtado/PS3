@@ -18,23 +18,24 @@ def gen_coords(group, family_factor=False):
     for item in group:
         if family_factor:
             if item.num_members > 0:
-                coords = coords.append([{
+                coords = pd.concat([coords, pd.DataFrame({
                     'lat': item.address.y,
                     'long': item.address.x,
                     'savings': item.savings,
                     'house_values': item.house.price,
                     'members': item.num_members,
                     'renting': item.is_renting
-                }])
+                }, index=[len(coords)])])
         else:
-            coords = coords.append([{
+            coords = pd.concat([coords, pd.DataFrame({
                 'lat': item.address.y,
                 'long': item.address.x,
                 'balance': item.total_balance,
                 'employees': item.num_employees,
                 'taxes_paid': item.taxes_paid,
                 'profit': item.profit
-            }])
+            },
+                index=[len(coords)])])
 
     if family_factor:
         cols = ['savings', 'house_values', 'members']

@@ -323,11 +323,12 @@ class ConstructionFirm(Firm):
 
         # Finished, expend inputs
         # Remember: if inventory of products is expanded for more than 1, this needs adapting
-        paid = min(self.building[min_cost_idx]['cost'], self.inventory[0].quantity)
+        building_info = self.building[min_cost_idx]
+        paid = min(building_info['cost'], self.inventory[0].quantity)
         self.inventory[0].quantity -= paid
 
         # Choose random place in region
-        region = regions[self.building[min_cost_idx]['region']]
+        region = regions[building_info['region']]
         probability_urban = generator.seed_np.choice([True, False],
                                                      p=[generator.prob_urban(region),
                                                         (1 - generator.prob_urban(region))])
@@ -337,8 +338,8 @@ class ConstructionFirm(Firm):
             address = generator.get_random_points_in_polygon(region)[0]
         # Create the house
         house_id = generator.gen_id()
-        size = self.building[min_cost_idx]['size']
-        quality = self.building[min_cost_idx]['quality']
+        size = building_info['size']
+        quality = building_info['quality']
         price = (size * quality) * region.index
         h = House(house_id, address, size, price, region.id, quality, owner_id=self.id, owner_type=House.Owner.FIRM)
 

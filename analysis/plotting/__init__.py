@@ -12,7 +12,7 @@ from ..output import OUTPUT_DATA_SPEC
 mun_codes = pd.read_csv('input/names_and_codes_municipalities.csv', sep=';')
 mun_codes = dict(zip(mun_codes['cod_mun'], mun_codes['cod_name']))
 
-warnings.filterwarnings("ignore")
+# warnings.filterwarnings("ignore")
 try:
     plt.style.use('ggplot')
     plt.set_cmap('Spectral')
@@ -297,7 +297,7 @@ class Plotter:
         for name, fig in figs:
             fig.savefig(os.path.join(self.output_path,
                                      'temp_spatial_plot_{}_{}.{}'.format(name, text, conf.RUN['PLOT_FORMAT'])),
-                        format=conf.RUN['PLOT_FORMAT'], close=True, verbose=True, dpi=600)
+                        format=conf.RUN['PLOT_FORMAT'], dpi=600)
             # Reset figure
             plt.close(fig)
         return plt
