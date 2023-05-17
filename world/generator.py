@@ -133,7 +133,6 @@ class Generator:
         return my_agents, my_houses, my_families, my_firms
 
     def create_agents(self, region):
-        v_qual = np.vectorize(self.qual)
         agents = {}
         pops = self.sim.pops
         pop_cols = list(list(pops.values())[0].columns)
@@ -150,13 +149,14 @@ class Generator:
                 code = region.id
                 pop = pop_age_data(pops[gender], code, age, self.sim.PARAMS['PERCENTAGE_ACTUAL_POP'])
                 # To see a histogram of qualification check test:
-                qualifications = v_qual([code] * pop)
+                qualification = self.qual(code)
                 moneys = self.seed_np.randint(1, 34, size=pop)
                 months = self.seed_np.randint(1, 13, size=pop)
+                ages = self.seed_np.randint(list_of_possible_ages[(list_of_possible_ages.index(age, ) - 1)] + 1, age,
+                                            size=pop)
                 for i in range(pop):
-                    r_age = self.seed.randint(list_of_possible_ages[(list_of_possible_ages.index(age, ) - 1)] + 1, age)
                     agent_id = self.gen_id()
-                    a = Agent(agent_id, gender, r_age, qualifications[i], moneys[i], months[i])
+                    a = Agent(agent_id, gender, ages[i], qualification, moneys[i], months[i])
                     agents[agent_id] = a
         return agents
 
@@ -165,10 +165,10 @@ class Generator:
         agent population and creating clones of the sampled agents"""
         new_agents = {}
         sample = self.seed.sample(list(self.sim.agents.values()), n_agents)
-        for a in sample:
+        moneys = self.seed_np.randint(1, 34, size=len(sample))
+        for i, a in enumerate(sample):
             agent_id = self.gen_id()
-            money = self.seed.randrange(1, 34)
-            new_agent = Agent(agent_id, a.gender, a.age, a.qualification, money, a.month)
+            new_agent = Agent(agent_id, a.gender, a.age, a.qualification, moneys[i], a.month)
             new_agents[agent_id] = new_agent
         return new_agents
 
@@ -297,13 +297,13 @@ class Generator:
         sector = {}
         num_construction_firms = math.ceil(num_firms * self.sim.PARAMS['PERCENT_CONSTRUCTION_FIRMS'])
         addresses = self.get_random_points_in_polygon(region, number_addresses=num_firms)
+        balances = self.seed_np.beta(1.5, 10) * 10000
         for i in range(num_firms):
-            total_balance = self.seed.betavariate(1.5, 10) * 10000
             firm_id = self.gen_id()
             if i < num_construction_firms:
-                f = ConstructionFirm(firm_id, addresses[i], total_balance, region.id)
+                f = ConstructionFirm(firm_id, addresses[i], balances[i], region.id)
             else:
-                f = Firm(firm_id, addresses[i], total_balance, region.id)
+                f = Firm(firm_id, addresses[i], balances[i], region.id)
             sector[f.id] = f
         return sector
 
