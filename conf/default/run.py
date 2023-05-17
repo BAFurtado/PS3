@@ -3,7 +3,7 @@
 
 
 # OUTPUT_PATH = 'output'
-OUTPUT_PATH = r'\\STORAGE6\USUARIOS\# BERNARDO ALVES FURTADO #\MLSecondRunData'
+OUTPUT_PATH = r'output'
 
 KEEP_RANDOM_SEED = False
 

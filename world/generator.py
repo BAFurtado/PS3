@@ -11,7 +11,8 @@ import uuid
 
 import pandas as pd
 import shapely
-
+import geopandas as gpd
+from shapely.geometry import Point
 from agents import Agent, Family, Firm, ConstructionFirm, Region, House, Central
 from .firms import FirmData
 from .population import pop_age_data
@@ -27,6 +28,7 @@ class Generator:
     def __init__(self, sim):
         self.sim = sim
         self.seed = sim.seed
+        self.seed_np = sim.seed_np
         self.urban, self.shapes = prepare_shapes(sim.geo)
         self.firm_data = FirmData(self.sim.geo.year)
         self.central = Central('central')
@@ -198,33 +200,53 @@ class Generator:
                 family.add_agent(agent)
         return agents, families
 
-    # Addresses within the region
-    # Additional details so that address fall in urban areas, given percentage
-    def get_random_point_in_polygon(self, region, urban=True):
-        minx, miny, maxx, maxy = region.addresses.bounds
-        while True:
-            address = shapely.geometry.Point(self.seed.uniform(minx, maxx), self.seed.uniform(miny, maxy))
-            if urban:
-                mun_code = region.id[:7]
-                item = self.urban[mun_code]
-                if item.contains(address):
-                    return address
-            elif region.addresses.contains(address):
-                return address
+    def get_random_points_in_polygon(self, region, number_addresses=1, addresses=None):
+        """ Addresses within the region. Additional details so that address fall in urban areas, given percentage"""
+        if addresses is None:
+            addresses = list()
+        if hasattr(region, 'addresses'):
+            minx, miny, maxx, maxy = region.addresses.bounds
+            right_df = gpd.GeoDataFrame(index=[0], crs='epsg:4674', geometry=[region.addresses])
+        else:
+            minx, miny, maxx, maxy = region.bounds
+            right_df = gpd.GeoDataFrame(index=[0], crs='epsg:4674', geometry=[region])
+        # Number of points has to be large enough so that will have enough correct addresses.
+        x = self.seed_np.uniform(minx, maxx, number_addresses * 3)
+        y = self.seed_np.uniform(miny, maxy, number_addresses * 3)
+        data = pd.DataFrame()
+        data['points'] = list(zip(x, y))
+        data['points'] = data['points'].apply(Point)
+        gdf_points = gpd.GeoDataFrame(data, geometry='points', crs='epsg:4674')
+        sjoin = gpd.tools.sjoin(gdf_points, right_df, predicate='within', how='left')
+        addresses += sjoin.loc[sjoin.index_right >= 0, 'points'].tolist()
+        # TODO: check addresses is never less than needed
+        # Check to see if number has been reached
+        while len(addresses) < number_addresses:
+            addresses += self.get_random_points_in_polygon(region,
+                                                           number_addresses=(number_addresses - len(addresses)),
+                                                           addresses=addresses)
+        return addresses
 
-    def create_houses(self, num_houses, region):
+    def create_houses(self, num_houses, region, addresses=None):
         """Create houses for a region"""
+        if addresses is None:
+            addresses = list()
         neighborhood = {}
         probability_urban = self.prob_urban(region)
-        # TODO: vectorize get_random addresses
-        for _ in range(num_houses):
-            address = self.random_address(region, probability_urban)
+        if probability_urban:
+            urban_addresses = int(num_houses * probability_urban)
+            urban_region = self.urban[region.id[:7]]
+            addresses = self.get_random_points_in_polygon(urban_region, number_addresses=urban_addresses)
+        rural = int(num_houses * (1 - probability_urban))
+        if rural:
+            addresses.append(self.get_random_points_in_polygon(region, number_addresses=rural, addresses=addresses))
+        for i in range(num_houses):
             size = self.seed.randrange(20, 120)
             # Price is given by 4 quality levels
             quality = self.seed.choice([1, 2, 3, 4])
             price = size * quality * region.index
             house_id = self.gen_id()
-            h = House(house_id, address, size, price, region.id, quality)
+            h = House(house_id, addresses[i], size, price, region.id, quality)
             neighborhood[house_id] = h
         return neighborhood
 
@@ -236,10 +258,6 @@ class Generator:
         else:
             probability_urban = 0
         return probability_urban
-
-    def random_address(self, region, prob_urban):
-        urban = self.seed.random() < prob_urban
-        return self.get_random_point_in_polygon(region, urban=urban)
 
     def allocate_to_households(self, families, households):
         """Allocate houses to families"""
@@ -274,14 +292,14 @@ class Generator:
         # TODO: make get addresses vectorized using spatial join from geopandas
         sector = {}
         num_construction_firms = math.ceil(num_firms * self.sim.PARAMS['PERCENT_CONSTRUCTION_FIRMS'])
+        addresses = self.get_random_points_in_polygon(region, number_addresses=num_firms)
         for i in range(num_firms):
-            address = self.get_random_point_in_polygon(region)
             total_balance = self.seed.betavariate(1.5, 10) * 10000
             firm_id = self.gen_id()
             if i < num_construction_firms:
-                f = ConstructionFirm(firm_id, address, total_balance, region.id)
+                f = ConstructionFirm(firm_id, addresses[i], total_balance, region.id)
             else:
-                f = Firm(firm_id, address, total_balance, region.id)
+                f = Firm(firm_id, addresses[i], total_balance, region.id)
             sector[f.id] = f
         return sector
 

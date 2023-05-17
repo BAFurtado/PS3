@@ -30,6 +30,7 @@ class Simulation:
         self.logger = analysis.Logger(hex(id(self))[-5:])
         self._seed = random.randrange(sys.maxsize) if conf.RUN['KEEP_RANDOM_SEED'] else conf.RUN.get('SEED', 0)
         self.seed = random.Random(self._seed)
+        self.seed_np = np.random.RandomState(self._seed)
         self.generator = Generator(self)
 
         # Read necessary files
