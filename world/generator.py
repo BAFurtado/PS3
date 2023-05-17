@@ -10,9 +10,8 @@ import math
 import uuid
 
 import pandas as pd
-import shapely
 import geopandas as gpd
-from numpy import multiply
+import numpy as np
 from shapely.geometry import Point
 from agents import Agent, Family, Firm, ConstructionFirm, Region, House, Central
 from .firms import FirmData
@@ -134,6 +133,7 @@ class Generator:
         return my_agents, my_houses, my_families, my_firms
 
     def create_agents(self, region):
+        v_qual = np.vectorize(self.qual)
         agents = {}
         pops = self.sim.pops
         pop_cols = list(list(pops.values())[0].columns)
@@ -149,15 +149,14 @@ class Generator:
             for gender in ['male', 'female']:
                 code = region.id
                 pop = pop_age_data(pops[gender], code, age, self.sim.PARAMS['PERCENTAGE_ACTUAL_POP'])
-                for individual in range(pop):
-                    # Qualification
-                    # To see a histogram check test:
-                    qualification = self.qual(code)
+                # To see a histogram of qualification check test:
+                qualifications = v_qual([code] * pop)
+                moneys = self.seed_np.randint(1, 34, size=pop)
+                months = self.seed_np.randint(1, 13, size=pop)
+                for i in range(pop):
                     r_age = self.seed.randint(list_of_possible_ages[(list_of_possible_ages.index(age, ) - 1)] + 1, age)
-                    money = self.seed.randrange(1, 34)
-                    month = self.seed.randrange(1, 13, 1)
                     agent_id = self.gen_id()
-                    a = Agent(agent_id, gender, r_age, qualification, money, month)
+                    a = Agent(agent_id, gender, r_age, qualifications[i], moneys[i], months[i])
                     agents[agent_id] = a
         return agents
 
@@ -244,7 +243,7 @@ class Generator:
             addresses.append(self.get_random_points_in_polygon(region, number_addresses=rural, addresses=addresses))
         sizes = self.seed_np.randint(20, 121, size=num_houses)
         qualities = self.seed_np.choice([1, 2, 3, 4], size=num_houses)
-        prices = multiply(multiply(sizes, qualities), region.index)
+        prices = np.multiply(np.multiply(sizes, qualities), region.index)
         for i in range(num_houses):
             size = sizes[i]
             # Price is given by 4 quality levels
@@ -320,3 +319,4 @@ class Generator:
         if self.sim.geo.year == 2010:
             return int(self.years_study(loc))
         return int(loc)
+
