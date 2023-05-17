@@ -12,6 +12,7 @@ import uuid
 import pandas as pd
 import shapely
 import geopandas as gpd
+from numpy import multiply
 from shapely.geometry import Point
 from agents import Agent, Family, Firm, ConstructionFirm, Region, House, Central
 from .firms import FirmData
@@ -202,6 +203,7 @@ class Generator:
 
     def get_random_points_in_polygon(self, region, number_addresses=1, addresses=None):
         """ Addresses within the region. Additional details so that address fall in urban areas, given percentage"""
+        # TODO. Check all crs...
         if addresses is None:
             addresses = list()
         if hasattr(region, 'addresses'):
@@ -240,11 +242,14 @@ class Generator:
         rural = int(num_houses * (1 - probability_urban))
         if rural:
             addresses.append(self.get_random_points_in_polygon(region, number_addresses=rural, addresses=addresses))
+        sizes = self.seed_np.randint(20, 121, size=num_houses)
+        qualities = self.seed_np.choice([1, 2, 3, 4], size=num_houses)
+        prices = multiply(multiply(sizes, qualities), region.index)
         for i in range(num_houses):
-            size = self.seed.randrange(20, 120)
+            size = sizes[i]
             # Price is given by 4 quality levels
-            quality = self.seed.choice([1, 2, 3, 4])
-            price = size * quality * region.index
+            quality = qualities[i]
+            price = prices[i]
             house_id = self.gen_id()
             h = House(house_id, addresses[i], size, price, region.id, quality)
             neighborhood[house_id] = h
