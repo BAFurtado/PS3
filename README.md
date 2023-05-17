@@ -2,7 +2,7 @@
 ## Enhancements and Improvements in PolicySpace2
 
 ### Changes made in this version
-1. 
+1. Addresses chosen with spatial join (instead of individually). Enhancement: faster run
 
 ------
 ``` python 3.9```

@@ -328,9 +328,13 @@ class ConstructionFirm(Firm):
 
         # Choose random place in region
         region = regions[self.building[min_cost_idx]['region']]
-        probability_urban = generator.prob_urban(region)
-        address = generator.random_address(region, probability_urban)
-
+        probability_urban = generator.seed_np.choice([True, False],
+                                                     p=[generator.prob_urban(region),
+                                                        (1 - generator.prob_urban(region))])
+        if probability_urban:
+            address = generator.get_random_points_in_polygon(generator.urban[region.id[:7]])[0]
+        else:
+            address = generator.get_random_points_in_polygon(region)[0]
         # Create the house
         house_id = generator.gen_id()
         size = self.building[min_cost_idx]['size']
