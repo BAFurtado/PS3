@@ -73,7 +73,7 @@ class Simulation:
         else:
             self.logger.logger.info('Loading existing agents')
             with open(save_file, 'rb') as f:
-                 agents, houses, families, firms, regions = pickle.load(f)
+                agents, houses, families, firms, regions = pickle.load(f)
 
         # Count populations for each municipality and region
         self.mun_pops = {}
@@ -212,7 +212,7 @@ class Simulation:
         for firm in self.firms.values():
             firm.present = self.clock
             firm.amount_sold = 0
-            if firm.type is not 'CONSTRUCTION':
+            if firm.type != 'CONSTRUCTION':
                 firm.revenue = 0
 
         # FAMILIES CONSUMPTION -- using payment received from previous month

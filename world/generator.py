@@ -202,22 +202,20 @@ class Generator:
 
     def get_random_points_in_polygon(self, region, number_addresses=1, addresses=None):
         """ Addresses within the region. Additional details so that address fall in urban areas, given percentage"""
-        # TODO. Check all crs...
-        # TODO. Check all self.random
         if addresses is None:
             addresses = list()
         if hasattr(region, 'addresses'):
             minx, miny, maxx, maxy = region.addresses.bounds
-            right_df = gpd.GeoDataFrame(index=[0], crs='epsg:4674', geometry=[region.addresses])
+            right_df = gpd.GeoDataFrame(index=[0], crs='epsg:4326', geometry=[region.addresses])
         else:
             minx, miny, maxx, maxy = region.bounds
-            right_df = gpd.GeoDataFrame(index=[0], crs='epsg:4674', geometry=[region])
+            right_df = gpd.GeoDataFrame(index=[0], crs='epsg:4326', geometry=[region])
         # Number of points has to be large enough so that will have enough correct addresses.
         x = self.seed_np.uniform(minx, maxx, number_addresses * 3)
         y = self.seed_np.uniform(miny, maxy, number_addresses * 3)
         data = pd.DataFrame()
         data['points'] = [Point(coord) for coord in zip(x, y)]
-        gdf_points = gpd.GeoDataFrame(data, geometry='points', crs='epsg:4674')
+        gdf_points = gpd.GeoDataFrame(data, geometry='points', crs='epsg:4326')
         sjoin = gpd.tools.sjoin(gdf_points, right_df, predicate='within', how='left')
         addresses += sjoin.loc[sjoin.index_right >= 0, 'points'].tolist()
         # Check to see if number has been reached
