@@ -197,7 +197,7 @@ class Generator:
                 family.add_agent(agent)
         return agents, families
 
-    def get_random_points_in_polygon(self, region, number_addresses=1, addresses=None):
+    def get_random_points_in_polygon(self, region, number_addresses=1, addresses=None, multiplier=3):
         """ Addresses within the region. Additional details so that address fall in urban areas, given percentage"""
         if addresses is None:
             addresses = list()
@@ -208,8 +208,8 @@ class Generator:
             minx, miny, maxx, maxy = region.bounds
             right_df = gpd.GeoDataFrame(index=[0], crs='epsg:4326', geometry=[region])
         # Number of points has to be large enough so that will have enough correct addresses.
-        x = self.seed_np.uniform(minx, maxx, number_addresses * 3)
-        y = self.seed_np.uniform(miny, maxy, number_addresses * 3)
+        x = self.seed_np.uniform(minx, maxx, number_addresses * multiplier)
+        y = self.seed_np.uniform(miny, maxy, number_addresses * multiplier)
         data = pd.DataFrame()
         data['points'] = [Point(coord) for coord in zip(x, y)]
         gdf_points = gpd.GeoDataFrame(data, geometry='points', crs='epsg:4326')
@@ -219,7 +219,8 @@ class Generator:
         while len(addresses) < number_addresses:
             addresses += self.get_random_points_in_polygon(region,
                                                            number_addresses=(number_addresses - len(addresses)),
-                                                           addresses=addresses)
+                                                           addresses=addresses,
+                                                           multiplier=multiplier * multiplier)
         return addresses
 
     def create_houses(self, num_houses, region, addresses=None):
