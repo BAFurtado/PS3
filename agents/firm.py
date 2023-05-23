@@ -289,7 +289,7 @@ class ConstructionFirm(Firm):
         if not regions:
             return
 
-        # Choose region with highest profitability
+        # Choose region with the highest profitability
         region = max(regions, key=lambda rp: rp[1])[0]
         idx = len(self.building)
         self.building[idx]['region'] = region.id
@@ -319,7 +319,8 @@ class ConstructionFirm(Firm):
         if not min_cost_idx:
             return
         else:
-            min_cost_idx = min_cost_idx[0]
+            # Choose a random house that you can build and built it at once.
+            min_cost_idx = generator.seed.choice(min_cost_idx)
 
         # Finished, expend inputs
         # Remember: if inventory of products is expanded for more than 1, this needs adapting
@@ -342,6 +343,9 @@ class ConstructionFirm(Firm):
         quality = building_info['quality']
         price = (size * quality) * region.index
         h = House(house_id, address, size, price, region.id, quality, owner_id=self.id, owner_type=House.Owner.FIRM)
+
+        # Archive the register of the completed house
+        del self.building[min_cost_idx]
 
         # Register accomplishments within firms' house inventory
         self.houses_built.append(h)

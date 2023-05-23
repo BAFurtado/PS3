@@ -167,6 +167,13 @@ Example:
 python main.py -c 2 -n 10 run
 ```
 
+#### Running tests
+
+A few tests are implemented in `tests.py`. You may run them as: 
+```angular2html
+python tests.py
+```
+
 #### Sensitivity analysis
 
 Runs simulation over a range of values for a specific parameter. For continuous parameters, the syntax is
@@ -244,7 +251,9 @@ python main.py make_plots
 
 ### Running the web interface
 
-There is a preliminary web interface in development.
+There is a preliminary web interface in development. 
+
+I have not checked this interface in quite some time.
 
 To run the server:
 

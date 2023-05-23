@@ -19,11 +19,11 @@ TIME_TO_BE_ELIMINATED = .05
 
 # Saving adjustments
 # If you save_plots (in a multiple run), you need AVERAGE_DATA = ['stats'] below!
-SAVE_PLOTS_FIGURES = False
+SAVE_PLOTS_FIGURES = True
 
 # If plots should be generated separately for each simulation run or just aggregated
 # When PLOT_EACH_RUN is True, DATA for banks, construction, firms, regional, stats are also SAVED
-# *be aware of theirs sizes*
+#                       ***be aware of theirs sizes***
 PLOT_EACH_RUN = False
 # Spatial plots only works when PLOT_EACH_RUN is True
 SAVE_SPATIAL_PLOTS = False
@@ -32,7 +32,7 @@ PLOT_FORMAT = 'png'
 PLOT_REGIONAL = False
 
 # Plot DPI. Lower ones will plot faster
-PLOT_DPI = 600
+PLOT_DPI = 300
 
 # Save Agents data 'MONTHLY' or 'QUARTERLY', 'ANNUALLY', or None
 SAVE_AGENTS_DATA = 'MONTHLY'
