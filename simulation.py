@@ -65,6 +65,7 @@ class Simulation:
         save_file = '{}.agents'.format(self.output.save_name)
         if not os.path.isfile(save_file) or conf.RUN['FORCE_NEW_POPULATION']:
             self.logger.logger.info('Creating new agents')
+            # Key moment when creation of agents happen!
             regions = self.generator.create_regions()
             agents, houses, families, firms = self.generator.create_all(regions)
             agents = {a: agents[a] for a in agents.keys() if agents[a].address is not None}
@@ -98,7 +99,9 @@ class Simulation:
         self.logger.logger.info('Seed: {}'.format(self._seed))
 
         self.logger.logger.info('Running...')
-        while self.clock.days < self.PARAMS['STARTING_DAY'] + datetime.timedelta(days=self.PARAMS['TOTAL_DAYS']):
+        starting_day = self.PARAMS['STARTING_DAY']
+        total_days = self.PARAMS['TOTAL_DAYS']
+        while self.clock.days < starting_day + datetime.timedelta(days=total_days):
             self.daily()
             if self.clock.months == 1 and conf.RUN['SAVE_TRANSIT_DATA']:
                 self.output.save_transit_data(self, 'start')
@@ -143,13 +146,13 @@ class Simulation:
 
         # First jobs allocated
         # Create an existing job market
-        # Leave only 5% residual unemployment as of simulation starts
         self.labor_market.look_for_jobs(self.agents)
         total = actual = self.labor_market.num_candidates
         actual_unemployment = self.stats.global_unemployment_rate / 100
         # Simple average of 6 Metropolitan regions Brazil January 2000
+        labor_market_param = self.PARAMS['LABOR_MARKET']
         while actual / total > .086:
-            self.labor_market.hire_fire(self.firms, self.PARAMS['LABOR_MARKET'])
+            self.labor_market.hire_fire(self.firms, labor_market_param)
             self.labor_market.assign_post(actual_unemployment, None, self.PARAMS)
             self.labor_market.look_for_jobs(self.agents)
             actual = self.labor_market.num_candidates
@@ -171,19 +174,21 @@ class Simulation:
         current_unemployment = self.stats.global_unemployment_rate / 100
 
         # Create new land licenses
+        licenses_per_region = self.PARAMS['T_LICENSES_PER_REGION']
         for region in self.regions.values():
-            if self.PARAMS['T_LICENSES_PER_REGION'] == 'random':
+            if licenses_per_region == 'random':
                 region.licenses += self.seed.choice([True, False])
             else:
-                region.licenses += self.PARAMS['T_LICENSES_PER_REGION']
+                region.licenses += licenses_per_region
 
         # Create new firms according to average historical growth
         firm_growth(self)
 
         # Update firm products
+        prod_exponent = self.PARAMS['PRODUCTIVITY_EXPONENT']
+        prod_magnitude_divisor = self.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR']
         for firm in self.firms.values():
-            firm.update_product_quantity(self.PARAMS['PRODUCTIVITY_EXPONENT'],
-                                         self.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR'])
+            firm.update_product_quantity(prod_exponent, prod_magnitude_divisor)
 
         # Call demographics
         # Update agent life cycles
@@ -224,18 +229,24 @@ class Simulation:
         self.central.collect_loan_payments(self)
 
         # FIRMS
+        # Accessing dictionary parameters outside the loop for performance
+        tax_labor = self.PARAMS['TAX_LABOR']
+        tax_firm = self.PARAMS['TAX_FIRM']
+        wage_ignore = self.PARAMS['WAGE_IGNORE_UNEMPLOYMENT']
+        sticky = self.PARAMS['STICKY_PRICES']
+        markup = self.PARAMS['MARKUP']
         for firm in self.firms.values():
             # Tax workers when paying salaries
             firm.make_payment(self.regions, current_unemployment,
-                              self.PARAMS['PRODUCTIVITY_EXPONENT'],
-                              self.PARAMS['TAX_LABOR'],
-                              self.PARAMS['WAGE_IGNORE_UNEMPLOYMENT'])
+                              prod_exponent,
+                              tax_labor,
+                              wage_ignore)
             # Tax firms before profits: (revenue - salaries paid)
-            firm.pay_taxes(self.regions, self.PARAMS['TAX_FIRM'])
+            firm.pay_taxes(self.regions, tax_firm)
             # Profits are after taxes
             firm.calculate_profit()
             # Check whether it is necessary to update prices
-            firm.update_prices(self.PARAMS['STICKY_PRICES'], self.PARAMS['MARKUP'], self.seed)
+            firm.update_prices(sticky, markup, self.seed)
 
         # Construction firms
         vacancy = self.stats.calculate_house_vacancy(self.houses, False)

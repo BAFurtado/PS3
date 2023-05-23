@@ -1,9 +1,8 @@
 """
-This is the module that uses input data to generate the artificial entities (instances)
-used in the model. First, regions - the actual municipalities - are created using
-shapefile input of real limits and real urban/rural areas.
-Then, Agents are created and bundled into families, given population measures.
-Then, houses and firms are created and families are allocated to their first houses.
+This is the module that uses input data to generate the artificial agent entities (instances) used in the model.
+First, regions - the actual municipalities - are created using shapefile input of real limits and real urban/rural
+areas. Then, Agents are created and bundled into families, given population measures. Then, houses and firms are created
+and families are allocated to their first houses.
 """
 import logging
 import math
@@ -46,8 +45,7 @@ class Generator:
         return parameters[loc]
 
     def gen_id(self):
-        """Generate a random id that should
-        avoid collisions"""
+        """Generate a random id that should avoid collisions"""
         return str(uuid.uuid4())[:12]
 
     def create_regions(self):
@@ -64,8 +62,7 @@ class Generator:
         return regions
 
     def create_all(self, regions):
-        """Based on regions and population data,
-        create agents, families, houses, and firms"""
+        """Based on regions and population data, create agents, families, houses, and firms"""
         my_agents = {}
         my_families = {}
         my_houses = {}
