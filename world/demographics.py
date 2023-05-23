@@ -7,34 +7,26 @@ from .population import marriage_data
 
 def check_demographics(sim, birthdays, year, mortality_men, mortality_women, fertility):
     """Agent life cycles: update agent ages, deaths, and births"""
-    births, deaths = [], 0
-    for age, agents in birthdays.items():
+    random_numbers = sim.seed_np.random(size=len(birthdays))
+    for i, (age, agents) in enumerate(birthdays.items()):
         age = age + 1
         prob_mort_m = mortality_men.get_group(age)[str(year)].iloc[0]
         prob_mort_f = mortality_women.get_group(age)[str(year)].iloc[0]
         if 14 < age < 50:
             p_pregnancy = fertility.get_group(age)[str(year)].iloc[0]
-
         for agent in agents:
             agent.age += 1
             agent.p_marriage = marriage_data.p_marriage(agent)
             if agent.gender == 'Male':
-                if sim.seed.random() < prob_mort_m:
+                if random_numbers[i] < prob_mort_m:
                     die(sim, agent)
-                    deaths += 1
-
             else:
                 if 14 < age < 50:
-                    child = pregnant(sim, agent, p_pregnancy)
-                    if child is not None:
-                        births.append(child)
-
+                    pregnant(sim, agent, p_pregnancy)
                 # Mortality procedures
                 # Extract specific agent data to calculate mortality 'Female'
-                if sim.seed.random() < prob_mort_f:
+                if random_numbers[i] < prob_mort_f:
                     die(sim, agent)
-                    deaths += 1
-    return births, deaths
 
 
 def birth(sim):
@@ -46,8 +38,7 @@ def birth(sim):
     month = sim.seed.randrange(1, 13, 1)
     gender = sim.seed.choice(['Male', 'Female'])
     sim.total_pop += 1
-    a = Agent((sim.total_pop - 1), gender, age, qualification, money, month)
-    return a
+    return Agent((sim.total_pop - 1), gender, age, qualification, money, month)
 
 
 def pregnant(sim, agent, p_pregnancy):
@@ -57,7 +48,6 @@ def pregnant(sim, agent, p_pregnancy):
         agent.family.add_agent(child)
         sim.agents[child.id] = child
         sim.update_pop(None, child.region_id)
-        return child
 
 
 def die(sim, agent):
