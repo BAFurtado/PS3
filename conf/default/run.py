@@ -19,7 +19,7 @@ TIME_TO_BE_ELIMINATED = .05
 
 # Saving adjustments
 # If you save_plots (in a multiple run), you need AVERAGE_DATA = ['stats'] below!
-SAVE_PLOTS_FIGURES = True
+SAVE_PLOTS_FIGURES = False
 
 # If plots should be generated separately for each simulation run or just aggregated
 # When PLOT_EACH_RUN is True, DATA for banks, construction, firms, regional, stats are also SAVED

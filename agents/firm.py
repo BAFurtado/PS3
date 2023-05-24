@@ -291,7 +291,7 @@ class ConstructionFirm(Firm):
 
         # Choose region with the highest profitability
         region = max(regions, key=lambda rp: rp[1])[0]
-        idx = len(self.building)
+        idx = max(self.building) + 1 if self.building else 0
         self.building[idx]['region'] = region.id
         self.building[idx]['size'] = building_size
         self.building[idx]['quality'] = building_quality
@@ -319,8 +319,8 @@ class ConstructionFirm(Firm):
         if not min_cost_idx:
             return
         else:
-            # Choose a random house that you can build and built it at once.
-            min_cost_idx = generator.seed.choice(min_cost_idx)
+            # Choose the house that entered earlier and for which there is enough material to instantaneously build.
+            min_cost_idx = min(min_cost_idx)
 
         # Finished, expend inputs
         # Remember: if inventory of products is expanded for more than 1, this needs adapting

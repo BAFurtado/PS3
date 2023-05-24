@@ -3,6 +3,8 @@
 
 ### Changes made in this version
 1. Addresses chosen with spatial join (instead of individually). Enhancement: faster run
+2. Fixed bug construction firm planning house
+3. Introduced new parameter to control for availability of lot space supply for construction
 
 ------
 ``` python 3.9```
