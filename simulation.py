@@ -174,12 +174,9 @@ class Simulation:
         current_unemployment = self.stats.global_unemployment_rate / 100
 
         # Create new land licenses
-        licenses_per_region = self.PARAMS['T_LICENSES_PER_REGION']
+        licenses_per_region = self.PARAMS['PERC_SUPPLY_SIZE_N_LICENSES_PER_REGION']
         for region in self.regions.values():
-            if licenses_per_region == 'random':
-                region.licenses += self.seed.choice([True, False])
-            else:
-                region.licenses += licenses_per_region
+            region.licenses += self.seed_np.choice([True, False], p=[licenses_per_region, 1 - licenses_per_region])
 
         # Create new firms according to average historical growth
         firm_growth(self)

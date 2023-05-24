@@ -191,7 +191,7 @@ class Plotter:
         to_plot = {
             'house_rent': {
                 'title': 'Mean rent value by month',
-                'name': 'rents'
+                'name': 'house_rents'
             },
             'total_wage': {
                 'title': 'Mean total wage by month',
@@ -200,10 +200,6 @@ class Plotter:
             'savings': {
                 'title': 'Mean savings by month',
                 'name': 'savings'
-            },
-            'renting': {
-                'title': 'Mean number of families that are renting by month',
-                'name': 'renting'
             }
         }
 
