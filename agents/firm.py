@@ -251,18 +251,18 @@ class ConstructionFirm(Firm):
         # Targets
         building_size = seed.lognormvariate(4.96, .5)
         b, c, d = .38, .3, .1
-        building_quality = seed_np.choice([2, 4, 6, 8], p=[1 - (b + c + d), b, c, d])
+        building_quality = seed_np.choice([1, 2, 3, 4], p=[1 - (b + c + d), b, c, d])
 
         # Get information about region house prices
         region_ids = [r.id for r in regions]
         region_prices = defaultdict(list)
         for h in houses:
             # In correct region
-            # within 10 size units,
-            # within 1 quality
+            # within 40 size units,
+            # within 2 quality
             if h.region_id in region_ids\
-                    and abs(h.size - building_size) <= 30 \
-                    and abs(h.quality - building_quality) <= 3:
+                    and abs(h.size - building_size) <= 40 \
+                    and abs(h.quality - building_quality) <= 2:
                 region_prices[h.region_id].append(h.price)
                 # Only take a sample
                 if len(region_prices[h.region_id]) > 100:

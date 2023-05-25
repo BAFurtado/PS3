@@ -8,7 +8,7 @@ PRODUCTIVITY_EXPONENT = .6
 PRODUCTIVITY_MAGNITUDE_DIVISOR = 12
 # GENERAL CALIBRATION PARAMETERS
 # Order of magnitude parameter of input into municipality investment
-MUNICIPAL_EFFICIENCY_MANAGEMENT = .0001
+MUNICIPAL_EFFICIENCY_MANAGEMENT = .00005
 # INTEREST. Choose either: 'nominal', 'real' or 'fixed'. Default 'real'
 INTEREST = 'real'
 
