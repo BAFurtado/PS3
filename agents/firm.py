@@ -226,9 +226,8 @@ class ConstructionFirm(Firm):
         self.cash_flow = defaultdict(float)
         self.planned_revenue = 0
 
-    def plan_house(self, regions, houses, params, seed, vacancy_prob):
-        """Decide where to build"""
-
+    def plan_house(self, regions, houses, params, seed, seed_np, vacancy_prob):
+        """Decide where to build with which attributes """
         # Check whether production capacity does not exceed hired construction
         # for the next construction cash flow period
         if self.building:
@@ -250,19 +249,20 @@ class ConstructionFirm(Firm):
                 return
 
         # Targets
-        building_size = seed.randrange(20, 120)
-        building_quality = seed.choice([1, 2, 3, 4])
+        building_size = seed.lognormvariate(4.96, .5)
+        b, c, d = .38, .3, .1
+        building_quality = seed_np.choice([2, 4, 6, 8], p=[1 - (b + c + d), b, c, d])
 
         # Get information about region house prices
         region_ids = [r.id for r in regions]
         region_prices = defaultdict(list)
         for h in houses:
-            # In correct region,
+            # In correct region
             # within 10 size units,
             # within 1 quality
             if h.region_id in region_ids\
-                    and abs(h.size - building_size) <= 10\
-                    and abs(h.quality - building_quality) <= 1:
+                    and abs(h.size - building_size) <= 30 \
+                    and abs(h.quality - building_quality) <= 3:
                 region_prices[h.region_id].append(h.price)
                 # Only take a sample
                 if len(region_prices[h.region_id]) > 100:

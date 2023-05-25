@@ -255,7 +255,8 @@ class Simulation:
                 vacancy_value = self.PARAMS['MAX_OFFER_DISCOUNT']
         for firm in self.construction_firms.values():
             # See if firm can build a house
-            firm.plan_house(self.regions.values(), self.houses.values(), self.PARAMS, self.seed, vacancy_value)
+            firm.plan_house(self.regions.values(), self.houses.values(), self.PARAMS, self.seed, self.seed_np,
+                            vacancy_value)
             # See whether a house has been completed. If so, register. Else, continue
             house = firm.build_house(self.regions, self.generator)
             if house is not None:
@@ -299,7 +300,7 @@ class Simulation:
         # Separate funds for region index update and separate for the policy case
         self.funds.invest_taxes(self.clock.year, bank_taxes)
 
-        # Apply policies if percentage is different than 0
+        # Apply policies if percentage is different from 0
         if self.PARAMS['POLICY_COEFFICIENT']:
             self.funds.apply_policies()
 

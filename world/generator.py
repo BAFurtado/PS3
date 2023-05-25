@@ -236,8 +236,11 @@ class Generator:
         rural = int(num_houses * (1 - probability_urban))
         if rural:
             addresses.append(self.get_random_points_in_polygon(region, number_addresses=rural, addresses=addresses))
-        sizes = self.seed_np.randint(20, 121, size=num_houses)
-        qualities = self.seed_np.choice([1, 2, 3, 4], size=num_houses)
+        # Distribution of house surface highly skilled to the right, given empirical data
+        sizes = self.seed_np.lognormal(np.log(143), .5, size=num_houses)
+        # Loose estimate of qualities in the universe
+        b, c, d = .38, .3, .1
+        qualities = self.seed_np.choice([2, 4, 6, 8], p=[1 - (b + c + d), b, c, d], size=num_houses)
         prices = np.multiply(np.multiply(sizes, qualities), region.index)
         for i in range(num_houses):
             size = sizes[i]
