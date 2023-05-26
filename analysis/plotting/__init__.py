@@ -50,22 +50,30 @@ class Plotter:
             # reset figure
             plt.close(fig)
 
-    def make_plot(self, datas, title, labels, y_label=None):
+    def make_plot(self, datas, title, labels, y_label=None, q1=None, q3=None):
         """Create plot based on input data"""
         # Annotate title with percentage of actual population used
         p_pop = self.params.get('PERCENTAGE_ACTUAL_POP', conf.PARAMS['PERCENTAGE_ACTUAL_POP'])
         title = '{}\nAgents : {}% of Population'.format(title, p_pop * 100)
 
-        for d in datas:
-            plot = d.plot()
+        fig, ax = plt.subplots()
+        if isinstance(q1, pd.Series):
+            idx = pd.to_datetime(datas[0].index)
+            ax.plot(idx, datas[0], color='red')
+            # ax.plot(idx, q1)
+            # ax.plot(idx, q3)
+            ax.fill_between(idx, q1, q3, alpha=0.2, color='red')
+            labels = ['mean', 'lower-upper bounds']
+        else:
+            for d in datas:
+                d.plot(ax=ax)
 
         # Create the plot
-        plot.legend(loc='best', ncol=3, fancybox=True, shadow=False, framealpha=.25, labels=labels)
-        plot.set_title(title)
-        plot.set_xlabel('Time')
+        ax.legend(loc='best', ncol=3, fancybox=True, shadow=False, framealpha=.25, labels=labels)
+        ax.set_title(title)
+        ax.set_xlabel('Time')
         if y_label is not None:
-            plot.set_ylabel(y_label)
-        fig = plot.get_figure()
+            ax.set_ylabel(y_label)
         fig.set_size_inches(15, 10)
         return fig
 
@@ -123,7 +131,13 @@ class Plotter:
             return self._prepare_data(os.path.join(self.run_paths[0], fname), spec['columns'])
 
     def plot_general(self):
+        dats_q1, dats_q3 = None, None
         labels, dats = self._load_multiple_runs('stats', 'temp_stats.csv')
+        if len(self.run_paths) > 1:
+            dats_q1 = self._prepare_data(os.path.join(self.avg[1], 'q1_temp_stats.csv'),
+                                         dats[0].columns).set_index('month')
+            dats_q3 = self._prepare_data(os.path.join(self.avg[1], 'q3_temp_stats.csv'),
+                                         dats[0].columns).set_index('month')
 
         cols = ['price_index', 'gdp_index', 'gdp_growth', 'unemployment', 'average_workers',
                 'families_median_wealth', 'families_wealth',
@@ -146,8 +160,12 @@ class Plotter:
 
         # General plotting
         dats = [d.set_index('month') for d in dats]
+
         for col, title in zip(cols, titles):
-            fig = self.make_plot([d[col] for d in dats], title, labels)
+            if isinstance(dats_q1, pd.DataFrame):
+                fig = self.make_plot([d[col] for d in dats], title, labels, q1=dats_q1[col], q3=dats_q3[col])
+            else:
+                fig = self.make_plot([d[col] for d in dats], title, labels)
             self.save_fig(fig, 'temp_general_{}'.format(title))
 
     def plot_banks(self):

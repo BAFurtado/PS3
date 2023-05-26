@@ -109,7 +109,7 @@ def multiple_runs(overrides, runs, cpus, output_dir, fix_seeds=False):
 
         # average run data and then plot
         runs = [p for p in glob('{}/*'.format(path)) if os.path.isdir(p)]
-        avg_path = average_run_data(path, avg=conf.RUN['AVERAGE_TYPE'])
+        avg_path = average_run_data(path, avg=conf.RUN['AVERAGE_TYPE'], n_runs=len(runs))
 
         # return result data, e.g. paths for plotting
         results.append({
@@ -139,7 +139,7 @@ def multiple_runs(overrides, runs, cpus, output_dir, fix_seeds=False):
     return results
 
 
-def average_run_data(path, avg='mean'):
+def average_run_data(path, avg='mean', n_runs=1):
     """Average the run data for a specified output path"""
     output_path = os.path.join(path, 'avg')
     os.makedirs(output_path)
@@ -173,9 +173,18 @@ def average_run_data(path, avg='mean'):
         dfg = df.groupby(spec['avg']['groupings'])
         dfg = dfg[avg_cols]
         df = getattr(dfg, avg)()
+        if n_runs > 1 and conf.RUN['SAVE_PLOTS_FIGURES']:
+            std = getattr(dfg, 'std')()
+            q1 = df - (2 * std)
+            q3 = df + (2 * std)
         # "ungroup" by
         df = df.reset_index()
         df.to_csv(os.path.join(output_path, fname), header=False, index=False, sep=';')
+        if n_runs > 1 and conf.RUN['SAVE_PLOTS_FIGURES']:
+            q1 = q1.reset_index()
+            q3 = q3.reset_index()
+            q1.to_csv(os.path.join(output_path, 'q1_{}'.format(fname)), header=False, index=False, sep=';')
+            q3.to_csv(os.path.join(output_path, 'q3_{}'.format(fname)), header=False, index=False, sep=';')
     return output_path
 
 

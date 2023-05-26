@@ -5,7 +5,7 @@
 # OUTPUT_PATH = 'output'
 OUTPUT_PATH = r'output'
 
-KEEP_RANDOM_SEED = False
+KEEP_RANDOM_SEED = True
 
 # Descriptive stats to plot evolution of age and qualification by municipality
 DESCRIPTIVE_STATS_CHOICE = False
@@ -53,7 +53,7 @@ SAVE_DATA = []
 # Notice that they are grouped by MONTH and MUNICIPALITY and some values may not make sense
 # Options: ['families', 'houses', 'agents]
 # You need to INCLUDE STATS to generate SPATIAL PLOTS. 'stats' also refer to general averaged plots
-AVERAGE_DATA = ['stats', 'regional', 'construction']
+AVERAGE_DATA = ['stats', 'regional']
 # 'median' or 'mean'
 AVERAGE_TYPE = 'mean'
 

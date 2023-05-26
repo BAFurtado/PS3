@@ -5,6 +5,7 @@ import os
 import pickle
 import random
 import sys
+import secrets
 from collections import defaultdict
 
 import numpy as np
@@ -28,7 +29,7 @@ class Simulation:
         self.output = analysis.Output(self, output_path)
         self.stats = analysis.Statistics()
         self.logger = analysis.Logger(hex(id(self))[-5:])
-        self._seed = random.randrange(sys.maxsize) if conf.RUN['KEEP_RANDOM_SEED'] else conf.RUN.get('SEED', 0)
+        self._seed = secrets.randbelow(2 ** 32) if conf.RUN['KEEP_RANDOM_SEED'] else conf.RUN.get('SEED', 0)
         self.seed = random.Random(self._seed)
         self.seed_np = np.random.RandomState(self._seed)
         self.generator = Generator(self)
