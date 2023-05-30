@@ -15,7 +15,7 @@ PRINT_STATISTICS_AND_RESULTS_DURING_PROCESS = True
 PRINT_FINAL_STATISTICS_ABOUT_AGENTS = False
 
 # Inform numbers in percentage of the period
-TIME_TO_BE_ELIMINATED = .05
+TIME_TO_BE_ELIMINATED = 0
 
 # Saving adjustments
 # If you save_plots (in a multiple run), you need AVERAGE_DATA = ['stats'] below!
@@ -53,7 +53,7 @@ SAVE_DATA = []
 # Notice that they are grouped by MONTH and MUNICIPALITY and some values may not make sense
 # Options: ['families', 'houses', 'agents]
 # You need to INCLUDE STATS to generate SPATIAL PLOTS. 'stats' also refer to general averaged plots
-AVERAGE_DATA = ['stats', 'regional']
+AVERAGE_DATA = ['stats', 'regional', 'banks']
 # 'median' or 'mean'
 AVERAGE_TYPE = 'mean'
 

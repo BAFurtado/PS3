@@ -9,15 +9,14 @@ This code was generated for research purposes only.
 It is licensed under GNU v3 license
 """
 import copy
+import datetime
+import itertools
 import json
 import logging
 import os
-import random
-import sys
+import secrets
 from collections import defaultdict
-import datetime
 from glob import glob
-import itertools
 from itertools import product
 
 import click
@@ -31,6 +30,7 @@ from analysis import report
 from analysis.output import OUTPUT_DATA_SPEC
 from analysis.plotting import Plotter, MissingDataError
 from simulation import Simulation
+
 # from web import app
 
 matplotlib.use('agg')
@@ -67,7 +67,7 @@ def multiple_runs(overrides, runs, cpus, output_dir, fix_seeds=False):
     logger.info('Running simulation {} times'.format(len(overrides) * runs))
 
     if fix_seeds:
-        seeds = [random.randrange(sys.maxsize) for _ in range(runs)]
+        seeds = [secrets.randbelow(2 ** 32) for _ in range(runs)]
     else:
         seeds = []
 
@@ -451,9 +451,9 @@ def make_plots(params):
         print('To plot internal maps: enter True after output directory')
 
 
-@main.command()
-def web():
-    app.run(debug=False)
+# @main.command()
+# def web():
+#     app.run(debug=False)
 
 
 if __name__ == '__main__':

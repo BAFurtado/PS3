@@ -28,7 +28,7 @@ class LaborMarket:
     def assign_post(self, unemployment, wage_deciles, params):
         """Rank positions by revenue. Make a match as workers considers mobility choices """
         pct_distance_hiring = params['PCT_DISTANCE_HIRING']
-        ignore_unemployment = params['WAGE_IGNORE_UNEMPLOYMENT']
+        relevance_unemployment = params['RELEVANCE_UNEMPLOYMENT_SALARIES']
 
         self.seed.shuffle(self.candidates)
         if wage_deciles is not None:
@@ -58,9 +58,9 @@ class LaborMarket:
 
         # Choosing by qualification
         # Firms paying higher wages first
-        by_qual = [(f, f.wage_base(unemployment, ignore_unemployment)) for f in by_qual]
+        by_qual = [(f, f.wage_base(unemployment, relevance_unemployment)) for f in by_qual]
         by_qual.sort(key=lambda p: p[1], reverse=True)
-        by_dist = [(f, f.wage_base(unemployment, ignore_unemployment)) for f in by_dist]
+        by_dist = [(f, f.wage_base(unemployment, relevance_unemployment)) for f in by_dist]
         by_dist.sort(key=lambda p: p[1], reverse=True)
 
         # Two matching processes. 1. By qualification 2. By distance only, if candidates left

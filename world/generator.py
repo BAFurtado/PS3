@@ -30,7 +30,7 @@ class Generator:
         self.seed_np = sim.seed_np
         self.urban, self.shapes = prepare_shapes(sim.geo)
         self.firm_data = FirmData(self.sim.geo.year)
-        self.central = Central('central')
+        self.central = Central('central', balance=0)
         single_ap_muns = pd.read_csv(f'input/single_aps_{self.sim.geo.year}.csv')
         self.single_ap_muns = single_ap_muns['mun_code'].tolist()
         self.quali = self.load_quali()

@@ -54,7 +54,6 @@ if __name__ == '__main__':
     c2 = 'python main.py -c 10 -n 20 sensitivity ' \
          'SIZE_MARKET:1:20:5 ' \
          'PCT_DISTANCE_HIRING:0:1:7 ' \
-         'WAGE_IGNORE_UNEMPLOYMENT ' \
          'HIRING_SAMPLE_SIZE:1:30:6 ' \
          'PUBLIC_TRANSIT_COST:0:.5:7 ' \
          'PRIVATE_TRANSIT_COST:0:.5:7 ' \

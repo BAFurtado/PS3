@@ -61,12 +61,12 @@ class Loan:
 class Central:
     """ The Central Bank
         Given a set rate of real interest rates, it provides capital remuneration
-        (internationally, exogenously provided for the moment)
+        (exogenously provided for the moment)
         """
 
-    def __init__(self, id_):
+    def __init__(self, id_, balance=0):
         self.id = id_
-        self.balance = 0
+        self.balance = balance
         self.interest = 0
         self.wallet = defaultdict(list)
         self.taxes = 0

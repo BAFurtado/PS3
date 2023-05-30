@@ -85,7 +85,7 @@ class Firm:
             for p in self.inventory.values():
                 # if the firm has sold more than available in stocks, prices rise
                 if self.amount_sold > self.total_quantity:
-                    p.price *= (1 + markup)
+                    p.price *= (1 + (seed.randint(0, int(2 * markup * 100)) / 100))
         self.prices = sum(p.price for p in self.inventory.values()) / len(self.inventory)
 
     def sale(self, amount, regions, tax_consumption):
@@ -149,18 +149,16 @@ class Firm:
     def total_qualification(self, alpha):
         return sum([employee.qualification ** alpha for employee in self.employees.values()])
 
-    def wage_base(self, unemployment, ignore_unemployment):
-        if not ignore_unemployment:
-            # Observing global economic performance has the added advantage of not spending all revenue on salaries
-            return self.revenue * (1 - unemployment)
-        else:
-            return self.revenue
+    def wage_base(self, unemployment, relevance_unemployment):
+        # Observing global economic performance to set salaries
+        # guarantees firms do not spend all revenue on salaries
+        return self.revenue * (1 - (unemployment * relevance_unemployment))
 
-    def make_payment(self, regions, unemployment, alpha, tax_labor, ignore_unemployment):
+    def make_payment(self, regions, unemployment, alpha, tax_labor, relevance_unemployment):
         """Pay employees based on revenue, relative employee qualification, labor taxes, and alpha param"""
         if self.employees:
             # Total salary, including labor taxes
-            total_salary_paid = self.wage_base(unemployment, ignore_unemployment=ignore_unemployment)
+            total_salary_paid = self.wage_base(unemployment, relevance_unemployment)
             if total_salary_paid > 0:
                 total_qualification = self.total_qualification(alpha)
                 for employee in self.employees.values():

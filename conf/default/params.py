@@ -3,7 +3,7 @@ import datetime
 # MODEL PARAMETERS
 # FIRMS
 # Production function, labour with decaying exponent, Alpha for K. [0, 1]
-PRODUCTIVITY_EXPONENT = .3
+PRODUCTIVITY_EXPONENT = .5
 # Order of magnitude correction of production. Production divided by parameter
 PRODUCTIVITY_MAGNITUDE_DIVISOR = 10
 # GENERAL CALIBRATION PARAMETERS
@@ -11,21 +11,18 @@ PRODUCTIVITY_MAGNITUDE_DIVISOR = 10
 MUNICIPAL_EFFICIENCY_MANAGEMENT = .00005
 # INTEREST. Choose either: 'nominal', 'real' or 'fixed'. Default 'real'
 INTEREST = 'real'
-
 # By how much percentage to increase prices
 MARKUP = 0.15
 # Frequency firms change prices. Probability > than parameter
-STICKY_PRICES = .5
+STICKY_PRICES = .8
 # Number of firms consulted before consumption
 SIZE_MARKET = 10
-
 # Frequency firms enter the market
-LABOR_MARKET = 0.75
-
+LABOR_MARKET = 0.9
 # Percentage of employees firms hired by distance
 PCT_DISTANCE_HIRING = .3
 # Ignore unemployment in wage base calculation
-WAGE_IGNORE_UNEMPLOYMENT = False
+RELEVANCE_UNEMPLOYMENT_SALARIES = 2
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 20
 
@@ -50,7 +47,7 @@ FPM_DISTRIBUTION = True
 
 # POVERTY POLICIES. If POLICY_COEFFICIENT=0, do nothing.
 # Size of the budget designated to the policy
-POLICY_COEFFICIENT = 0.2
+POLICY_COEFFICIENT = .2
 # Policies alternatives may include: 'buy', 'rent' or 'wage' or 'no_policy'. For no policy set to empty strings ''
 # POLICY_COEFFICIENT needs to be > 0.
 POLICIES = 'no_policy'
@@ -95,7 +92,7 @@ INITIAL_RENTAL_PRICE = .0025
 # LICENSES ARE URBANIZED LOTS AVAILABLE FOR CONSTRUCTION PER NEIGHBORHOOD PER MONTH.
 # Percentage of NEW licenses created monthly by region (neighborhood). Set to 0 for no licenses.
 # .5 is plenty of supply!
-PERC_SUPPLY_SIZE_N_LICENSES_PER_REGION = .3
+PERC_SUPPLY_SIZE_N_LICENSES_PER_REGION = .4
 PERCENT_CONSTRUCTION_FIRMS = 0.03
 # Months that construction firm will divide its income into monthly revenue installments.
 # Although prices are accounted for at once.
@@ -112,7 +109,7 @@ HOUSE_VACANCY = .1
 SIMPLIFY_POP_EVOLUTION = True
 # Defines the superior limit of age groups, the first value is always ZERO and is omitted from the list.
 LIST_NEW_AGE_GROUPS = [6, 12, 17, 25, 35, 45, 65, 100]
-MARRIAGE_CHECK_PROBABILITY = .034
+MARRIAGE_CHECK_PROBABILITY = .03
 
 # Consumption_equal: ratio of consumption tax distributed at state level (equal)
 # Fpm: ratio of 'labor' and 'firm' taxes distributed per the fpm ruling
@@ -173,4 +170,4 @@ PROCESSING_ACPS = ['BRASILIA']
 STARTING_DAY = datetime.date(2010, 1, 1)
 
 # Maximum running time (restrained by official data) is 30 years,
-TOTAL_DAYS = (datetime.date(2020, 1, 1) - STARTING_DAY).days
+TOTAL_DAYS = (datetime.date(2023, 1, 1) - STARTING_DAY).days

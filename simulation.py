@@ -230,7 +230,7 @@ class Simulation:
         # Accessing dictionary parameters outside the loop for performance
         tax_labor = self.PARAMS['TAX_LABOR']
         tax_firm = self.PARAMS['TAX_FIRM']
-        wage_ignore = self.PARAMS['WAGE_IGNORE_UNEMPLOYMENT']
+        relevance_unemployment = self.PARAMS['RELEVANCE_UNEMPLOYMENT_SALARIES']
         sticky = self.PARAMS['STICKY_PRICES']
         markup = self.PARAMS['MARKUP']
         for firm in self.firms.values():
@@ -238,7 +238,7 @@ class Simulation:
             firm.make_payment(self.regions, current_unemployment,
                               prod_exponent,
                               tax_labor,
-                              wage_ignore)
+                              relevance_unemployment)
             # Tax firms before profits: (revenue - salaries paid)
             firm.pay_taxes(self.regions, tax_firm)
             # Profits are after taxes

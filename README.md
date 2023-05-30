@@ -191,20 +191,12 @@ python main.py sensitivity ALPHA:0:1:7
 
 Will run the simulation once for each value `ALPHA=0`, `ALPHA=0.17`, `ALPHA=0.33`, ... `ALPHA=1`.
 
-Example:
-
-```
-python main.py sensitivity WAGE_IGNORE_UNEMPLOYMENT
-```
-
-Will run the simulation once for each value `WAGE_IGNORE_UNEMPLOYMENT=True` & `WAGE_IGNORE_UNEMPLOYMENT=False`.
-
 You can also set up multiple sensitivity runs at once.
 
 For example:
 
 ```
-python main.py sensitivity MARKUP:.05:.15:7 WAGE_IGNORE_UNEMPLOYMENT
+python main.py sensitivity MARKUP:.05:.15:7 PRODUCTIVITY_EXPONENT:.4:.6:3
 ```
 
 is equivalent to running the previous two examples in sequence.
