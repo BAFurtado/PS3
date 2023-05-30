@@ -133,7 +133,7 @@ class Plotter:
     def plot_general(self):
         dats_q1, dats_q3 = None, None
         labels, dats = self._load_multiple_runs('stats', 'temp_stats.csv')
-        if len(self.run_paths) > 1:
+        if len(self.run_paths) > 1 and self.avg:
             dats_q1 = self._prepare_data(os.path.join(self.avg[1], 'q1_temp_stats.csv'),
                                          dats[0].columns).set_index('month')
             dats_q3 = self._prepare_data(os.path.join(self.avg[1], 'q3_temp_stats.csv'),

@@ -3,9 +3,9 @@ import datetime
 # MODEL PARAMETERS
 # FIRMS
 # Production function, labour with decaying exponent, Alpha for K. [0, 1]
-PRODUCTIVITY_EXPONENT = .6
+PRODUCTIVITY_EXPONENT = .3
 # Order of magnitude correction of production. Production divided by parameter
-PRODUCTIVITY_MAGNITUDE_DIVISOR = 12
+PRODUCTIVITY_MAGNITUDE_DIVISOR = 10
 # GENERAL CALIBRATION PARAMETERS
 # Order of magnitude parameter of input into municipality investment
 MUNICIPAL_EFFICIENCY_MANAGEMENT = .00005
@@ -89,7 +89,7 @@ NEIGHBORHOOD_EFFECT = 3
 
 # RENTAL
 RENTAL_SHARE = 0.3
-INITIAL_RENTAL_PRICE = .0028
+INITIAL_RENTAL_PRICE = .0025
 
 # CONSTRUCTION
 # LICENSES ARE URBANIZED LOTS AVAILABLE FOR CONSTRUCTION PER NEIGHBORHOOD PER MONTH.
@@ -167,10 +167,10 @@ PUBLIC_TRANSIT_COST = 0.05
 PERCENTAGE_ACTUAL_POP = 0.01
 
 # Write exactly like the list above
-PROCESSING_ACPS = ['IPATINGA']
+PROCESSING_ACPS = ['BRASILIA']
 
 # Selecting the starting year to build the Agents, can be: 1991, 2000 or 2010
 STARTING_DAY = datetime.date(2010, 1, 1)
 
 # Maximum running time (restrained by official data) is 30 years,
-TOTAL_DAYS = (datetime.date(2013, 1, 1) - STARTING_DAY).days
+TOTAL_DAYS = (datetime.date(2020, 1, 1) - STARTING_DAY).days

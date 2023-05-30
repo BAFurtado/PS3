@@ -147,7 +147,7 @@ class Generator:
                 pop = pop_age_data(pops[gender], code, age, self.sim.PARAMS['PERCENTAGE_ACTUAL_POP'])
                 # To see a histogram of qualification check test:
                 qualification = self.qual(code)
-                moneys = self.seed_np.randint(1, 34, size=pop)
+                moneys = self.seed_np.lognormal(3, .5, size=pop)
                 months = self.seed_np.randint(1, 13, size=pop)
                 ages = self.seed_np.randint(list_of_possible_ages[(list_of_possible_ages.index(age, ) - 1)] + 1, age,
                                             size=pop)
@@ -162,7 +162,7 @@ class Generator:
         agent population and creating clones of the sampled agents"""
         new_agents = {}
         sample = self.seed.sample(list(self.sim.agents.values()), n_agents)
-        moneys = self.seed_np.randint(1, 34, size=len(sample))
+        moneys = self.seed_np.lognormal(3, .5, size=len(sample))
         for i, a in enumerate(sample):
             agent_id = self.gen_id()
             new_agent = Agent(agent_id, a.gender, a.age, a.qualification, moneys[i], a.month)

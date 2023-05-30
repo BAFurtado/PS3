@@ -5,6 +5,7 @@
 1. Addresses chosen with spatial join (instead of individually). Enhancement: faster run
 2. Fixed bug construction firm planning house
 3. Introduced new parameter to control for availability of lot space supply for construction
+4. Changed output figures to include lower-upper bound confidence intervals, instead of plotting all runs lines.
 
 ------
 ``` python 3.9```
