@@ -18,7 +18,7 @@ STICKY_PRICES = .8
 # Number of firms consulted before consumption
 SIZE_MARKET = 10
 # Frequency firms enter the market
-LABOR_MARKET = 0.5
+LABOR_MARKET = .25
 # Percentage of employees firms hired by distance
 PCT_DISTANCE_HIRING = .3
 # Ignore unemployment in wage base calculation

@@ -91,7 +91,7 @@ class RentalMarket:
         # When houses have not generated yet, at time 0
         except AttributeError:
             vacancy = 0
-        base_proportion = sim.PARAMS['INITIAL_RENTAL_PRICE']
+        base_proportion = sim.PARAMS['INITIAL_RENTAL_PRICE'] + (sim.seed.uniform(-1, 1) / 1000)
         self.update_list(sim, to_rent)
         if families:
             families.sort(key=lambda f: f.get_permanent_income(), reverse=True)
