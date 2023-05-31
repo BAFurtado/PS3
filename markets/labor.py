@@ -9,8 +9,9 @@ class LaborMarket:
     Lists are emptied every month.
     """
 
-    def __init__(self, seed):
+    def __init__(self, seed, seed_np):
         self.seed = seed
+        self.seed_np = seed_np
         self.available_postings = list()
         self.candidates = list()
 
@@ -113,12 +114,13 @@ class LaborMarket:
 
     def hire_fire(self, firms, firm_enter_freq):
         """Firms adjust their labor force based on profit"""
-        for firm in firms.values():
+        random_value = self.seed_np.random(size=len(firms.values()))
+        for i, firm in enumerate(firms.values()):
             # `firm_enter_freq` is the frequency firms enter the market
-            if self.seed.random() < firm_enter_freq:
-                if firm.profit >= 0:
+            if random_value[i] < firm_enter_freq:
+                if firm.profit > 0:
                     self.add_post(firm)
-                else:
+                elif firm.profit < 0:
                     firm.fire(self.seed)
 
     def __repr__(self):

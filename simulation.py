@@ -126,7 +126,7 @@ class Simulation:
         self.logger.logger.info('Initializing...')
         self.grave = []
 
-        self.labor_market = markets.LaborMarket(self.seed)
+        self.labor_market = markets.LaborMarket(self.seed, self.seed_np)
         self.housing = markets.HousingMarket()
         self.pops, self.total_pop = population.load_pops(self.geo.mun_codes, self.PARAMS, self.geo.year)
         self.regions, self.agents, self.houses, self.families, self.firms, self.central = self.generate()
@@ -149,7 +149,7 @@ class Simulation:
         # Create an existing job market
         self.labor_market.look_for_jobs(self.agents)
         total = actual = self.labor_market.num_candidates
-        actual_unemployment = self.stats.global_unemployment_rate / 100
+        actual_unemployment = self.stats.global_unemployment_rate
         # Simple average of 6 Metropolitan regions Brazil January 2000
         labor_market_param = self.PARAMS['LABOR_MARKET']
         while actual / total > .086:
@@ -172,7 +172,7 @@ class Simulation:
         m = self.interest[self.interest.index.date == self.clock.days]['mortgage'].iloc[0]
         self.central.set_interest(i, m)
 
-        current_unemployment = self.stats.global_unemployment_rate / 100
+        current_unemployment = self.stats.global_unemployment_rate
 
         # Create new land licenses
         licenses_per_region = self.PARAMS['PERC_SUPPLY_SIZE_N_LICENSES_PER_REGION']
