@@ -23,7 +23,7 @@ class Firm:
                  product_index=0,
                  amount_produced=0,
                  wages_paid=0,
-                 present=0,
+                 present=datetime.date(2000, 1, 1),
                  revenue=0,
                  taxes_paid=0,
                  prices=None):
@@ -42,6 +42,7 @@ class Firm:
         self.product_index = product_index
         self.amount_produced = amount_produced
         self.wages_paid = wages_paid
+        self.present = present
         self.revenue = revenue
         self.taxes_paid = taxes_paid
         self.prices = prices
@@ -222,7 +223,7 @@ class ConstructionFirm(Firm):
         self.houses_for_sale = []
         self.building = defaultdict(dict)
         self.cash_flow = defaultdict(float)
-        self.planned_revenue = 0
+        self.monthly_planned_revenue = 0
 
     def plan_house(self, regions, houses, params, seed, seed_np, vacancy_prob):
         """Decide where to build with which attributes """
@@ -297,8 +298,9 @@ class ConstructionFirm(Firm):
         # Product.quantity increases as construction moves forward and is deducted at once
         self.building[idx]['cost'] = building_cost * region.license_price
 
-        # Provide temporary cashflow revenue numbers before sales start to trickle in
-        self.planned_revenue += self.building[idx]['cost'] / params['CONSTRUCTION_ACC_CASH_FLOW']
+        # Provide temporary cashflow revenue numbers before sales start to trickle in.
+        # Additional value per month. Expectations of monthly payments before first sell
+        self.monthly_planned_revenue += self.building[idx]['cost'] / params['CONSTRUCTION_ACC_CASH_FLOW']
 
         # Buy license
         region.licenses -= 1
@@ -360,16 +362,13 @@ class ConstructionFirm(Firm):
                 self.cash_flow[date] += amount/acc_months
                 date += relativedelta.relativedelta(months=+1)
 
-    def wage_base(self, unemployment, ignore_unemployment, date=datetime.date(2000, 1, 1)):
-        self.revenue = self.cash_flow[date]
+    def wage_base(self, unemployment, relevance_unemployment):
+        self.revenue = self.cash_flow[self.present]
         # Using temporary planned income before money starts to flow in
         if self.revenue == 0:
-            self.revenue = self.planned_revenue
-        if not ignore_unemployment:
-            # Observing global economic performance has the added advantage of not spending all revenue on salaries
-            return self.revenue * (1 - unemployment)
-        else:
-            return self.revenue
+            self.revenue = self.monthly_planned_revenue
+        # Observing global economic performance has the added advantage of not spending all revenue on salaries
+        return self.revenue * (1 - (unemployment * relevance_unemployment))
 
     @property
     def n_houses_sold(self):
