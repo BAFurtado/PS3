@@ -48,13 +48,15 @@ class HousingMarket:
         # Order houses by price most expensive first
         # self.for_sale.sort(key=lambda h: h.price, reverse=True)
 
-    def housing_market(self, sim):
+    def housing_market(self, sim, avg_house_prices):
         """Start of the housing market"""
         # Select sample of families looking for houses at this time, given parameter, at the same time,
         # clear list of past houses for sale
-        looking = sim.seed.sample(list(sim.families.values()),
-                                  int(len(sim.families) * sim.PARAMS['PERCENTAGE_ENTERING_ESTATE_MARKET']))
-
+        # TODO. DELETE IF ALTERANTIVE WORKING. OLD EXOGENOUS PROCESS
+        # looking = sim.seed.sample(list(sim.families.values()),
+        #                           int(len(sim.families) * sim.PARAMS['PERCENTAGE_ENTERING_ESTATE_MARKET']))
+        # NEW TENTATIVE ENDOGENOUS PROCESS
+        looking = [f for f in sim.families.values if f.decision_enter_house_market(avg_house_prices)]
         # Update prices of all houses in the simulation and status 'on_market' or not
         self.update_for_sale(sim)
 

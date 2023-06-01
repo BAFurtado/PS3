@@ -286,7 +286,8 @@ class Simulation:
         # Tax transaction taxes (ITBI) when selling house
         # Property tax (IPTU) collected. One twelfth per month
         # self.central.calculate_monthly_mortgage_rate()
-        self.housing.housing_market(self)
+        house_prices = self.stats.calculate_house_price(self.houses)
+        self.housing.housing_market(self, house_prices)
         self.housing.process_monthly_rent(self)
         for house in self.houses.values():
             house.pay_property_tax(self)

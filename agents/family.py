@@ -11,6 +11,11 @@ class Family:
     - Setup family class
     - Relevant to distribute income among family members
     - Mobile, as it changes houses when in the housing market
+
+    # Families money:
+    1. balance is money just received from a month's salary of all members
+    2. savings is a short-time money kept within the family.
+    3. when savings exceed a six-month amount, it is deposited to perceive interest (central.wallet)
     """
 
     def __init__(self, _id,
@@ -122,6 +127,14 @@ class Family:
         return len([m for m in employable if m.firm_id is None])/len(employable) if employable else 0
 
     # Consumption ####################################################################################################
+    def decision_enter_house_market(self, avg_house_prices):
+        # In construction adding criteria
+        # 1. Needs to have short term reserve money
+        if self.savings == 0:
+            return False
+        # todo. continue.
+        # 2. Percentage employed? Renting?
+
     def to_consume(self, central, r, year, month):
         """Grabs all money from all members"""
         money = sum(m.grab_money() for m in self.members.values())

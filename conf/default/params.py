@@ -1,7 +1,8 @@
 import datetime
 
 # MODEL PARAMETERS
-# FIRMS
+
+# FIRMS #########################################################
 # Production function, labour with decaying exponent, Alpha for K. [0, 1]
 PRODUCTIVITY_EXPONENT = .5
 # Order of magnitude correction of production. Production divided by parameter
@@ -26,14 +27,14 @@ RELEVANCE_UNEMPLOYMENT_SALARIES = 2
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 10
 
-# TAXES
+# TAXES ##################################################################
 TAX_CONSUMPTION = .3
 TAX_LABOR = .15
 TAX_ESTATE_TRANSACTION = .005
 TAX_FIRM = .15
 TAX_PROPERTY = .005
 
-# GOVERNMENT
+# GOVERNMENT ####################################################################
 # ALTERNATIVE OF DISTRIBUTION OF TAXES COLLECTED. REPLICATING THE NOTION OF A COMMON POOL OF RESOURCES ################
 # Alternative0 is True, municipalities are just normal as INPUT
 # Alternative0 is False, municipalities are all together
@@ -45,6 +46,7 @@ FPM_DISTRIBUTION = True
 # fpm           TRUE,           FALSE,      TRUE,   FALSE
 # Results     fpm + eq. + loc,  locally,  fpm + eq,   eq
 
+# POLICIES #######################################################################
 # POVERTY POLICIES. If POLICY_COEFFICIENT=0, do nothing.
 # Size of the budget designated to the policy
 POLICY_COEFFICIENT = .2
@@ -54,8 +56,8 @@ POLICIES = 'no_policy'
 POLICY_DAYS = 360
 # Size of the poorest families to be helped
 POLICY_QUANTILE = .2
-# HOUSING AND REAL ESTATE MARKET
-# LOANS
+
+# LOANS ##############################################################################
 # Maximum age of borrower at the end of the contract
 MAX_LOAN_AGE = 75
 # Used to calculate monthly payment for the families, thus limiting maximum loan by number of months and age
@@ -63,14 +65,13 @@ LOAN_PAYMENT_TO_PERMANENT_INCOME = .6
 # Refers to the maximum loan monthly payment to total wealth
 # MAX_LOAN_PAYMENT_TO_WEALTH=.4
 # Refers to the maximum rate of the loan on the value of the estate
-MAX_LOAN_TO_VALUE = .6
-
+MAX_LOAN_TO_VALUE = .7
 # This parameter refers to the total amount of resources available at the bank.
 MAX_LOAN_BANK_PERCENT = .7
 
+# HOUSING AND REAL ESTATE MARKET #############################################################
 CAPPED_TOP_VALUE = 1.3
 CAPPED_LOW_VALUE = .7
-
 # Influence of vacancy size on house prices
 # It can be True or 1 or if construction companies consider vacancy strongly it might be 2 [1 - (vacancy * VALUE)]
 OFFER_SIZE_ON_PRICE = 2
@@ -84,12 +85,11 @@ MAX_OFFER_DISCOUNT = .6
 PERCENTAGE_ENTERING_ESTATE_MARKET = 0.0045
 NEIGHBORHOOD_EFFECT = 3
 
-# RENTAL
-
-RENTAL_SHARE = 0.3
+# RENTAL #######################
+RENTAL_SHARE = 0.2
 INITIAL_RENTAL_PRICE = .002
 
-# CONSTRUCTION
+# CONSTRUCTION #################################################################################
 # LICENSES ARE URBANIZED LOTS AVAILABLE FOR CONSTRUCTION PER NEIGHBORHOOD PER MONTH.
 # Percentage of NEW licenses created monthly by region (neighborhood). Set to 0 for no licenses.
 # .5 is plenty of supply!
@@ -100,18 +100,19 @@ PERCENT_CONSTRUCTION_FIRMS = 0.03
 CONSTRUCTION_ACC_CASH_FLOW = 24
 # Cost of lot in PERCENTAGE of construction
 LOT_COST = .15
-
-# Families run parameters (on average) for year 2000, or no information. 2010 uses APs average data
-MEMBERS_PER_FAMILY = 2.5
 # Initial percentage of vacant houses
 HOUSE_VACANCY = .1
 
+# POPULATION AND DEMOGRAPHY
+# Families run parameters (on average) for year 2000, or no information. 2010 uses APs average data
+MEMBERS_PER_FAMILY = 2.5
 # Definition to simplify population by group age groups(TRUE) or including all ages (FALSE)
 SIMPLIFY_POP_EVOLUTION = True
 # Defines the superior limit of age groups, the first value is always ZERO and is omitted from the list.
 LIST_NEW_AGE_GROUPS = [6, 12, 17, 25, 35, 45, 65, 100]
 MARRIAGE_CHECK_PROBABILITY = .03
 
+# TAXES #######################################################
 # Consumption_equal: ratio of consumption tax distributed at state level (equal)
 # Fpm: ratio of 'labor' and 'firm' taxes distributed per the fpm ruling
 TAXES_STRUCTURE = {'consumption_equal': .1875, 'fpm': .235}
@@ -160,6 +161,7 @@ PUBLIC_TRANSIT_COST = 0.05
 # "GO"     -      "GOIANIA", "BRASILIA"
 # "DF"     -      "BRASILIA"
 
+# RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation
 # Minimum value to run depends on the size of municipality 0,001 is recommended minimum
 PERCENTAGE_ACTUAL_POP = 0.01

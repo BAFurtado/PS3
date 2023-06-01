@@ -48,7 +48,9 @@ class Loan:
             else:
                 self.payment[i] -= amount
                 break
-        if sum(self.payment[:self.age]) > 0:
+        # Introducing 180 days (6 months) rule, before considering delinquent
+        month = self.age - 6 if self.age > 5 else 0
+        if sum(self.payment[:month]) > 0:
             self.delinquent = True
         else:
             self.delinquent = False
@@ -196,8 +198,9 @@ class Central:
         # Criteria related to consumer. Check payments fit last months' paycheck
         monthly_payment = self._max_monthly_payment(family)
         # Probability of giving loan depends on amount compared to family wealth. Credit check
-        if monthly_payment > family.total_wage():
-            return False
+        if family.last_permanent_income:
+            if monthly_payment > np.quantile(family.last_permanent_income, q=.3):
+                return False
 
         # Add loan balance
         # Create a new loan for the family
