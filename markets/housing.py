@@ -2,7 +2,10 @@
 This module is where the real estate market takes effect.
 Definitions on ownership and actual living residence is made.
 """
+from collections import defaultdict
+
 from numpy import median
+
 from .rentmarket import RentalMarket, collect_rent
 
 
@@ -53,8 +56,9 @@ class HousingMarket:
         # Endogenously select families entering market with a threshold set parameter
         # Criteria (family.py) include space, renting, jobs, enough savings
         threshold = int(len(sim.families) * sim.PARAMS['PERCENTAGE_ENTERING_ESTATE_MARKET'])
+        # Looking now is a tuple with family in position 0 and score of entering the house market 1
         looking = [(f, f.decision_enter_house_market(sim, house_price_quantiles)) for f in sim.families.values()]
-        looking = filter(lambda score: score[1] > 0, looking)
+        looking = [s for s in looking if s[1] > 0]
         looking = sorted(looking, key=lambda score: score[1], reverse=True)
         looking = [score[0] for score in looking]
         looking = looking[:threshold]
@@ -79,7 +83,8 @@ class HousingMarket:
             f.savings_with_loan = f.savings + f.bank_savings + sim.central.max_loan(f)[0]
 
         # Family with the largest savings
-        family_maximum_purchasing_power = looking[0].savings_with_loan
+        family_maximum_purchasing_power = max(looking, key=lambda family: family.savings_with_loan)
+        maximum_purchasing_power = family_maximum_purchasing_power.savings_with_loan
 
         # Only rent from families, not firms
         family_houses_for_rent = [h for h in self.for_sale if h.family_owner]
@@ -88,7 +93,7 @@ class HousingMarket:
 
         # Deduce houses that are to be rented from sales pool and
         # Restrict list of available houses to families' maximum paying ability
-        for_sale = [h for h in self.for_sale if (h not in for_rent) and (h.price < family_maximum_purchasing_power)]
+        for_sale = [h for h in self.for_sale if (h not in for_rent) and (h.price < maximum_purchasing_power)]
 
         # Create two (local) lists for those families that are Purchasing and those that are Renting
         if not for_sale:
@@ -100,10 +105,12 @@ class HousingMarket:
             # Renting families is a share of those moving. Both rich and poor may rent.
             # Rationale for decision on renting in the literature is dependent on loads of future uncertainties.
             renting = sim.seed.sample(looking, int(len(looking) * sim.PARAMS['RENTAL_SHARE']))
-            # The families that are not renting, want join the purchasing list
+            # The families that are not renting, want to join the purchasing list
             willing = [f for f in looking if f not in renting]
             # Minimum price on market
-            minimum_price = for_sale[-1].price
+            house_minimum_price = min(for_sale, key=lambda house: house.price)
+            minimum_price = house_minimum_price.price
+
             # However, families that cannot afford to buy, will also have to join the renting list...
             [renting.append(f) for f in willing if f.savings_with_loan < minimum_price]
             # ... and only those who remain will join the purchasing list
@@ -122,12 +129,22 @@ class HousingMarket:
     def sales_market(self, sim, purchasing, for_sale):
         # Proceed to Sales market ###########################################################
         vacancy = sim.stats.calculate_house_vacancy(sim.houses, False)
-        # For each family
+        # Separating purchasing families by house price distribution and assigning quality houses accordingly
+        purchasing_score_list = defaultdict(list)
         for family in purchasing:
-            self.negotiating(family, for_sale, sim, vacancy)
+            purchasing_score_list[family.quality_score].append(family)
+        for_sale_score_list = defaultdict(list)
+        for house in for_sale:
+            for_sale_score_list[house.quality].append(house)
+        # For each family
+        for key in purchasing_score_list:
+            for family in purchasing_score_list[key]:
+                # Sending a smaller list to negotiating with specific submarket
+                # (same quality as household savings distribution quantile)
+                self.negotiating(family, for_sale_score_list[key], sim, vacancy)
 
     def negotiating(self, family, for_sale, sim, vacancy):
-        savings = family.savings + sim.central.sum_deposits(family)
+        savings = family.savings + family.bank_savings
         savings_with_mortgage = family.savings_with_loan
         my_market = sim.seed.sample(for_sale, min(len(for_sale), int(sim.PARAMS['SIZE_MARKET']) * 3))
         my_market.sort(key=lambda h: h.price, reverse=True)
