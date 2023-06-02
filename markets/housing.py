@@ -48,15 +48,16 @@ class HousingMarket:
         # Order houses by price most expensive first
         # self.for_sale.sort(key=lambda h: h.price, reverse=True)
 
-    def housing_market(self, sim, avg_house_prices):
+    def housing_market(self, sim, house_price_quantiles):
         """Start of the housing market"""
-        # Select sample of families looking for houses at this time, given parameter, at the same time,
-        # clear list of past houses for sale
-        # TODO. DELETE IF ALTERANTIVE WORKING. OLD EXOGENOUS PROCESS
-        # looking = sim.seed.sample(list(sim.families.values()),
-        #                           int(len(sim.families) * sim.PARAMS['PERCENTAGE_ENTERING_ESTATE_MARKET']))
-        # NEW TENTATIVE ENDOGENOUS PROCESS
-        looking = [f for f in sim.families.values if f.decision_enter_house_market(avg_house_prices)]
+        # Endogenously select families entering market with a threshold set parameter
+        # Criteria (family.py) include space, renting, jobs, enough savings
+        threshold = int(len(sim.families) * sim.PARAMS['PERCENTAGE_ENTERING_ESTATE_MARKET'])
+        looking = [(f, f.decision_enter_house_market(sim, house_price_quantiles)) for f in sim.families.values()]
+        looking = filter(lambda score: score[1] > 0, looking)
+        looking = sorted(looking, key=lambda score: score[1], reverse=True)
+        looking = [score[0] for score in looking]
+        looking = looking[:threshold]
         # Update prices of all houses in the simulation and status 'on_market' or not
         self.update_for_sale(sim)
 
@@ -75,10 +76,7 @@ class HousingMarket:
 
         # Families check the bank for potential credit
         for f in looking:
-            f.savings_with_loan = f.savings + sim.central.sum_deposits(f) + sim.central.max_loan(f)[0]
-
-        # Sorting. Those with larger savings first
-        looking.sort(key=lambda fam: fam.savings_with_loan, reverse=True)
+            f.savings_with_loan = f.savings + f.bank_savings + sim.central.max_loan(f)[0]
 
         # Family with the largest savings
         family_maximum_purchasing_power = looking[0].savings_with_loan
@@ -106,7 +104,7 @@ class HousingMarket:
             willing = [f for f in looking if f not in renting]
             # Minimum price on market
             minimum_price = for_sale[-1].price
-            # However, families that cannot afford to buy, will have also have to join the renting list...
+            # However, families that cannot afford to buy, will also have to join the renting list...
             [renting.append(f) for f in willing if f.savings_with_loan < minimum_price]
             # ... and only those who remain will join the purchasing list
             purchasing = [f for f in willing if f not in renting]
