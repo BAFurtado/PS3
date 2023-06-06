@@ -153,7 +153,7 @@ class Simulation:
         # Simple average of 6 Metropolitan regions Brazil January 2000
         labor_market_param = self.PARAMS['LABOR_MARKET']
         while actual / total > .086:
-            self.labor_market.hire_fire(self.firms, labor_market_param)
+            self.labor_market.hire_fire(self.firms, labor_market_param, initialize=True)
             self.labor_market.assign_post(actual_unemployment, None, self.PARAMS)
             self.labor_market.look_for_jobs(self.agents)
             actual = self.labor_market.num_candidates

@@ -125,11 +125,13 @@ class HousingMarket:
                 willing[quality_key] = [f for f in purchasing[quality_key] if f not in renting[quality_key]]
 
                 # Minimum price on market
-                house_minimum_price = min(houses_to_sell_by_quality[quality_key], key=lambda h: h.price)
-                minimum_price = house_minimum_price.price
+                # Families that cannot afford to buy, will also have to join the renting list...
+                if houses_to_sell_by_quality[quality_key]:
+                    house_minimum_price = min(houses_to_sell_by_quality[quality_key], key=lambda h: h.price)
+                    minimum_price = house_minimum_price.price
+                    [renting[quality_key].append(f) for f in willing[quality_key] if
+                     f.savings_with_loan < minimum_price]
 
-                # However, families that cannot afford to buy, will also have to join the renting list...
-                [renting[quality_key].append(f) for f in willing[quality_key] if f.savings_with_loan < minimum_price]
                 # ... and only those who remain will join the purchasing list
                 purchasing[quality_key] = [f for f in willing[quality_key] if f not in renting[quality_key]]
 
@@ -256,12 +258,12 @@ class HousingMarket:
             # This puts the cheapest house first
             options.sort(key=lambda h: h.price, reverse=False)
             # If family does not live in the worst house, but nobody is employed, move to the worst house
-            prop_employed = family.prop_employed()
-            if options[0].family_id != family.id and prop_employed == 0:
+            prob_employed = family.get_prob_employed()
+            if options[0].family_id != family.id and prob_employed == 0:
                 self.make_move(family, options[0], sim)
 
             # Else if they live in the worst house, but at least one member is working, move to a better house
-            elif options[0].family_id == family.id and prop_employed > 0:
+            elif options[0].family_id == family.id and prob_employed > 0:
                 self.make_move(family, options[-1], sim)
 
     @staticmethod

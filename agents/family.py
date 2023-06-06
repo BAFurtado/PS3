@@ -127,7 +127,7 @@ class Family:
         self.last_permanent_income.append(r_1_r * t0 + r_1_r * (t0 / r) + self.get_wealth(bank) * r)
         return self.get_permanent_income()
 
-    def prop_employed(self):
+    def prob_employed(self):
         """Proportion of members that are employed"""
         employable = [m for m in self.members.values() if 16 < m.age < 70]
         self.probability_employed = len([m for m in employable if m.firm_id is None])/len(employable) \
@@ -152,10 +152,11 @@ class Family:
         available = self.savings + self.bank_savings
         self.quality_score = np.searchsorted(house_price_quantiles, available)
         # B. How many are employed?
+        prob_employed = self.prob_employed()
         # C. Is renting
         # D. Space constraint
         self.space_constraint = self.num_members / self.house.size * 3.5  # To approximate value to a range 0, 1
-        return self.is_renting + self.get_prob_employed() + self.space_constraint
+        return self.is_renting + prob_employed + self.space_constraint
 
     def to_consume(self, central, r, year, month):
         """Grabs all money from all members"""
@@ -207,10 +208,10 @@ class Family:
                 firm_strategy = seed.choice(['Price', 'Distance'])
 
                 if firm_strategy == 'Price':
-                    # Choose firm with cheapest average prices
+                    # Choose firm with the cheapest average prices
                     chosen_firm = min(market, key=lambda firm: firm.prices)
                 else:
-                    # Choose closest firm
+                    # Choose the closest firm
                     chosen_firm = min(market, key=lambda firm: self.house.distance_to_firm(firm))
 
                 # Buy from chosen company

@@ -223,7 +223,7 @@ class ConstructionFirm(Firm):
         self.houses_for_sale = []
         self.building = defaultdict(dict)
         self.cash_flow = defaultdict(float)
-        self.monthly_planned_revenue = 0
+        self.monthly_planned_revenue = list()
 
     def plan_house(self, regions, houses, params, seed, seed_np, vacancy_prob):
         """Decide where to build with which attributes """
@@ -300,7 +300,7 @@ class ConstructionFirm(Firm):
 
         # Provide temporary cashflow revenue numbers before sales start to trickle in.
         # Additional value per month. Expectations of monthly payments before first sell
-        self.monthly_planned_revenue += self.building[idx]['cost'] / params['CONSTRUCTION_ACC_CASH_FLOW']
+        self.monthly_planned_revenue.append(self.building[idx]['cost'] / params['CONSTRUCTION_ACC_CASH_FLOW'])
 
         # Buy license
         region.licenses -= 1
@@ -356,6 +356,7 @@ class ConstructionFirm(Firm):
     # Selling house
     def update_balance(self, amount, acc_months=None, date=datetime.date(2000, 1, 1)):
         self.total_balance += amount
+        self.amount_sold += amount
         if acc_months is not None:
             acc_months = int(acc_months)
             for i in range(acc_months):
@@ -365,8 +366,9 @@ class ConstructionFirm(Firm):
     def wage_base(self, unemployment, relevance_unemployment):
         self.revenue = self.cash_flow[self.present]
         # Using temporary planned income before money starts to flow in
-        if self.revenue == 0:
-            self.revenue = self.monthly_planned_revenue
+        if self.revenue == 0 and self.monthly_planned_revenue:
+            # Adding the last planned house income
+            self.revenue = self.monthly_planned_revenue[-1]
         # Observing global economic performance has the added advantage of not spending all revenue on salaries
         return self.revenue * (1 - (unemployment * relevance_unemployment))
 
