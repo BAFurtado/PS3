@@ -15,13 +15,13 @@ INTEREST = 'real'
 # By how much percentage to increase prices
 MARKUP = 0.15
 # Frequency firms change prices. Probability > than parameter
-STICKY_PRICES = .8
+STICKY_PRICES = .55
 # Number of firms consulted before consumption
 SIZE_MARKET = 10
 # Frequency firms enter the market
 LABOR_MARKET = .25
 # Percentage of employees firms hired by distance
-PCT_DISTANCE_HIRING = .3
+PCT_DISTANCE_HIRING = .4
 # Ignore unemployment in wage base calculation
 RELEVANCE_UNEMPLOYMENT_SALARIES = 2
 # Candidate sample size for the labor market
@@ -65,7 +65,7 @@ LOAN_PAYMENT_TO_PERMANENT_INCOME = .6
 # Refers to the maximum loan monthly payment to total wealth
 # MAX_LOAN_PAYMENT_TO_WEALTH=.4
 # Refers to the maximum rate of the loan on the value of the estate
-MAX_LOAN_TO_VALUE = .7
+MAX_LOAN_TO_VALUE = .5
 # This parameter refers to the total amount of resources available at the bank.
 MAX_LOAN_BANK_PERCENT = .7
 
@@ -82,19 +82,19 @@ ON_MARKET_DECAY_FACTOR = -.01
 # LOWER BOUND, THAT IS, AT LEAST 50% PERCENT OF VALUE WILL REMAIN AT END OF PERIOD, IF PARAMETER IS .5
 MAX_OFFER_DISCOUNT = .6
 # Percentage of households pursuing new location
-PERCENTAGE_ENTERING_ESTATE_MARKET = 0.0045
+PERCENTAGE_ENTERING_ESTATE_MARKET = 0.001
 NEIGHBORHOOD_EFFECT = 3
 
 # RENTAL #######################
 RENTAL_SHARE = 0.2
-INITIAL_RENTAL_PRICE = .002
+INITIAL_RENTAL_PRICE = .005
 
 # CONSTRUCTION #################################################################################
 # LICENSES ARE URBANIZED LOTS AVAILABLE FOR CONSTRUCTION PER NEIGHBORHOOD PER MONTH.
 # Percentage of NEW licenses created monthly by region (neighborhood). Set to 0 for no licenses.
 # .5 is plenty of supply!
 PERC_SUPPLY_SIZE_N_LICENSES_PER_REGION = .4
-PERCENT_CONSTRUCTION_FIRMS = 0.03
+PERCENT_CONSTRUCTION_FIRMS = 0.073
 # Months that construction firm will divide its income into monthly revenue installments.
 # Although prices are accounted for at once.
 CONSTRUCTION_ACC_CASH_FLOW = 24

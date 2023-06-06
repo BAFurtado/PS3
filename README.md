@@ -6,6 +6,8 @@
 2. Fixed bug construction firm planning house
 3. Introduced new parameter to control for availability of lot space supply for construction
 4. Changed output figures to include lower-upper bound confidence intervals, instead of plotting all runs lines.
+5. Sales and rental markets now use submarkets in quartiles by income distributions. 
+   Families in the lower income quartile search for houses in the lower quartile of quality
 
 ------
 ``` python 3.9```

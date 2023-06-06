@@ -239,8 +239,7 @@ class Generator:
         # Distribution of house surface highly skilled to the right, given empirical data
         sizes = self.seed_np.lognormal(np.log(143), .5, size=num_houses)
         # Loose estimate of qualities in the universe
-        b, c, d = .38, .3, .1
-        qualities = self.seed_np.choice([1, 2, 3, 4], p=[1 - (b + c + d), b, c, d], size=num_houses)
+        qualities = self.seed_np.choice([1, 2, 3, 4], p=[.25, .25, .25, .25], size=num_houses)
         prices = np.multiply(np.multiply(sizes, qualities), region.index)
         for i in range(num_houses):
             size = sizes[i]
