@@ -1,7 +1,5 @@
 import datetime
 
-import numpy as np
-
 
 class Family:
     """
@@ -13,21 +11,13 @@ class Family:
     - Setup family class
     - Relevant to distribute income among family members
     - Mobile, as it changes houses when in the housing market
-
-    # Families money:
-    1. balance is money just received from a month's salary of all members
-    2. savings is a short-time money kept within the family.
-    3. when savings exceed a six-month amount, it is deposited to perceive interest (central.wallet)
     """
 
     def __init__(self, _id,
                  balance=0,
                  savings=0,
                  house=None):
-        self.space_constraint = 0
-        self.quality_score = 0
-        self.bank_savings = 0
-        self.probability_employed = 0
+        self.have_loan = None
         self.id = _id
         self.balance = balance
         self.savings = savings
@@ -99,13 +89,14 @@ class Family:
         return s
 
     def get_wealth(self, bank):
-        """ Calculate current wealth, including real estate. """
+        """ Calculate current wealth, including real estate, debts, and bank savings. """
         estate_value = sum(h.price for h in self.owned_houses)
+        self.have_loan = bank.loans.get(self.id, [])
         return self.savings + estate_value + bank.sum_deposits(self) - bank.loan_balance(self.id)
 
     def invest(self, r, bank, y, m):
         # Savings are updated during consumption as the fraction of above permanent income that is not consumed
-        # If savings is above a six-month period reserve money, the surplus is invested in the bank.
+        # If savings are above a six-month period reserve money, the surplus is invested in the bank.
         reserve_money = self.get_permanent_income() * 6
         if self.savings > reserve_money > 0:
             bank.deposit(self, self.savings - reserve_money, datetime.date(y, m, 1))
@@ -121,79 +112,57 @@ class Family:
         # Equals Consumption (Bielefeld, 2018, pp.13-14)
         # Using last wage available as base for permanent income calculus: total_wage = Human Capital
         t0 = self.total_wage()
-        r_1_r = r/(1 + r)
+        r_1_r = r / (1 + r)
         # Calculated as "discounted sum of current income and expected future income" plus "financial wealth"
         # Perpetuity of income is a fraction (r_1_r) of income t0 divided by interest r
         self.last_permanent_income.append(r_1_r * t0 + r_1_r * (t0 / r) + self.get_wealth(bank) * r)
         return self.get_permanent_income()
 
-    def prob_employed(self):
+    def prop_employed(self):
         """Proportion of members that are employed"""
         employable = [m for m in self.members.values() if 16 < m.age < 70]
-        self.probability_employed = len([m for m in employable if m.firm_id is None])/len(employable) \
-            if employable else 0
-        return self.probability_employed
-
-    def get_prob_employed(self):
-        # To avoid calculating it twice in a month
-        return self.probability_employed
+        return len([m for m in employable if m.firm_id is None]) / len(employable) if employable else 0
 
     # Consumption ####################################################################################################
-    def decision_enter_house_market(self, sim, house_price_quantiles):
-        # In construction adding criteria: affordability, housing needs (renting), estability (jobs), space constraints?
-        # 1. Needs to have short term reserve money
-        if not self.savings:
-            return False
-        # 2. Needs to have some investment in the bank
-        self.bank_savings = sim.central.sum_deposits(self)
-        if not self.bank_savings:
-            return False
-        # Distinction on submarket. How much money available compared to housing prices distribution?
-        available = self.savings + self.bank_savings
-        self.quality_score = np.searchsorted(house_price_quantiles, available)
-        # B. How many are employed?
-        prob_employed = self.prob_employed()
-        # C. Is renting
-        # D. Space constraint
-        self.space_constraint = self.num_members / self.house.size * 3.5  # To approximate value to a range 0, 1
-        return self.is_renting + prob_employed + self.space_constraint
-
     def decision_on_consumption(self, central, r, year, month):
-        """Grabs all money from all members"""
+        """ Family consumes its permanent income, based on members' wages, real estate assets, and savings.
+        A. Separate expenses for renting, goods' consumption, education, banking loans, and investments in that order.
+         """
+        # 1. Grabs wages, money in wallet, from family members.
         money = sum(m.grab_money() for m in self.members.values())
+        # 2. Calculate permanent income
         permanent_income = self.permanent_income(central, r)
-        # Having loans will impact on a lower long-run permanent income consumption and on a monthly strongly
-        # reduction of consumption. However, the price of the house may be appreciating in the market.
-        # If cash at hand is positive consume it capped to permanent income
-        money_to_spend = None
-        if money > 0:
-            if money > permanent_income > 0:
-                money_to_spend = permanent_income
-                # Deposit family money above that of permanent income
-                self.savings += money - permanent_income
-            else:
-                money_to_spend = money
-        # If there is no cash available, withdraw at most permanent income from savings
-        elif self.savings > permanent_income > 0:
-            self.savings -= permanent_income
-            money_to_spend = permanent_income
-        elif self.savings > 0:
-            money_to_spend = self.savings
+        # Having loans will impact on a lower long-run permanent income consumption and on a monthly reduction on
+        # consumption. However, the price of the house may be appreciating in the market.
+        # 3. Total spending equals permanent income.
+        # 4. Total spending equals rent (if it is the case), education, loans, consumption.
+        # Determining the left over for consumption
+        expenses = permanent_income
+        if self.is_renting and not self.rent_voucher:
+            expenses -= self.house.rent_data[0]
+        if self.have_loan:
+            expenses -= self.have_loan
+
+        # Getting the funds
+        if money < expenses:
+            # If not enough, grab reserve money, savings which are not in the bank.
+            money += self.savings
             self.savings = 0
-        else:
-            # If there is no cash and no savings withdraw from any long-term deposits if any
+        if money < expenses:
+            # If still not enough, grab actual savings in the bank.
             if central.wallet[self]:
-                cash = self.grab_savings(central, year, month)
-                if cash > permanent_income:
-                    cash -= permanent_income
-                    money_to_spend = permanent_income
-                else:
-                    money_to_spend = cash
-        return money_to_spend
+                money += self.grab_savings(central, year, month)
+
+        # If we grabed more than planned
+        if money > 0:
+            if money >= expenses:
+                # Deposit money above that of expenses
+                self.savings += (money - expenses)
+
+        return expenses
 
     def consume(self, firms, central, regions, params, seed, year, month):
-        """Family general consumption depends on its permanent income, based on members wages, working life expectancy
-        and real estate and savings interest
+        """Consumption from goods and services firms, based on criteria of price or distance.
         """
         money_to_spend = self.decision_on_consumption(central, central.interest, year, month)
         # Decision on how much money to consume or save
@@ -234,7 +203,7 @@ class Family:
 
     def __repr__(self):
         return 'Family ID %s, House ID %s, Savings $ %.2f, Balance $ %.2f' % \
-               (self.id, self.house.id if self.house else None, self.savings, self.get_total_balance())
+            (self.id, self.house.id if self.house else None, self.savings, self.get_total_balance())
 
     @property
     def is_renting(self):

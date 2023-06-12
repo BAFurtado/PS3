@@ -18,6 +18,7 @@ class Statistics(object):
     The functions include average price of the firms, regional GDP - based on FIRMS' revenues, GDP per
     capita, unemployment, families' wealth, GINI, regional GINI and commuting information.
     """
+
     def __init__(self):
         self.previous_month_price = 0
         self.global_unemployment_rate = .05
@@ -76,9 +77,10 @@ class Statistics(object):
 
     def calculate_affordable_rent(self, families):
         affordable = np.sum([1 if family.is_renting
-                          and family.get_permanent_income() != 0
-                          and (family.house.rent_data[0] / family.get_permanent_income()) < .3 else 0
-                          for family in families.values()])
+                                  and family.get_permanent_income() != 0
+                                  and not family.rent_voucher
+                                  and (family.house.rent_data[0] / family.get_permanent_income()) > .3 else 0
+                             for family in families.values()])
         renting = np.sum([family.is_renting for family in families.values()])
         return affordable / renting
 
@@ -93,7 +95,7 @@ class Statistics(object):
 
     def update_unemployment(self, agents, global_u=False):
         employable = [m for m in agents if 16 < m.age < 70]
-        temp = len([m for m in employable if m.firm_id is None])/len(employable) if employable else 0
+        temp = len([m for m in employable if m.firm_id is None]) / len(employable) if employable else 0
         logger.info(f'Unemployment rate: {temp * 100:.2f}')
         if global_u:
             self.global_unemployment_rate = temp
@@ -114,7 +116,7 @@ class Statistics(object):
 
     def calculate_rent_default(self, families):
         return np.sum([1 for family in families.values() if family.rent_default == 1 and family.is_renting]) / \
-               np.sum([1 for family in families.values() if family.is_renting])
+            np.sum([1 for family in families.values() if family.is_renting])
 
     def calculate_firms_wealth(self, firms):
         return np.sum([firms[firm].total_balance for firm in firms.keys()])
@@ -178,7 +180,7 @@ class Statistics(object):
 
         average = 0
         for indices in mun_regions.values():
-            mun_qli = sum(indices)/len(indices)
+            mun_qli = sum(indices) / len(indices)
             average += mun_qli
         return average / len(mun_regions)
 
@@ -192,6 +194,6 @@ class Statistics(object):
         if gdp == 0:
             gdp_growth = 1
         else:
-            gdp_growth = ((gdp - _gdp)/gdp) * 100
+            gdp_growth = ((gdp - _gdp) / gdp) * 100
         logger.info('GDP index variation: {:.2f}%'.format(gdp_growth))
         return gdp, gdp_growth
