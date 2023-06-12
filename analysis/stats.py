@@ -79,7 +79,7 @@ class Statistics(object):
         affordable = np.sum([1 if family.is_renting
                                   and family.get_permanent_income() != 0
                                   and not family.rent_voucher
-                                  and (family.house.rent_data[0] / family.get_permanent_income()) > .3 else 0
+                                  and (family.house.rent_data[0] / family.get_permanent_income()) < .3 else 0
                              for family in families.values()])
         renting = np.sum([family.is_renting for family in families.values()])
         return affordable / renting

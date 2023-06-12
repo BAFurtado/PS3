@@ -132,7 +132,8 @@ class Family:
     def prob_employed(self):
         """Proportion of members that are employed"""
         employable = [m for m in self.members.values() if 16 < m.age < 70]
-        self.probability_employed = len([m for m in employable if m.firm_id is None])/len(employable) \
+        # Employed among those within age to be employed
+        self.probability_employed = len([m for m in employable if m.firm_id is not None])/len(employable) \
             if employable else 0
         return self.probability_employed
 
