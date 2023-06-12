@@ -113,6 +113,7 @@ class LaborMarket:
         self.candidates += [agent for agent in agents.values() if 16 < agent.age < 70 and agent.firm_id is None]
 
     def hire_fire(self, firms, firm_enter_freq, initialize=False):
+        # todo. introduce a more rigorous firm decision process
         """Firms adjust their labor force based on profit"""
         random_value = self.seed_np.random(size=len(firms.values()))
         # Speeding up process in initalizing round

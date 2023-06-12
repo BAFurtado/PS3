@@ -142,13 +142,13 @@ class Family:
     def decision_enter_house_market(self, sim, house_price_quantiles):
         # In construction adding criteria: affordability, housing needs (renting), estability (jobs), space constraints?
         # 1. Needs to have short term reserve money
-        if self.savings == 0:
+        if not self.savings:
             return False
         # 2. Needs to have some investment in the bank
         self.bank_savings = sim.central.sum_deposits(self)
         if not self.bank_savings:
             return False
-        # A. How much money available compared to housing prices distribution
+        # Distinction on submarket. How much money available compared to housing prices distribution?
         available = self.savings + self.bank_savings
         self.quality_score = np.searchsorted(house_price_quantiles, available)
         # B. How many are employed?
@@ -158,7 +158,7 @@ class Family:
         self.space_constraint = self.num_members / self.house.size * 3.5  # To approximate value to a range 0, 1
         return self.is_renting + prob_employed + self.space_constraint
 
-    def to_consume(self, central, r, year, month):
+    def decision_on_consumption(self, central, r, year, month):
         """Grabs all money from all members"""
         money = sum(m.grab_money() for m in self.members.values())
         permanent_income = self.permanent_income(central, r)
@@ -192,10 +192,10 @@ class Family:
         return money_to_spend
 
     def consume(self, firms, central, regions, params, seed, year, month):
-        """Family consumes its permanent income, based on members wages, working life expectancy
-        and real estate and savings real interest
+        """Family general consumption depends on its permanent income, based on members wages, working life expectancy
+        and real estate and savings interest
         """
-        money_to_spend = self.to_consume(central, central.interest, year, month)
+        money_to_spend = self.decision_on_consumption(central, central.interest, year, month)
         # Decision on how much money to consume or save
 
         if money_to_spend is not None:
