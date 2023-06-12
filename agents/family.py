@@ -1,5 +1,7 @@
 import datetime
 
+import numpy as np
+
 
 class Family:
     """
@@ -11,12 +13,21 @@ class Family:
     - Setup family class
     - Relevant to distribute income among family members
     - Mobile, as it changes houses when in the housing market
+
+    # Families money:
+    1. balance is money just received from a month's salary of all members
+    2. savings is a short-time money kept within the family.
+    3. when savings exceed a six-month amount, it is deposited to perceive interest (central.wallet)
     """
 
     def __init__(self, _id,
                  balance=0,
                  savings=0,
                  house=None):
+        self.space_constraint = 0
+        self.quality_score = 0
+        self.bank_savings = 0
+        self.probability_employed = 0
         self.have_loan = None
         self.id = _id
         self.balance = balance
@@ -118,12 +129,37 @@ class Family:
         self.last_permanent_income.append(r_1_r * t0 + r_1_r * (t0 / r) + self.get_wealth(bank) * r)
         return self.get_permanent_income()
 
-    def prop_employed(self):
+    def prob_employed(self):
         """Proportion of members that are employed"""
         employable = [m for m in self.members.values() if 16 < m.age < 70]
-        return len([m for m in employable if m.firm_id is None]) / len(employable) if employable else 0
+        self.probability_employed = len([m for m in employable if m.firm_id is None])/len(employable) \
+            if employable else 0
+        return self.probability_employed
+
+    def get_prob_employed(self):
+        # To avoid calculating it twice in a month
+        return self.probability_employed
 
     # Consumption ####################################################################################################
+    def decision_enter_house_market(self, sim, house_price_quantiles):
+        # In construction adding criteria: affordability, housing needs (renting), estability (jobs), space constraints?
+        # 1. Needs to have short term reserve money
+        if not self.savings:
+            return False
+        # 2. Needs to have some investment in the bank
+        self.bank_savings = sim.central.sum_deposits(self)
+        if not self.bank_savings:
+            return False
+        # Distinction on submarket. How much money available compared to housing prices distribution?
+        available = self.savings + self.bank_savings
+        self.quality_score = np.searchsorted(house_price_quantiles, available)
+        # B. How many are employed?
+        prob_employed = self.prob_employed()
+        # C. Is renting
+        # D. Space constraint
+        self.space_constraint = self.num_members / self.house.size * 3.5  # To approximate value to a range 0, 1
+        return self.is_renting + prob_employed + self.space_constraint
+
     def decision_on_consumption(self, central, r, year, month):
         """ Family consumes its permanent income, based on members' wages, real estate assets, and savings.
         A. Separate expenses for renting, goods' consumption, education, banking loans, and investments in that order.
@@ -163,6 +199,8 @@ class Family:
 
     def consume(self, firms, central, regions, params, seed, year, month):
         """Consumption from goods and services firms, based on criteria of price or distance.
+        Family general consumption depends on its permanent income, based on members wages, working life expectancy
+        and real estate and savings interest
         """
         money_to_spend = self.decision_on_consumption(central, central.interest, year, month)
         # Decision on how much money to consume or save
