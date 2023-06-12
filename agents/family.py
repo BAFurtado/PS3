@@ -172,12 +172,13 @@ class Family:
         # consumption. However, the price of the house may be appreciating in the market.
         # 3. Total spending equals permanent income.
         # 4. Total spending equals rent (if it is the case), education, loans, consumption.
-        # Determining the left over for consumption
+        # Determining the leftovers for consumption
         expenses = permanent_income
         if self.is_renting and not self.rent_voucher:
             expenses -= self.house.rent_data[0]
         if self.have_loan:
-            expenses -= self.have_loan
+            pass
+            # expenses -= self.have_loan
 
         # Getting the funds
         if money < expenses:

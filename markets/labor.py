@@ -116,9 +116,6 @@ class LaborMarket:
         # todo. introduce a more rigorous firm decision process
         """Firms adjust their labor force based on profit"""
         random_value = self.seed_np.random(size=len(firms.values()))
-        # Speeding up process in initalizing round
-        if initialize:
-            firm_enter_freq = 1
         for i, firm in enumerate(firms.values()):
             # `firm_enter_freq` is the frequency firms enter the market
             if random_value[i] < firm_enter_freq:
