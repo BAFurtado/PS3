@@ -174,31 +174,37 @@ class Family:
         # consumption. However, the price of the house may be appreciating in the market.
         # 3. Total spending equals permanent income.
         # 4. Total spending equals rent (if it is the case), education, loans, consumption.
-        # Determining the leftovers for consumption
-        expenses = permanent_income
+        rent, loan, consumption = 0, 0, 0
         if self.is_renting and not self.rent_voucher:
-            expenses -= self.house.rent_data[0]
+            rent = self.house.rent_data[0]
         if self.have_loan:
             # Reserve at least the amount for the due monthly payment
-            expenses -= self.have_loan[0].payment[self.have_loan[0].age]
+            loan = self.have_loan[0].payment[self.have_loan[0].age]
 
-        # Getting the funds
-        if money < expenses:
+        # Guard the cases that family expenses exceed resources
+        if money >= permanent_income:
+            consumption = permanent_income - rent - loan
+        # Getting extra funds
+        else:
             # If not enough, grab reserve money, savings which are not in the bank.
             money += self.savings
             self.savings = 0
-        if money < expenses:
-            # If still not enough, grab actual savings in the bank.
-            if central.wallet[self]:
-                money += self.grab_savings(central, year, month)
+            if money >= permanent_income - rent - loan:
+                consumption = permanent_income - rent - loan
+            else:
+                # If still not enough, grab actual savings in the bank.
+                if central.wallet[self]:
+                    money += self.grab_savings(central, year, month)
+                    if money >= permanent_income - rent - loan:
+                        consumption = permanent_income - rent - loan
+                    else:
+                        consumption = 0
 
         # If we grabed more than planned
-        if money > 0:
-            if money >= expenses:
-                # Deposit money above that of expenses
-                self.savings += (money - expenses)
-
-        return expenses
+        if money > consumption + rent + loan:
+            # Deposit money above that of expenses
+            self.savings += (money - consumption)
+        return consumption
 
     def consume(self, firms, central, regions, params, seed, year, month):
         """Consumption from goods and services firms, based on criteria of price or distance.

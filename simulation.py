@@ -221,7 +221,8 @@ class Simulation:
         # Equalize money within family members
         # Tax consumption when doing sales are realized
         markets.goods.consume(self)
-
+        # Make rent payments
+        self.housing.process_monthly_rent(self)
         # Collect loan repayments
         self.central.collect_loan_payments(self)
 
@@ -287,7 +288,7 @@ class Simulation:
         # self.central.calculate_monthly_mortgage_rate()
         house_price_quantiles = np.quantile([h.price for h in self.houses.values()], q=[.25, .5, .75])
         self.housing.housing_market(self, house_price_quantiles)
-        self.housing.process_monthly_rent(self)
+        # (changed location) self.housing.process_monthly_rent(self)
         for house in self.houses.values():
             house.pay_property_tax(self)
 
