@@ -119,7 +119,7 @@ class LaborMarket:
         for i, firm in enumerate(firms.values()):
             # `firm_enter_freq` is the frequency firms enter the market
             if random_value[i] < firm_enter_freq:
-                if initialize or firm.profit > 0:
+                if initialize or firm.profit >= 0:
                     self.add_post(firm)
                 elif firm.profit < 0:
                     firm.fire(self.seed)

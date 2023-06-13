@@ -102,6 +102,7 @@ class Family:
     def get_wealth(self, bank):
         """ Calculate current wealth, including real estate, debts, and bank savings. """
         estate_value = sum(h.price for h in self.owned_houses)
+        # Returns a list of loan objects--which there is just one
         self.have_loan = bank.loans.get(self.id, [])
         return self.savings + estate_value + bank.sum_deposits(self) - bank.loan_balance(self.id)
 
@@ -178,8 +179,8 @@ class Family:
         if self.is_renting and not self.rent_voucher:
             expenses -= self.house.rent_data[0]
         if self.have_loan:
-            pass
-            # expenses -= self.have_loan
+            # Reserve at least the amount for the due monthly payment
+            expenses -= self.have_loan[0].payment[self.have_loan[0].age]
 
         # Getting the funds
         if money < expenses:

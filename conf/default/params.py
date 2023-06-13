@@ -81,8 +81,8 @@ OFFER_SIZE_ON_PRICE = 2
 ON_MARKET_DECAY_FACTOR = -.01
 # LOWER BOUND, THAT IS, AT LEAST 50% PERCENT OF VALUE WILL REMAIN AT END OF PERIOD, IF PARAMETER IS .5
 MAX_OFFER_DISCOUNT = .6
-# Percentage of households pursuing new location
-PERCENTAGE_ENTERING_ESTATE_MARKET = 0.001
+# Percentage of households pursuing new location (on average families move about once every 20 years)
+PERCENTAGE_ENTERING_ESTATE_MARKET = 0.0042
 NEIGHBORHOOD_EFFECT = 3
 
 # RENTAL #######################

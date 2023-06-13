@@ -55,7 +55,7 @@ class HousingMarket:
         """Start of the housing market"""
         # Endogenously select families entering market with a threshold set parameter
         # Criteria (family.py) include space, renting, jobs, enough savings
-        threshold = int(len(sim.families) * sim.PARAMS['PERCENTAGE_ENTERING_ESTATE_MARKET'])
+        threshold = round(len(sim.families) * sim.PARAMS['PERCENTAGE_ENTERING_ESTATE_MARKET'])
         # Looking now is a tuple with family in position 0 and score of entering the house market 1
         looking = [(f, f.decision_enter_house_market(sim, house_price_quantiles)) for f in sim.families.values()]
         looking = [s for s in looking if s[1] > 0]
