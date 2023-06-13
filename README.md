@@ -8,6 +8,8 @@
 4. Changed output figures to include lower-upper bound confidence intervals, instead of plotting all runs lines.
 5. Sales and rental markets now use submarkets in quartiles by income distributions. 
    Families in the lower income quartile search for houses in the lower quartile of quality
+6. Endogenized decision to enter house market: based on employability, renting status, funds available, level consumption
+7. Ordered, organized decision on consumption
 
 ------
 ``` python 3.9```
@@ -34,7 +36,7 @@ PolicySpace2: Real Estate Modeling
 
 ## https://www.jasss.org/25/1/8.html
 
-Policymakers' role in decision making on alternative policies is facing restricted budgets and an uncertain future. 
+Policymakers' role in decision-making on alternative policies is facing restricted budgets and an uncertain future. 
 The need to decide on priorities and handle effects across policies has made their task even more difficult. 
 For instance, housing policies involve heterogeneous characteristics of the properties themselves and the intricacy 
 of housing markets within the spatial context of cities. Here, we have proposed PolicySpace2 (PS2) as an adapted and 

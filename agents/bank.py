@@ -238,6 +238,8 @@ class Central:
                     family.savings += family.grab_savings(self, sim.clock.year, sim.clock.months)
                 payment = min(family.savings, sum(loan.payment[:loan.age]))
                 done = loan.pay(payment)
+                if done:
+                    family.have_loan = None
                 family.savings -= payment
 
                 # Add to bank balance

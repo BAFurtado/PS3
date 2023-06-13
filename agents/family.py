@@ -103,7 +103,7 @@ class Family:
         """ Calculate current wealth, including real estate, debts, and bank savings. """
         estate_value = sum(h.price for h in self.owned_houses)
         # Returns a list of loan objects--which there is just one
-        self.have_loan = bank.loans.get(self.id, [])
+        self.have_loan = bank.loans.get(self.id)
         return self.savings + estate_value + bank.sum_deposits(self) - bank.loan_balance(self.id)
 
     def invest(self, r, bank, y, m):
@@ -145,6 +145,9 @@ class Family:
     # Consumption ####################################################################################################
     def decision_enter_house_market(self, sim, house_price_quantiles):
         # In construction adding criteria: affordability, housing needs (renting), estability (jobs), space constraints?
+        # 0. If family has not made goods consumption, do not even consider entering housing market
+        if not self.average_utility:
+            return False
         # 1. Needs to have short term reserve money
         if not self.savings:
             return False
@@ -179,7 +182,11 @@ class Family:
             rent = self.house.rent_data[0]
         if self.have_loan:
             # Reserve at least the amount for the due monthly payment
-            loan = self.have_loan[0].payment[self.have_loan[0].age]
+            if self.have_loan[0].age < len(self.have_loan[0].payment):
+                loan = self.have_loan[0].payment[self.have_loan[0].age]
+            else:
+                # Try to make a go for a full payment
+                loan = sum(self.have_loan[0].payment)
 
         # Guard the cases that family expenses exceed resources
         if money >= permanent_income:

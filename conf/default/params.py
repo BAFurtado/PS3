@@ -4,7 +4,7 @@ import datetime
 
 # FIRMS #########################################################
 # Production function, labour with decaying exponent, Alpha for K. [0, 1]
-PRODUCTIVITY_EXPONENT = .5
+PRODUCTIVITY_EXPONENT = .6
 # Order of magnitude correction of production. Production divided by parameter
 PRODUCTIVITY_MAGNITUDE_DIVISOR = 10
 # GENERAL CALIBRATION PARAMETERS
@@ -13,9 +13,9 @@ MUNICIPAL_EFFICIENCY_MANAGEMENT = .00005
 # INTEREST. Choose either: 'nominal', 'real' or 'fixed'. Default 'real'
 INTEREST = 'real'
 # By how much percentage to increase prices
-MARKUP = 0.15
+MARKUP = 0.03
 # Frequency firms change prices. Probability > than parameter
-STICKY_PRICES = .55
+STICKY_PRICES = .7
 # Number of firms consulted before consumption
 SIZE_MARKET = 10
 # Frequency firms enter the market
@@ -164,13 +164,13 @@ PUBLIC_TRANSIT_COST = 0.05
 # RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation
 # Minimum value to run depends on the size of municipality 0,001 is recommended minimum
-PERCENTAGE_ACTUAL_POP = 0.005
+PERCENTAGE_ACTUAL_POP = 0.01
 
 # Write exactly like the list above
-PROCESSING_ACPS = ['IPATINGA']
+PROCESSING_ACPS = ['BRASILIA']
 
 # Selecting the starting year to build the Agents, can be: 1991, 2000 or 2010
 STARTING_DAY = datetime.date(2010, 1, 1)
 
 # Maximum running time (restrained by official data) is 30 years,
-TOTAL_DAYS = (datetime.date(2020, 1, 1) - STARTING_DAY).days
+TOTAL_DAYS = (datetime.date(2023, 1, 1) - STARTING_DAY).days
