@@ -13,17 +13,16 @@ else:
 
 class Statistics(object):
     """
-    The statistics class is just a bundle of functions together without a permanent instance of data.
-    Thus, every time it is called Statistics() it is initiated anew.
+    The statistics class contains a bundle of functions together
     The functions include average price of the firms, regional GDP - based on FIRMS' revenues, GDP per
     capita, unemployment, families' wealth, GINI, regional GINI and commuting information.
     """
 
     def __init__(self):
         self.previous_month_price = 0
-        self.global_unemployment_rate = .05
+        self.global_unemployment_rate = .086
 
-    def update_price(self, firms):
+    def update_price(self, firms, mid_simulation_calculus=False):
         """Compute average price and inflation"""
         dummy_average_price = 0
         dummy_num_products = 0
@@ -47,7 +46,8 @@ class Statistics(object):
         logger.info('Price average: %.3f, Monthly inflation: %.3f' % (average_price, inflation))
 
         # Save current prices to be used next month
-        self.previous_month_price = average_price
+        if not mid_simulation_calculus:
+            self.previous_month_price = average_price
         return average_price, inflation
 
     def calculate_region_GDP(self, firms, region):

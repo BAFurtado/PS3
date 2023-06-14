@@ -233,7 +233,7 @@ class Simulation:
         relevance_unemployment = self.PARAMS['RELEVANCE_UNEMPLOYMENT_SALARIES']
         sticky = self.PARAMS['STICKY_PRICES']
         markup = self.PARAMS['MARKUP']
-        avg_prices, _ = self.stats.update_price(self.firms)
+        avg_prices, _ = self.stats.update_price(self.firms, mid_simulation_calculus=True)
         for firm in self.firms.values():
             # Tax workers when paying salaries
             firm.make_payment(self.regions, current_unemployment,
