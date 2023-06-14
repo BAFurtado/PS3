@@ -10,7 +10,7 @@
    Families in the lower income quartile search for houses in the lower quartile of quality
 6. Endogenized decision to enter house market: based on employability, renting status, funds available, level consumption
 7. Ordered, organized decision on consumption
-
+8. Changed price and production decisions based on Dawid, 2018 benchmarks
 ------
 ``` python 3.9```
 ------

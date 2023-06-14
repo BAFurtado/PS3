@@ -106,7 +106,7 @@ class Family:
         self.have_loan = bank.loans.get(self.id)
         return self.savings + estate_value + bank.sum_deposits(self) - bank.loan_balance(self.id)
 
-    def invest(self, r, bank, y, m):
+    def invest(self, bank, y, m):
         # Savings are updated during consumption as the fraction of above permanent income that is not consumed
         # If savings are above a six-month period reserve money, the surplus is invested in the bank.
         reserve_money = self.get_permanent_income() * 6
@@ -145,8 +145,8 @@ class Family:
     # Consumption ####################################################################################################
     def decision_enter_house_market(self, sim, house_price_quantiles):
         # In construction adding criteria: affordability, housing needs (renting), estability (jobs), space constraints?
-        # 0. If family has not made goods consumption, do not even consider entering housing market
-        if not self.average_utility:
+        # 0. If family has not made goods consumption, or is defaulting on rent don't consider entering housing market
+        if not self.average_utility or self.rent_default:
             return False
         # 1. Needs to have short term reserve money
         if not self.savings:

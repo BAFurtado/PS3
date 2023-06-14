@@ -233,6 +233,7 @@ class Simulation:
         relevance_unemployment = self.PARAMS['RELEVANCE_UNEMPLOYMENT_SALARIES']
         sticky = self.PARAMS['STICKY_PRICES']
         markup = self.PARAMS['MARKUP']
+        avg_prices, _ = self.stats.update_price(self.firms)
         for firm in self.firms.values():
             # Tax workers when paying salaries
             firm.make_payment(self.regions, current_unemployment,
@@ -244,7 +245,7 @@ class Simulation:
             # Profits are after taxes
             firm.calculate_profit()
             # Check whether it is necessary to update prices
-            firm.update_prices(sticky, markup, self.seed)
+            firm.update_prices(sticky, markup, self.seed, avg_prices)
 
         # Construction firms
         vacancy = self.stats.calculate_house_vacancy(self.houses, False)
@@ -294,7 +295,7 @@ class Simulation:
 
         # Family investments
         for fam in self.families.values():
-            fam.invest(self.central.interest, self.central, self.clock.year, self.clock.months)
+            fam.invest(self.central, self.clock.year, self.clock.months)
 
         # Using all collected taxes to improve public services
         bank_taxes = self.central.collect_taxes()

@@ -28,6 +28,7 @@ class Firm:
                  taxes_paid=0,
                  prices=None):
 
+        self.increase_production = False
         self.id = _id
         self.address = address
         self.total_balance = total_balance
@@ -38,8 +39,10 @@ class Firm:
         # Firms makes existing products from class Products.
         # Products produced are stored by product_id in the inventory
         self.inventory = {}
+        # Amount monthly sold by the firm
         self.amount_sold = amount_sold
         self.product_index = product_index
+        # Cumulative amount produced by the firm
         self.amount_produced = amount_produced
         self.wages_paid = wages_paid
         self.present = present
@@ -79,14 +82,25 @@ class Firm:
         return sum(p.quantity for p in self.inventory.values())
 
     # Commercial department
-    def update_prices(self, sticky_prices, markup, seed):
-        """Update prices based on sales"""
+    def update_prices(self, sticky_prices, markup, seed, avg_prices):
+        """ Update prices based on inventory and average prices
+            Save signal for the labour market
+        """
         # Sticky prices (KLENOW, MALIN, 2010)
         if seed.random() > sticky_prices:
             for p in self.inventory.values():
-                # if the firm has sold more than available in stocks, prices rise
-                if self.amount_sold > self.total_quantity:
-                    p.price *= (1 + (seed.randint(0, int(2 * markup * 100)) / 100))
+                # if the firm has sold this month more than available in stocks, prices rise
+                # Dawid 2018 p.26 Firm observes excess or shortage inventory and relative price considering other firms
+                # Considering inventory to last one month
+                delta_price = (seed.randint(0, int(2 * markup * 100)) / 100)
+                low_inventory = self.total_quantity < self.amount_sold
+                low_prices = p.price < avg_prices if avg_prices != 1 else True
+                if low_inventory and low_prices:
+                    p.price *= (1 + delta_price)
+                elif not low_inventory and not low_prices:
+                    p.price *= (1 - delta_price)
+                self.increase_production = low_inventory and not low_prices
+
         self.prices = sum(p.price for p in self.inventory.values()) / len(self.inventory)
 
     def sale(self, amount, regions, tax_consumption):
