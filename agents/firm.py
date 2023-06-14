@@ -46,6 +46,7 @@ class Firm:
         self.amount_produced = amount_produced
         self.wages_paid = wages_paid
         self.present = present
+        # Monthly income received from sales
         self.revenue = revenue
         self.taxes_paid = taxes_paid
         self.prices = prices
@@ -160,6 +161,8 @@ class Firm:
             self.taxes_paid = taxes
             self.total_balance -= taxes
             regions[self.region_id].collect_taxes(self.taxes_paid, 'firm')
+        else:
+            self.taxes_paid = 0
 
     # Employees' procedures #########
     def total_qualification(self, alpha):

@@ -122,7 +122,7 @@ class LaborMarket:
                 # Increase production based on low inventory and low prices
                 if initialize or firm.increase_production:
                     self.add_post(firm)
-                elif firm.profit < 0:
+                elif firm.profit < 0 and firm.wages_paid > firm.revenue:
                     firm.fire(self.seed)
 
     def __repr__(self):

@@ -215,6 +215,7 @@ class Simulation:
             firm.present = self.clock
             firm.amount_sold = 0
             if firm.type != 'CONSTRUCTION':
+                # Reset the monthly revenue of firms!
                 firm.revenue = 0
 
         # FAMILIES CONSUMPTION -- using payment received from previous month
