@@ -99,8 +99,9 @@ class Firm:
                     p.price *= (1 + delta_price)
                 elif not low_inventory and not low_prices:
                     p.price *= (1 - delta_price)
-                self.increase_production = low_inventory and not low_prices
-
+                self.increase_production = low_inventory  # and not low_prices ## diverging from typical benchmark
+        # Resetting amount solt to record monthly amounts
+        self.amount_sold = 0
         self.prices = sum(p.price for p in self.inventory.values()) / len(self.inventory)
 
     def sale(self, amount, regions, tax_consumption):

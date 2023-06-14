@@ -23,7 +23,7 @@ LABOR_MARKET = .25
 # Percentage of employees firms hired by distance
 PCT_DISTANCE_HIRING = .4
 # Ignore unemployment in wage base calculation
-RELEVANCE_UNEMPLOYMENT_SALARIES = 2
+RELEVANCE_UNEMPLOYMENT_SALARIES = 1
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 10
 
@@ -164,10 +164,10 @@ PUBLIC_TRANSIT_COST = 0.05
 # RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation
 # Minimum value to run depends on the size of municipality 0,001 is recommended minimum
-PERCENTAGE_ACTUAL_POP = 0.02
+PERCENTAGE_ACTUAL_POP = 0.01
 
 # Write exactly like the list above
-PROCESSING_ACPS = ['IPATINGA']
+PROCESSING_ACPS = ['BRASILIA']
 
 # Selecting the starting year to build the Agents, can be: 1991, 2000 or 2010
 STARTING_DAY = datetime.date(2010, 1, 1)

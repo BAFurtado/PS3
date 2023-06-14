@@ -185,8 +185,8 @@ class Family:
             if self.have_loan[0].age < len(self.have_loan[0].payment):
                 loan = self.have_loan[0].payment[self.have_loan[0].age]
             else:
-                # Try to make a go for a full payment
-                loan = sum(self.have_loan[0].payment)
+                # Loan age exceeded. Will make payments only when there is enough money, after consumption.
+                loan = min(self.have_loan[0].payment)
 
         # Guard the cases that family expenses exceed resources
         if money >= permanent_income:
@@ -241,7 +241,7 @@ class Family:
                 change = chosen_firm.sale(money_to_spend, regions, params['TAX_CONSUMPTION'])
                 self.savings += change
 
-                # Update family utility
+                # Update monthly family utility
                 self.average_utility = money_to_spend - change
 
     @property
