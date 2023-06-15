@@ -61,11 +61,13 @@ POLICY_QUANTILE = .2
 # Maximum age of borrower at the end of the contract
 MAX_LOAN_AGE = 70
 # Used to calculate monthly payment for the families, thus limiting maximum loan by number of months and age
-LOAN_PAYMENT_TO_PERMANENT_INCOME = .3
+# Because permanent income includes wealth, it should be just a small percentage,
+# otherwise compromises monthly consumption.
+LOAN_PAYMENT_TO_PERMANENT_INCOME = .09
 # Refers to the maximum loan monthly payment to total wealth
 # MAX_LOAN_PAYMENT_TO_WEALTH=.4
 # Refers to the maximum rate of the loan on the value of the estate
-MAX_LOAN_TO_VALUE = .3
+MAX_LOAN_TO_VALUE = .4
 # This parameter refers to the total amount of resources available at the bank.
 MAX_LOAN_BANK_PERCENT = .7
 

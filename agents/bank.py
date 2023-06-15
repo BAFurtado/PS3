@@ -74,6 +74,8 @@ class Central:
         self.taxes = 0
         self.mortgage_rate = 0
         self._outstanding_loans = 0
+        self.tax_firm = conf.PARAMS['TAX_FIRM']
+        self.loan_to_income = conf.PARAMS['LOAN_PAYMENT_TO_PERMANENT_INCOME']
 
         # Track remaining loan balances
         self.loans = defaultdict(list)
@@ -94,7 +96,7 @@ class Central:
             interest -= amount
 
         # Compute taxes
-        tax = interest * conf.PARAMS['TAX_FIRM']
+        tax = interest * self.tax_firm
         self.taxes += tax
         self.balance -= interest - tax
         return interest - tax
@@ -178,30 +180,37 @@ class Central:
     def request_loan(self, family, house, amount):
         # Bank endogenous criteria
         # Can't loan more than on hand
+        # Retuns SUCCESS in Loan, adds loan and returns authorized value.
         if amount > self.balance:
-            return False
+            return False, None
 
         # If they have outstanding loans, don't lend
         if self.loans[family.id]:
-            return False
+            return False, None
 
         # Can't loan more than x% of total balance
         if self._outstanding_loans + amount > self.balance * conf.PARAMS['MAX_LOAN_BANK_PERCENT']:
-            return False
+            return False, None
 
+        # Get info considering family
+        max_amount, max_months = self.max_loan(family)
+        amount = min(amount, max_amount)
         # Criteria related to consumer. Check payments fit last months' paycheck
         monthly_payment = self._max_monthly_payment(family)
         # Probability of giving loan depends on amount compared to family wealth. Credit check
-        if monthly_payment > family.get_permanent_income():
-            return False
+        if amount / max_months > monthly_payment:
+            return False, None
 
         # Add loan balance
         # Create a new loan for the family
-        self.loans[family.id].append(Loan(self.max_loan(family)[0], self.mortgage_rate, self.max_loan(family)[1],
-                                          house))
+        self.loans[family.id].append(Loan(amount, self.mortgage_rate, max_months, house))
         self.balance -= amount
         self._outstanding_loans += amount
-        return True
+        return True, amount
+
+    def _max_monthly_payment(self, family):
+        # Max % of income on loan repayments
+        return family.get_permanent_income() * self.loan_to_income
 
     def max_loan(self, family):
         """Estimate maximum loan for family"""
@@ -212,10 +221,6 @@ class Central:
         max_total = income * max_months
         max_principal = max_total / (1 + self.mortgage_rate)
         return min(max_principal, self.balance), max_months
-
-    def _max_monthly_payment(self, family):
-        # Max % of income on loan repayments
-        return family.get_permanent_income() * conf.PARAMS['LOAN_PAYMENT_TO_PERMANENT_INCOME']
 
     def collect_loan_payments(self, sim):
         for family_id, loans in self.loans.items():

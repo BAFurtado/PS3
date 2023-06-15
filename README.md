@@ -11,6 +11,7 @@
 6. Endogenized decision to enter house market: based on employability, renting status, funds available, level consumption
 7. Ordered, organized decision on consumption
 8. Changed price and production decisions based on Dawid, 2018 benchmarks
+9. Checked bank loan systems. 
 ------
 ``` python 3.9```
 ------

@@ -36,11 +36,9 @@ OUTPUT_DATA_SPEC = {
     'families': {
         'avg': {
             'groupings': ['month', 'mun_id'],
-            'columns': ['house_price', 'house_rent',
-                        'total_wage', 'savings', 'num_members']
+            'columns': ['house_price', 'house_rent', 'total_wage', 'savings', 'num_members']
         },
-        'columns': ['month', 'id', 'mun_id',
-                    'house_price', 'house_rent',
+        'columns': ['month', 'id', 'mun_id', 'house_price', 'house_rent',
                     'total_wage', 'savings', 'num_members']
     },
     'banks': {
@@ -48,8 +46,7 @@ OUTPUT_DATA_SPEC = {
             'groupings': ['month'],
             'columns': 'ALL'
         },
-        'columns': ['month', 'balance', 'deposits',
-                    'active_loans', 'mortgage_rate', 'p_delinquent_loans',
+        'columns': ['month', 'balance', 'active_loans', 'mortgage_rate', 'p_delinquent_loans',
                     'mean_loan_age', 'min_loan', 'max_loan', 'mean_loan']
     },
     'houses': {
