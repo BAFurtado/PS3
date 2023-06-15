@@ -4,7 +4,7 @@ import datetime
 
 # FIRMS #########################################################
 # Production function, labour with decaying exponent, Alpha for K. [0, 1]
-PRODUCTIVITY_EXPONENT = .6
+PRODUCTIVITY_EXPONENT = .3
 # Order of magnitude correction of production. Production divided by parameter
 PRODUCTIVITY_MAGNITUDE_DIVISOR = 10
 # GENERAL CALIBRATION PARAMETERS
@@ -94,7 +94,7 @@ INITIAL_RENTAL_PRICE = .005
 # Percentage of NEW licenses created monthly by region (neighborhood). Set to 0 for no licenses.
 # .5 is plenty of supply!
 PERC_SUPPLY_SIZE_N_LICENSES_PER_REGION = .4
-PERCENT_CONSTRUCTION_FIRMS = 0.073
+PERCENT_CONSTRUCTION_FIRMS = 0.07
 # Months that construction firm will divide its income into monthly revenue installments.
 # Although prices are accounted for at once.
 CONSTRUCTION_ACC_CASH_FLOW = 24

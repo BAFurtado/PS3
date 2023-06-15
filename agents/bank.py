@@ -74,7 +74,6 @@ class Central:
         self.taxes = 0
         self.mortgage_rate = 0
         self._outstanding_loans = 0
-        self._total_deposits = 0
 
         # Track remaining loan balances
         self.loans = defaultdict(list)
@@ -112,7 +111,6 @@ class Central:
         """
         self.wallet[client].append((amount, date))
         self.balance += amount
-        self._total_deposits += amount
 
     def withdraw(self, client, y, m):
         """ Gives the money back to the client
@@ -121,14 +119,10 @@ class Central:
         amount = self.sum_deposits(client)
         del self.wallet[client]
         self.balance -= amount
-        self._total_deposits -= amount
         return amount + interest
 
     def sum_deposits(self, client):
         return np.sum(amount for amount, _ in self.wallet[client])
-
-    def total_deposits(self):
-        return np.sum(sum(amount for amount, _ in deposits) for deposits in self.wallet.values())
 
     def loan_balance(self, family_id):
         """Get total loan balance for a family"""
@@ -191,16 +185,15 @@ class Central:
         if self.loans[family.id]:
             return False
 
-        # Can't loan more than x% of total deposits
-        if self._outstanding_loans + amount > self._total_deposits * conf.PARAMS['MAX_LOAN_BANK_PERCENT']:
+        # Can't loan more than x% of total balance
+        if self._outstanding_loans + amount > self.balance * conf.PARAMS['MAX_LOAN_BANK_PERCENT']:
             return False
 
         # Criteria related to consumer. Check payments fit last months' paycheck
         monthly_payment = self._max_monthly_payment(family)
         # Probability of giving loan depends on amount compared to family wealth. Credit check
-        if family.last_permanent_income:
-            if monthly_payment > np.quantile(family.last_permanent_income, q=.3):
-                return False
+        if monthly_payment > family.get_permanent_income():
+            return False
 
         # Add loan balance
         # Create a new loan for the family

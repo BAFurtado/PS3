@@ -237,7 +237,7 @@ class Generator:
         if rural:
             addresses.append(self.get_random_points_in_polygon(region, number_addresses=rural, addresses=addresses))
         # Distribution of house surface highly skilled to the right, given empirical data
-        sizes = self.seed_np.lognormal(np.log(143), .5, size=num_houses)
+        sizes = self.seed_np.lognormal(np.log(70), .5, size=num_houses)
         # Loose estimate of qualities in the universe
         qualities = self.seed_np.choice([1, 2, 3, 4], p=[.4, .3, .2, .1], size=num_houses)
         prices = np.multiply(np.multiply(sizes, qualities), region.index)
