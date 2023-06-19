@@ -48,7 +48,7 @@ def stats(filename):
     fig = plot_data.get_figure()
     fig.set_size_inches(15, 10)
     fig.savefig(os.path.join(conf.RUN['OUTPUT_DATA_PATH'],
-                             'temp_descriptive_stats_age_month_municipality_evolutions.png'), dpi=300)
+                             'descriptive_stats_age_month_municipality_evolutions.png'), dpi=300)
 
     # Plotting QUALIFICATION by Municipality and region
     temp = pd.DataFrame(dat_month_mun['qualification'].mean())
@@ -63,7 +63,7 @@ def stats(filename):
     fig = plot_data.get_figure()
     fig.set_size_inches(15, 10)
     fig.savefig(os.path.join(conf.RUN['OUTPUT_DATA_PATH'],
-                             'temp_descriptive_stats_qualification_month_municipality_evolution.png'), dpi=200)
+                             'descriptive_stats_qualification_month_municipality_evolution.png'), dpi=200)
 
     # plotting QUALIFICATION by Municipality and region by month and municipality together
     agent_employment_sequence = pd.DataFrame(columns=['agent','gender', 'firm_id','duration'])
@@ -101,6 +101,6 @@ def stats(filename):
                                       pd.DataFrame(duration_in_the_job, columns=['duration'])], axis=1)
             agent_employment_sequence = pd.concat([agent_employment_sequence, agent_result], axis=0)
     agent_employment_sequence.to_csv(os.path.join(conf.RUN['OUTPUT_DATA_PATH'],
-                                                  'temp_descriptive_stats_agents_locations_job.csv'),
+                                                  'descriptive_stats_agents_locations_job.csv'),
                                      sep=';', decimal='.',
                                      header=True, index=None, na_rep='NaN')

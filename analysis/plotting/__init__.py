@@ -132,11 +132,11 @@ class Plotter:
 
     def plot_general(self):
         dats_q1, dats_q3 = None, None
-        labels, dats = self._load_multiple_runs('stats', 'temp_stats.csv')
+        labels, dats = self._load_multiple_runs('stats', 'stats.csv')
         if len(self.run_paths) > 1 and self.avg:
-            dats_q1 = self._prepare_data(os.path.join(self.avg[1], 'q1_temp_stats.csv'),
+            dats_q1 = self._prepare_data(os.path.join(self.avg[1], 'q1_stats.csv'),
                                          dats[0].columns).set_index('month')
-            dats_q3 = self._prepare_data(os.path.join(self.avg[1], 'q3_temp_stats.csv'),
+            dats_q3 = self._prepare_data(os.path.join(self.avg[1], 'q3_stats.csv'),
                                          dats[0].columns).set_index('month')
 
         cols = ['price_index', 'gdp_index', 'gdp_growth', 'unemployment', 'average_workers',
@@ -166,10 +166,10 @@ class Plotter:
                 fig = self.make_plot([d[col] for d in dats], title, labels, q1=dats_q1[col], q3=dats_q3[col])
             else:
                 fig = self.make_plot([d[col] for d in dats], title, labels)
-            self.save_fig(fig, 'temp_general_{}'.format(title))
+            self.save_fig(fig, '{}'.format(title))
 
     def plot_banks(self):
-        labels, dats = self._load_multiple_runs('banks', 'temp_banks.csv')
+        labels, dats = self._load_multiple_runs('banks', 'banks.csv')
 
         cols = ['balance', 'active_loans', 'mortgage_rate', 'p_delinquent_loans',
                 'mean_loan_age', 'mean_loan']
@@ -178,10 +178,10 @@ class Plotter:
         dats = [d.set_index('month') for d in dats]
         for col, title in zip(cols, titles):
             fig = self.make_plot([d[col] for d in dats], title, labels)
-            self.save_fig(fig, 'temp_banks_{}'.format(title))
+            self.save_fig(fig, 'banks_{}'.format(title))
 
     def plot_houses(self):
-        dat = self._load_single_run('houses', 'temp_houses.csv')
+        dat = self._load_single_run('houses', 'houses.csv')
 
         to_plot = {
             'price': {
@@ -200,10 +200,10 @@ class Plotter:
             dat_to_plot = df.pivot(index='month', columns='mun_id', values=k).astype(float)
             names_mun = [mun_codes[v] for v in list(dat_to_plot.columns.values)]
             fig = self.make_plot([dat_to_plot], title, labels=names_mun, y_label='Mean {}'.format(name))
-            self.save_fig(fig, 'temp_houses_{}'.format(name))
+            self.save_fig(fig, 'houses_{}'.format(name))
 
     def plot_families(self):
-        dat = self._load_single_run('families', 'temp_families.csv')
+        dat = self._load_single_run('families', 'families.csv')
         dat['renting'] = pd.notna(dat['house_rent'])
 
         to_plot = {
@@ -229,10 +229,10 @@ class Plotter:
             dats_to_plot = [dat_to_plot[c] for c in dat_to_plot.columns.values]
             names_mun = [mun_codes[v] for v in list(dat_to_plot.columns.values)]
             fig = self.make_plot(dats_to_plot, title, labels=names_mun, y_label='Median {}'.format(name))
-            self.save_fig(fig, 'temp_families_{}'.format(name))
+            self.save_fig(fig, 'families_{}'.format(name))
 
     def plot_regional_stats(self):
-        dat = self._load_single_run('regional', 'temp_regional.csv')
+        dat = self._load_single_run('regional', 'regional.csv')
         # TODO: adjusted percentual time off not working for regional plots, neither distributions
         # Time to be eliminated (adjustment of the model)
         # if conf.RUN['TIME_TO_BE_ELIMINATED'] > 0:
@@ -244,7 +244,7 @@ class Plotter:
         names_mun = [mun_codes[v] for v in list(dat_to_plot.columns.values)]
         dats_to_plot = [dat_to_plot[c] for c in dat_to_plot.columns.values]
         fig = self.make_plot(dats_to_plot, title, labels=names_mun, y_label='Regional commute')
-        self.save_fig(fig, 'temp_regional_evolution_of_commute')
+        self.save_fig(fig, 'regional_evolution_of_commute')
 
         cols = ['gdp_region', 'regional_gini', 'regional_house_values',
                 'gdp_percapita', 'regional_unemployment', 'qli_index', 'pop',
@@ -256,17 +256,17 @@ class Plotter:
             dat_to_plot = dat.pivot(index='month', columns='mun_id', values=col).astype(float)
             dats_to_plot = [dat_to_plot[c] for c in dat_to_plot.columns.values]
             fig = self.make_plot(dats_to_plot, title, labels=names_mun, y_label='Regional {}'.format(title))
-            self.save_fig(fig, 'temp_regional_{}'.format(title))
+            self.save_fig(fig, 'regional_{}'.format(title))
 
         taxes = ['equally', 'locally', 'fpm']
         taxes_labels = ['Taxes distributed Equally', 'Taxes distributed Locally', 'FPM invested']
         for i in taxes:
             dats_to_plot = [dat.groupby(by=['month']).sum()[i]]
             fig = self.make_plot(dats_to_plot, 'Evolution of Taxes', labels=taxes_labels, y_label='Total Taxes')
-        self.save_fig(fig, 'temp_TAXES')
+        self.save_fig(fig, 'TAXES')
 
     def plot_firms(self):
-        dat = self._load_single_run('firms', 'temp_firms.csv')
+        dat = self._load_single_run('firms', 'firms.csv')
 
         cols = ['amount_produced', 'price']
         titles = ['Cumulative sum of amount produced by firm, by month', 'Price values by firm, by month']
@@ -275,7 +275,7 @@ class Plotter:
             dats_to_plot = [dat_to_plot[c] for c in dat_to_plot.columns.values]
             labels = ['Firm {}'.format(i) for i, _ in enumerate(dat_to_plot.columns.values)]
             fig = self.make_plot(dats_to_plot, title, labels=labels, y_label='Values in units')
-            self.save_fig(fig, 'temp_general_{}'.format(col))
+            self.save_fig(fig, '{}'.format(col))
 
         title = 'Median of number of employees by firm, by month'
         firms_stats = dat.groupby(['month', 'firm_id'], as_index=False).median()
@@ -283,10 +283,10 @@ class Plotter:
         dats_to_plot = [dat_to_plot[c] for c in dat_to_plot.columns.values]
         labels = ['Firm {}'.format(i) for i, _ in enumerate(dat_to_plot.columns.values)]
         fig = self.make_plot(dats_to_plot, title, labels=labels, y_label='Median of employees')
-        self.save_fig(fig, 'temp_general_median_number_of_employees_by_firm_index')
+        self.save_fig(fig, 'median_number_of_employees_by_firm_index')
 
     def plot_construction(self):
-        dat = self._load_single_run('construction', 'temp_construction.csv')
+        dat = self._load_single_run('construction', 'construction.csv')
         cols = ['amount_produced', 'price']
         titles = ['Cumulative sum of amount produced by construction firms, by month',
                   'Price values of houses by firm, by month']
@@ -295,7 +295,7 @@ class Plotter:
             dats_to_plot = [dat_to_plot[c] for c in dat_to_plot.columns.values]
             labels = ['Firm {}'.format(i) for i, _ in enumerate(dat_to_plot.columns.values)]
             fig = self.make_plot(dats_to_plot, title, labels=labels, y_label='Values in units')
-            self.save_fig(fig, 'temp_construction_{}'.format(col))
+            self.save_fig(fig, 'construction_{}'.format(col))
 
         title = 'Median of number of employees by construction firms, by month'
         firms_stats = dat.groupby(['month', 'firm_id'], as_index=False).median()
@@ -303,14 +303,14 @@ class Plotter:
         dats_to_plot = [dat_to_plot[c] for c in dat_to_plot.columns.values]
         labels = ['Firm {}'.format(i) for i, _ in enumerate(dat_to_plot.columns.values)]
         fig = self.make_plot(dats_to_plot, title, labels=labels, y_label='Median of employees')
-        self.save_fig(fig, 'temp_construction_median_number_of_employees_by_firm_index')
+        self.save_fig(fig, 'construction_median_number_of_employees_by_firm_index')
 
     def plot_geo(self, sim, text):
         """Generate spatial plots"""
         figs = geo.plot(sim, text)
         for name, fig in figs:
             fig.savefig(os.path.join(self.output_path,
-                                     'temp_spatial_plot_{}_{}.{}'.format(name, text, conf.RUN['PLOT_FORMAT'])),
+                                     'spatial_plot_{}_{}.{}'.format(name, text, conf.RUN['PLOT_FORMAT'])),
                         format=conf.RUN['PLOT_FORMAT'], dpi=600)
             # Reset figure
             plt.close(fig)

@@ -110,7 +110,7 @@ class Output:
             os.makedirs(self.transit_path)
 
         for p in files:
-            path = os.path.join(self.path, 'temp_{}.csv'.format(p))
+            path = os.path.join(self.path, '{}.csv'.format(p))
             setattr(self, '{}_path'.format(p), path)
 
             # reset files for each run

@@ -146,7 +146,7 @@ def average_run_data(path, avg='mean', n_runs=1):
 
     # group by filename
     file_groups = defaultdict(list)
-    keep_files = {'temp_{}.csv'.format(k): k for k in conf.RUN['AVERAGE_DATA']}
+    keep_files = {'{}.csv'.format(k): k for k in conf.RUN['AVERAGE_DATA']}
     for file in glob(os.path.join(path, '**/*.csv')):
         fname = os.path.basename(file)
         if fname in keep_files:
