@@ -22,6 +22,7 @@ class Firm:
                  amount_sold=0,
                  product_index=0,
                  amount_produced=0,
+                 total_quantity=0,
                  wages_paid=0,
                  present=datetime.date(2000, 1, 1),
                  revenue=0,
@@ -39,6 +40,7 @@ class Firm:
         # Firms makes existing products from class Products.
         # Products produced are stored by product_id in the inventory
         self.inventory = {}
+        self.total_quantity = total_quantity
         # Amount monthly sold by the firm
         self.amount_sold = amount_sold
         self.product_index = product_index
@@ -79,8 +81,9 @@ class Firm:
             self.amount_produced += quantity
 
     @property
-    def total_quantity(self):
-        return sum(p.quantity for p in self.inventory.values())
+    def get_total_quantity(self):
+        self.total_quantity = sum(p.quantity for p in self.inventory.values())
+        return self.total_quantity
 
     # Commercial department
     def update_prices(self, sticky_prices, markup, seed, avg_prices):

@@ -109,10 +109,12 @@ class Statistics(object):
     def calculate_families_median_wealth(self, families):
         return np.median([family.get_permanent_income() for family in families.values()])
 
-    def calculate_families_wealth(self, families):
-        dummy_wealth = np.sum([families[family].get_permanent_income() for family in families.keys()])
+    def calculate_families_wages_received(self, families):
+        return np.median([family.total_wage() for family in families.values()])
+
+    def calculate_families_savings(self, families):
         dummy_savings = np.sum([families[family].savings for family in families.keys()])
-        return dummy_wealth, dummy_savings
+        return dummy_savings
 
     def calculate_rent_default(self, families):
         return np.sum([1 for family in families.values() if family.rent_default == 1 and family.is_renting]) / \
@@ -123,6 +125,12 @@ class Statistics(object):
 
     def calculate_firms_median_wealth(self, firms):
         return np.median([firms[firm].total_balance for firm in firms.keys()])
+
+    def calculate_firms_median_stock(self, firms):
+        return np.median([firms[firm].get_total_quantity() for firm in firms.keys()])
+
+    def calculate_firms_median_wages_paid(self, firms):
+        return np.median([firms[firm].wages_paid for firm in firms.keys()])
 
     def zero_consumption(self, families):
         return np.sum([1 for family in families.values() if family.average_utility == 0]) / len(families)

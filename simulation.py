@@ -245,7 +245,8 @@ class Simulation:
             firm.pay_taxes(self.regions, tax_firm)
             # Profits are after taxes
             firm.calculate_profit()
-            # Check whether it is necessary to update prices
+            # Check whether it is necessary to update prices (update stock in inventory)
+            firm.get_total_quantity()
             firm.update_prices(sticky, markup, self.seed, avg_prices)
 
         # Construction firms

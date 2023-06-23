@@ -225,7 +225,7 @@ class Family:
             # Picks SIZE_MARKET number of firms at seed and choose the closest or the cheapest
             # Consumes from each product the chosen firm offers
             market = seed.sample(firms, min(len(firms), int(params['SIZE_MARKET'])))
-            market = [firm for firm in market if firm.total_quantity > 0]
+            market = [firm for firm in market if firm.get_total_quantity() > 0]
             if market:
                 # Choose between cheapest or closest
                 firm_strategy = seed.choice(['Price', 'Distance'])

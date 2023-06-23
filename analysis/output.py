@@ -27,9 +27,14 @@ OUTPUT_DATA_SPEC = {
             'columns': 'ALL'
         },
         'columns': ['month', 'price_index', 'gdp_index', 'gdp_growth', 'unemployment', 'average_workers',
-                    'families_median_wealth', 'families_wealth', 'families_commuting', 'families_savings',
-                    'families_helped', 'amount_subsidised', 'firms_wealth', 'firms_profit',
-                    'gini_index', 'average_utility', 'pct_zero_consumption', 'rent_default', 'inflation', 'average_qli',
+                    'families_median_wealth',
+                    'families_wages_received',
+                    'families_commuting',
+                    'families_savings',
+                    'families_helped',
+                    'amount_subsidised', 'firms_wealth', 'firms_profit',
+                    'firms_median_stock', 'firms_median_wage_paid', 'gini_index', 'average_utility',
+                    'pct_zero_consumption', 'rent_default', 'inflation', 'average_qli',
                     'house_vacancy', 'house_price', 'house_rent', 'affordable', 'p_delinquent', 'equally', 'locally',
                     'fpm', 'bank']
     },
@@ -134,10 +139,13 @@ class Output:
         unemployment = sim.stats.update_unemployment(sim.agents.values(), True)
         average_workers = sim.stats.calculate_average_workers(sim.firms)
         families_median_wealth = sim.stats.calculate_families_median_wealth(sim.families)
-        families_wealth, families_savings = sim.stats.calculate_families_wealth(sim.families)
+        families_savings = sim.stats.calculate_families_savings(sim.families)
+        families_wages_received = sim.stats.calculate_families_wages_received(sim.families)
         commuting = sim.stats.update_commuting(sim.families.values())
         firms_wealth = sim.stats.calculate_firms_wealth(sim.firms)
         firms_profit = sim.stats.calculate_firms_profit(sim.firms)
+        firms_median_stock = sim.stats.calculate_firms_median_stock(sim.firms)
+        firms_median_wages_paid = sim.stats.calculate_firms_median_wages_paid(sim.firms)
         gini_index = sim.stats.calculate_GINI(sim.families)
         average_utility = sim.stats.calculate_utility(sim.families)
         pct_zero_consumption = sim.stats.zero_consumption(sim.families)
@@ -157,9 +165,18 @@ class Output:
             mun_applied_treasure[k] = sum(r.applied_treasure[k] for r in sim.regions.values())
 
         report = f"{sim.clock.days};{price_index:.3f};{gdp_index:.3f};{gdp_growth:.3f};{unemployment:.3f};" \
-                 f"{average_workers:.3f};{families_median_wealth:.3f};{families_wealth:.3f};{commuting:.3f};" \
-                 f"{families_savings:.3f};{families_helped:.0f};{amount_subsided:.3f};" \
-                 f"{firms_wealth:.3f};{firms_profit:.3f};{gini_index:.3f};{average_utility:.4f};" \
+                 f"{average_workers:.3f};" \
+                 f"{families_median_wealth:.3f};" \
+                 f"{families_wages_received:.3f};" \
+                 f"{commuting:.3f};" \
+                 f"{families_savings:.3f};" \
+                 f"{families_helped:.0f};" \
+                 f"{amount_subsided:.3f};" \
+                 f"{firms_wealth:.3f};" \
+                 f"{firms_profit:.3f};" \
+                 f"{firms_median_stock:.2f};" \
+                 f"{firms_median_wages_paid:.3f};" \
+                 f"{gini_index:.3f};{average_utility:.4f};" \
                  f"{pct_zero_consumption:.4f};{rent_default:.4f};{inflation:.4f};{average_qli:.3f};" \
                  f"{house_vacancy:.3f};{house_price:.4f};{house_rent:.4f};{affordable:.4f};{p_delinquent:.4f};" \
                  f"{mun_applied_treasure['equally']:.4f};{mun_applied_treasure['locally']:.4f};" \
