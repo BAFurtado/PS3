@@ -4,9 +4,9 @@ import datetime
 
 # FIRMS #########################################################
 # Production function, labour with decaying exponent, Alpha for K. [0, 1]
-PRODUCTIVITY_EXPONENT = .7
+PRODUCTIVITY_EXPONENT = .5
 # Order of magnitude correction of production. Production divided by parameter
-PRODUCTIVITY_MAGNITUDE_DIVISOR = 10
+PRODUCTIVITY_MAGNITUDE_DIVISOR = 3
 # GENERAL CALIBRATION PARAMETERS
 # Order of magnitude parameter of input into municipality investment
 MUNICIPAL_EFFICIENCY_MANAGEMENT = .00005
@@ -95,7 +95,7 @@ INITIAL_RENTAL_PRICE = .005
 # LICENSES ARE URBANIZED LOTS AVAILABLE FOR CONSTRUCTION PER NEIGHBORHOOD PER MONTH.
 # Percentage of NEW licenses created monthly by region (neighborhood). Set to 0 for no licenses.
 # .5 is plenty of supply!
-PERC_SUPPLY_SIZE_N_LICENSES_PER_REGION = .4
+PERC_SUPPLY_SIZE_N_LICENSES_PER_REGION = .5
 PERCENT_CONSTRUCTION_FIRMS = 0.07
 # Months that construction firm will divide its income into monthly revenue installments.
 # Although prices are accounted for at once.

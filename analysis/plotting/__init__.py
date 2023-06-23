@@ -1,5 +1,4 @@
 import os
-import warnings
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -12,12 +11,8 @@ from ..output import OUTPUT_DATA_SPEC
 mun_codes = pd.read_csv('input/names_and_codes_municipalities.csv', sep=';')
 mun_codes = dict(zip(mun_codes['cod_mun'], mun_codes['cod_name']))
 
-# warnings.filterwarnings("ignore")
-try:
-    plt.style.use('ggplot')
-    plt.set_cmap('Spectral')
-except AttributeError:
-    pass
+plt.set_cmap('viridis')
+plt.style.use('ggplot')
 
 
 class MissingDataError(Exception):
@@ -59,10 +54,10 @@ class Plotter:
         fig, ax = plt.subplots()
         if isinstance(q1, pd.Series):
             idx = pd.to_datetime(datas[0].index)
-            ax.plot(idx, datas[0], color='red')
+            ax.plot(idx, datas[0], color='blue')
             # ax.plot(idx, q1)
             # ax.plot(idx, q3)
-            ax.fill_between(idx, q1, q3, alpha=0.2, color='red')
+            ax.fill_between(idx, q1, q3, alpha=0.2, color='blue')
             labels = ['mean', 'lower-upper bounds']
         else:
             for d in datas:

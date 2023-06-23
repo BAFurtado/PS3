@@ -66,21 +66,20 @@ class Firm:
             self.prices = sum(p.price for p in self.inventory.values()) / len(self.inventory)
 
     # Production department
-    def update_product_quantity(self, alpha, productivity):
+    def update_product_quantity(self, prod_expoent, prod_divisor):
         """Production equation = Labor * qualification ** alpha"""
         if self.employees and self.inventory:
             # Call get_sum_qualification below: sum([employee.qualification ** parameters.PRODUCTIVITY_EXPONENT
             #                                   for employee in self.employees.values()])
 
             # Divide production by an order of magnitude adjustment parameter
-            quantity = self.total_qualification(alpha) / productivity
+            quantity = self.total_qualification(prod_expoent) / prod_divisor
             # Currently, each firm has only a single product. If more products should be introduced, allocation of
             # quantity per product should be adjusted accordingly
             # Currently, the index for the single product is 0
             self.inventory[0].quantity += quantity
             self.amount_produced += quantity
 
-    @property
     def get_total_quantity(self):
         self.total_quantity = sum(p.quantity for p in self.inventory.values())
         return self.total_quantity
