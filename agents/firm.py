@@ -85,23 +85,25 @@ class Firm:
     # Commercial department
     def update_prices(self, sticky_prices, markup, seed, avg_prices):
         """ Update prices based on inventory and average prices
-            Save signal for the labour market
+            Save signal for the labor market
         """
         # Sticky prices (KLENOW, MALIN, 2010)
         if seed.random() > sticky_prices:
             for p in self.inventory.values():
                 # if the firm has sold this month more than available in stocks, prices rise
                 # Dawid 2018 p.26 Firm observes excess or shortage inventory and relative price considering other firms
-                # Considering inventory to last one month
+                # Considering inventory to last one month only
                 delta_price = (seed.randint(0, int(2 * markup * 100)) / 100)
                 low_inventory = self.total_quantity < self.amount_sold
                 low_prices = p.price < avg_prices if avg_prices != 1 else True
+                if low_inventory:
+                    self.increase_production = True
                 if low_inventory and low_prices:
                     p.price *= (1 + delta_price)
                 elif not low_inventory and not low_prices:
                     p.price *= (1 - delta_price)
-                self.increase_production = low_inventory  # and not low_prices ## diverging from typical benchmark
-        # Resetting amount solt to record monthly amounts
+                    self.increase_production = False  # and not low_prices ## diverging from typical benchmark
+        # Resetting amount sold to record monthly amounts
         self.amount_sold = 0
         self.prices = sum(p.price for p in self.inventory.values()) / len(self.inventory)
 

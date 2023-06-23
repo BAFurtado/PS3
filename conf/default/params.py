@@ -21,7 +21,7 @@ SIZE_MARKET = 10
 # Frequency firms enter the market
 LABOR_MARKET = .25
 # Percentage of employees firms hired by distance
-PCT_DISTANCE_HIRING = .4
+PCT_DISTANCE_HIRING = .5
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
 RELEVANCE_UNEMPLOYMENT_SALARIES = 1
 # Candidate sample size for the labor market

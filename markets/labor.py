@@ -43,8 +43,7 @@ class LaborMarket:
                 else:
                     c.has_car = False
         else:
-            for c in self.candidates:
-                c.has_car = False
+            [setattr(c, 'has_car', False) for c in self.candidates]
 
         # If parameter of distance or qualification is ON, firms are the ones that are divided by the criteria
         # Candidates consider distance when they deduce cost of mobility from potential wage bundle
@@ -113,7 +112,6 @@ class LaborMarket:
         self.candidates += [agent for agent in agents.values() if 16 < agent.age < 70 and agent.firm_id is None]
 
     def hire_fire(self, firms, firm_enter_freq, initialize=False):
-        # TODO. Introduce a more rigorous firm decision process (along with prices)
         """Firms adjust their labor force based on profit"""
         random_value = self.seed_np.random(size=len(firms.values()))
         for i, firm in enumerate(firms.values()):
@@ -122,7 +120,9 @@ class LaborMarket:
                 # Increase production based on low inventory and low prices
                 if initialize or firm.increase_production:
                     self.add_post(firm)
-                elif firm.profit < 0 and firm.wages_paid > firm.revenue:
+                # Three-way criteria: Wages exceed sales, profits (considering taxes) are negative
+                # and there is no need to increase production due to low prices and inventories
+                elif firm.profit < 0 and firm.wages_paid > firm.revenue and not firm.increase_production:
                     firm.fire(self.seed)
 
     def __repr__(self):
