@@ -6,7 +6,7 @@ import datetime
 # Production function, labour with decaying exponent, Alpha for K. [0, 1]
 PRODUCTIVITY_EXPONENT = .5
 # Order of magnitude correction of production. Production divided by parameter
-PRODUCTIVITY_MAGNITUDE_DIVISOR = 3
+PRODUCTIVITY_MAGNITUDE_DIVISOR = 2
 # GENERAL CALIBRATION PARAMETERS
 # Order of magnitude parameter of input into municipality investment
 MUNICIPAL_EFFICIENCY_MANAGEMENT = .00005
