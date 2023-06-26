@@ -43,11 +43,10 @@ class Statistics(object):
         else:
             inflation = 0
 
-        logger.info('Price average: %.3f, Monthly inflation: %.3f' % (average_price, inflation))
-
         # Save current prices to be used next month
         if not mid_simulation_calculus:
             self.previous_month_price = average_price
+            logger.info('Price average: %.3f, Monthly inflation: %.3f' % (average_price, inflation))
         return average_price, inflation
 
     def calculate_region_GDP(self, firms, region):

@@ -96,7 +96,7 @@ class Firm:
                 # Dawid 2018 p.26 Firm observes excess or shortage inventory and relative price considering other firms
                 # Considering inventory to last one month only
                 delta_price = (seed.randint(0, int(2 * markup * 100)) / 100)
-                low_inventory = self.total_quantity < self.amount_sold
+                low_inventory = self.total_quantity <= self.amount_sold or self.total_quantity == 0
                 low_prices = p.price < avg_prices if avg_prices != 1 else True
                 if low_inventory:
                     self.increase_production = True
@@ -176,13 +176,17 @@ class Firm:
     def wage_base(self, unemployment, relevance_unemployment):
         # Observing global economic performance to set salaries
         # guarantees firms do not spend all revenue on salaries
-        return self.revenue * (1 - (unemployment * relevance_unemployment))
+        # Calculating wage base on a per-employee basis.
+        if self.num_employees > 0:
+            return (self.revenue / self.num_employees) * (1 - (unemployment * relevance_unemployment))
+        else:
+            return self.revenue * (1 - (unemployment * relevance_unemployment))
 
     def make_payment(self, regions, unemployment, alpha, tax_labor, relevance_unemployment):
         """Pay employees based on revenue, relative employee qualification, labor taxes, and alpha param"""
         if self.employees:
-            # Total salary, including labor taxes
-            total_salary_paid = self.wage_base(unemployment, relevance_unemployment)
+            # Total salary, including labor taxes. Reinstating total salary paid by multiplying wage * num_employees
+            total_salary_paid = self.wage_base(unemployment, relevance_unemployment) * self.num_employees
             if total_salary_paid > 0:
                 total_qualification = self.total_qualification(alpha)
                 for employee in self.employees.values():
@@ -393,7 +397,10 @@ class ConstructionFirm(Firm):
             # Adding the last planned house income
             self.revenue = self.monthly_planned_revenue[-1]
         # Observing global economic performance has the added advantage of not spending all revenue on salaries
-        return self.revenue * (1 - (unemployment * relevance_unemployment))
+        if self.num_employees > 0:
+            return (self.revenue / self.num_employees) * (1 - (unemployment * relevance_unemployment))
+        else:
+            return self.revenue * (1 - (unemployment * relevance_unemployment))
 
     @property
     def n_houses_sold(self):

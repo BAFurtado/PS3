@@ -15,7 +15,7 @@ INTEREST = 'real'
 # By how much percentage to increase prices
 MARKUP = 0.15
 # Frequency firms change prices. Probability > than parameter
-STICKY_PRICES = .7
+STICKY_PRICES = .5
 # Number of firms consulted before consumption
 SIZE_MARKET = 10
 # Frequency firms enter the market
