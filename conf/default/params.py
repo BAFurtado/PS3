@@ -6,7 +6,7 @@ import datetime
 # Production function, labour with decaying exponent, Alpha for K. [0, 1]
 PRODUCTIVITY_EXPONENT = .5
 # Order of magnitude correction of production. Production divided by parameter
-PRODUCTIVITY_MAGNITUDE_DIVISOR = 2
+PRODUCTIVITY_MAGNITUDE_DIVISOR = 3
 # GENERAL CALIBRATION PARAMETERS
 # Order of magnitude parameter of input into municipality investment
 MUNICIPAL_EFFICIENCY_MANAGEMENT = .00005
@@ -19,11 +19,11 @@ STICKY_PRICES = .5
 # Number of firms consulted before consumption
 SIZE_MARKET = 10
 # Frequency firms enter the market
-LABOR_MARKET = .25
+LABOR_MARKET = .5
 # Percentage of employees firms hired by distance
 PCT_DISTANCE_HIRING = .5
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
-RELEVANCE_UNEMPLOYMENT_SALARIES = 1
+RELEVANCE_UNEMPLOYMENT_SALARIES = .3
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 10
 
