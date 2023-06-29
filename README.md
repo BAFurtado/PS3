@@ -12,7 +12,7 @@
 7. Ordered, organized decision on consumption
 8. Changed price and production decisions based on Dawid, 2018 benchmarks
 9. Checked bank loan systems. 
-10. Included three new graph reports: wages received, wages paid, firms' stocks
+10. Included new graph reports: wages received, wages paid, firms' stocks, population
 11. Sorting of firms in the labor market made by per capita revenue!
 ------
 ``` python 3.9```

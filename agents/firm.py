@@ -85,7 +85,8 @@ class Firm:
         return self.total_quantity
 
     # Commercial department
-    def decision_on_prices_production(self, sticky_prices, markup, seed, avg_prices):
+    def decision_on_prices_production(self, sticky_prices, markup, seed, avg_prices,
+                                      prod_exponent=None, prod_magnitude_divisor=None, const_cash_flow=None):
         """ Update prices based on inventory and average prices
             Save signal for the labor market
         """

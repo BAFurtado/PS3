@@ -134,13 +134,14 @@ class Plotter:
             dats_q3 = self._prepare_data(os.path.join(self.avg[1], 'q3_stats.csv'),
                                          dats[0].columns).set_index('month')
 
-        cols = ['price_index', 'gdp_index', 'gdp_growth', 'unemployment', 'average_workers',
+        cols = ['pop', 'price_index', 'gdp_index', 'gdp_growth', 'unemployment', 'average_workers',
                 'families_median_wealth', 'families_wages_received',
                 'families_commuting', 'families_savings', 'families_helped', 'amount_subsidised',
                 'firms_wealth', 'firms_profit', 'firms_median_stock', 'firms_median_wage_paid', 'gini_index',
                 'average_utility', 'pct_zero_consumption', 'rent_default', 'inflation', 'average_qli', 'house_vacancy',
                 'house_price', 'house_rent', 'affordable', 'p_delinquent', 'equally', 'locally', 'fpm', 'bank']
-        titles = ['Average goods and services prices\' level', 'GDP absolute value', 'GDP growth in monthly perc.',
+        titles = ['Total population', 'Average goods and services prices\' level', 'GDP absolute value',
+                  'GDP growth in monthly perc.',
                   'Unemployment',
                   'Average workers per firm', 'Families\' median permanent income',
                   'Families\' median wages received', 'Families\' total commuting',

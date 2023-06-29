@@ -26,7 +26,7 @@ OUTPUT_DATA_SPEC = {
             'groupings': ['month'],
             'columns': 'ALL'
         },
-        'columns': ['month', 'price_index', 'gdp_index', 'gdp_growth', 'unemployment', 'average_workers',
+        'columns': ['month', 'pop', 'price_index', 'gdp_index', 'gdp_growth', 'unemployment', 'average_workers',
                     'families_median_wealth',
                     'families_wages_received',
                     'families_commuting',
@@ -133,6 +133,7 @@ class Output:
         bank = sim.central
         active = bank.active_loans()
         n_active = len(active)
+        pop = len(sim.agents)
         p_delinquent = len(bank.delinquent_loans()) / n_active if n_active else 0
         price_index, inflation = sim.stats.update_price(sim.consumer_firms)
         gdp_index, gdp_growth = sim.stats.sum_region_gdp(sim.firms, sim.regions)
@@ -164,7 +165,8 @@ class Output:
         for k in ['equally', 'locally', 'fpm']:
             mun_applied_treasure[k] = sum(r.applied_treasure[k] for r in sim.regions.values())
 
-        report = f"{sim.clock.days};{price_index:.3f};{gdp_index:.3f};{gdp_growth:.3f};{unemployment:.3f};" \
+        report = f"{sim.clock.days};{pop:d};" \
+                 f"{price_index:.3f};{gdp_index:.3f};{gdp_growth:.3f};{unemployment:.3f};" \
                  f"{average_workers:.3f};" \
                  f"{families_median_wealth:.3f};" \
                  f"{families_wages_received:.3f};" \
