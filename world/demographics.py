@@ -53,7 +53,7 @@ def pregnant(sim, agent, p_pregnancy):
 def die(sim, agent):
     """An agent dies"""
     sim.grave.append(agent)
-
+    old_region_id = agent.family.region_id
     # This makes the house vacant if all members of a given family have passed
     if agent.family.num_members == 1:
         # Save houses of empty family
@@ -118,9 +118,8 @@ def die(sim, agent):
 
     if agent.is_employed:
         sim.firms[agent.firm_id].obit(agent)
-    if agent.family is not None:
-        sim.update_pop(agent.region_id, None)
 
+    sim.update_pop(old_region_id, None)
     a_id = agent.id
     del sim.agents[a_id]
 

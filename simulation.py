@@ -54,12 +54,20 @@ class Simulation:
         self.interest = interest.set_index('date')
 
     def update_pop(self, old_region_id, new_region_id):
-        if old_region_id is not None:
-            self.mun_pops[old_region_id[:7]] += 1
-            self.reg_pops[old_region_id] += 1
-        if new_region_id is not None:
+        if old_region_id and new_region_id:
+            # Agents are moving from the old to the new region
+            self.mun_pops[old_region_id[:7]] -= 1
+            self.reg_pops[old_region_id] -= 1
             self.mun_pops[new_region_id[:7]] += 1
             self.reg_pops[new_region_id] += 1
+        elif old_region_id is None:
+            # New agents are coming into the new region
+            self.mun_pops[new_region_id[:7]] += 1
+            self.reg_pops[new_region_id] += 1
+        elif new_region_id is None:
+            # Agents have died
+            self.mun_pops[old_region_id[:7]] -= 1
+            self.reg_pops[old_region_id] -= 1
 
     def generate(self):
         """Spawn or load regions, agents, houses, families, and firms"""
@@ -78,8 +86,8 @@ class Simulation:
                 agents, houses, families, firms, regions = pickle.load(f)
 
         # Count populations for each municipality and region
-        self.mun_pops = {}
-        self.reg_pops = {}
+        self.mun_pops = dict()
+        self.reg_pops = dict()
         for agent in agents.values():
             r_id = agent.region_id
             mun_code = r_id[:7]
@@ -87,9 +95,7 @@ class Simulation:
                 self.reg_pops[r_id] = 0
             if mun_code not in self.mun_pops:
                 self.mun_pops[mun_code] = 0
-            self.mun_pops[mun_code] += 1
-            self.reg_pops[r_id] += 1
-
+            self.update_pop(None, r_id)
         return regions, agents, houses, families, firms, self.generator.central
 
     def run(self):

@@ -180,8 +180,7 @@ def immigration(sim):
 
         agents = [a for a in new_agents.values() if a.family in families]
 
-        # Has to come after we allocate households
-        # so we know where the agents live
+        # Has to come after we allocate households so that we know where the agents live
         for a in agents:
             sim.agents[a.id] = a
             sim.update_pop(None, a.region_id)
@@ -193,7 +192,7 @@ def marriage(sim):
     for agent in sim.agents.values():
         if sim.seed.random() < sim.PARAMS['MARRIAGE_CHECK_PROBABILITY']:
             # Compute probability that this agent will marry
-            # NOTE we don't consider whether or not they are already married
+            # NOTE we don't consider whether they are already married
             if sim.seed.random() < agent.p_marriage:
                 to_marry.append(agent)
 
@@ -227,8 +226,8 @@ def marriage(sim):
                     sim.families[new_family.id] = new_family
                     a_region_id = a.family.region_id
                     b_region_id = b.family.region_id
-                    sim.update_pop(a_region_id, a.region_id)
-                    sim.update_pop(b_region_id, b.region_id)
+                    sim.update_pop(a_region_id, new_family.house.region_id)
+                    sim.update_pop(b_region_id, new_family.house.region_id)
 
             elif b_to_move_out:
                 b.family.remove_agent(b)
@@ -256,9 +255,9 @@ def marriage(sim):
                         house.family_id = None
                         house.rent_data = None
 
-                sim.update_pop(old_r_id, b.region_id)
                 for each in b.family.members.values():
                     a.family.add_agent(each)
+                    sim.update_pop(b.region_id, a.family.region_id)
 
                 savings = b.family.grab_savings(sim.central, sim.clock.year, sim.clock.months)
                 a.family.update_balance(savings)

@@ -79,7 +79,9 @@ class RentalMarket:
         # Only after simulation has begun, it is necessary to update population, not at generation time
         try:
             if sim.mun_pops:
-                sim.update_pop(old_r_id, family.region_id)
+                if old_r_id and family.region_id:
+                    for _ in family.agents:
+                        sim.update_pop(old_r_id, family.region_id)
         except AttributeError:
             pass
 
