@@ -85,13 +85,14 @@ class Firm:
         return self.total_quantity
 
     # Commercial department
-    def update_prices(self, sticky_prices, markup, seed, avg_prices):
+    def decision_on_prices_production(self, sticky_prices, markup, seed, avg_prices):
         """ Update prices based on inventory and average prices
             Save signal for the labor market
         """
         # Sticky prices (KLENOW, MALIN, 2010)
         if seed.random() > sticky_prices:
             for p in self.inventory.values():
+                self.get_total_quantity()
                 # if the firm has sold this month more than available in stocks, prices rise
                 # Dawid 2018 p.26 Firm observes excess or shortage inventory and relative price considering other firms
                 # Considering inventory to last one month only
@@ -263,6 +264,8 @@ class ConstructionFirm(Firm):
                     self.total_qualification(params['PRODUCTIVITY_EXPONENT']) / \
                     params['PRODUCTIVITY_MAGNITUDE_DIVISOR']:
                 return
+            else:
+                self.increase_production = True
 
         # Candidate regions for licenses and check of funds to buy license
         regions = [r for r in regions if r.licenses > 0 and self.total_balance > r.license_price]
@@ -401,6 +404,20 @@ class ConstructionFirm(Firm):
             return (self.revenue / self.num_employees) * (1 - (unemployment * relevance_unemployment))
         else:
             return self.revenue * (1 - (unemployment * relevance_unemployment))
+
+    def decision_on_prices_production(self, sticky_prices, markup, seed, avg_prices,
+                                      prod_exponent=None, prod_magnitude_divisor=None, const_cash_flow=None):
+        """ Update signal for the labor market
+        """
+        if seed.random() > sticky_prices:
+            if self.building:
+                # Number of houses being built is endogenously dependent on number of workers and productivity within a
+                # parameter-specified number of months.
+                if sum([self.building[b]['cost'] for b in self.building]) > const_cash_flow * \
+                        self.total_qualification(prod_exponent) / prod_magnitude_divisor:
+                    self.increase_production = True
+            else:
+                self.increase_production = False
 
     @property
     def n_houses_sold(self):

@@ -134,7 +134,7 @@ class Output:
         active = bank.active_loans()
         n_active = len(active)
         p_delinquent = len(bank.delinquent_loans()) / n_active if n_active else 0
-        price_index, inflation = sim.stats.update_price(sim.firms)
+        price_index, inflation = sim.stats.update_price(sim.consumer_firms)
         gdp_index, gdp_growth = sim.stats.sum_region_gdp(sim.firms, sim.regions)
         unemployment = sim.stats.update_unemployment(sim.agents.values(), True)
         average_workers = sim.stats.calculate_average_workers(sim.firms)

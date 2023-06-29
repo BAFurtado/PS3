@@ -234,7 +234,8 @@ class Simulation:
         relevance_unemployment = self.PARAMS['RELEVANCE_UNEMPLOYMENT_SALARIES']
         sticky = self.PARAMS['STICKY_PRICES']
         markup = self.PARAMS['MARKUP']
-        avg_prices, _ = self.stats.update_price(self.firms, mid_simulation_calculus=True)
+        const_cash_flow = self.PARAMS['CONSTRUCTION_ACC_CASH_FLOW']
+        avg_prices, _ = self.stats.update_price(self.consumer_firms, mid_simulation_calculus=True)
         for firm in self.firms.values():
             # Tax workers when paying salaries
             firm.make_payment(self.regions, current_unemployment,
@@ -245,9 +246,9 @@ class Simulation:
             firm.pay_taxes(self.regions, tax_firm)
             # Profits are after taxes
             firm.calculate_profit()
-            # Check whether it is necessary to update prices (update stock in inventory)
-            firm.get_total_quantity()
-            firm.update_prices(sticky, markup, self.seed, avg_prices)
+            # Check whether it is necessary to update prices
+            firm.decision_on_prices_production(sticky, markup, self.seed, avg_prices,
+                                               prod_exponent, prod_magnitude_divisor, const_cash_flow)
 
         # Construction firms
         vacancy = self.stats.calculate_house_vacancy(self.houses, False)

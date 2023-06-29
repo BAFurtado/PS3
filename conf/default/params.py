@@ -28,7 +28,7 @@ RELEVANCE_UNEMPLOYMENT_SALARIES = .3
 HIRING_SAMPLE_SIZE = 10
 
 # TAXES ##################################################################
-TAX_CONSUMPTION = .3
+TAX_CONSUMPTION = .25
 TAX_LABOR = .15
 TAX_ESTATE_TRANSACTION = .005
 TAX_FIRM = .15

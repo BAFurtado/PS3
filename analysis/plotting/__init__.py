@@ -140,7 +140,8 @@ class Plotter:
                 'firms_wealth', 'firms_profit', 'firms_median_stock', 'firms_median_wage_paid', 'gini_index',
                 'average_utility', 'pct_zero_consumption', 'rent_default', 'inflation', 'average_qli', 'house_vacancy',
                 'house_price', 'house_rent', 'affordable', 'p_delinquent', 'equally', 'locally', 'fpm', 'bank']
-        titles = ['Average prices\' level', 'GDP absolute value', 'GDP growth in monthly perc.', 'Unemployment',
+        titles = ['Average goods and services prices\' level', 'GDP absolute value', 'GDP growth in monthly perc.',
+                  'Unemployment',
                   'Average workers per firm', 'Families\' median permanent income',
                   'Families\' median wages received', 'Families\' total commuting',
                   'Families\' absolute savings', 'Number of families receiving policy help',
@@ -148,7 +149,7 @@ class Plotter:
                   'Firms\' absolute capital', 'Firms\' profit', 'Firms\' median stock',
                   'Firms\' median wages paid', 'GINI index',
                   'Average families\' utility', 'Percentual families zero consumption',
-                  'Percentual default among renting families', 'Monthly inflation',
+                  'Percentual default among renting families', 'Monthly goods and services inflation',
                   'Average QLI index value', 'House vacancies', 'House prices', 'House rent prices',
                   'Affordable rent (less than 30% permanent income)',
                   'Percentual of delinquent loans', 'Taxes invested equally', 'Taxes invested locally',
