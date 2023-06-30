@@ -1,8 +1,17 @@
 from agents import Agent
 from .population import marriage_data
 
+
 # Importing official Data from IBGE, 2000-2030
 # NOTE: There are different DATA available for each year 2000-2030 for each State
+
+def check_education(agent, age):
+    thresholds = [(8, 2), (9, 3), (10, 4), (11, 5), (12, 6), (13, 7), (14, 8), (15, 9), (16, 10), (17, 11)]
+    for threshold_age, threshold_qualification in thresholds:
+        if threshold_age == age and agent.qualification < threshold_qualification:
+            agent.qualification += 1
+            break
+    return agent
 
 
 def check_demographics(sim, birthdays, year, mortality_men, mortality_women, fertility):
@@ -16,6 +25,10 @@ def check_demographics(sim, birthdays, year, mortality_men, mortality_women, fer
             p_pregnancy = fertility.get_group(age)[str(year)].iloc[0]
         for agent in agents:
             agent.age += 1
+            if 7 < age < 18:
+                if random_numbers[i] > .17:
+                    # Dropout for schooling years is of the order of magnitude of 17% for Brazil
+                    agent = check_education(agent, age)
             agent.p_marriage = marriage_data.p_marriage(agent)
             if agent.gender == 'Male':
                 if random_numbers[i] < prob_mort_m:
@@ -97,7 +110,7 @@ def die(sim, agent):
                 debtor = sim.seed.choice(relatives)
 
             # Distribute savings equally
-            savings_per_relative = savings/len(relatives)
+            savings_per_relative = savings / len(relatives)
             for f in relatives:
                 f.update_balance(savings_per_relative)
 
@@ -122,4 +135,3 @@ def die(sim, agent):
     sim.update_pop(old_region_id, None)
     a_id = agent.id
     del sim.agents[a_id]
-

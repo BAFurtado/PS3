@@ -14,6 +14,8 @@
 9. Checked bank loan systems. 
 10. Included new graph reports: wages received, wages paid, firms' stocks, population
 11. Sorting of firms in the labor market made by per capita revenue!
+12. Introduced parameters PRICE_RUGGEDNESS so that prices reduction is more rugged than when increasing
+13. Now there is endogenous qualification growth, observing dropout average magnitude
 ------
 ``` python 3.9```
 ------
