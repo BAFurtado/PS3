@@ -16,6 +16,9 @@ INTEREST = 'real'
 MARKUP = 0.15
 # Frequency firms change prices. Probability > than parameter
 STICKY_PRICES = .5
+# Price ruggedness a positive value (below 1) that multiplies the magnitude of price reduction
+# Reflects a reluctance of businesses to lower prices. Amount estimated for reduction multiplied by parameter
+PRICE_RUGGEDNESS = .8
 # Number of firms consulted before consumption
 SIZE_MARKET = 10
 # Frequency firms enter the market
@@ -169,7 +172,7 @@ PUBLIC_TRANSIT_COST = 0.05
 PERCENTAGE_ACTUAL_POP = 0.01
 
 # Write exactly like the list above
-PROCESSING_ACPS = ['IPATINGA']
+PROCESSING_ACPS = ['BRASILIA']
 
 # Selecting the starting year to build the Agents, can be: 1991, 2000 or 2010
 STARTING_DAY = datetime.date(2010, 1, 1)

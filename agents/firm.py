@@ -86,7 +86,8 @@ class Firm:
 
     # Commercial department
     def decision_on_prices_production(self, sticky_prices, markup, seed, avg_prices,
-                                      prod_exponent=None, prod_magnitude_divisor=None, const_cash_flow=None):
+                                      prod_exponent=None, prod_magnitude_divisor=None, const_cash_flow=None,
+                                      price_ruggedness=1):
         """ Update prices based on inventory and average prices
             Save signal for the labor market
         """
@@ -107,7 +108,7 @@ class Firm:
                 if low_inventory and low_prices:
                     p.price *= (1 + delta_price)
                 elif not low_inventory and not low_prices:
-                    p.price *= (1 - delta_price)
+                    p.price *= (1 - delta_price) * price_ruggedness
         # Resetting amount sold to record monthly amounts
         self.amount_sold = 0
         self.prices = sum(p.price for p in self.inventory.values()) / len(self.inventory)
@@ -407,7 +408,8 @@ class ConstructionFirm(Firm):
             return self.revenue * (1 - (unemployment * relevance_unemployment))
 
     def decision_on_prices_production(self, sticky_prices, markup, seed, avg_prices,
-                                      prod_exponent=None, prod_magnitude_divisor=None, const_cash_flow=None):
+                                      prod_exponent=None, prod_magnitude_divisor=None, const_cash_flow=None,
+                                      price_ruggedness=None):
         """ Update signal for the labor market
         """
         if seed.random() > sticky_prices:

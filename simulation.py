@@ -241,6 +241,7 @@ class Simulation:
         sticky = self.PARAMS['STICKY_PRICES']
         markup = self.PARAMS['MARKUP']
         const_cash_flow = self.PARAMS['CONSTRUCTION_ACC_CASH_FLOW']
+        price_ruggedness = self.PARAMS['PRICE_RUGGEDNESS']
         avg_prices, _ = self.stats.update_price(self.consumer_firms, mid_simulation_calculus=True)
         for firm in self.firms.values():
             # Tax workers when paying salaries
@@ -254,7 +255,8 @@ class Simulation:
             firm.calculate_profit()
             # Check whether it is necessary to update prices
             firm.decision_on_prices_production(sticky, markup, self.seed, avg_prices,
-                                               prod_exponent, prod_magnitude_divisor, const_cash_flow)
+                                               prod_exponent, prod_magnitude_divisor, const_cash_flow,
+                                               price_ruggedness)
 
         # Construction firms
         vacancy = self.stats.calculate_house_vacancy(self.houses, False)
