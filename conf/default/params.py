@@ -4,21 +4,21 @@ import datetime
 
 # FIRMS #########################################################
 # Production function, labour with decaying exponent, Alpha for K. [0, 1]
-PRODUCTIVITY_EXPONENT = .5
+PRODUCTIVITY_EXPONENT = .6
 # Order of magnitude correction of production. Production divided by parameter
 PRODUCTIVITY_MAGNITUDE_DIVISOR = 3
 # GENERAL CALIBRATION PARAMETERS
 # Order of magnitude parameter of input into municipality investment
-MUNICIPAL_EFFICIENCY_MANAGEMENT = .00005
+MUNICIPAL_EFFICIENCY_MANAGEMENT = .00004
 # INTEREST. Choose either: 'nominal', 'real' or 'fixed'. Default 'real'
 INTEREST = 'real'
 # By how much percentage to increase prices
-MARKUP = 0.15
+MARKUP = 0.16
 # Frequency firms change prices. Probability > than parameter
 STICKY_PRICES = .5
 # Price ruggedness a positive value (below 1) that multiplies the magnitude of price reduction
 # Reflects a reluctance of businesses to lower prices. Amount estimated for reduction multiplied by parameter
-PRICE_RUGGEDNESS = .8
+PRICE_RUGGEDNESS = .5
 # Number of firms consulted before consumption
 SIZE_MARKET = 10
 # Frequency firms enter the market
@@ -26,16 +26,16 @@ LABOR_MARKET = .5
 # Percentage of employees firms hired by distance
 PCT_DISTANCE_HIRING = .5
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
-RELEVANCE_UNEMPLOYMENT_SALARIES = .3
+RELEVANCE_UNEMPLOYMENT_SALARIES = .1
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 10
 
 # TAXES ##################################################################
 TAX_CONSUMPTION = .25
 TAX_LABOR = .15
-TAX_ESTATE_TRANSACTION = .005
+TAX_ESTATE_TRANSACTION = .004
 TAX_FIRM = .15
-TAX_PROPERTY = .005
+TAX_PROPERTY = .004
 
 # GOVERNMENT ####################################################################
 # ALTERNATIVE OF DISTRIBUTION OF TAXES COLLECTED. REPLICATING THE NOTION OF A COMMON POOL OF RESOURCES ################
@@ -66,13 +66,13 @@ MAX_LOAN_AGE = 70
 # Used to calculate monthly payment for the families, thus limiting maximum loan by number of months and age
 # Because permanent income includes wealth, it should be just a small percentage,
 # otherwise compromises monthly consumption.
-LOAN_PAYMENT_TO_PERMANENT_INCOME = .09
+LOAN_PAYMENT_TO_PERMANENT_INCOME = .05
 # Refers to the maximum loan monthly payment to total wealth
 # MAX_LOAN_PAYMENT_TO_WEALTH=.4
 # Refers to the maximum rate of the loan on the value of the estate
 MAX_LOAN_TO_VALUE = .4
 # This parameter refers to the total amount of resources available at the bank.
-MAX_LOAN_BANK_PERCENT = .7
+MAX_LOAN_BANK_PERCENT = .6
 
 # HOUSING AND REAL ESTATE MARKET #############################################################
 CAPPED_TOP_VALUE = 1.3
@@ -92,7 +92,7 @@ NEIGHBORHOOD_EFFECT = 1
 
 # RENTAL #######################
 RENTAL_SHARE = 0.2
-INITIAL_RENTAL_PRICE = .005
+INITIAL_RENTAL_PRICE = .004
 
 # CONSTRUCTION #################################################################################
 # LICENSES ARE URBANIZED LOTS AVAILABLE FOR CONSTRUCTION PER NEIGHBORHOOD PER MONTH.

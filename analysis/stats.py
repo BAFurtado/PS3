@@ -112,7 +112,7 @@ class Statistics(object):
         return np.median([family.total_wage() for family in families.values()])
 
     def calculate_families_savings(self, families):
-        dummy_savings = np.sum([families[family].savings for family in families.keys()])
+        dummy_savings = np.sum([families[family].savings for family in families])
         return dummy_savings
 
     def calculate_rent_default(self, families):

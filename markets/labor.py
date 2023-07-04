@@ -122,8 +122,11 @@ class LaborMarket:
                     self.add_post(firm)
                 # Three-way criteria: Wages exceed sales, profits (considering taxes) are negative
                 # and there is no need to increase production due to low prices and inventories
-                elif firm.profit < 0 and firm.wages_paid > firm.revenue and not firm.increase_production:
-                    firm.fire(self.seed)
+                elif firm.profit < 0 and firm.wages_paid > firm.revenue:
+                    if not firm.increase_production:
+                        firm.fire(self.seed)
+                        # Condition is valid only once
+                        firm.increase_production = True
 
     def __repr__(self):
         return self.available_postings, self.candidates

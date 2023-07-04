@@ -108,7 +108,7 @@ class Firm:
                 if low_inventory and low_prices:
                     p.price *= (1 + delta_price)
                 elif not low_inventory and not low_prices:
-                    p.price *= (1 - delta_price) * price_ruggedness
+                    p.price *= 1 - delta_price * price_ruggedness
         # Resetting amount sold to record monthly amounts
         self.amount_sold = 0
         self.prices = sum(p.price for p in self.inventory.values()) / len(self.inventory)
