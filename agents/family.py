@@ -214,7 +214,7 @@ class Family:
             self.savings += (money - consumption)
         return consumption
 
-    def consume(self, firms, central, regions, params, seed, year, month, origin=True):
+    def consume(self, firms, central, regions, params, seed, year, month, origin):
         """Consumption from goods and services firms, based on criteria of price or distance.
         Family general consumption depends on its permanent income, based on members wages, working life expectancy
         and real estate and savings interest

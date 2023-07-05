@@ -113,7 +113,7 @@ class Firm:
         self.amount_sold = 0
         self.prices = sum(p.price for p in self.inventory.values()) / len(self.inventory)
 
-    def sale(self, amount, regions, tax_consumption, consumer_region_id=None, origin=True):
+    def sale(self, amount, regions, tax_consumption, consumer_region_id, origin):
         """Sell max amount of products for a given amount of money"""
         if amount > 0:
             # For each product in this firms' inventory, spend amount proportionally
