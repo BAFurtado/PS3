@@ -60,6 +60,7 @@ POLICY_DAYS = 360
 # Size of the poorest families to be helped
 POLICY_QUANTILE = .2
 
+TAX_ON_DESTIN = True
 # LOANS ##############################################################################
 # Maximum age of borrower at the end of the contract
 MAX_LOAN_AGE = 70

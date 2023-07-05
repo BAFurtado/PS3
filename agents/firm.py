@@ -113,7 +113,7 @@ class Firm:
         self.amount_sold = 0
         self.prices = sum(p.price for p in self.inventory.values()) / len(self.inventory)
 
-    def sale(self, amount, regions, tax_consumption):
+    def sale(self, amount, regions, tax_consumption, consumer_region_id=None, origin=True):
         """Sell max amount of products for a given amount of money"""
         if amount > 0:
             # For each product in this firms' inventory, spend amount proportionally
@@ -141,8 +141,12 @@ class Firm:
                     # Tax added to region-specific government.
                     # ATTENTION. this is the origin of consumption!
                     # For the new REFORM change it to the region of CONSUMER
-                    regions[self.region_id].collect_taxes(amount_per_product * tax_consumption, 'consumption')
-
+                    if origin:
+                        # Standard tax system. Consumption charged at firms' address
+                        regions[self.region_id].collect_taxes(amount_per_product * tax_consumption, 'consumption')
+                    else:
+                        # Testing policy to charge consumption tax at consumers' address
+                        regions[consumer_region_id].collect_taxes(amount_per_product * tax_consumption, 'consumption')
                     # Quantifying quantity sold
                     dummy_bought_quantity += bought_quantity
 

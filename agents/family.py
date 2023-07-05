@@ -73,6 +73,7 @@ class Family:
                 self.rent_voucher = 0
         self.house.empty()
         self.house = None
+        self.region_id = None
 
     @property
     def address(self):
@@ -213,7 +214,7 @@ class Family:
             self.savings += (money - consumption)
         return consumption
 
-    def consume(self, firms, central, regions, params, seed, year, month):
+    def consume(self, firms, central, regions, params, seed, year, month, origin=True):
         """Consumption from goods and services firms, based on criteria of price or distance.
         Family general consumption depends on its permanent income, based on members wages, working life expectancy
         and real estate and savings interest
@@ -238,7 +239,7 @@ class Family:
                     chosen_firm = min(market, key=lambda firm: self.house.distance_to_firm(firm))
 
                 # Buy from chosen company
-                change = chosen_firm.sale(money_to_spend, regions, params['TAX_CONSUMPTION'])
+                change = chosen_firm.sale(money_to_spend, regions, params['TAX_CONSUMPTION'], self.region_id, origin)
                 self.savings += change
 
                 # Update monthly family utility
