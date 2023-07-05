@@ -138,7 +138,9 @@ class Firm:
                     self.total_balance += revenue
                     self.revenue += revenue
 
-                    # Tax added to region-specific government
+                    # Tax added to region-specific government.
+                    # ATTENTION. this is the origin of consumption!
+                    # For the new REFORM change it to the region of CONSUMER
                     regions[self.region_id].collect_taxes(amount_per_product * tax_consumption, 'consumption')
 
                     # Quantifying quantity sold

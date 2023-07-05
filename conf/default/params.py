@@ -4,7 +4,7 @@ import datetime
 
 # FIRMS #########################################################
 # Production function, labour with decaying exponent, Alpha for K. [0, 1]
-PRODUCTIVITY_EXPONENT = .6
+PRODUCTIVITY_EXPONENT = .62
 # Order of magnitude correction of production. Production divided by parameter
 PRODUCTIVITY_MAGNITUDE_DIVISOR = 3
 # GENERAL CALIBRATION PARAMETERS
@@ -26,12 +26,12 @@ LABOR_MARKET = .5
 # Percentage of employees firms hired by distance
 PCT_DISTANCE_HIRING = .5
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
-RELEVANCE_UNEMPLOYMENT_SALARIES = .1
+RELEVANCE_UNEMPLOYMENT_SALARIES = .2
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 10
 
 # TAXES ##################################################################
-TAX_CONSUMPTION = .25
+TAX_CONSUMPTION = .15
 TAX_LABOR = .15
 TAX_ESTATE_TRANSACTION = .004
 TAX_FIRM = .15
