@@ -51,19 +51,22 @@ class Plotter:
         p_pop = self.params.get('PERCENTAGE_ACTUAL_POP', conf.PARAMS['PERCENTAGE_ACTUAL_POP'])
         title = '{}\nAgents : {}% of Population'.format(title, p_pop * 100)
 
+        if isinstance(labels, tuple):
+            special_labels = list(labels)
+        else:
+            special_labels = labels.copy()
         fig, ax = plt.subplots()
         if q1 and isinstance(q1[0], pd.Series):
             for i in range(len(q1)):
                 idx = pd.to_datetime(datas[i].index)
-                ax.plot(idx, datas[i])
-                ax.fill_between(idx, q1[i], q3[i], alpha=0.2)
-            labels = ['mean', 'lower-upper bounds']
+                ax.plot(idx, datas[i], label=special_labels[i])
+                ax.fill_between(idx, q1[i], q3[i], alpha=0.2, label='lower-upper $2\sigma$ bounds')
         else:
             for d in datas:
                 d.plot(ax=ax)
 
         # Create the plot
-        ax.legend(loc='best', ncol=3, fancybox=True, shadow=False, framealpha=.25, labels=labels)
+        ax.legend(loc='best', ncol=3, fancybox=True, shadow=False, framealpha=.25)
         ax.set_title(title)
         ax.set_xlabel('Time')
         if y_label is not None:
