@@ -50,6 +50,7 @@ def single_run(params, path):
 
 def multiple_runs(overrides, runs, cpus, output_dir, fix_seeds=False):
     """Run multiple configurations, each `runs` times"""
+    # overrides is a list of dictionaries with parameter name and value
     logger.info('Running simulation {} times'.format(len(overrides) * runs))
 
     if fix_seeds:
@@ -199,7 +200,6 @@ def sensitivity(ctx, params):
         elif param == 'INTEREST':
             p_name = param
             p_vals = ['real', 'nominal', 'fixed']
-        # else, assume boolean
         elif '-' in param:
             p_name = 'PROCESSING_ACPS'
             p_vals = [[i] for i in param.split('-')[1:]]
@@ -225,13 +225,13 @@ def sensitivity(ctx, params):
             p_vals = my_dict.values()
             ctx.obj['output_dir'] = ctx.obj['output_dir'].replace('sensitivity', '_'.join(k for k in keys))
             confs = permutations_dicts
-        # fix the same seed for each run
-        conf.RUN['KEEP_RANDOM_SEED'] = False
+        # Fix the same seed for each run
+        conf.RUN['KEEP_RANDOM_SEED'] = True
         # conf.RUN['FORCE_NEW_POPULATION'] = False # Ideally this is True, but it slows things down a lot
-        conf.RUN['SKIP_PARAM_GROUP_PLOTS'] = True
+        conf.RUN['SKIP_PARAM_GROUP_PLOTS'] = False
 
         logger.info('Sensitivity run over {} for values: {}, {} run(s) each'.format(p_name, p_vals, ctx.obj['runs']))
-        multiple_runs(confs, ctx.obj['runs'], ctx.obj['cpus'], ctx.obj['output_dir'], fix_seeds=True)
+        multiple_runs(confs, ctx.obj['runs'], ctx.obj['cpus'], ctx.obj['output_dir'])
 
 
 @main.command()

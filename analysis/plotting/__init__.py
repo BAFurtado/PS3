@@ -52,10 +52,11 @@ class Plotter:
         title = '{}\nAgents : {}% of Population'.format(title, p_pop * 100)
 
         fig, ax = plt.subplots()
-        if isinstance(q1, pd.Series):
-            idx = pd.to_datetime(datas[0].index)
-            ax.plot(idx, datas[0], color='blue')
-            ax.fill_between(idx, q1, q3, alpha=0.2, color='blue')
+        if q1 and isinstance(q1[0], pd.Series):
+            for i in range(len(q1)):
+                idx = pd.to_datetime(datas[i].index)
+                ax.plot(idx, datas[i])
+                ax.fill_between(idx, q1[i], q3[i], alpha=0.2)
             labels = ['mean', 'lower-upper bounds']
         else:
             for d in datas:
@@ -128,18 +129,20 @@ class Plotter:
         labels, dats = self._load_multiple_runs('stats', 'stats.csv')
         if len(self.run_paths) > 1:
             try:
+                # This is the case that we have comparisons, such as sensitivity
                 _, dats_q1 = self._load_multiple_runs('stats', 'q1_stats.csv')
                 _, dats_q3 = self._load_multiple_runs('stats', 'q3_stats.csv')
             except ValueError:
-                pass
-            if self.avg:
-                temp_path = self.avg[1]
-            else:
-                temp_path = self.output_path.replace('plots', 'avg')
-            dats_q1 = self._prepare_data(os.path.join(temp_path, 'q1_stats.csv'),
-                                         dats[0].columns).set_index('month')
-            dats_q3 = self._prepare_data(os.path.join(temp_path, 'q3_stats.csv'),
-                                         dats[0].columns).set_index('month')
+                if self.avg:
+                    # This is for single run
+                    temp_path = self.avg[1]
+                else:
+                    # This is for plotting within each comparison value
+                    temp_path = self.output_path.replace('plots', 'avg')
+                dats_q1 = [self._prepare_data(os.path.join(temp_path, 'q1_stats.csv'),
+                                              dats[0].columns).set_index('month')]
+                dats_q3 = [self._prepare_data(os.path.join(temp_path, 'q3_stats.csv'),
+                                              dats[0].columns).set_index('month')]
 
         cols = ['pop', 'price_index', 'gdp_index', 'gdp_growth', 'unemployment', 'average_workers',
                 'families_median_wealth', 'families_wages_received',
@@ -167,8 +170,10 @@ class Plotter:
         dats = [d.set_index('month') for d in dats]
 
         for col, title in zip(cols, titles):
-            if isinstance(dats_q1, pd.DataFrame):
-                fig = self.make_plot([d[col] for d in dats], title, labels, q1=dats_q1[col], q3=dats_q3[col])
+            if isinstance(dats_q1[0], pd.DataFrame):
+                fig = self.make_plot([d[col] for d in dats], title, labels,
+                                     q1=[d[col] for d in dats_q1],
+                                     q3=[d[col] for d in dats_q3])
             else:
                 fig = self.make_plot([d[col] for d in dats], title, labels)
             self.save_fig(fig, '{}'.format(title))

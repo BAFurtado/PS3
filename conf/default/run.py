@@ -53,7 +53,7 @@ SAVE_DATA = []
 # Notice that they are grouped by MONTH and MUNICIPALITY and some values may not make sense
 # Options: ['families', 'houses', 'agents]
 # You need to INCLUDE STATS to generate SPATIAL PLOTS. 'stats' also refer to general averaged plots
-AVERAGE_DATA = ['stats', 'regional', 'banks', 'firms', 'construction']
+AVERAGE_DATA = ['stats']
 # 'median' or 'mean'
 AVERAGE_TYPE = 'mean'
 

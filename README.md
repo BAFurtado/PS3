@@ -16,6 +16,8 @@
 11. Sorting of firms in the labor market made by per capita revenue!
 12. Introduced parameters PRICE_RUGGEDNESS so that prices reduction is more rugged than when increasing
 13. Now there is endogenous qualification growth, observing dropout average magnitude
+14. Plotting with lower upper bounds (2std) for sensitivity comparison
+15. Introduced test of collecting consumption taxes at consumers' municipality rather than firms'
 ------
 ``` python 3.9```
 ------

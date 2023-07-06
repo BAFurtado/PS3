@@ -140,4 +140,8 @@ def plot_results(output_dir, logger):
     # plot averages
     if len(avgs) > 1:
         output_path = os.path.join(output_dir, 'plots')
-        plot(avgs, output_path, {}, only=['general'])
+        plot(input_paths=avgs,
+             output_path=output_path,
+             params={},
+             logger=logger,
+             only=['general'])
