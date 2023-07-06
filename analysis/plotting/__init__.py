@@ -55,8 +55,6 @@ class Plotter:
         if isinstance(q1, pd.Series):
             idx = pd.to_datetime(datas[0].index)
             ax.plot(idx, datas[0], color='blue')
-            # ax.plot(idx, q1)
-            # ax.plot(idx, q3)
             ax.fill_between(idx, q1, q3, alpha=0.2, color='blue')
             labels = ['mean', 'lower-upper bounds']
         else:
@@ -128,10 +126,19 @@ class Plotter:
     def plot_general(self):
         dats_q1, dats_q3 = None, None
         labels, dats = self._load_multiple_runs('stats', 'stats.csv')
-        if len(self.run_paths) > 1 and self.avg:
-            dats_q1 = self._prepare_data(os.path.join(self.avg[1], 'q1_stats.csv'),
+        if len(self.run_paths) > 1:
+            try:
+                _, dats_q1 = self._load_multiple_runs('stats', 'q1_stats.csv')
+                _, dats_q3 = self._load_multiple_runs('stats', 'q3_stats.csv')
+            except ValueError:
+                pass
+            if self.avg:
+                temp_path = self.avg[1]
+            else:
+                temp_path = self.output_path.replace('plots', 'avg')
+            dats_q1 = self._prepare_data(os.path.join(temp_path, 'q1_stats.csv'),
                                          dats[0].columns).set_index('month')
-            dats_q3 = self._prepare_data(os.path.join(self.avg[1], 'q3_stats.csv'),
+            dats_q3 = self._prepare_data(os.path.join(temp_path, 'q3_stats.csv'),
                                          dats[0].columns).set_index('month')
 
         cols = ['pop', 'price_index', 'gdp_index', 'gdp_growth', 'unemployment', 'average_workers',
