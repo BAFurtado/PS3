@@ -173,10 +173,11 @@ class Plotter:
         dats = [d.set_index('month') for d in dats]
 
         for col, title in zip(cols, titles):
-            if isinstance(dats_q1[0], pd.DataFrame):
-                fig = self.make_plot([d[col] for d in dats], title, labels,
-                                     q1=[d[col] for d in dats_q1],
-                                     q3=[d[col] for d in dats_q3])
+            if dats_q1:
+                if isinstance(dats_q1[0], pd.DataFrame):
+                    fig = self.make_plot([d[col] for d in dats], title, labels,
+                                         q1=[d[col] for d in dats_q1],
+                                         q3=[d[col] for d in dats_q3])
             else:
                 fig = self.make_plot([d[col] for d in dats], title, labels)
             self.save_fig(fig, '{}'.format(title))
