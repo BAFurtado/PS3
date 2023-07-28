@@ -30,13 +30,6 @@ RELEVANCE_UNEMPLOYMENT_SALARIES = .2
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 10
 
-# TAXES ##################################################################
-TAX_CONSUMPTION = .15
-TAX_LABOR = .15
-TAX_ESTATE_TRANSACTION = .004
-TAX_FIRM = .15
-TAX_PROPERTY = .004
-
 # GOVERNMENT ####################################################################
 # ALTERNATIVE OF DISTRIBUTION OF TAXES COLLECTED. REPLICATING THE NOTION OF A COMMON POOL OF RESOURCES ################
 # Alternative0 is True, municipalities are just normal as INPUT
@@ -59,7 +52,8 @@ POLICIES = 'no_policy'
 POLICY_DAYS = 360
 # Size of the poorest families to be helped
 POLICY_QUANTILE = .2
-
+# Change of policy for collecting consumption tax at:
+# firms' municipalities origin (True) or destin (consumers' municipality)
 TAX_ON_ORIGIN = True
 # LOANS ##############################################################################
 # Maximum age of borrower at the end of the contract
@@ -118,7 +112,12 @@ SIMPLIFY_POP_EVOLUTION = True
 LIST_NEW_AGE_GROUPS = [6, 12, 17, 25, 35, 45, 65, 100]
 MARRIAGE_CHECK_PROBABILITY = .03
 
-# TAXES #######################################################
+# TAXES ##################################################################
+TAX_CONSUMPTION = .15
+TAX_LABOR = .15
+TAX_ESTATE_TRANSACTION = .004
+TAX_FIRM = .15
+TAX_PROPERTY = .004
 # Consumption_equal: ratio of consumption tax distributed at state level (equal)
 # Fpm: ratio of 'labor' and 'firm' taxes distributed per the fpm ruling
 TAXES_STRUCTURE = {'consumption_equal': .1875, 'fpm': .235}

@@ -139,11 +139,11 @@ We recommend using conda  and creating an environment that includes all librarie
 
 First create an environment and install Shapely and GDAL as such:
 
-`conda create --name ps2 python=3.6`
+`conda create --name ps3 python=3.9`
 
 Activate the environmnet
 
-`conda activate ps2`
+`conda activate ps3`
 
 Then add Shapely from conda-forge channel
  `conda install shapely gdal -c conda-forge`
@@ -151,7 +151,13 @@ Then add Shapely from conda-forge channel
 Then the other packages 
 `conda install fiona pandas geopandas numba descartes scipy seaborn pyproj matplotlib six cycler statsmodels joblib scikit-learn flask flask-wtf psutil -c conda-forge`
 
+Finally, also add numpy_financial
+`pip install numpy_financial`
+
 ## How to run the model ##
+
+1. `git clone https://github.com/BAFurtado/PS3.git` ou
+2. `git fork https://github.com/BAFurtado/PS3.git`
 
 ### Configuration
 
