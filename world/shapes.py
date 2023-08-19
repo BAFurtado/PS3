@@ -3,7 +3,7 @@ from collections import defaultdict
 
 import geopandas as gpd
 import pandas as pd
-from osgeo import ogr
+
 from shapely.geometry import shape
 
 
@@ -21,18 +21,17 @@ def prepare_shapes_2010(geo):
 
     codes = [str(code) for code in geo.mun_codes]
 
-    my_shapes = list()
+    my_shapes = gpd.GeoDataFrame(columns=['id', 'geometry'])
     states = list()
     for uf in geo.states_on_process:
-        states.append(ogr.Open(f'input/shapes/2010/areas/{uf}.shp'))
+        states.append(gpd.read_file(f'input/shapes/2010/areas/{uf}.shp'))
+
     for mun_id in codes:
         for state in states:
-            for mun_reg in range(state.GetLayer(0).GetFeatureCount()):
-                if state.GetLayer(0).GetFeature(mun_reg).GetField(1) == mun_id:
-                    shap = state.GetLayer(0).GetFeature(mun_reg)
-                    shap.id = str(shap.GetField(0))
-                    my_shapes.append(shap)
-
+            for index, row in state.iterrows():
+                if row['mun_code'] == mun_id:
+                    shap_data = gpd.GeoDataFrame({'id': row['id'], 'geometry': row.geometry}, index=[index])
+                    my_shapes = pd.concat([my_shapes, shap_data], ignore_index=True)
     return urban, my_shapes
 
 
@@ -50,36 +49,32 @@ def prepare_shapes(geo):
     # load the shapefiles
     if geo.year == 2010:
         return prepare_shapes_2010(geo)
-    full_region = ogr.Open('input/shapes/mun_ACPS_ibge_2014_latlong_wgs1984_fixed.shp')
-    urban_region = ogr.Open('input/shapes/URBAN_IBGE_ACPs.shp')
-    aps_region = ogr.Open('input/shapes/APs.shp')
+    full_region = gpd.read_file('input/shapes/mun_ACPS_ibge_2014_latlong_wgs1984_fixed.shp')
+    urban_region = gpd.read_file('input/shapes/URBAN_IBGE_ACPs.shp')
+    aps_region = gpd.read_file('input/shapes/APs.shp')
 
     urban = []
     urban_mun_codes = []
     # selecting the urban areas for each municipality
     for state in processing_states_code_list:
         for acp in geo.processing_acps:
-            # for all states different from Federal district (53 code)
-            for mun_reg in range(urban_region.GetLayer(0).GetFeatureCount()):
-                if urban_region.GetLayer(0).GetFeature(mun_reg).GetField(5) == str(acp) and \
-                                urban_region.GetLayer(0).GetFeature(mun_reg).GetField(3) == str(state):
-                    urban.append(urban_region.GetLayer(0).GetFeature(mun_reg))
-                    urban_mun_codes.append(urban_region.GetLayer(0).GetFeature(mun_reg).GetField(1))
-
-    urban = {
-        item.GetField(1): shape(json.loads(item.geometry().ExportToJson()))
+            for index, row in urban_region.iterrows():
+                if row['Field_5'] == str(acp) and row['Field_3'] == str(state):
+                    urban.append(row)
+                    urban_mun_codes.append(row['Field_1'])
+    urban_shapes = {
+        item['Field_1']: shape(json.loads(item.geometry.to_json()))
         for item in urban
     }
 
     # map municipal codes to constituent AP shapes
     mun_codes_to_ap_shapes = defaultdict(list)
-    for reg in range(aps_region.GetLayer(0).GetFeatureCount()):
-        shap = aps_region.GetLayer(0).GetFeature(reg)
-        code = shap.GetField(0)
+    for index, row in aps_region.iterrows():
+        code = row['field_name']
         mun_code = code[:7]
-        shap.id = code
-        shap.mun_code = mun_code
-        mun_codes_to_ap_shapes[mun_code].append(shap)
+        row['id'] = code
+        row['mun_code'] = mun_code
+        mun_codes_to_ap_shapes[mun_code].append(row)
 
     my_shapes = []
     # selection of municipalities boundaries
@@ -90,11 +85,11 @@ def prepare_shapes(geo):
         if mun_id in mun_codes_to_ap_shapes:
             my_shapes.extend(mun_codes_to_ap_shapes[mun_id])
         else:
-            for mun_reg in range(full_region.GetLayer(0).GetFeatureCount()):
-                if full_region.GetLayer(0).GetFeature(mun_reg).GetField(1) == mun_id:
-                    shap = full_region.GetLayer(0).GetFeature(mun_reg)
-                    # Make sure FIELD 1 is IBGE CODE
-                    shap.id = shap.GetField(1)
+            for index, row in full_region.iterrows():
+                if row['Field_1'] == mun_id:
+                    shap = row
+                    # Make sure 'Field_1' is the IBGE CODE
+                    shap['id'] = row['Field_1']
                     my_shapes.append(shap)
 
     return urban, my_shapes

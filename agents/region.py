@@ -1,5 +1,5 @@
 import json
-from shapely.geometry import Point, shape
+from shapely.geometry import shape
 from collections import defaultdict
 
 
@@ -7,11 +7,11 @@ class Region:
     """Collects taxes and applies to ameliorate quality of life"""
 
     def __init__(self, region, index=1, gdp=0, pop=0, total_commute=0, licenses=0):
-        # A region is an OSGEO object that contains Fields and Geometry
-        self.address_envelope = region.geometry().GetEnvelope()
-        self.addresses = region.geometry()
-        self.id = str(region.id)
-        self.addresses = shape(json.loads(self.addresses.ExportToJson()))
+        # A region is a Geopandas object that contains
+        self.address_envelope = region.total_bounds
+        self.addresses = region.geometry.unary_union
+        self.id = str(region['id'])
+        # self.addresses = shape(json.loads(self.addresses.to_json()))
         self.index = index
         self.gdp = gdp
         self.pop = pop

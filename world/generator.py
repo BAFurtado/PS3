@@ -53,8 +53,8 @@ class Generator:
         idhm = pd.read_csv('input/idhm_2000_2010.csv', sep=';')
         idhm = idhm.loc[idhm['year'] == self.sim.geo.year]
         regions = {}
-        for item in self.shapes:
-            r = Region(item, 1)
+        for index, item in self.shapes.iterrows():
+            r = Region(gpd.GeoDataFrame([item]))
             # mun code is always first 7 digits of id whether it's a municipality shape or an AP shape
             mun_code = r.id[:7]
             r.index = idhm[idhm['cod_mun'] == int(mun_code)]['idhm'].iloc[0]
