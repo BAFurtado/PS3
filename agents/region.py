@@ -10,8 +10,7 @@ class Region:
         # A region is a Geopandas object that contains
         self.address_envelope = region.total_bounds
         self.addresses = region.geometry.unary_union
-        self.id = str(region['id'])
-        # self.addresses = shape(json.loads(self.addresses.to_json()))
+        self.id = str(region.reset_index().loc[0, 'id'])
         self.index = index
         self.gdp = gdp
         self.pop = pop
