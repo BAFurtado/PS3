@@ -86,53 +86,6 @@ Developed by Bernardo Alves Furtado, funded primarily by Institute of Applied Ec
 (CEPAL-Brasília) and International Policy Centre (https://ipcig.org/). 
 BAF acknowledges receiving a grant of productivity by National Council of Research (CNPq) [www.cnpq.br].
 
-#### Recent publication
-
-Furtado, B. A. (2019). Modeling tax distribution in metropolitan regions with PolicySpace. 
-Journal on Policy and Complex Systems, 5(1). https://doi.org/10.18278/jpcs.5.1.6
-
-### Major changes
-
-**new BOOK describing changes and processes currently on the make**
-
-1. PolicySpace2 generates data that can be applied at https://github.com/frnsys/transit_demand_model. 
-The transit model in turn generates private and public transport routes, visualization and congestion times.
-2. Now data is read at the **intraurban** level of 'áreas de ponderação' (census track/block) from IBGE.
-3. There is exogenous migration embedded in the model (creating new houses)
-4. Exogenous growth of firms
-5. Marriage 
-6. Better support for plot formats
-7. House prices (supply) are included into families' wealth and updated every month
-8. Consumption decisions now follow Bielefeld, 2018 and is now a 
-"linear function of current and expected future incomes and of financial wealth." In other words, 
-"all income in excess of permanent income will be saved and added to financial wealth."
-9. Families composition are now sure to have at least one adult. Children are initially distributed randomly.
-10. Houses of families whose last member dies are randomly allocated to remaining family members.
-11. Interest being now paid on families' savings
-12. When no cash available, families can withdraw from savings for consumption (if any at savings) 
-up to permanent income
-13. Internal clock updated to use datetime
-14. Introduced a rental market 
-15. Included construction companies endogenous to the model.
-16. Financial (mortgage, credit) market structures
-17. Included transportation costs on workers' decision on choosing jobs
-18. Introduce inheritance (savings).
-19. A neighborhood effect (wealth of resident families influence price of houses)
-20. Decay effect on prices due to excess of houses on offer 
-21. Data updated (from census 2000 to census 2010)
-22. Offer decay (time depreciation) implemented
-23. Global availability of houses (vacancy) influences prices
-24. Neighborhood effects (based on families' wealth) influence prices.
-25. Possibility of negotiating house prices below the offer
-26. Vacancy size (offer) now impacts willingness to build of construction firms and prices
-27. New output analysis
-28. Endogenous mortgage rate setting by the bank. Default uses exogenous data though.
-29. Included the SAC -- Constant Amortization System -- mostly used in Brazil.
-30. POLICY EXPERIMENTAL DESIGN. Testing wether giving houses, paying rent or distribution money is the best policy
-    alternative. Both families in poverty and resources invested are endogenous.
-31. Included varying oficial monthly interest rate.      
-
-
 #### How do I get set up?
 
 We recommend using conda  and creating an environment that includes all libraries simultaneously.
@@ -146,10 +99,10 @@ Activate the environmnet
 `conda activate ps3`
 
 Then add Shapely from conda-forge channel
- `conda install shapely gdal -c conda-forge`
+ `conda install fiona geopandas shapely gdal -c conda-forge`
 
 Then the other packages 
-`conda install fiona pandas geopandas numba descartes scipy seaborn pyproj matplotlib six cycler statsmodels joblib scikit-learn flask flask-wtf psutil -c conda-forge`
+`conda install pandas ynumba descartes scipy seaborn pyproj matplotlib six cycler statsmodels joblib scikit-learn flask flask-wtf psutil -c conda-forge`
 
 Finally, also add numpy_financial
 `pip install numpy_financial`
