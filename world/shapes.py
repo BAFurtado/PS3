@@ -1,10 +1,7 @@
-import json
 from collections import defaultdict
 
 import geopandas as gpd
 import pandas as pd
-
-from shapely.geometry import shape
 
 
 def prepare_shapes_2010(geo):

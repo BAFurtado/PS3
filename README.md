@@ -19,7 +19,7 @@
 14. Plotting with lower upper bounds (2std) for sensitivity comparison
 15. Introduced test of collecting consumption taxes at consumers' municipality rather than firms'
 ------
-``` python 3.9```
+``` python 3.11```
 ------
 ------
 Previous work below
@@ -90,19 +90,12 @@ BAF acknowledges receiving a grant of productivity by National Council of Resear
 
 We recommend using conda  and creating an environment that includes all libraries simultaneously.
 
-First create an environment and install Shapely and GDAL as such:
+You do not need to inform the python version. Let the configuration of current libraries requirements decide.
 
-`conda create --name ps3 python=3.9`
+The line below set on `python 3.11` on August 18, 2023
 
-Activate the environmnet
-
-`conda activate ps3`
-
-Then add Shapely from conda-forge channel
- `conda install fiona geopandas shapely gdal -c conda-forge`
-
-Then the other packages 
-`conda install pandas ynumba descartes scipy seaborn pyproj matplotlib six cycler statsmodels joblib scikit-learn flask flask-wtf psutil -c conda-forge`
+`conda create -n ps3 -c conda-forge fiona geopandas shapely gdal pandas numba descartes scipy seaborn pyproj matplotlib 
+six cycler statsmodels joblib scikit-learn flask flask-wtf psutil`
 
 Finally, also add numpy_financial
 `pip install numpy_financial`
