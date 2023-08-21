@@ -53,24 +53,20 @@ def prepare_shapes(geo):
     urban_region = gpd.read_file('input/shapes/URBAN_IBGE_ACPs.shp')
     aps_region = gpd.read_file('input/shapes/APs.shp')
 
-    urban = []
+    urban = dict()
     urban_mun_codes = []
     # selecting the urban areas for each municipality
     for state in processing_states_code_list:
         for acp in geo.processing_acps:
             for index, row in urban_region.iterrows():
-                if row['Field_5'] == str(acp) and row['Field_3'] == str(state):
-                    urban.append(row)
-                    urban_mun_codes.append(row['Field_1'])
-    urban_shapes = {
-        item['Field_1']: shape(json.loads(item.geometry.to_json()))
-        for item in urban
-    }
+                if row['ACP'] == str(acp) and row['CD_GEOS'] == str(state):
+                    urban[row['GEOCODI']] = row['geometry']
+                    urban_mun_codes.append(row['GEOCODI'])
 
     # map municipal codes to constituent AP shapes
     mun_codes_to_ap_shapes = defaultdict(list)
     for index, row in aps_region.iterrows():
-        code = row['field_name']
+        code = row['AP']
         mun_code = code[:7]
         row['id'] = code
         row['mun_code'] = mun_code
@@ -86,10 +82,10 @@ def prepare_shapes(geo):
             my_shapes.extend(mun_codes_to_ap_shapes[mun_id])
         else:
             for index, row in full_region.iterrows():
-                if row['Field_1'] == mun_id:
+                if row['CD_GEOCMU'] == mun_id:
                     shap = row
-                    # Make sure 'Field_1' is the IBGE CODE
-                    shap['id'] = row['Field_1']
+                    shap['id'] = row['CD_GEOCMU']
                     my_shapes.append(shap)
 
+    my_shapes = gpd.GeoDataFrame(my_shapes)
     return urban, my_shapes
