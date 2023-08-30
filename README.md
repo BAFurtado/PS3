@@ -18,6 +18,7 @@
 13. Now there is endogenous qualification growth, observing dropout average magnitude
 14. Plotting with lower upper bounds (2std) for sensitivity comparison
 15. Introduced test of collecting consumption taxes at consumers' municipality rather than firms'
+16. Migrated from using `OGR from OSGEO` to regular `geopandas.DataFrames`
 ------
 ``` python 3.11```
 ------
