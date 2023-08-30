@@ -67,6 +67,12 @@ class Firm:
 
     # Production department
     def update_product_quantity(self, prod_expoent, prod_divisor):
+        # ALTERAR SOMENTE A FUNÇÃO DE PRODUÇÃO
+        # ATUALMENTE SOMENTE USA WORKERS => Y = F(W)
+        # VAI PASSAR A PRECISAR DE INSUMOS E WORKERS
+        # VAI SER NECESSARIO UM SETOR DE COMPRA VENDA INTERMEDIARIO
+        # SETOR EXTERNO
+        # INPUT FIRMAS POR AP POR SETOR, POR MUNICIPIO
         """Production equation = Labor * qualification ** alpha"""
         if self.employees and self.inventory:
             # Call get_sum_qualification below: sum([employee.qualification ** parameters.PRODUCTIVITY_EXPONENT
