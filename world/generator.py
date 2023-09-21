@@ -223,7 +223,18 @@ class Generator:
                                                            multiplier=multiplier * multiplier)
         return addresses
 
+    def get_empirical_data(self, region, num_houses):
+        avg_size = self.shapes.loc[self.shapes.id == region.id, 'area_util'].to_list()[0]
+        # Divide by 1000 so that fits the rest of the model. Prices of estates are roughtly x 1000 of real value
+        avg_price_m2 = self.shapes.loc[self.shapes.id == region.id, 'precom2'].to_list()[0] / 1000
+        sizes = self.seed_np.lognormal(np.log(avg_size), .5, size=num_houses)
+        sizes[sizes < 10] = 10
+        qualities = self.seed_np.lognormal(np.log(avg_price_m2), .5, size=num_houses)
+        prices = np.multiply(np.multiply(sizes, qualities), region.index)
+        return sizes, qualities, prices
+
     def create_houses(self, num_houses, region, addresses=None):
+        # Use self.shapes and region.id
         """Create houses for a region"""
         if addresses is None:
             addresses = list()
@@ -236,11 +247,14 @@ class Generator:
         rural = int(num_houses * (1 - probability_urban))
         if rural:
             addresses.append(self.get_random_points_in_polygon(region, number_addresses=rural, addresses=addresses))
-        # Distribution of house surface highly skilled to the right, given empirical data
-        sizes = self.seed_np.lognormal(np.log(70), .5, size=num_houses)
-        # Loose estimate of qualities in the universe
-        qualities = self.seed_np.choice([1, 2, 3, 4], p=[.4, .3, .2, .1], size=num_houses)
-        prices = np.multiply(np.multiply(sizes, qualities), region.index)
+        # Use self.shapes and region.id to try to get empirical data on sizes, quality and prices
+        try:
+            sizes, qualities, prices = self.get_empirical_data(region, num_houses)
+        except KeyError:
+            sizes = self.seed_np.lognormal(np.log(70), .5, size=num_houses)
+            # Loose estimate of qualities in the universe
+            qualities = self.seed_np.choice([1, 2, 3, 4], p=[.4, .3, .2, .1], size=num_houses)
+            prices = np.multiply(np.multiply(sizes, qualities), region.index)
         for i in range(num_houses):
             size = sizes[i]
             # Price is given by 4 quality levels

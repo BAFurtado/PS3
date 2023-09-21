@@ -77,7 +77,6 @@ class Firm:
         if self.employees and self.inventory:
             # Call get_sum_qualification below: sum([employee.qualification ** parameters.PRODUCTIVITY_EXPONENT
             #                                   for employee in self.employees.values()])
-
             # Divide production by an order of magnitude adjustment parameter
             quantity = self.total_qualification(prod_expoent) / prod_divisor
             # Currently, each firm has only a single product. If more products should be introduced, allocation of

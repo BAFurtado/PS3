@@ -1,6 +1,9 @@
 # New model. 
 ## Enhancements and Improvements in PolicySpace2
 
+## Todo
+1. Fix labels plots (name instead of code)
+
 ### Changes made in this version
 1. Addresses chosen with spatial join (instead of individually). Enhancement: faster run
 2. Fixed bug construction firm planning house
@@ -19,6 +22,8 @@
 14. Plotting with lower upper bounds (2std) for sensitivity comparison
 15. Introduced test of collecting consumption taxes at consumers' municipality rather than firms'
 16. Migrated from using `OGR from OSGEO` to regular `geopandas.DataFrames`
+17. Initial real estate average area estimates of empirical values from FIPEZAP in the beginning are read from file, when available
+
 ------
 ``` python 3.11```
 ------
