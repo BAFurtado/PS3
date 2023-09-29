@@ -1,6 +1,6 @@
 ## LIST OF CHANGES
 
-### Sep 2023
+### Sep 20 2023
 
 #### Developer: Rafa
 
@@ -18,4 +18,7 @@
    2. maybe a 12-month moving average needs to keep below a certain threshold TBD.
 7. proposed classes 'OtherRegions' and 'ForeignSector'.
 
-  
+### Sep 29 2023
+
+#### Developer: Rafa
+

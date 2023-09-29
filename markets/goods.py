@@ -45,23 +45,6 @@ class RegionalMarket:
         to look outside the metropolitan area.
         """
 
-    def buy_inputs(self, sector: int, money_output: float):
-        """
-        Buys inputs according to the technical coefficients.
-        """
-
-        input_cost = 0
-
-        coefficients = self.technical_matrix[[sector]]
-
-        # TODO definir como escolher de onde comprar
-        # TODO aqui precisaria chamar uma função de transferir o dinheiro para outra firma ou adaptar uma existente
-
-        for row in coefficients:
-            input_cost += money_output * row
-
-        return input_cost
-
     def create_externalities(self, sector: int, money_output: float):
         """
         Based on empirical data, creates externalities according to money output produced by a given activity.
@@ -75,20 +58,6 @@ class RegionalMarket:
             externalities_list = money_output * row
 
         return externalities_list
-
-    def production_function(self, sector: int, money_output: float):
-        """
-        Based on the MIP sector, buys inputs to produce a given money output of the activity, creates externalities
-        and creates a price based on cost.
-        """
-
-        cost = self.buy_inputs(sector, money_output)
-
-        externalities = self.create_externalities(sector, money_output)
-
-        price = money_output / cost
-
-        return money_output, cost, externalities, price
 
     def market_balancing(self, market_distribution):
         """
