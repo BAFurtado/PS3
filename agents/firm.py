@@ -20,6 +20,8 @@ class Firm:
         self,
         _id,
         sector,
+        regional_market,
+        consumer_type,
         address,
         total_balance,
         region_id,
@@ -58,6 +60,8 @@ class Firm:
         self.taxes_paid = taxes_paid
         self.prices = prices
         self.sector = sector
+        self.regional_market = regional_market  # TODO tirar daqui e colocar no SIM
+        self.consumer_type = consumer_type
 
     # Product procedures ##############################################################################################
     def create_product(self):
@@ -82,9 +86,7 @@ class Firm:
 
         input_cost = 0
 
-        regional_market = RegionalMarket()
-
-        coefficients = regional_market.technical_matrix[[self.sector]]
+        coefficients = self.regional_market.technical_matrix[self.sector]
 
         # TODO definir como escolher de onde comprar
         # TODO aqui precisaria chamar uma função de transferir o dinheiro para outra firma ou adaptar uma existente
@@ -555,3 +557,6 @@ class ConstructionFirm(Firm):
             return 0
         t = sum(h.price for h in self.houses_built)
         return t / len(self.houses_built)
+
+
+# TODO 11 classes

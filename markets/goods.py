@@ -11,6 +11,8 @@ externalities_matrix = pd.read_csv(
     "input/externalities_matrix.csv", sep=";", header=0, decimal="."
 )
 
+# TODO probably send these variables to PARAMS
+
 
 def consume(sim):
     firms = list(sim.consumer_firms.values())

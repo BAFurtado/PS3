@@ -22,3 +22,11 @@
 
 #### Developer: Rafa
 
+1. started moving methods from 'goods' module to 'firm' module;
+   1. need to unit test methods as to not break the model;
+   2. might still move other methods to 'firm' too.
+2. changed names of sectors or consumer types to remove accented characters.
+
+### Oct 06 2023
+
+#### Developer: Rafa
