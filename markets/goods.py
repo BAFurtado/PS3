@@ -4,14 +4,14 @@ import pandas as pd
 technical_matrix = pd.read_csv(
     "input/technical_matrix.csv", sep=";", header=0, decimal="."
 )
-market_targets = pd.read_csv(
-    "input/pct_demand_supply.csv", sep=";", header=0, decimal="."
-)
+
 externalities_matrix = pd.read_csv(
     "input/externalities_matrix.csv", sep=";", header=0, decimal="."
 )
 
-# TODO probably send these variables to PARAMS
+market_targets = pd.read_csv(
+    "input/pct_demand_supply.csv", sep=";", header=0, decimal="."
+)
 
 
 def consume(sim):
@@ -38,8 +38,8 @@ class RegionalMarket:
 
     def __init__(self):
         self.technical_matrix = technical_matrix
-        self.market_targets = market_targets
         self.externalities_matrix = externalities_matrix
+        self.market_targets = market_targets
 
     def search_goods_market(self, sector_list: list):
         """

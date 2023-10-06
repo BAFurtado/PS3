@@ -18,6 +18,7 @@ from world import Generator, demographics, clock, population
 from world.firms import firm_growth
 from world.funds import Funds
 from world.geography import Geography, STATES_CODES, state_string
+from markets.goods import RegionalMarket
 
 
 class Simulation:
@@ -37,8 +38,9 @@ class Simulation:
         self.seed = random.Random(self._seed)
         self.seed_np = np.random.RandomState(self._seed)
         self.generator = Generator(self)
-
-        # TODO probably add new input files (sectors distribution, externalities, etc.) here
+        self.technical_matrix = RegionalMarket().technical_matrix
+        self.externalities_matrix = RegionalMarket().externalities_matrix
+        self.market_targets = RegionalMarket().market_targets
 
         # Read necessary files
         self.m_men, self.m_women, self.f = {}, {}, {}
