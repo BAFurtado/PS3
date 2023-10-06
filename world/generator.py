@@ -399,8 +399,7 @@ class Generator:
         )
         balances = self.seed_np.beta(1.5, 10, size=num_firms) * 10000
 
-        # TODO create eleven other sectors and generate firms
-        # also choose their client type
+        # TODO alter the for loop using num_firms_by_sector with 11 other types of firms
 
         for i in range(num_firms):
             firm_id = self.gen_id()
