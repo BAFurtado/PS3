@@ -366,32 +366,28 @@ class Generator:
 
     def create_firms(self, num_firms, region):
         sector = {}
-        num_construction_firms = math.ceil(
-            num_firms * self.sim.PARAMS["PERCENT_CONSTRUCTION_FIRMS"]
-        )
-        addresses = self.get_random_points_in_polygon(
-            region, number_addresses=num_firms
-        )
-        balances = self.seed_np.beta(1.5, 10, size=num_firms) * 10000
 
-        # TODO create eleven other sectors and generate firms
-        # also choose their client type
-
-        for i in range(num_firms):
-            firm_id = self.gen_id()
-            if i < num_construction_firms:
-                f = ConstructionFirm(firm_id, addresses[i], balances[i], region.id)
-            else:
-                f = Firm(firm_id, addresses[i], balances[i], region.id)
-            sector[f.id] = f
-        return sector
-
-    def new_create_firms(self, num_firms, region):
-        sector = {}
+        sectors = [
+            Firm1,
+            Firm2,
+            Firm3,
+            Firm4,
+            Firm5,
+            Firm6,
+            Firm7,
+            Firm8,
+            Firm9,
+            Firm10,
+            Firm11,
+            Firm12,
+        ]
 
         num_firms_by_sector = [
-            math.ceil(num_firms * i)
-            for i in self.sim.PARAMS["PERCENT_INPUT_OUTPUT_SECTORS"]
+            0,
+            [
+                math.ceil(num_firms * i)
+                for i in self.sim.PARAMS["PERCENT_INPUT_OUTPUT_SECTORS"]
+            ],
         ]
 
         addresses = self.get_random_points_in_polygon(
@@ -399,15 +395,17 @@ class Generator:
         )
         balances = self.seed_np.beta(1.5, 10, size=num_firms) * 10000
 
-        # TODO alter the for loop using num_firms_by_sector with 11 other types of firms
-
         for i in range(num_firms):
             firm_id = self.gen_id()
-            if i < num_construction_firms:
-                f = ConstructionFirm(firm_id, addresses[i], balances[i], region.id)
-            else:
-                f = Firm(firm_id, addresses[i], balances[i], region.id)
-            sector[f.id] = f
+
+            for j in range(1, len(num_firms_by_sector) - 1):
+                f = False
+
+                if num_firms_by_sector[j - 1] < i < num_firms_by_sector[j]:
+                    f = sectors[j](firm_id, addresses[i], balances[i], region.id)
+
+                sector[f.id] = f
+
         return sector
 
     def load_quali(self):
