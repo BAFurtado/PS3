@@ -328,6 +328,22 @@ class Firm:
         )
 
 
+class FarmingFirm(Firm):
+    pass
+
+
+class MiningFirm(Firm):
+    pass
+
+
+class ManufacturingFirm(Firm):
+    pass
+
+
+class UtilitiesFirm(Firm):
+    pass
+
+
 class ConstructionFirm(Firm):
     type = "CONSTRUCTION"
 
@@ -559,4 +575,28 @@ class ConstructionFirm(Firm):
         return t / len(self.houses_built)
 
 
-# TODO 11 classes
+class RetailFirm(Firm):
+    pass
+
+
+class TransportFirm(Firm):
+    pass
+
+class ICTFirm(Firm):
+    pass
+
+
+class FinancialFirm(Firm):
+    pass
+
+
+class RealEstateFirm(Firm):
+    pass
+
+
+class OtherFirm(Firm):
+    pass
+
+
+class PublicSectorFirm(Firm):
+    pass

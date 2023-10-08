@@ -12,7 +12,24 @@ import pandas as pd
 import geopandas as gpd
 import numpy as np
 from shapely.geometry import Point
-from agents import Agent, Family, Firm, ConstructionFirm, Region, House, Central
+from agents import (
+    Agent,
+    Family,
+    Region,
+    House,
+    Central,
+    FarmingFirm,
+    MiningFirm,
+    ManufacturingFirm,
+    UtilitiesFirm,
+    ConstructionFirm,
+    RetailFirm,
+    TransportFirm,
+    ICTFirm,
+    FinancialFirm,
+    RealEstateFirm,
+    OtherFirm,
+    PublicSectorFirm)
 from .firms import FirmData
 from .population import pop_age_data
 from .shapes import prepare_shapes
@@ -367,20 +384,18 @@ class Generator:
     def create_firms(self, num_firms, region):
         sector = {}
 
-        sectors = [
-            Firm1,
-            Firm2,
-            Firm3,
-            Firm4,
-            Firm5,
-            Firm6,
-            Firm7,
-            Firm8,
-            Firm9,
-            Firm10,
-            Firm11,
-            Firm12,
-        ]
+        sectors = [FarmingFirm,
+                   MiningFirm,
+                   ManufacturingFirm,
+                   UtilitiesFirm,
+                   ConstructionFirm,
+                   RetailFirm,
+                   TransportFirm,
+                   ICTFirm,
+                   FinancialFirm,
+                   RealEstateFirm,
+                   OtherFirm,
+                   PublicSectorFirm]
 
         num_firms_by_sector = [
             0,

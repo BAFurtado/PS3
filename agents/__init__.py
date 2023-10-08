@@ -1,7 +1,19 @@
 from world.population import marriage_data
 from .bank import Central
 from .family import Family
-from .firm import Firm, ConstructionFirm
+from .firm import (
+    FarmingFirm,
+    MiningFirm,
+    ManufacturingFirm,
+    UtilitiesFirm,
+    ConstructionFirm,
+    RetailFirm,
+    TransportFirm,
+    ICTFirm,
+    FinancialFirm,
+    RealEstateFirm,
+    OtherFirm,
+    PublicSectorFirm)
 from .house import House
 from .region import Region
 
@@ -17,20 +29,22 @@ class Agent:
 
     # Class for Agents. Citizens of the model
     # Agents live in families, work in firms, consume
-    def __init__(self, id,
-                 gender,
-                 age,
-                 qualification,
-                 money,
-                 month,
-                 firm_id=None,
-                 family=None,
-                 distance=0):
-
+    def __init__(
+        self,
+        id,
+        gender,
+        age,
+        qualification,
+        money,
+        month,
+        firm_id=None,
+        family=None,
+        distance=0,
+    ):
         self.id = id
         self.gender = gender
         self.age = age
-        self.month = month # Birthday month
+        self.month = month  # Birthday month
         self.qualification = qualification
         self.money = money
         self.firm_id = firm_id
@@ -70,9 +84,7 @@ class Agent:
 
     @property
     def is_employable(self):
-        return not self.is_retired \
-            and not self.is_minor \
-            and not self.is_employed
+        return not self.is_retired and not self.is_minor and not self.is_employed
 
     def set_commute(self, firm):
         """Set (cache) commute according to their employer firm"""
@@ -82,8 +94,18 @@ class Agent:
             self.distance = 0
 
     def __repr__(self):
-        return 'Ag. ID: %s, %s, Qual. %s, Age: %s, Money $ %.2f, Firm: %s, Util. %.2f' % \
-               (self.id, self.gender, self.qualification, self.age, self.money, self.firm_id, self.utility)
+        return (
+            "Ag. ID: %s, %s, Qual. %s, Age: %s, Money $ %.2f, Firm: %s, Util. %.2f"
+            % (
+                self.id,
+                self.gender,
+                self.qualification,
+                self.age,
+                self.money,
+                self.firm_id,
+                self.utility,
+            )
+        )
 
     def distance_to_firm(self, firm):
         return self.family.house.distance_to_firm(firm)
