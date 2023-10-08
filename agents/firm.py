@@ -3,7 +3,7 @@ from dateutil import relativedelta
 from .house import House
 from .product import Product
 from collections import defaultdict
-from markets.goods import RegionalMarket
+from simulation import Simulation as sim
 
 
 class Firm:
@@ -19,9 +19,6 @@ class Firm:
     def __init__(
         self,
         _id,
-        sector,
-        regional_market,
-        consumer_type,
         address,
         total_balance,
         region_id,
@@ -35,6 +32,7 @@ class Firm:
         revenue=0,
         taxes_paid=0,
         prices=None,
+        sector=None,
     ):
         self.increase_production = False
         self.id = _id
@@ -60,8 +58,6 @@ class Firm:
         self.taxes_paid = taxes_paid
         self.prices = prices
         self.sector = sector
-        self.regional_market = regional_market  # TODO tirar daqui e colocar no SIM
-        self.consumer_type = consumer_type
 
     # Product procedures ##############################################################################################
     def create_product(self):
@@ -86,7 +82,7 @@ class Firm:
 
         input_cost = 0
 
-        coefficients = self.regional_market.technical_matrix[self.sector]
+        coefficients = sim().technical_matrix[self.sector]
 
         # TODO definir como escolher de onde comprar
         # TODO aqui precisaria chamar uma função de transferir o dinheiro para outra firma ou adaptar uma existente
@@ -95,6 +91,20 @@ class Firm:
             input_cost += money_output * row
 
         return input_cost
+
+    def create_externalities(self, money_output: float):
+        """
+        Based on empirical data, creates externalities according to money output produced by a given activity.
+        """
+
+        externalities = sim().externalities_matrix
+
+        externalities_list = []
+
+        for row in externalities[self.sector]:
+            externalities_list = money_output * row
+
+        return externalities_list
 
     # Production department
     def update_product_quantity(self, prod_expoent, prod_divisor):
@@ -105,7 +115,7 @@ class Firm:
 
         # """Production equation = Labor * qualification ** alpha"""
 
-        regional_market = RegionalMarket()
+        quantity, externalities, price = None, None, None
 
         if self.employees and self.inventory:
             # Call get_sum_qualification below: sum([employee.qualification ** parameters.PRODUCTIVITY_EXPONENT
@@ -120,7 +130,7 @@ class Firm:
 
             cost = self.buy_inputs(quantity)
 
-            externalities = regional_market.create_externalities(self.sector, quantity)
+            externalities = self.create_externalities(self.sector, quantity)
 
             price = quantity / cost
 

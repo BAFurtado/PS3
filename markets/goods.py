@@ -47,20 +47,6 @@ class RegionalMarket:
         to look outside the metropolitan area.
         """
 
-    def create_externalities(self, sector: int, money_output: float):
-        """
-        Based on empirical data, creates externalities according to money output produced by a given activity.
-        """
-
-        externalities = self.externalities_matrix
-
-        externalities_list = []
-
-        for row in externalities[sector]:
-            externalities_list = money_output * row
-
-        return externalities_list
-
     def market_balancing(self, market_distribution):
         """
         Based on the MIP sector, buys inputs to produce a given money output of the activity, creates externalities
