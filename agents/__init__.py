@@ -13,7 +13,8 @@ from .firm import (
     FinancialFirm,
     RealEstateFirm,
     OtherFirm,
-    PublicSectorFirm)
+    PublicSectorFirm,
+)
 from .house import House
 from .region import Region
 

@@ -29,7 +29,8 @@ from agents import (
     FinancialFirm,
     RealEstateFirm,
     OtherFirm,
-    PublicSectorFirm)
+    PublicSectorFirm,
+)
 from .firms import FirmData
 from .population import pop_age_data
 from .shapes import prepare_shapes
@@ -384,18 +385,20 @@ class Generator:
     def create_firms(self, num_firms, region):
         sector = {}
 
-        sectors = [FarmingFirm,
-                   MiningFirm,
-                   ManufacturingFirm,
-                   UtilitiesFirm,
-                   ConstructionFirm,
-                   RetailFirm,
-                   TransportFirm,
-                   ICTFirm,
-                   FinancialFirm,
-                   RealEstateFirm,
-                   OtherFirm,
-                   PublicSectorFirm]
+        sectors = [
+            FarmingFirm,
+            MiningFirm,
+            ManufacturingFirm,
+            UtilitiesFirm,
+            ConstructionFirm,
+            RetailFirm,
+            TransportFirm,
+            ICTFirm,
+            FinancialFirm,
+            RealEstateFirm,
+            OtherFirm,
+            PublicSectorFirm,
+        ]
 
         num_firms_by_sector = [
             0,

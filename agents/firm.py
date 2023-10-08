@@ -582,6 +582,7 @@ class RetailFirm(Firm):
 class TransportFirm(Firm):
     pass
 
+
 class ICTFirm(Firm):
     pass
 
