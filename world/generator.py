@@ -420,7 +420,7 @@ class Generator:
                 f = False
 
                 if num_firms_by_sector[j - 1] < i < num_firms_by_sector[j]:
-                    f = sectors[j](firm_id, addresses[i], balances[i], region.id)
+                    f = sectors[j](firm_id, addresses[i], balances[i], region.id, sector=j)
 
                 sector[f.id] = f
 
