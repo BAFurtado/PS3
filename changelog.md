@@ -25,7 +25,7 @@
 1. started moving methods from RegionalMarket class module to Firm class;
    1. need to test all these new methods with debug mode or unit tests;
    2. might still move other methods to 'firm' too.
-2. changed names of sectors or consumer types to remove accented characters.
+2. renamed headers from the technical and demand matrix to English names;
 
 ### Oct 06 2023
 
@@ -34,8 +34,7 @@
 1. moved methods from RegionalMarket class to Firm class;
    1. everything still untested;
    2. might load technical, demand and externalities matrix still in some other way instead of attribute from Simulation, too clunky.
-2. renamed headers from the technical and demand matrix to English names;
-3. created the other eleven firm types by sector, still empty just copying the Firm class;
-4. with the new firm classes, rewrote the 'create_new_firms' from the Generator class;
+2. created the other eleven firm types by sector, still empty just copying the Firm class;
+3. with the new firm classes, rewrote the 'create_new_firms' from the Generator class;
    1. needs testing too;
    2. if design is approved, its structure might be reused to create consumer relationships.

@@ -46,6 +46,7 @@ class RegionalMarket:
         Lists firms by sector, their available supply and prices, and returns the best buying option. It might need
         to look outside the metropolitan area.
         """
+        # TODO probably makes more sense inside Firm as well
 
     def market_balancing(self, market_distribution):
         """

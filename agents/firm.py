@@ -130,7 +130,7 @@ class Firm:
 
             cost = self.buy_inputs(quantity)
 
-            externalities = self.create_externalities(self.sector, quantity)
+            externalities = self.create_externalities(quantity)
 
             price = quantity / cost
 
@@ -251,6 +251,8 @@ class Firm:
             regions[self.region_id].collect_taxes(self.taxes_paid, "firm")
         else:
             self.taxes_paid = 0
+
+    # TODO pegar anos de qualificação dos funcionários na RAIS (usar p/ validar dados do modelo)
 
     # Employees' procedures #########
     def total_qualification(self, alpha):
