@@ -23,6 +23,7 @@
 15. Introduced test of collecting consumption taxes at consumers' municipality rather than firms'
 16. Migrated from using `OGR from OSGEO` to regular `geopandas.DataFrames`
 17. Initial real estate average area estimates of empirical values from FIPEZAP in the beginning are read from file, when available
+18. Introduced 12-sector firm types (according to ISIS 12) on generator create_firms()
 
 ------
 ``` python 3.11```
