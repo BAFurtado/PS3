@@ -2,18 +2,18 @@ from world.population import marriage_data
 from .bank import Central
 from .family import Family
 from .firm import (
-    FarmingFirm,
+    AgricultureFirm,
     MiningFirm,
     ManufacturingFirm,
     UtilitiesFirm,
     ConstructionFirm,
-    RetailFirm,
+    TradeFirm,
     TransportFirm,
-    ICTFirm,
+    BusinessFirm,
     FinancialFirm,
     RealEstateFirm,
-    OtherFirm,
-    PublicSectorFirm,
+    OtherServicesFirm,
+    GovernmentFirm,
 )
 from .house import House
 from .region import Region
@@ -21,7 +21,7 @@ from .region import Region
 
 class Agent:
     """
-    This class represent the general citizen of the model.
+    This class represent the general citizen of the model. Individual workers.
     Agents have the following variables:
     (a) fixed: id, gender, month of birth, qualification, family_id
     (b) variable: age, money (amount owned at any given moment), saving,

@@ -340,7 +340,7 @@ class Firm:
         )
 
 
-class FarmingFirm(Firm):
+class AgricultureFirm(Firm):
     pass
 
 
@@ -587,7 +587,7 @@ class ConstructionFirm(Firm):
         return t / len(self.houses_built)
 
 
-class RetailFirm(Firm):
+class TradeFirm(Firm):
     pass
 
 
@@ -595,7 +595,7 @@ class TransportFirm(Firm):
     pass
 
 
-class ICTFirm(Firm):
+class BusinessFirm(Firm):
     pass
 
 
@@ -607,9 +607,9 @@ class RealEstateFirm(Firm):
     pass
 
 
-class OtherFirm(Firm):
+class OtherServicesFirm(Firm):
     pass
 
 
-class PublicSectorFirm(Firm):
+class GovernmentFirm(Firm):
     pass

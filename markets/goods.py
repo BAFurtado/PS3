@@ -2,15 +2,15 @@ import pandas as pd
 
 
 technical_matrix = pd.read_csv(
-    "input/technical_matrix.csv", sep=";", header=0, decimal="."
+    "input/technical_matrix.csv", sep=";", header=0, decimal=","
 )
 
 externalities_matrix = pd.read_csv(
-    "input/externalities_matrix.csv", sep=";", header=0, decimal="."
+    "input/externalities_matrix.csv", sep=";", header=0, decimal=","
 )
 
 market_targets = pd.read_csv(
-    "input/pct_demand_supply.csv", sep=";", header=0, decimal="."
+    "input/pct_demand_supply.csv", sep=";", header=0, decimal=","
 )
 
 

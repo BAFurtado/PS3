@@ -30,20 +30,22 @@ RELEVANCE_UNEMPLOYMENT_SALARIES = 0.2
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 10
 # Percentage of firms by input output sector:
-PERCENT_INPUT_OUTPUT_SECTORS = [
-    0.8333,
-    0.8333,
-    0.8333,
-    0.8333,
-    0.8333,
-    0.8333,
-    0.8333,
-    0.8333,
-    0.8333,
-    0.8333,
-    0.8333,
-    0.8333,
-]
+# SOURCE: Data read from RAIS, 2010, converting CNAE code to ISIS 12.
+# Original RAIS analysis in ConsultaRais at Ipea EBSB1184, deleted firms for sectors/municipalities below 3 firms
+PERCENT_INPUT_OUTPUT_SECTORS = {
+    'Agriculture': 0.060000,
+    'Business': 0.137469,
+    'Construction': 0.039483,
+    'Financial': 0.017037,
+    'Government': 0.057500,
+    'Manufacturing': 0.0760541,
+    'Mining': 0.002191,
+    'OtherServices': 0.0893894,
+    'RealEstate': 0.008146,
+    'Trade': 0.470544,
+    'Transport': 0.039884,
+    'Utilities': 0.002296,
+}
 
 # GOVERNMENT ####################################################################
 # ALTERNATIVE OF DISTRIBUTION OF TAXES COLLECTED. REPLICATING THE NOTION OF A COMMON POOL OF RESOURCES ################

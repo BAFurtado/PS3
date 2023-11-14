@@ -18,24 +18,38 @@ from agents import (
     Region,
     House,
     Central,
-    FarmingFirm,
+    AgricultureFirm,
     MiningFirm,
     ManufacturingFirm,
     UtilitiesFirm,
     ConstructionFirm,
-    RetailFirm,
+    TradeFirm,
     TransportFirm,
-    ICTFirm,
+    BusinessFirm,
     FinancialFirm,
     RealEstateFirm,
-    OtherFirm,
-    PublicSectorFirm,
+    OtherServicesFirm,
+    GovernmentFirm,
 )
 from .firms import FirmData
 from .population import pop_age_data
 from .shapes import prepare_shapes
 
 logger = logging.getLogger("generator")
+
+sectors = {'Agriculture': AgricultureFirm,
+           'Business': BusinessFirm,
+           'Construction': ConstructionFirm,
+           'Financial': FinancialFirm,
+           'Government': GovernmentFirm,
+           'Manufacturing': ManufacturingFirm,
+           'Mining': MiningFirm,
+           'OtherServices': OtherServicesFirm,
+           'RealEstate': RealEstateFirm,
+           'Trade': TradeFirm,
+           'Transport': TransportFirm,
+           'Utilities': UtilitiesFirm
+           }
 
 # Necessary input Data
 prop_urban = pd.read_csv("input/prop_urban_2000_2010.csv", sep=";")
@@ -163,8 +177,8 @@ class Generator:
 
             try:
                 assert (
-                    len([h for h in regional_houses.values() if h.owner_id is None])
-                    == 0
+                        len([h for h in regional_houses.values() if h.owner_id is None])
+                        == 0
                 )
             except AssertionError:
                 print("Houses without ownership")
@@ -196,10 +210,10 @@ class Generator:
                 ages = self.seed_np.randint(
                     list_of_possible_ages[
                         (
-                            list_of_possible_ages.index(
-                                age,
-                            )
-                            - 1
+                                list_of_possible_ages.index(
+                                    age,
+                                )
+                                - 1
                         )
                     ]
                     + 1,
@@ -257,7 +271,7 @@ class Generator:
         return agents, families
 
     def get_random_points_in_polygon(
-        self, region, number_addresses=1, addresses=None, multiplier=3
+            self, region, number_addresses=1, addresses=None, multiplier=3
     ):
         """Addresses within the region. Additional details so that address fall in urban areas, given percentage"""
         if addresses is None:
@@ -294,7 +308,7 @@ class Generator:
         ]
         # Divide by 1000 so that fits the rest of the model. Prices of estates are roughtly x 1000 of real value
         avg_price_m2 = (
-            self.shapes.loc[self.shapes.id == region.id, "precom2"].to_list()[0] / 1000
+                self.shapes.loc[self.shapes.id == region.id, "precom2"].to_list()[0] / 1000
         )
         sizes = self.seed_np.lognormal(np.log(avg_size), 0.5, size=num_houses)
         sizes[sizes < 10] = 10
@@ -383,49 +397,26 @@ class Generator:
             family.owned_houses.append(house)
 
     def create_firms(self, num_firms, region):
-        sector = {}
+        sector = dict()
 
-        sectors = [
-            FarmingFirm,
-            MiningFirm,
-            ManufacturingFirm,
-            UtilitiesFirm,
-            ConstructionFirm,
-            RetailFirm,
-            TransportFirm,
-            ICTFirm,
-            FinancialFirm,
-            RealEstateFirm,
-            OtherFirm,
-            PublicSectorFirm,
-        ]
+        num_firms_by_sector = {
+            key: math.ceil(num_firms * self.sim.PARAMS["PERCENT_INPUT_OUTPUT_SECTORS"][key])
+            for key in self.sim.PARAMS["PERCENT_INPUT_OUTPUT_SECTORS"]
+        }
 
-        num_firms_by_sector = [
-            0,
-            [
-                math.ceil(num_firms * i)
-                for i in self.sim.PARAMS["PERCENT_INPUT_OUTPUT_SECTORS"]
-            ],
-        ]
-
-        addresses = self.get_random_points_in_polygon(
-            region, number_addresses=num_firms
-        )
+        addresses = self.get_random_points_in_polygon(region, number_addresses=num_firms)
         balances = self.seed_np.beta(1.5, 10, size=num_firms) * 10000
 
-        for i in range(num_firms):
-            firm_id = self.gen_id()
-
-            for j in range(1, len(num_firms_by_sector) - 1):
-                f = False
-
-                if num_firms_by_sector[j - 1] < i < num_firms_by_sector[j]:
-                    f = sectors[j](
-                        firm_id, addresses[i], balances[i], region.id, sector=j
-                    )
-
+        j = 0
+        for key in num_firms_by_sector:
+            for i in range(num_firms_by_sector[key]):
+                firm_id = self.gen_id()
+                # Firm sectors are listed on the top of the module
+                f = sectors[key](firm_id, addresses[j], balances[j], region.id, sector=key)
                 sector[f.id] = f
+                j += 1
 
+        # Returns a dictionary of firms
         return sector
 
     def load_quali(self):
