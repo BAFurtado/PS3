@@ -38,9 +38,7 @@ class Simulation:
         self.seed = random.Random(self._seed)
         self.seed_np = np.random.RandomState(self._seed)
         self.generator = Generator(self)
-        self.technical_matrix = RegionalMarket().technical_matrix
-        self.externalities_matrix = RegionalMarket().externalities_matrix
-        self.market_targets = RegionalMarket().market_targets
+        self.regional_market = RegionalMarket()
 
         # Read necessary files
         self.m_men, self.m_women, self.f = {}, {}, {}
@@ -170,6 +168,7 @@ class Simulation:
             self.central,
         ) = self.generate()
 
+        # TODO Change into sim.firms to keep updated
         self.construction_firms = {
             f.id: f for f in self.firms.values() if f.sector == 'Construction'
         }
@@ -236,7 +235,7 @@ class Simulation:
         prod_exponent = self.PARAMS["PRODUCTIVITY_EXPONENT"]
         prod_magnitude_divisor = self.PARAMS["PRODUCTIVITY_MAGNITUDE_DIVISOR"]
         for firm in self.firms.values():
-            firm.update_product_quantity(prod_exponent, prod_magnitude_divisor)
+            firm.update_product_quantity(prod_exponent, prod_magnitude_divisor, self.regional_market, self.firms)
 
         # Call demographics
         # Update agent life cycles

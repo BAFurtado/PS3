@@ -46,7 +46,7 @@ PERCENT_INPUT_OUTPUT_SECTORS = {
     'RealEstate': 0.008146,
     'Trade': 0.470544,
     'Transport': 0.039884,
-    'Utilities': 0.002296,
+    'Utilities': 0.0023024999999999092,
 }
 
 # GOVERNMENT ####################################################################
@@ -113,7 +113,7 @@ INITIAL_RENTAL_PRICE = 0.004
 # Percentage of NEW licenses created monthly by region (neighborhood). Set to 0 for no licenses.
 # .5 is plenty of supply!
 PERC_SUPPLY_SIZE_N_LICENSES_PER_REGION = 0.5
-PERCENT_CONSTRUCTION_FIRMS = 0.07
+# PERCENT_CONSTRUCTION_FIRMS = 0.07 This has been deprecated with the introduction of sectors
 # Months that construction firm will divide its income into monthly revenue installments.
 # Although prices are accounted for at once.
 CONSTRUCTION_ACC_CASH_FLOW = 24

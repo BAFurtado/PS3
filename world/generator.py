@@ -399,10 +399,15 @@ class Generator:
     def create_firms(self, num_firms, region):
         sector = dict()
 
-        num_firms_by_sector = {
-            key: math.ceil(num_firms * self.sim.PARAMS["PERCENT_INPUT_OUTPUT_SECTORS"][key])
-            for key in self.sim.PARAMS["PERCENT_INPUT_OUTPUT_SECTORS"]
-        }
+        if num_firms == 1:
+            key = self.sim.seed_np.choice(self.sim.PARAMS['PERCENT_INPUT_OUTPUT_SECOTORS'],
+                                          p=self.sim.PARAMS['PERCENT_INPUT_OUTPUT_SECOTORS'].values())
+            num_firms_by_sector = {key: 1}
+        else:
+            num_firms_by_sector = {
+                key: math.ceil(num_firms * self.sim.PARAMS["PERCENT_INPUT_OUTPUT_SECTORS"][key])
+                for key in self.sim.PARAMS["PERCENT_INPUT_OUTPUT_SECTORS"]
+            }
 
         addresses = self.get_random_points_in_polygon(region, number_addresses=num_firms)
         balances = self.seed_np.beta(1.5, 10, size=num_firms) * 10000

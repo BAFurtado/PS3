@@ -1,9 +1,8 @@
 import pandas as pd
 
 
-technical_matrix = pd.read_csv(
-    "input/technical_matrix.csv", sep=";", header=0, decimal=","
-)
+technical_matrix = pd.read_csv("input/technical_matrix.csv")
+
 
 externalities_matrix = pd.read_csv(
     "input/externalities_matrix.csv", sep=";", header=0, decimal=","

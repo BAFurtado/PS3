@@ -3,7 +3,6 @@ from dateutil import relativedelta
 from .house import House
 from .product import Product
 from collections import defaultdict
-from simulation import Simulation as sim
 
 
 class Firm:
@@ -43,6 +42,7 @@ class Firm:
         # Firms makes existing products from class Products.
         # Products produced are stored by product_id in the inventory
         self.inventory = {}
+        self.input_inventory = {}
         self.total_quantity = total_quantity
         # Amount monthly sold by the firm
         self.amount_sold = amount_sold
@@ -73,29 +73,13 @@ class Firm:
                 self.inventory
             )
 
-    def buy_inputs(self, money_output: float):
-        """
-        Buys inputs according to the technical coefficients.
-        """
-
-        input_cost = 0
-
-        coefficients = sim().technical_matrix[self.sector]
-
-        # TODO definir como escolher de onde comprar
-        # TODO aqui precisaria chamar uma função de transferir o dinheiro para outra firma ou adaptar uma existente
-
-        for row in coefficients:
-            input_cost += money_output * row
-
-        return input_cost
-
-    def create_externalities(self, money_output: float):
+    def create_externalities(self, money_output: float, regional_market):
+        # TODO This is still at the conceptual phase. Revisit.
         """
         Based on empirical data, creates externalities according to money output produced by a given activity.
         """
 
-        externalities = sim().externalities_matrix
+        externalities = regional_market.externalities_matrix
 
         externalities_list = []
 
@@ -104,8 +88,25 @@ class Firm:
 
         return externalities_list
 
+    def buy_inputs(self, money_output: float, regional_market, firms):
+        """
+        Buys inputs according to the technical coefficients.
+        """
+
+        input_cost = 0
+
+        coefficients = regional_market.technical_matrix[self.sector]
+
+        # TODO definir como escolher de onde comprar
+        # TODO aqui precisaria chamar uma função de transferir o dinheiro para outra firma ou adaptar uma existente
+
+        for col in coefficients:
+            input_cost += money_output * col
+
+        return input_cost
+
     # Production department
-    def update_product_quantity(self, prod_expoent, prod_divisor):
+    def update_product_quantity(self, prod_expoent, prod_divisor, regional_market, firms):
         """
         Based on the MIP sector, buys inputs to produce a given money output of the activity, creates externalities
         and creates a price based on cost.
@@ -126,9 +127,9 @@ class Firm:
             self.inventory[0].quantity += quantity
             self.amount_produced += quantity
 
-            cost = self.buy_inputs(quantity)
+            cost = self.buy_inputs(quantity, regional_market, firms)
 
-            externalities = self.create_externalities(quantity)
+            externalities = self.create_externalities(quantity, regional_market)
 
             price = quantity / cost
 
