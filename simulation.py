@@ -169,9 +169,11 @@ class Simulation:
             self.firms,
             self.central,
         ) = self.generate()
+
         self.construction_firms = {
-            f.id: f for f in self.firms.values() if f.type == "CONSTRUCTION"
+            f.id: f for f in self.firms.values() if f.sector == 'Construction'
         }
+        # TODO change markets for consumption.
         self.consumer_firms = {
             f.id: f for f in self.firms.values() if f.type == "CONSUMER"
         }
@@ -272,7 +274,7 @@ class Simulation:
         for firm in self.firms.values():
             firm.present = self.clock
             firm.amount_sold = 0
-            if firm.type != "CONSTRUCTION":
+            if firm.sector != 'Construction':
                 # Reset the monthly revenue of firms!
                 firm.revenue = 0
 

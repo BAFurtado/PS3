@@ -32,6 +32,8 @@ HIRING_SAMPLE_SIZE = 10
 # Percentage of firms by input output sector:
 # SOURCE: Data read from RAIS, 2010, converting CNAE code to ISIS 12.
 # Original RAIS analysis in ConsultaRais at Ipea EBSB1184, deleted firms for sectors/municipalities below 3 firms
+# TODO Use original data to read percentage of sector per list of input municipalities
+# TODO Better yet, use location coefficient at Nature Human Behavior to quantify region of interest and the rest
 PERCENT_INPUT_OUTPUT_SECTORS = {
     'Agriculture': 0.060000,
     'Business': 0.137469,

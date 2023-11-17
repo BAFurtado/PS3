@@ -24,6 +24,7 @@
 16. Migrated from using `OGR from OSGEO` to regular `geopandas.DataFrames`
 17. Initial real estate average area estimates of empirical values from FIPEZAP in the beginning are read from file, when available
 18. Introduced 12-sector firm types (according to ISIS 12) on generator create_firms()
+19. Production logic: 12 sectors buying inputs plus labor from 
 
 ------
 ``` python 3.11```

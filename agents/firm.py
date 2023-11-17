@@ -14,8 +14,6 @@ class Firm:
     searched for by consumers.
     """
 
-    type = "CONSUMER"
-
     def __init__(
         self,
         _id,
@@ -357,7 +355,6 @@ class UtilitiesFirm(Firm):
 
 
 class ConstructionFirm(Firm):
-    type = "CONSTRUCTION"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
