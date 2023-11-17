@@ -38,7 +38,7 @@ class Simulation:
         self.seed = random.Random(self._seed)
         self.seed_np = np.random.RandomState(self._seed)
         self.generator = Generator(self)
-        self.regional_market = RegionalMarket()
+        self.regional_market = RegionalMarket(self)
 
         # Read necessary files
         self.m_men, self.m_women, self.f = {}, {}, {}
@@ -235,7 +235,10 @@ class Simulation:
         prod_exponent = self.PARAMS["PRODUCTIVITY_EXPONENT"]
         prod_magnitude_divisor = self.PARAMS["PRODUCTIVITY_MAGNITUDE_DIVISOR"]
         for firm in self.firms.values():
-            firm.update_product_quantity(prod_exponent, prod_magnitude_divisor, self.regional_market, self.firms)
+            firm.update_product_quantity(prod_exponent, prod_magnitude_divisor,
+                                         self.regional_market,
+                                         self.firms,
+                                         self.seed_np)
 
         # Call demographics
         # Update agent life cycles
@@ -280,7 +283,7 @@ class Simulation:
         # FAMILIES CONSUMPTION -- using payment received from previous month
         # Equalize money within family members
         # Tax consumption when doing sales are realized
-        markets.goods.consume(self)
+        self.regional_market.consume()
         # Make rent payments
         self.housing.process_monthly_rent(self)
         # Collect loan repayments

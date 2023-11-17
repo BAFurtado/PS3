@@ -13,32 +13,36 @@ market_targets = pd.read_csv(
 )
 
 
-def consume(sim):
-    firms = list(sim.consumer_firms.values())
-    origin = sim.PARAMS["TAX_ON_ORIGIN"]
-    for family in sim.families.values():
-        family.consume(
-            firms,
-            sim.central,
-            sim.regions,
-            sim.PARAMS,
-            sim.seed,
-            sim.clock.year,
-            sim.clock.months,
-            origin,
-        )
-
-
 class RegionalMarket:
     """
     The regional market contains interactions between productive sectors such as production functions from the
     input-output matrix, creation of externalities and market balancing.
     """
 
-    def __init__(self):
+    def __init__(self, sim):
         self.technical_matrix = technical_matrix
         self.externalities_matrix = externalities_matrix
         self.market_targets = market_targets
+        self.sim = sim
+
+    def consume(self):
+        firms = list(self.sim.consumer_firms.values())
+        if_origin = self.sim.PARAMS["TAX_ON_ORIGIN"]
+        for family in self.sim.families.values():
+            family.consume(
+                firms,
+                self.sim.central,
+                self.sim.regions,
+                self.sim.PARAMS,
+                self.sim.seed,
+                self.sim.clock.year,
+                self.sim.clock.months,
+                if_origin,
+            )
+
+    def intermediate_consumption(self, amount, firm):
+        firm.sale(amount, self.sim.regions, self.sim.PARAMS['TAX_CONSUMPTION'], firm.region_id,
+                  if_origin=self.sim.PARAMS['TAX_ON_ORIGIN'])
 
     def search_goods_market(self, sector_list: list):
         """

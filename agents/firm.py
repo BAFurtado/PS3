@@ -4,6 +4,20 @@ from .house import House
 from .product import Product
 from collections import defaultdict
 
+initial_input_sectors = {'Agriculture': 0,
+                         'Business': 0,
+                         'Construction': 0,
+                         'Financial': 0,
+                         'Government': 0,
+                         'Manufacturing': 0,
+                         'Mining': 0,
+                         'OtherServices': 0,
+                         'RealEstate': 0,
+                         'Trade': 0,
+                         'Transport': 0,
+                         'Utilities': 0
+                         }
+
 
 class Firm:
     """
@@ -14,22 +28,22 @@ class Firm:
     """
 
     def __init__(
-        self,
-        _id,
-        address,
-        total_balance,
-        region_id,
-        profit=1,
-        amount_sold=0,
-        product_index=0,
-        amount_produced=0,
-        total_quantity=0,
-        wages_paid=0,
-        present=datetime.date(2000, 1, 1),
-        revenue=0,
-        taxes_paid=0,
-        prices=None,
-        sector=None,
+            self,
+            _id,
+            address,
+            total_balance,
+            region_id,
+            profit=1,
+            amount_sold=0,
+            product_index=0,
+            amount_produced=0,
+            total_quantity=0,
+            wages_paid=0,
+            present=datetime.date(2000, 1, 1),
+            revenue=0,
+            taxes_paid=0,
+            prices=None,
+            sector=None,
     ):
         self.increase_production = False
         self.id = _id
@@ -42,7 +56,7 @@ class Firm:
         # Firms makes existing products from class Products.
         # Products produced are stored by product_id in the inventory
         self.inventory = {}
-        self.input_inventory = {}
+        self.input_inventory = initial_input_sectors
         self.total_quantity = total_quantity
         # Amount monthly sold by the firm
         self.amount_sold = amount_sold
@@ -88,25 +102,34 @@ class Firm:
 
         return externalities_list
 
-    def buy_inputs(self, money_output: float, regional_market, firms):
+    # PRODUCTION DEPARTMENT
+    def buy_inputs(self, desired_quantity, regional_market, firms, seed_np):
         """
         Buys inputs according to the technical coefficients.
+        In fact, this is the intermediate consumer market
         """
 
-        input_cost = 0
+        if self.total_balance > 0:
+            money_to_spend_inputs = min(self.total_balance,
+                                        desired_quantity * regional_market.technical_matrix[self.sector].sum())
+            self.total_balance -= money_to_spend_inputs
+            for sector in regional_market.technical_matrix:
+                money_this_sector = money_to_spend_inputs * regional_market.technical_matrix[sector]
+                sector_firms = [f for f in firms.values() if (f.sector == sector) & (f.id != self.id)]
+                sector_firm = seed_np.choice(sector_firms)
+                # Uses regional market to access intermediate consumption and each firm sale function
+                # Returns change, if any
+                change = regional_market.intermediate_consumption(money_this_sector,
+                                                                  sector_firm, origin_id=self.region_id)
+                if change:
+                    self.input_inventory[sector] += money_this_sector - change
+                    self.total_balance += change
+                else:
+                    self.input_inventory[sector] += money_this_sector
 
-        coefficients = regional_market.technical_matrix[self.sector]
+            # TODO. Check that we have at least 3 firms from each sector... include in the generator
 
-        # TODO definir como escolher de onde comprar
-        # TODO aqui precisaria chamar uma função de transferir o dinheiro para outra firma ou adaptar uma existente
-
-        for col in coefficients:
-            input_cost += money_output * col
-
-        return input_cost
-
-    # Production department
-    def update_product_quantity(self, prod_expoent, prod_divisor, regional_market, firms):
+    def update_product_quantity(self, prod_expoent, prod_divisor, regional_market, firms, seed_np):
         """
         Based on the MIP sector, buys inputs to produce a given money output of the activity, creates externalities
         and creates a price based on cost.
@@ -120,14 +143,17 @@ class Firm:
             # Call get_sum_qualification below: sum([employee.qualification ** parameters.PRODUCTIVITY_EXPONENT
             #                                   for employee in self.employees.values()])
             # Divide production by an order of magnitude adjustment parameter
-            quantity = self.total_qualification(prod_expoent) / prod_divisor
+            desired_quantity = self.total_qualification(prod_expoent) / prod_divisor
             # Currently, each firm has only a single product. If more products should be introduced, allocation of
             # quantity per product should be adjusted accordingly
             # Currently, the index for the single product is 0
+
+            cost = self.buy_inputs(desired_quantity, regional_market, firms, seed_np)
+
+            # TODO actually put together inputs and labor to generate quantity
+            quantity = 0
             self.inventory[0].quantity += quantity
             self.amount_produced += quantity
-
-            cost = self.buy_inputs(quantity, regional_market, firms)
 
             externalities = self.create_externalities(quantity, regional_market)
 
@@ -141,15 +167,15 @@ class Firm:
 
     # Commercial department
     def decision_on_prices_production(
-        self,
-        sticky_prices,
-        markup,
-        seed,
-        avg_prices,
-        prod_exponent=None,
-        prod_magnitude_divisor=None,
-        const_cash_flow=None,
-        price_ruggedness=1,
+            self,
+            sticky_prices,
+            markup,
+            seed,
+            avg_prices,
+            prod_exponent=None,
+            prod_magnitude_divisor=None,
+            const_cash_flow=None,
+            price_ruggedness=1,
     ):
         """Update prices based on inventory and average prices
         Save signal for the labor market
@@ -163,7 +189,7 @@ class Firm:
                 # Considering inventory to last one month only
                 delta_price = seed.randint(0, int(2 * markup * 100)) / 100
                 low_inventory = (
-                    self.total_quantity <= self.amount_sold or self.total_quantity == 0
+                        self.total_quantity <= self.amount_sold or self.total_quantity == 0
                 )
                 low_prices = p.price < avg_prices if avg_prices != 1 else True
                 if low_inventory:
@@ -180,7 +206,7 @@ class Firm:
             self.inventory
         )
 
-    def sale(self, amount, regions, tax_consumption, consumer_region_id, origin):
+    def sale(self, amount, regions, tax_consumption, consumer_region_id, if_origin):
         """Sell max amount of products for a given amount of money"""
         if amount > 0:
             # For each product in this firms' inventory, spend amount proportionally
@@ -202,7 +228,7 @@ class Firm:
 
                     # Tax deducted from firms' balance and value of sale added to the firm
                     revenue = amount_per_product - (
-                        amount_per_product * tax_consumption
+                            amount_per_product * tax_consumption
                     )
                     self.total_balance += revenue
                     self.revenue += revenue
@@ -210,7 +236,7 @@ class Firm:
                     # Tax added to region-specific government.
                     # ATTENTION. this is the origin of consumption!
                     # For the new REFORM change it to the region of CONSUMER
-                    if origin:
+                    if if_origin:
                         # Standard tax system. Consumption charged at firms' address
                         regions[self.region_id].collect_taxes(
                             amount_per_product * tax_consumption, "consumption"
@@ -256,7 +282,7 @@ class Firm:
     # Employees' procedures #########
     def total_qualification(self, alpha):
         return sum(
-            [employee.qualification**alpha for employee in self.employees.values()]
+            [employee.qualification ** alpha for employee in self.employees.values()]
         )
 
     def wage_base(self, unemployment, relevance_unemployment):
@@ -265,20 +291,20 @@ class Firm:
         # Calculating wage base on a per-employee basis.
         if self.num_employees > 0:
             return (self.revenue / self.num_employees) * (
-                1 - (unemployment * relevance_unemployment)
+                    1 - (unemployment * relevance_unemployment)
             )
         else:
             return self.revenue * (1 - (unemployment * relevance_unemployment))
 
     def make_payment(
-        self, regions, unemployment, alpha, tax_labor, relevance_unemployment
+            self, regions, unemployment, alpha, tax_labor, relevance_unemployment
     ):
         """Pay employees based on revenue, relative employee qualification, labor taxes, and alpha param"""
         if self.employees:
             # Total salary, including labor taxes. Reinstating total salary paid by multiplying wage * num_employees
             total_salary_paid = (
-                self.wage_base(unemployment, relevance_unemployment)
-                * self.num_employees
+                    self.wage_base(unemployment, relevance_unemployment)
+                    * self.num_employees
             )
             if total_salary_paid > 0:
                 total_qualification = self.total_qualification(alpha)
@@ -287,10 +313,10 @@ class Firm:
                     # Deducing it from firms' balance
                     # Deduce LABOR TAXES from employees' salaries as a percentual of each salary
                     wage = (
-                        total_salary_paid
-                        * (employee.qualification**alpha)
-                        / total_qualification
-                    ) * (1 - tax_labor)
+                                   total_salary_paid
+                                   * (employee.qualification ** alpha)
+                                   / total_qualification
+                           ) * (1 - tax_labor)
                     employee.money += wage
                     employee.last_wage = wage
 
@@ -373,10 +399,10 @@ class ConstructionFirm(Firm):
             # Number of houses being built is endogenously dependent on number of workers and productivity within a
             # parameter-specified number of months.
             if (
-                sum([self.building[b]["cost"] for b in self.building])
-                > params["CONSTRUCTION_ACC_CASH_FLOW"]
-                * self.total_qualification(params["PRODUCTIVITY_EXPONENT"])
-                / params["PRODUCTIVITY_MAGNITUDE_DIVISOR"]
+                    sum([self.building[b]["cost"] for b in self.building])
+                    > params["CONSTRUCTION_ACC_CASH_FLOW"]
+                    * self.total_qualification(params["PRODUCTIVITY_EXPONENT"])
+                    / params["PRODUCTIVITY_MAGNITUDE_DIVISOR"]
             ):
                 return
             else:
@@ -409,9 +435,9 @@ class ConstructionFirm(Firm):
             # within 40 size units,
             # within 2 quality
             if (
-                h.region_id in region_ids
-                and abs(h.size - building_size) <= 40
-                and abs(h.quality - building_quality) <= 2
+                    h.region_id in region_ids
+                    and abs(h.size - building_size) <= 40
+                    and abs(h.quality - building_quality) <= 2
             ):
                 region_prices[h.region_id].append(h.price)
                 # Only take a sample
@@ -543,21 +569,21 @@ class ConstructionFirm(Firm):
         # Observing global economic performance has the added advantage of not spending all revenue on salaries
         if self.num_employees > 0:
             return (self.revenue / self.num_employees) * (
-                1 - (unemployment * relevance_unemployment)
+                    1 - (unemployment * relevance_unemployment)
             )
         else:
             return self.revenue * (1 - (unemployment * relevance_unemployment))
 
     def decision_on_prices_production(
-        self,
-        sticky_prices,
-        markup,
-        seed,
-        avg_prices,
-        prod_exponent=None,
-        prod_magnitude_divisor=None,
-        const_cash_flow=None,
-        price_ruggedness=None,
+            self,
+            sticky_prices,
+            markup,
+            seed,
+            avg_prices,
+            prod_exponent=None,
+            prod_magnitude_divisor=None,
+            const_cash_flow=None,
+            price_ruggedness=None,
     ):
         """Update signal for the labor market"""
         if seed.random() > sticky_prices:
@@ -565,10 +591,10 @@ class ConstructionFirm(Firm):
                 # Number of houses being built is endogenously dependent on number of workers and productivity within a
                 # parameter-specified number of months.
                 if (
-                    sum([self.building[b]["cost"] for b in self.building])
-                    > const_cash_flow
-                    * self.total_qualification(prod_exponent)
-                    / prod_magnitude_divisor
+                        sum([self.building[b]["cost"] for b in self.building])
+                        > const_cash_flow
+                        * self.total_qualification(prod_exponent)
+                        / prod_magnitude_divisor
                 ):
                     self.increase_production = True
             else:

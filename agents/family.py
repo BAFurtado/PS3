@@ -214,7 +214,7 @@ class Family:
             self.savings += (money - consumption)
         return consumption
 
-    def consume(self, firms, central, regions, params, seed, year, month, origin):
+    def consume(self, firms, central, regions, params, seed, year, month, if_origin):
         """Consumption from goods and services firms, based on criteria of price or distance.
         Family general consumption depends on its permanent income, based on members wages, working life expectancy
         and real estate and savings interest
@@ -239,7 +239,8 @@ class Family:
                     chosen_firm = min(market, key=lambda firm: self.house.distance_to_firm(firm))
 
                 # Buy from chosen company
-                change = chosen_firm.sale(money_to_spend, regions, params['TAX_CONSUMPTION'], self.region_id, origin)
+                change = chosen_firm.sale(money_to_spend, regions, params['TAX_CONSUMPTION'],
+                                          self.region_id, if_origin)
                 self.savings += change
 
                 # Update monthly family utility
