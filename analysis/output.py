@@ -135,7 +135,7 @@ class Output:
         n_active = len(active)
         pop = len(sim.agents)
         p_delinquent = len(bank.delinquent_loans()) / n_active if n_active else 0
-        price_index, inflation = sim.stats.update_price(sim.consumer_firms)
+        price_index, inflation = sim.stats.update_price(sim.firms)
         gdp_index, gdp_growth = sim.stats.sum_region_gdp(sim.firms, sim.regions)
         unemployment = sim.stats.update_unemployment(sim.agents.values(), True)
         average_workers = sim.stats.calculate_average_workers(sim.firms)
@@ -266,7 +266,7 @@ class Output:
                              firm.total_quantity, firm.amount_produced, firm.inventory[0].price,
                              firm.amount_sold, firm.revenue, firm.profit,
                              firm.wages_paid))
-            for firm in sim.consumer_firms.values()]
+            for firm in sim.firms.values()]
 
         with open(self.construction_path, 'a') as f:
             [f.write('%s; %s; %s; %s; %.3f; %.3f; %.3f; %s; %.3f; %.3f; %.3f ; %.3f; %.3f; %.3f; %.3f \n' %
@@ -275,8 +275,8 @@ class Output:
                             firm.total_quantity, len(firm.houses_built), firm.mean_house_price(),
                             firm.n_houses_sold, firm.revenue, firm.profit,
                             firm.wages_paid))
-            # TODO Adequate for new sector firms
-            for firm in sim.construction_firms.values()]
+            for firm in sim.firms.values()
+             if firm.sector == 'Construction']
 
     def save_agents_data(self, sim):
         with open(self.agents_path, 'a') as f:

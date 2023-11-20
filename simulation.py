@@ -285,10 +285,7 @@ class Simulation:
         markup = self.PARAMS["MARKUP"]
         const_cash_flow = self.PARAMS["CONSTRUCTION_ACC_CASH_FLOW"]
         price_ruggedness = self.PARAMS["PRICE_RUGGEDNESS"]
-        # TODO Fix it for all sectors firms
-        avg_prices, _ = self.stats.update_price(
-            self.consumer_firms, mid_simulation_calculus=True
-        )
+        avg_prices, _ = self.stats.update_price(self.firms, mid_simulation_calculus=True)
         for firm in self.firms.values():
             # Tax workers when paying salaries
             firm.make_payment(
