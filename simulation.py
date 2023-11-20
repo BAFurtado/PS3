@@ -168,15 +168,6 @@ class Simulation:
             self.central,
         ) = self.generate()
 
-        # TODO Change into sim.firms to keep updated
-        self.construction_firms = {
-            f.id: f for f in self.firms.values() if f.sector == 'Construction'
-        }
-        # TODO change markets for consumption.
-        self.consumer_firms = {
-            f.id: f for f in self.firms.values() if f.type == "CONSUMER"
-        }
-
         # Group regions into their municipalities
         self.mun_to_regions = defaultdict(set)
         for region_id in self.regions.keys():
@@ -211,12 +202,8 @@ class Simulation:
 
     def monthly(self):
         # Set interest rates
-        i = self.interest[self.interest.index.date == self.clock.days]["interest"].iloc[
-            0
-        ]
-        m = self.interest[self.interest.index.date == self.clock.days]["mortgage"].iloc[
-            0
-        ]
+        i = self.interest[self.interest.index.date == self.clock.days]["interest"].iloc[0]
+        m = self.interest[self.interest.index.date == self.clock.days]["mortgage"].iloc[0]
         self.central.set_interest(i, m)
 
         current_unemployment = self.stats.global_unemployment_rate
@@ -298,6 +285,7 @@ class Simulation:
         markup = self.PARAMS["MARKUP"]
         const_cash_flow = self.PARAMS["CONSTRUCTION_ACC_CASH_FLOW"]
         price_ruggedness = self.PARAMS["PRICE_RUGGEDNESS"]
+        # TODO Fix it for all sectors firms
         avg_prices, _ = self.stats.update_price(
             self.consumer_firms, mid_simulation_calculus=True
         )
@@ -334,7 +322,8 @@ class Simulation:
             vacancy_value = 1 - (vacancy * self.PARAMS["OFFER_SIZE_ON_PRICE"])
             if vacancy_value < self.PARAMS["MAX_OFFER_DISCOUNT"]:
                 vacancy_value = self.PARAMS["MAX_OFFER_DISCOUNT"]
-        for firm in self.construction_firms.values():
+        construction_firms = [f for f in self.firms.values() if f.sector == 'Construction']
+        for firm in construction_firms:
             # See if firm can build a house
             firm.plan_house(
                 self.regions.values(),

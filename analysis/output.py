@@ -275,6 +275,7 @@ class Output:
                             firm.total_quantity, len(firm.houses_built), firm.mean_house_price(),
                             firm.n_houses_sold, firm.revenue, firm.profit,
                             firm.wages_paid))
+            # TODO Adequate for new sector firms
             for firm in sim.construction_firms.values()]
 
     def save_agents_data(self, sim):

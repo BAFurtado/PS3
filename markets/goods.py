@@ -1,16 +1,13 @@
 import pandas as pd
 
-
-technical_matrix = pd.read_csv("input/technical_matrix.csv")
-
-
-externalities_matrix = pd.read_csv(
-    "input/externalities_matrix.csv", sep=";", header=0, decimal=","
-)
-
-market_targets = pd.read_csv(
-    "input/pct_demand_supply.csv", sep=";", header=0, decimal=","
-)
+# This is Table 14--Matriz dos coeficientes tecnicos intersetoriais D.Bn 2015 from IBGE
+technical_matrix = pd.read_csv('input/technical_matrix.csv')
+# This is Table 03--Matriz Oferta e demanda da produção nacional a preço básico - 2015 from IBGE
+# NGOs consumption was added to Government consumption
+# Data refers only to the final demand part of the table
+# StockVariation column is desconsidered (relatively small number and endogenous)
+# Numbers refer to percentage of that sector in the total buying demand of that class of consumers (COLUMNS)
+final_demand = pd.read_csv('input/final_demand.csv')
 
 
 class RegionalMarket:
@@ -21,8 +18,6 @@ class RegionalMarket:
 
     def __init__(self, sim):
         self.technical_matrix = technical_matrix
-        self.externalities_matrix = externalities_matrix
-        self.market_targets = market_targets
         self.sim = sim
 
     def consume(self):
