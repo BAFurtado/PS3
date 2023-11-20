@@ -112,9 +112,11 @@ class Firm:
         if self.total_balance > 0:
             money_to_spend_inputs = min(self.total_balance,
                                         desired_quantity * regional_market.technical_matrix[self.sector].sum())
+            # Withdraw all the necessary money. If no inputs are available, change is returned
             self.total_balance -= money_to_spend_inputs
             for sector in regional_market.technical_matrix:
                 money_this_sector = money_to_spend_inputs * regional_market.technical_matrix[sector]
+                # Choose the firm to buy inputs from
                 sector_firms = [f for f in firms.values() if (f.sector == sector) & (f.id != self.id)]
                 sector_firm = seed_np.choice(sector_firms)
                 # Uses regional market to access intermediate consumption and each firm sale function
@@ -122,11 +124,16 @@ class Firm:
                 change = regional_market.intermediate_consumption(money_this_sector,
                                                                   sector_firm, origin_id=self.region_id)
                 if change:
+                    # Check whether no quantity was sold and external market needs to be called
+                    if money_this_sector == change:
+                        # Go for external market
+                        # Todo Create and integrate external agent
+                        pass
                     self.input_inventory[sector] += money_this_sector - change
                     self.total_balance += change
+
                 else:
                     self.input_inventory[sector] += money_this_sector
-
             # TODO. Check that we have at least 3 firms from each sector... include in the generator
 
     def update_product_quantity(self, prod_expoent, prod_divisor, regional_market, firms, seed_np):
@@ -134,11 +141,7 @@ class Firm:
         Based on the MIP sector, buys inputs to produce a given money output of the activity, creates externalities
         and creates a price based on cost.
         """
-
         # """Production equation = Labor * qualification ** alpha"""
-
-        quantity, externalities, price = None, None, None
-
         if self.employees and self.inventory:
             # Call get_sum_qualification below: sum([employee.qualification ** parameters.PRODUCTIVITY_EXPONENT
             #                                   for employee in self.employees.values()])
@@ -148,18 +151,20 @@ class Firm:
             # quantity per product should be adjusted accordingly
             # Currently, the index for the single product is 0
 
-            cost = self.buy_inputs(desired_quantity, regional_market, firms, seed_np)
+            self.buy_inputs(desired_quantity, regional_market, firms, seed_np)
 
-            # TODO actually put together inputs and labor to generate quantity
+            # Check that we have enough inputs to produce desired quantity
             quantity = 0
+            for sector in regional_market.technical_matrix:
+                sector_quantity = min(desired_quantity * regional_market.technical_matrix[sector],
+                                      regional_market.technical_matrix[sector])
+                self.input_inventory -= sector_quantity
+                quantity += sector_quantity
+
             self.inventory[0].quantity += quantity
             self.amount_produced += quantity
 
-            externalities = self.create_externalities(quantity, regional_market)
-
-            price = quantity / cost
-
-        return quantity, externalities, price
+        return quantity
 
     def get_total_quantity(self):
         self.total_quantity = sum(p.quantity for p in self.inventory.values())
@@ -252,7 +257,7 @@ class Firm:
                     # Deducing money from clients upfront
                     amount -= amount_per_product
             self.amount_sold += dummy_bought_quantity
-        # Return change to consumer, if any
+        # Return change to consumer, if any. Note that if there is no quantity to sell, full amount is returned
         return amount
 
     @property
