@@ -114,7 +114,8 @@ class Firm:
                                         desired_quantity * regional_market.technical_matrix[self.sector].sum())
             # Withdraw all the necessary money. If no inputs are available, change is returned
             self.total_balance -= money_to_spend_inputs
-            for sector in regional_market.technical_matrix:
+            # Going through the columns with designated the buying intermediate market
+            for sector in regional_market.technical_matrix.columns:
                 money_this_sector = money_to_spend_inputs * regional_market.technical_matrix[sector]
                 # Choose the firm to buy inputs from
                 sector_firms = [f for f in firms.values() if (f.sector == sector) & (f.id != self.id)]

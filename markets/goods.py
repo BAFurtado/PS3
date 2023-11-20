@@ -17,15 +17,19 @@ class RegionalMarket:
     """
 
     def __init__(self, sim):
-        self.technical_matrix = technical_matrix
+        self.technical_matrix = technical_matrix.set_index('sector')
+        self.final_demand = final_demand.set_index('sector')
         self.sim = sim
 
     def consume(self):
-        firms = list(self.sim.consumer_firms.values())
+        # TODO How to handle government and transport firms?
+        # TODO Exception list? ['Transport']
+        # TODO Include GOVERNMENT, EXPORTS AND FBCF in the consumption market
         if_origin = self.sim.PARAMS["TAX_ON_ORIGIN"]
         for family in self.sim.families.values():
             family.consume(
-                firms,
+                self,
+                self.sim.firms,
                 self.sim.central,
                 self.sim.regions,
                 self.sim.PARAMS,
@@ -48,5 +52,5 @@ class OtherRegions:
 
 class ForeignSector:
     """
-    test
+    Handles imports and exports
     """

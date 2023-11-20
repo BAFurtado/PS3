@@ -33,6 +33,7 @@ HIRING_SAMPLE_SIZE = 10
 # SOURCE: Data read from RAIS, 2010, converting CNAE code to ISIS 12.
 # Original RAIS analysis in ConsultaRais at Ipea EBSB1184, deleted firms for sectors/municipalities below 3 firms
 # TODO Better yet, use location coefficient at Nature paper by Pangalo et.al to quantify region of interest and the rest
+# Construction and Government are already 0 in final demand table
 PERCENT_INPUT_OUTPUT_SECTORS = {
     'Agriculture': 0.060000,
     'Business': 0.137469,
