@@ -43,4 +43,3 @@ check(
     lambda sim: len(sim.houses) == N_HOUSES,
 )
 
-# TODO test new methods

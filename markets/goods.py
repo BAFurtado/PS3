@@ -44,33 +44,6 @@ class RegionalMarket:
         firm.sale(amount, self.sim.regions, self.sim.PARAMS['TAX_CONSUMPTION'], firm.region_id,
                   if_origin=self.sim.PARAMS['TAX_ON_ORIGIN'])
 
-    def search_goods_market(self, sector_list: list):
-        """
-        Lists firms by sector, their available supply and prices, and returns the best buying option. It might need
-        to look outside the metropolitan area.
-        """
-        # TODO probably makes more sense inside Firm as well
-
-    def market_balancing(self, market_distribution):
-        """
-        Based on the MIP sector, buys inputs to produce a given money output of the activity, creates externalities
-        and creates a price based on cost.
-        """
-
-        target_percentages = self.market_targets
-
-        market_deviation = market_distribution - target_percentages
-
-        deviation_threshold = 0
-
-        if market_deviation > deviation_threshold:
-            pass
-        else:
-            pass
-
-        # TODO check se está muito diferente a empírica da target e se sim fazer algo para trazer de volta a um
-        # percentual próximo dos empíricos
-
 
 class OtherRegions:
     """

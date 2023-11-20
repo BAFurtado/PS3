@@ -3,6 +3,8 @@
 
 ## Todo
 1. Fix labels plots (name instead of code)
+2. Use RAIS data to validate model (qualification, numbers, wages)
+
 
 ### Changes made in this version
 1. Addresses chosen with spatial join (instead of individually). Enhancement: faster run

@@ -282,8 +282,6 @@ class Firm:
         else:
             self.taxes_paid = 0
 
-    # TODO pegar anos de qualificação dos funcionários na RAIS (usar p/ validar dados do modelo)
-
     # Employees' procedures #########
     def total_qualification(self, alpha):
         return sum(
