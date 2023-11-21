@@ -27,7 +27,8 @@
 17. Initial real estate average area estimates of empirical values from FIPEZAP in the beginning are read from file, when available
 18. Introduced 12-sector firm types (according to ISIS 12) on generator create_firms()
 19. Production logic: buying inputs from sectors, according to technical matrix coefficients at the same proportion of labor input
-20. 
+20. Households buy from all sectors, following final demand IBGE's table
+21. 
 
 ------
 ``` python 3.11```

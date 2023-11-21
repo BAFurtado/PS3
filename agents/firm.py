@@ -15,8 +15,7 @@ initial_input_sectors = {'Agriculture': 0,
                          'RealEstate': 0,
                          'Trade': 0,
                          'Transport': 0,
-                         'Utilities': 0
-                         }
+                         'Utilities': 0}
 
 
 class Firm:
@@ -640,4 +639,6 @@ class OtherServicesFirm(Firm):
 
 
 class GovernmentFirm(Firm):
+    # TODO Check all the firm processes which are probably different for gov firms
+    # Include special methods for hiring/firing. Wages paying. Profits, everything.
     pass

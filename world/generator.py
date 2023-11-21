@@ -400,12 +400,12 @@ class Generator:
         sector = dict()
 
         if num_firms == 1:
-            key = self.sim.seed_np.choice(self.sim.PARAMS['PERCENT_INPUT_OUTPUT_SECOTORS'],
-                                          p=self.sim.PARAMS['PERCENT_INPUT_OUTPUT_SECOTORS'].values())
+            key = self.sim.seed_np.choice(self.sim.PARAMS['PERCENT_INPUT_OUTPUT_SECTORS'],
+                                          p=self.sim.PARAMS['PERCENT_INPUT_OUTPUT_SECTORS'].values())
             num_firms_by_sector = {key: 1}
         else:
             num_firms_by_sector = {
-                key: math.ceil(num_firms * self.sim.PARAMS["PERCENT_INPUT_OUTPUT_SECTORS"][key])
+                key: math.ceil(num_firms * self.sim.PARAMS['PERCENT_INPUT_OUTPUT_SECTORS'][key])
                 for key in self.sim.PARAMS["PERCENT_INPUT_OUTPUT_SECTORS"]
             }
 

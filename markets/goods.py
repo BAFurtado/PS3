@@ -25,6 +25,7 @@ class RegionalMarket:
         # TODO How to handle government and transport firms?
         # TODO Exception list? ['Transport']
         # TODO Include GOVERNMENT, EXPORTS AND FBCF in the consumption market
+        # TODO Question. If there are government companies, what about labor market?
         if_origin = self.sim.PARAMS["TAX_ON_ORIGIN"]
         for family in self.sim.families.values():
             family.consume(

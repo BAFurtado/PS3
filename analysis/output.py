@@ -69,10 +69,10 @@ OUTPUT_DATA_SPEC = {
                         'stocks', 'amount_produced', 'price', 'amount_sold',
                         'revenue', 'profit', 'wages_paid']
         },
-        'columns':  ['month', 'firm_id', 'region_id', 'mun_id',
-                     'long', 'lat', 'total_balance$', 'number_employees',
-                     'stocks', 'amount_produced', 'price', 'amount_sold',
-                     'revenue', 'profit', 'wages_paid']
+        'columns': ['month', 'firm_id', 'region_id', 'mun_id',
+                    'long', 'lat', 'total_balance$', 'number_employees',
+                    'stocks', 'amount_produced', 'price', 'amount_sold',
+                    'revenue', 'profit', 'wages_paid']
     },
     'construction': {
         'avg': {
@@ -81,10 +81,10 @@ OUTPUT_DATA_SPEC = {
                         'stocks', 'amount_produced', 'price', 'amount_sold',
                         'revenue', 'profit', 'wages_paid']
         },
-        'columns':  ['month', 'firm_id', 'region_id', 'mun_id',
-                     'long', 'lat', 'total_balance$', 'number_employees',
-                     'stocks', 'amount_produced', 'price', 'amount_sold',
-                     'revenue', 'profit', 'wages_paid']
+        'columns': ['month', 'firm_id', 'region_id', 'mun_id',
+                    'long', 'lat', 'total_balance$', 'number_employees',
+                    'stocks', 'amount_produced', 'price', 'amount_sold',
+                    'revenue', 'profit', 'wages_paid']
     },
     'regional': {
         'avg': {
@@ -233,7 +233,7 @@ class Output:
                 mun_applied_treasure[k] = sum(r.applied_treasure[k] for r in regions)
 
             # average QLI of regions
-            mun_qli = sum(r.index for r in regions)/len(regions)
+            mun_qli = sum(r.index for r in regions) / len(regions)
 
             reports.append('%s;%s;%.3f;%d;%.3f;%.4f;%.3f;%.4f;%.5f;%.3f;%.6f;%.6f;%.6f;%.6f;%s'
                            % (sim.clock.days, mun_id, commuting, mun_pop, mun_gdp, mun_gini, mun_house_values,
@@ -244,7 +244,7 @@ class Output:
                               licenses))
 
         with open(self.regional_path, 'a') as f:
-            f.write('\n'+'\n'.join(reports))
+            f.write('\n' + '\n'.join(reports))
 
     def save_data(self, sim):
         # firms data is necessary for plots,
@@ -261,32 +261,32 @@ class Output:
     def save_firms_data(self, sim):
         with open(self.firms_path, 'a') as f:
             [f.write('%s; %s; %s; %s; %.3f; %.3f; %.3f; %s; %.3f; %.3f; %.3f ; %.3f; %.3f; %.3f; %.3f \n' %
-                            (sim.clock.days, firm.id, firm.region_id, firm.region_id[:7], firm.address.x,
-                             firm.address.y, firm.total_balance, firm.num_employees,
-                             firm.total_quantity, firm.amount_produced, firm.inventory[0].price,
-                             firm.amount_sold, firm.revenue, firm.profit,
-                             firm.wages_paid))
-            for firm in sim.firms.values()]
+                     (sim.clock.days, firm.id, firm.region_id, firm.region_id[:7], firm.address.x,
+                      firm.address.y, firm.total_balance, firm.num_employees,
+                      firm.total_quantity, firm.amount_produced, firm.inventory[0].price,
+                      firm.amount_sold, firm.revenue, firm.profit,
+                      firm.wages_paid))
+             for firm in sim.firms.values()]
 
         with open(self.construction_path, 'a') as f:
             [f.write('%s; %s; %s; %s; %.3f; %.3f; %.3f; %s; %.3f; %.3f; %.3f ; %.3f; %.3f; %.3f; %.3f \n' %
-                            (sim.clock.days, firm.id, firm.region_id, firm.region_id[:7], firm.address.x,
-                            firm.address.y, firm.total_balance, firm.num_employees,
-                            firm.total_quantity, len(firm.houses_built), firm.mean_house_price(),
-                            firm.n_houses_sold, firm.revenue, firm.profit,
-                            firm.wages_paid))
-            for firm in sim.firms.values()
+                     (sim.clock.days, firm.id, firm.region_id, firm.region_id[:7], firm.address.x,
+                      firm.address.y, firm.total_balance, firm.num_employees,
+                      firm.total_quantity, len(firm.houses_built), firm.mean_house_price(),
+                      firm.n_houses_sold, firm.revenue, firm.profit,
+                      firm.wages_paid))
+             for firm in sim.firms.values()
              if firm.sector == 'Construction']
 
     def save_agents_data(self, sim):
         with open(self.agents_path, 'a') as f:
             [f.write('%s;%s;%s;%.3f;%.3f;%s;%s;%s;%s;%s;%.3f;%s\n' % (sim.clock.days, agent.region_id,
-                                                                           agent.gender, agent.address.x,
-                                                                           agent.address.y, agent.id, agent.age,
-                                                                           agent.qualification, agent.firm_id,
-                                                                           agent.family.id, agent.money,
-                                                                           agent.distance))
-            for agent in sim.agents.values()]
+                                                                      agent.gender, agent.address.x,
+                                                                      agent.address.y, agent.id, agent.age,
+                                                                      agent.qualification, agent.firm_id,
+                                                                      agent.family.id, agent.money,
+                                                                      agent.distance))
+             for agent in sim.agents.values()]
 
     def save_grave_data(self, sim):
         with open(self.grave_path, 'a') as f:
@@ -299,7 +299,7 @@ class Output:
                                                                        agent.family.id if agent.family else None,
                                                                        agent.money, agent.utility,
                                                                        agent.distance))
-            for agent in sim.grave]
+             for agent in sim.grave]
 
     def save_house_data(self, sim):
         with open(self.houses_path, 'a') as f:
@@ -329,7 +329,7 @@ class Output:
                                                           family.total_wage(),
                                                           family.savings,
                                                           family.num_members))
-            for family in sim.families.values()]
+             for family in sim.families.values()]
 
     def save_banks_data(self, sim):
         bank = sim.central

@@ -95,7 +95,7 @@ class Funds:
         # Families are sorted in self.policy_families. Buy and give as much as money allows
         for mun in self.policy_money.keys():
             for firm in self.sim.firms.values():
-                if firm.type == 'CONSTRUCTION':
+                if firm.sector == 'Construction':
                     # Get the list of the houses for sale within the municipality
                     self.temporary_houses[mun] += [h for h in firm.houses_for_sale if h.region_id[:7] == mun]
             # Sort houses and families by cheapest, poorest.
@@ -159,7 +159,7 @@ class Funds:
             mun_code = region.id[:7]
             regional_fpm = fpm_region[id] / sum(set(fpm_region.values())) * value * pop_t[id] / pop_mun_t[mun_code]
 
-            # Separating money for policy
+            # Separating money for policy ############
             if self.sim.PARAMS['POLICY_COEFFICIENT']:
                 self.policy_money[mun_code] += regional_fpm * self.sim.PARAMS['POLICY_COEFFICIENT']
                 regional_fpm *= 1 - self.sim.PARAMS['POLICY_COEFFICIENT']
@@ -173,7 +173,7 @@ class Funds:
             for id in mun_code[mun]:
                 amount = value[mun] * pop_t[id] / pop_mun_t[mun]
 
-                # Separating money for policy
+                # Separating money for policy ###############
                 if self.sim.PARAMS['POLICY_COEFFICIENT']:
                     self.policy_money[mun] += amount * self.sim.PARAMS['POLICY_COEFFICIENT']
                     amount *= 1 - self.sim.PARAMS['POLICY_COEFFICIENT']
@@ -184,7 +184,7 @@ class Funds:
     def equally(self, value, regions, pop_t, pop_total):
         for id, region in regions.items():
             amount = value * pop_t[id] / pop_total
-            # Separating money for policy
+            # Separating money for policy #############
             if self.sim.PARAMS['POLICY_COEFFICIENT']:
                 self.policy_money[id[:7]] += amount * self.sim.PARAMS['POLICY_COEFFICIENT']
                 amount *= 1 - self.sim.PARAMS['POLICY_COEFFICIENT']
@@ -192,6 +192,7 @@ class Funds:
             region.update_applied_taxes(amount, 'equally')
 
     def invest_taxes(self, year, bank_taxes):
+        # TODD. Consider if increasing QLI becomes a government firm production, using technical matrix
         if self.sim.PARAMS['POLICIES'] not in ['buy', 'rent', 'wage']:
             self.sim.PARAMS['POLICY_COEFFICIENT'] = 0
         # Collect and UPDATE pop_t-1 and pop_t
@@ -219,7 +220,7 @@ class Funds:
         v_local = defaultdict(int)
         v_equal = 0
         if self.sim.PARAMS['ALTERNATIVE0']:
-            # Dividing proortion of consumption into equal and local (state, municipality)
+            # Dividing proportion of consumption into equal and local (state, municipality)
             # And adding local part of consumption plus transaction and property to local
             v_equal += sum([treasure[key]['consumption'] for key in treasure.keys()]) * \
                       self.sim.PARAMS['TAXES_STRUCTURE']['consumption_equal']
