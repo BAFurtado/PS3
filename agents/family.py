@@ -230,7 +230,7 @@ class Family:
             # Construction and Government are 0 in the table. Specific construction market apply
             for sector in regional_market.final_demand.index:
                 money_this_sector = money_to_spend * regional_market.final_demand['HouseholdConsumption'][sector]
-                # Some sectors have 0 value, such as Government, Mining, and Construction (an explicit market is used)
+                # Some sectors have 0 value, such as Government, Mining, and Construction (explicit markets are used)
                 if money_this_sector == 0:
                     continue
                 # Choose the firm to buy inputs from

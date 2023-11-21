@@ -21,9 +21,13 @@ class RegionalMarket:
         self.final_demand = final_demand.set_index('sector')
         self.sim = sim
 
+    def consumption(self):
+        # Household consumption
+        self.consume()
+
     def consume(self):
         # TODO How to handle government and transport firms?
-        # TODO Exception list? ['Transport']
+        # TODO Exception list? ['Transport']. Include a factor of distance by agent/household
         # TODO Include GOVERNMENT, EXPORTS AND FBCF in the consumption market
         # TODO Question. If there are government companies, what about labor market?
         if_origin = self.sim.PARAMS["TAX_ON_ORIGIN"]
@@ -39,6 +43,17 @@ class RegionalMarket:
                 self.sim.clock.months,
                 if_origin,
             )
+
+    def government_consumption(self):
+        gov_firms = [f for f in self.sim.firms.values() if f.sector == 'Government']
+        for firm in gov_firms:
+            firm.consume(self.sim)
+
+    def gross_fixed_capital_formation(self):
+        pass
+
+    def exports(self):
+        pass
 
     def intermediate_consumption(self, amount, firm):
         firm.sale(amount, self.sim.regions, self.sim.PARAMS['TAX_CONSUMPTION'], firm.region_id,

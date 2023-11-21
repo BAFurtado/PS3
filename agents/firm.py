@@ -639,6 +639,34 @@ class OtherServicesFirm(Firm):
 
 
 class GovernmentFirm(Firm):
-    # TODO Check all the firm processes which are probably different for gov firms
-    # Include special methods for hiring/firing. Wages paying. Profits, everything.
-    pass
+    # Include special method for hiring/firing = fixed number
+    # Include special method for setting prices, wages paying, profits, consume (supply total_balance)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def consume(self, sim):
+        # As long as we provide labor and total_balance, the other methods are OK  to use from regular firm
+        # Consumption: government owns consumption is used as update index. Other sectors consume here.
+        money_to_spend = self.total_balance
+        for sector in sim.regional_market.final_demand.index:
+            if sector == 'Government':
+                # Government on consumption is operated as update_index at funds.py
+                continue
+            # This makes sure that only the final demand percentage of total balance is consumed at other sectors
+            # Same as how households consume
+            money_this_sector = money_to_spend * sim.regional_market.final_demand['GovernmentConsumption'][sector]
+            # Some sectors have 0 value, such as Government, Mining, and Construction (explicit markets are used)
+            if money_this_sector == 0:
+                continue
+
+    def buy_inputs(self, desired_quantity, regional_market, firms, seed_np):
+        # Use this to participate in the consumption market (technical matrix)
+        pass
+
+    def sale(self, amount, regions, tax_consumption, consumer_region_id, if_origin):
+        # Use this to transfer from general treasury to companies
+        pass
+
+    def update_product_quantity(self, prod_expoent, prod_divisor, regional_market, firms, seed_np):
+        # Use this to check how many employees at specific company. Set as proportion of open market?
+        pass
