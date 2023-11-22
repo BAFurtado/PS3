@@ -643,6 +643,7 @@ class GovernmentFirm(Firm):
     # Include special method for setting prices, wages paying, profits, consume (supply total_balance)
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.budget_proportion = 0
 
     def consume(self, sim):
         # As long as we provide labor and total_balance, the other methods are OK  to use from regular firm
@@ -659,14 +660,29 @@ class GovernmentFirm(Firm):
             if money_this_sector == 0:
                 continue
 
-    def buy_inputs(self, desired_quantity, regional_market, firms, seed_np):
-        # Use this to participate in the consumption market (technical matrix)
-        pass
+    def assign_proportion(self, value):
+        self.budget_proportion = value
 
     def sale(self, amount, regions, tax_consumption, consumer_region_id, if_origin):
-        # Use this to transfer from general treasury to companies
+        """ Sales for government companies are operated as increase (distribution) of total_balance when operating
+            taxes, specifically at procedures at funds.py.
+            Furthermore, this function should never be called as the final demand table lists 0 for household
+            consumption of government goods!
+        """
         pass
 
-    def update_product_quantity(self, prod_expoent, prod_divisor, regional_market, firms, seed_np):
-        # Use this to check how many employees at specific company. Set as proportion of open market?
-        pass
+    def government_transfer(self, amount):
+        """ Equivalent to sales for regular firms,
+            in which government transfer are added to government firms total balance """
+        if amount > 0:
+            # Add price of the unit, deduce it from consumers' amount
+            for key in list(self.inventory.keys()):
+                if self.inventory[key].quantity > 0:
+                    amount_sold = self.inventory[key].quantity
+                    # Deducing from stock
+                    self.inventory[key].quantity = 0
+                    self.total_balance += amount
+                    self.revenue += amount
+            self.amount_sold += amount_sold
+        # Return change to consumer, if any. Note that if there is no quantity to sell, full amount is returned
+        return 0

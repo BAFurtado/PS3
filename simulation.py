@@ -39,7 +39,7 @@ class Simulation:
         self.seed_np = np.random.RandomState(self._seed)
         self.generator = Generator(self)
         self.regional_market = RegionalMarket(self)
-
+        self.mun_to_regions = defaultdict(set)
         # Read necessary files
         self.m_men, self.m_women, self.f = {}, {}, {}
         for state in self.geo.states_on_process:
@@ -169,7 +169,6 @@ class Simulation:
         ) = self.generate()
 
         # Group regions into their municipalities
-        self.mun_to_regions = defaultdict(set)
         for region_id in self.regions.keys():
             mun_code = region_id[:7]
             self.mun_to_regions[mun_code].add(region_id)
@@ -377,7 +376,7 @@ class Simulation:
         # Using all collected taxes to improve public services
         bank_taxes = self.central.collect_taxes()
 
-        # Separate funds for region index update and separate for the policy case
+        # Separate funds for region index update and separate for the policy case. Also, buy from intermediate market
         self.funds.invest_taxes(self.clock.year, bank_taxes)
 
         # Apply policies if percentage is different from 0
