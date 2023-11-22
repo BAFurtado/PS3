@@ -13,6 +13,8 @@ class Funds:
         self.sim = sim
         self.families_subsided = 0
         self.money_applied_policy = 0
+        self.mun_gov_firms = defaultdict(list)
+        self.gov_consumption_parameter = self.sim.regional_market.final_demand['GovernmentConsumption']['Government']
         if sim.PARAMS['FPM_DISTRIBUTION']:
             self.fpm = {
                 state: pd.read_csv('input/fpm/%s.csv' % state, sep=',', header=0, decimal='.', encoding='latin1')
@@ -159,7 +161,12 @@ class Funds:
             mun_code = region.id[:7]
             regional_fpm = fpm_region[id] / sum(set(fpm_region.values())) * value * pop_t[id] / pop_mun_t[mun_code]
 
-            # Separating money for policy ############
+            # Dividing government investment between intermediate consumption and own consumption
+            gov_firms_money = (1 - self.gov_consumption_parameter) * regional_fpm
+            [f.government_transfer(gov_firms_money * f.budget_proportion) for f in self.mun_gov_firms[mun_code]]
+            regional_fpm = self.gov_consumption_parameter * regional_fpm
+
+            # Separating money for policy
             if self.sim.PARAMS['POLICY_COEFFICIENT']:
                 self.policy_money[mun_code] += regional_fpm * self.sim.PARAMS['POLICY_COEFFICIENT']
                 regional_fpm *= 1 - self.sim.PARAMS['POLICY_COEFFICIENT']
@@ -173,7 +180,12 @@ class Funds:
             for id in mun_code[mun]:
                 amount = value[mun] * pop_t[id] / pop_mun_t[mun]
 
-                # Separating money for policy ###############
+                # Dividing government investment between intermediate consumption and own consumption
+                gov_firms_money = (1 - self.gov_consumption_parameter) * amount
+                [f.government_transfer(gov_firms_money * f.budget_proportion) for f in self.mun_gov_firms[mun_code]]
+                amount = self.gov_consumption_parameter * amount
+
+                # Separating money for policy
                 if self.sim.PARAMS['POLICY_COEFFICIENT']:
                     self.policy_money[mun] += amount * self.sim.PARAMS['POLICY_COEFFICIENT']
                     amount *= 1 - self.sim.PARAMS['POLICY_COEFFICIENT']
@@ -182,12 +194,19 @@ class Funds:
                 regions[id].update_applied_taxes(amount, 'locally')
 
     def equally(self, value, regions, pop_t, pop_total):
+        # Dividing government investment between intermediate consumption and own consumption
+        gov_firms_money = (1 - self.gov_consumption_parameter) * value
+        value = self.gov_consumption_parameter * value
+        for mun_code in self.mun_gov_firms:
+            [f.government_transfer(gov_firms_money * f.budget_proportion) for f in self.mun_gov_firms[mun_code]]
+
         for id, region in regions.items():
             amount = value * pop_t[id] / pop_total
-            # Separating money for policy #############
+            # Separating money for policy
             if self.sim.PARAMS['POLICY_COEFFICIENT']:
                 self.policy_money[id[:7]] += amount * self.sim.PARAMS['POLICY_COEFFICIENT']
                 amount *= 1 - self.sim.PARAMS['POLICY_COEFFICIENT']
+
             region.update_index(amount * self.sim.PARAMS['MUNICIPAL_EFFICIENCY_MANAGEMENT'])
             region.update_applied_taxes(amount, 'equally')
 
@@ -195,13 +214,16 @@ class Funds:
         # The part of final demand that is not consumed by the government itself is applied in the intermediate
         # market as government purchase. Thus, part of the budget of government following final demand table is
         # distributed at GovernmentFirms to acquire products in the market
-        for these_regions in self.sim.mun_to_regions.values():
+        self.mun_gov_firms = defaultdict(list)
+        for mun_code in self.sim.mun_to_regions:
+            these_regions = self.sim.mun_to_regions[mun_code]
             gov_firms = [firm for firm in self.firms.values()
                          if (firm.sector == 'Government') and (firm.region_id in these_regions)]
             firms_num_employees = [f.num_employees() for f in gov_firms]
             total_employment = sum(firms_num_employees)
             # Setting number within firm that represent the part of the budget
             [f.assign_proportion(i/total_employment) for f, i in zip(gov_firms, firms_num_employees)]
+            self.mun_gov_firms[mun_code] = gov_firms
 
         if self.sim.PARAMS['POLICIES'] not in ['buy', 'rent', 'wage']:
             self.sim.PARAMS['POLICY_COEFFICIENT'] = 0

@@ -142,6 +142,7 @@ class Firm:
         and creates a price based on cost.
         """
         # """Production equation = Labor * qualification ** alpha"""
+        quantity = 0
         if self.employees and self.inventory:
             # Call get_sum_qualification below: sum([employee.qualification ** parameters.PRODUCTIVITY_EXPONENT
             #                                   for employee in self.employees.values()])
@@ -154,7 +155,7 @@ class Firm:
             self.buy_inputs(desired_quantity, regional_market, firms, seed_np)
 
             # Check that we have enough inputs to produce desired quantity
-            quantity = 0
+
             for sector in regional_market.technical_matrix:
                 sector_quantity = min(desired_quantity * regional_market.technical_matrix[sector],
                                       regional_market.technical_matrix[sector])
@@ -341,14 +342,14 @@ class Firm:
 
     def fire(self, seed):
         if self.employees:
-            id = seed.choice(list(self.employees.keys()))
-            self.employees[id].firm_id = None
-            self.employees[id].set_commute(None)
-            del self.employees[id]
+            id_ = seed.choice(list(self.employees.keys()))
+            self.employees[id_].firm_id = None
+            self.employees[id_].set_commute(None)
+            del self.employees[id_]
 
-    def is_worker(self, id):
+    def is_worker(self, id_):
         # Returns true if agent is a member of this firm
-        return id in self.employees
+        return id_ in self.employees
 
     @property
     def num_employees(self):
@@ -683,6 +684,6 @@ class GovernmentFirm(Firm):
                     self.inventory[key].quantity = 0
                     self.total_balance += amount
                     self.revenue += amount
-            self.amount_sold += amount_sold
+                    self.amount_sold += amount_sold
         # Return change to consumer, if any. Note that if there is no quantity to sell, full amount is returned
         return 0
