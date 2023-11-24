@@ -339,8 +339,10 @@ class Simulation:
         self.labor_market.look_for_jobs(self.agents)
 
         # FIRMS
-        # Check if new employee needed (functions below)
-        # Check if firing is necessary
+        # Government labor first (initialization is for all firms, government specific is monthly)
+        self.labor_market.gov_hire_fire(self)
+        # Check if new employee needed. Check if firing is necessary
+        # 3-way criteria: Wages/sales, profits, and increase production
         self.labor_market.hire_fire(self.firms, self.PARAMS["LABOR_MARKET"])
 
         # Job Matching

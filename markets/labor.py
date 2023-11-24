@@ -1,3 +1,9 @@
+import pandas as pd
+from collections import defaultdict
+from math import ceil
+from itertools import chain
+
+
 class LaborMarket:
     """
     This class makes the match among firms and prospective candidates.
@@ -12,8 +18,14 @@ class LaborMarket:
     def __init__(self, seed, seed_np):
         self.seed = seed
         self.seed_np = seed_np
+        self.gov_employees = self.process_gov_employees_year()
         self.available_postings = list()
         self.candidates = list()
+
+    def process_gov_employees_year(self):
+        employees = pd.read_csv('input/qtde_vinc_gov_rais.csv')
+        # Just municipalities in this run
+        return employees[employees['codemun'].isin(self.sim.geo.mun_codes)]
 
     def add_post(self, firm):
         self.available_postings.append(firm)
@@ -110,6 +122,24 @@ class LaborMarket:
 
     def look_for_jobs(self, agents):
         self.candidates += [agent for agent in agents.values() if 16 < agent.age < 70 and agent.firm_id is None]
+
+    def gov_hire_fire(self, sim):
+        total_gov_employees = ceil(self.gov_employees[self.gov_employees.ano == sim.clock.year].qtde_vinc_ativos.sum() *
+                                  sim.PARAMS['PERCENTAGE_ACTUAL_POP'])
+        mun_gov_firms = defaultdict(list)
+        these_regions = list(chain.from_iterable(sim.mun_to_regions.values()))
+        gov_firms = [firm for firm in sim.firms.values()
+                     if firm.sector == 'Government']
+        firms_num_employees = [f.num_employees() for f in gov_firms]
+        total_employment = sum(firms_num_employees)
+        jobs_balance = total_gov_employees - total_employment
+        if jobs_balance > 0:
+            hiring_firms = sim.seed_np.choice(gov_firms, size=jobs_balance)
+            [self.add_post(f) for f in hiring_firms]
+        else:
+            firing_firms = sim.seed_np.choice(gov_firms, size=jobs_balance * -1)
+            [f.fire(self.seed) for f in firing_firms]
+        sim.funds.mun_gov_firms = mun_gov_firms
 
     def hire_fire(self, firms, firm_enter_freq, initialize=False):
         """Firms adjust their labor force based on profit"""

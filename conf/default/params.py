@@ -34,7 +34,7 @@ HIRING_SAMPLE_SIZE = 10
 # Original RAIS analysis in ConsultaRais at Ipea EBSB1184, deleted firms for sectors/municipalities below 3 firms
 # TODO Better yet, use location coefficient at Nature paper by Pangalo et.al to quantify region of interest and the rest
 # Construction and Government are already 0 in final demand table
-PERCENT_INPUT_OUTPUT_SECTORS = {
+PERCENT_FIRMS_PER_SECTORS = {
     'Agriculture': 0.060000,
     'Business': 0.137469,
     'Construction': 0.039483,

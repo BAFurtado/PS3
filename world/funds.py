@@ -214,16 +214,13 @@ class Funds:
         # The part of final demand that is not consumed by the government itself is applied in the intermediate
         # market as government purchase. Thus, part of the budget of government following final demand table is
         # distributed at GovernmentFirms to acquire products in the market
-        self.mun_gov_firms = defaultdict(list)
-        for mun_code in self.sim.mun_to_regions:
-            these_regions = self.sim.mun_to_regions[mun_code]
-            gov_firms = [firm for firm in self.firms.values()
-                         if (firm.sector == 'Government') and (firm.region_id in these_regions)]
-            firms_num_employees = [f.num_employees() for f in gov_firms]
+
+        # Setting number within firm that represent the part of the budget
+        for mun_code in self.sim.geo.mun_codes:
+            gov_firms_here = [f for f in self.mun_gov_firms if f.region_id.isin(self.sim.geo.mun_codes[mun_code])]
+            firms_num_employees = [f.num_employees() for f in gov_firms_here]
             total_employment = sum(firms_num_employees)
-            # Setting number within firm that represent the part of the budget
-            [f.assign_proportion(i/total_employment) for f, i in zip(gov_firms, firms_num_employees)]
-            self.mun_gov_firms[mun_code] = gov_firms
+            [f.assign_proportion(i / total_employment) for f, i in zip(gov_firms_here, firms_num_employees)]
 
         if self.sim.PARAMS['POLICIES'] not in ['buy', 'rent', 'wage']:
             self.sim.PARAMS['POLICY_COEFFICIENT'] = 0

@@ -26,10 +26,9 @@ class RegionalMarket:
         self.consume()
 
     def consume(self):
-        # TODO How to handle government and transport firms?
-        # TODO Exception list? ['Transport']. Include a factor of distance by agent/household
-        # TODO Include GOVERNMENT, EXPORTS AND FBCF in the consumption market
-        # TODO Question. If there are government companies, what about labor market?
+        # TODO How to handle transport firms? Include a factor of distance by agent/household
+        # TODO Include EXPORTS AND FBCF in the consumption market
+        # TODO Use gov budget_proportion to assign wages
         if_origin = self.sim.PARAMS["TAX_ON_ORIGIN"]
         for family in self.sim.families.values():
             family.consume(
