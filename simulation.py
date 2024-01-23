@@ -275,6 +275,9 @@ class Simulation:
         # Collect loan repayments
         self.central.collect_loan_payments(self)
 
+        # Government firms consumption
+        self.regional_market.government_consumption()
+
         # FIRMS
         # Accessing dictionary parameters outside the loop for performance
         tax_labor = self.PARAMS["TAX_LABOR"]

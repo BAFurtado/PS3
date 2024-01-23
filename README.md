@@ -25,10 +25,11 @@
 15. Introduced test of collecting consumption taxes at consumers' municipality rather than firms'
 16. Migrated from using `OGR from OSGEO` to regular `geopandas.DataFrames`
 17. Initial real estate average area estimates of empirical values from FIPEZAP in the beginning are read from file, when available
-18. Introduced 12-sector firm types (according to ISIS 12) on generator create_firms()
+18. Introduced and checked 12-sector firm types (according to ISIC/NACE 12) on generator create_firms()
 19. Production logic: buying inputs from sectors, according to technical matrix coefficients at the same proportion of labor input
 20. Households buy from all sectors, following final demand IBGE's table
-21. 
+21. Government budget division to participate in the intermediate market included.
+22. Government labor market distinctions (fixed exogenous values by year) were implemented
 
 ------
 ``` python 3.11```

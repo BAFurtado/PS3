@@ -20,6 +20,7 @@ class RegionalMarket:
         self.technical_matrix = technical_matrix.set_index('sector')
         self.final_demand = final_demand.set_index('sector')
         self.sim = sim
+        self.if_origin = self.sim.PARAMS["TAX_ON_ORIGIN"]
 
     def consumption(self):
         # Household consumption
@@ -29,7 +30,8 @@ class RegionalMarket:
         # TODO How to handle transport firms? Include a factor of distance by agent/household
         # TODO Include EXPORTS AND FBCF in the consumption market
         # TODO Use gov budget_proportion to assign wages
-        if_origin = self.sim.PARAMS["TAX_ON_ORIGIN"]
+        # TODO Check pycg (callgraph)
+
         for family in self.sim.families.values():
             family.consume(
                 self,
@@ -40,7 +42,7 @@ class RegionalMarket:
                 self.sim.seed,
                 self.sim.clock.year,
                 self.sim.clock.months,
-                if_origin,
+                self.if_origin
             )
 
     def government_consumption(self):

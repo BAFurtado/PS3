@@ -105,7 +105,7 @@ class Firm:
     def buy_inputs(self, desired_quantity, regional_market, firms, seed_np):
         """
         Buys inputs according to the technical coefficients.
-        In fact, this is the intermediate consumer market
+        In fact, this is the intermediate consumer market (firms buying from firms)
         """
 
         if self.total_balance > 0:
@@ -122,7 +122,8 @@ class Firm:
                 # Uses regional market to access intermediate consumption and each firm sale function
                 # Returns change, if any
                 change = regional_market.intermediate_consumption(money_this_sector,
-                                                                  sector_firm, origin_id=self.region_id)
+                                                                  sector_firm,
+                                                                  origin_id=self.region_id)
                 if change:
                     # Check whether no quantity was sold and external market needs to be called
                     if money_this_sector == change:
@@ -141,7 +142,7 @@ class Firm:
         Based on the MIP sector, buys inputs to produce a given money output of the activity, creates externalities
         and creates a price based on cost.
         """
-        # """Production equation = Labor * qualification ** alpha"""
+        # """ Production equation = Labor * qualification ** alpha """
         quantity = 0
         if self.employees and self.inventory:
             # Call get_sum_qualification below: sum([employee.qualification ** parameters.PRODUCTIVITY_EXPONENT
@@ -155,7 +156,6 @@ class Firm:
             self.buy_inputs(desired_quantity, regional_market, firms, seed_np)
 
             # Check that we have enough inputs to produce desired quantity
-
             for sector in regional_market.technical_matrix:
                 sector_quantity = min(desired_quantity * regional_market.technical_matrix[sector],
                                       regional_market.technical_matrix[sector])
@@ -647,9 +647,9 @@ class GovernmentFirm(Firm):
         self.budget_proportion = 0
 
     def consume(self, sim):
-        # As long as we provide labor and total_balance, the other methods are OK  to use from regular firm
-        # Consumption: government owns consumption is used as update index. Other sectors consume here.
-        money_to_spend = self.total_balance
+        # As long as we provide labor and total_balance, the other methods are OK to use methods from regular firm
+        # Consumption: government own consumption is used as update index. Other sectors consume here.
+        money_to_spend = self.budget_proportion
         for sector in sim.regional_market.final_demand.index:
             if sector == 'Government':
                 # Government on consumption is operated as update_index at funds.py
@@ -660,6 +660,17 @@ class GovernmentFirm(Firm):
             # Some sectors have 0 value, such as Government, Mining, and Construction (explicit markets are used)
             if money_this_sector == 0:
                 continue
+            sector_firms = [f for f in sim.firms.values() if f.sector == sector]
+            market = sim.seed.sample(sector_firms, min(len(sim.firms.values()), int(sim.params['SIZE_MARKET'])))
+            market = [firm for firm in market if firm.get_total_quantity() > 0]
+            if market:
+                chosen_firm = min(market, key=lambda firm: firm.prices)
+                # Buy from chosen company
+                change = chosen_firm.sale(money_this_sector, sim.regions, sim.params['TAX_CONSUMPTION'],
+                                          self.region_id, sim.PARAMS["TAX_ON_ORIGIN"])
+                self.budget_proportion += change
+            else:
+                self.budget_proportion += money_this_sector.copy()
 
     def assign_proportion(self, value):
         self.budget_proportion = value
@@ -685,5 +696,4 @@ class GovernmentFirm(Firm):
                     self.total_balance += amount
                     self.revenue += amount
                     self.amount_sold += amount_sold
-        # Return change to consumer, if any. Note that if there is no quantity to sell, full amount is returned
         return 0

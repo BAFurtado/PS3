@@ -247,7 +247,7 @@ class Plotter:
 
     def plot_regional_stats(self):
         dat = self._load_single_run('regional', 'regional.csv')
-        # TODO: adjusted percentual time off not working for regional plots, neither distributions
+        # TODO: adjust percentual time off not working for regional plots, neither distributions
         # Time to be eliminated (adjustment of the model)
         # if conf.RUN['TIME_TO_BE_ELIMINATED'] > 0:
         #     dat = dat.loc[len(dat['month']) * conf.RUN['TIME_TO_BE_ELIMINATED']:, :]
