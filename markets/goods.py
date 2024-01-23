@@ -56,8 +56,8 @@ class RegionalMarket:
         pass
 
     def intermediate_consumption(self, amount, firm):
-        firm.sale(amount, self.sim.regions, self.sim.PARAMS['TAX_CONSUMPTION'], firm.region_id,
-                  if_origin=self.sim.PARAMS['TAX_ON_ORIGIN'])
+        return firm.sale(amount, self.sim.regions, self.sim.PARAMS['TAX_CONSUMPTION'], firm.region_id,
+                         if_origin=self.sim.PARAMS['TAX_ON_ORIGIN'])
 
 
 class OtherRegions:

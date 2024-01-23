@@ -15,7 +15,8 @@ class LaborMarket:
     Lists are emptied every month.
     """
 
-    def __init__(self, seed, seed_np):
+    def __init__(self, sim, seed, seed_np):
+        self.sim = sim
         self.seed = seed
         self.seed_np = seed_np
         self.gov_employees = self.process_gov_employees_year()

@@ -122,8 +122,7 @@ class Firm:
                 # Uses regional market to access intermediate consumption and each firm sale function
                 # Returns change, if any
                 change = regional_market.intermediate_consumption(money_this_sector,
-                                                                  sector_firm,
-                                                                  origin_id=self.region_id)
+                                                                  sector_firm)
                 if change:
                     # Check whether no quantity was sold and external market needs to be called
                     if money_this_sector == change:

@@ -25,6 +25,7 @@ class Simulation:
     def __init__(self, params, output_path):
         self.PARAMS = params
         self.geo = Geography(params, self.PARAMS["STARTING_DAY"].year)
+        self.regional_market = RegionalMarket(self)
         self.funds = Funds(self)
         self.clock = clock.Clock(self.PARAMS["STARTING_DAY"])
         self.output = analysis.Output(self, output_path)
@@ -38,7 +39,7 @@ class Simulation:
         self.seed = random.Random(self._seed)
         self.seed_np = np.random.RandomState(self._seed)
         self.generator = Generator(self)
-        self.regional_market = RegionalMarket(self)
+
         self.mun_to_regions = defaultdict(set)
         # Read necessary files
         self.m_men, self.m_women, self.f = {}, {}, {}
@@ -154,7 +155,7 @@ class Simulation:
         self.logger.logger.info("Initializing...")
         self.grave = []
 
-        self.labor_market = markets.LaborMarket(self.seed, self.seed_np)
+        self.labor_market = markets.LaborMarket(self, self.seed, self.seed_np)
         self.housing = markets.HousingMarket()
         self.pops, self.total_pop = population.load_pops(
             self.geo.mun_codes, self.PARAMS, self.geo.year
