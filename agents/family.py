@@ -235,7 +235,7 @@ class Family:
                     continue
                 # Choose the firm to buy inputs from
                 sector_firms = [f for f in firms.values() if f.sector == sector]
-                market = seed.sample(sector_firms, min(len(firms), int(params['SIZE_MARKET'])))
+                market = seed.sample(sector_firms, min(len(sector_firms), int(params['SIZE_MARKET'])))
                 market = [firm for firm in market if firm.get_total_quantity() > 0]
                 if market:
                     # Choose between cheapest or closest

@@ -114,26 +114,29 @@ class Firm:
             # Withdraw all the necessary money. If no inputs are available, change is returned
             self.total_balance -= money_to_spend_inputs
             # Going through the columns with designated the buying intermediate market
-            for sector in regional_market.technical_matrix.columns:
-                money_this_sector = money_to_spend_inputs * regional_market.technical_matrix[sector]
-                # Choose the firm to buy inputs from
-                sector_firms = [f for f in firms.values() if (f.sector == sector) & (f.id != self.id)]
-                sector_firm = seed_np.choice(sector_firms)
-                # Uses regional market to access intermediate consumption and each firm sale function
-                # Returns change, if any
-                change = regional_market.intermediate_consumption(money_this_sector,
-                                                                  sector_firm)
-                if change:
-                    # Check whether no quantity was sold and external market needs to be called
-                    if money_this_sector == change:
-                        # Go for external market
-                        # TODO Create and integrate external agent
-                        pass
-                    self.input_inventory[sector] += money_this_sector - change
-                    self.total_balance += change
+            for sector in regional_market.technical_matrix.index:
+                for col in regional_market.technical_matrix.columns:
+                    money_this_sector = money_to_spend_inputs * regional_market.technical_matrix[sector].loc[col]
+                    if money_this_sector == 0:
+                        continue
+                    # Choose the firm to buy inputs from
+                    sector_firms = [f for f in firms.values() if (f.sector == sector) & (f.id != self.id)]
+                    sector_firm = seed_np.choice(sector_firms)
+                    # Uses regional market to access intermediate consumption and each firm sale function
+                    # Returns change, if any
+                    change = regional_market.intermediate_consumption(money_this_sector,
+                                                                      sector_firm)
+                    if change:
+                        # Check whether no quantity was sold and external market needs to be called
+                        if money_this_sector == change:
+                            # Go for external market
+                            # TODO Create and integrate external agent
+                            pass
+                        self.input_inventory[sector] += money_this_sector - change
+                        self.total_balance += change
 
-                else:
-                    self.input_inventory[sector] += money_this_sector
+                    else:
+                        self.input_inventory[sector] += money_this_sector
             # TODO. Check that we have at least 3 firms from each sector... include in the generator
 
     def update_product_quantity(self, prod_expoent, prod_divisor, regional_market, firms, seed_np):
@@ -155,14 +158,15 @@ class Firm:
             self.buy_inputs(desired_quantity, regional_market, firms, seed_np)
 
             # Check that we have enough inputs to produce desired quantity
-            for sector in regional_market.technical_matrix:
-                sector_quantity = min(desired_quantity * regional_market.technical_matrix[sector],
-                                      regional_market.technical_matrix[sector])
-                self.input_inventory -= sector_quantity
-                quantity += sector_quantity
-
-            self.inventory[0].quantity += quantity
-            self.amount_produced += quantity
+            for sector in regional_market.technical_matrix.index:
+                for col in regional_market.technical_matrix.columns:
+                    sector_quantity = min(desired_quantity * regional_market.technical_matrix[sector].loc[col],
+                                          regional_market.technical_matrix[sector].loc[col])
+                    self.input_inventory[sector] -= sector_quantity
+                    quantity += sector_quantity
+                # Note that input from other sectors are linearly added as this firm's product.
+                self.inventory[0].quantity += quantity
+                self.amount_produced += quantity
 
         return quantity
 
@@ -660,12 +664,12 @@ class GovernmentFirm(Firm):
             if money_this_sector == 0:
                 continue
             sector_firms = [f for f in sim.firms.values() if f.sector == sector]
-            market = sim.seed.sample(sector_firms, min(len(sim.firms.values()), int(sim.params['SIZE_MARKET'])))
+            market = sim.seed.sample(sector_firms, min(len(sector_firms), int(sim.PARAMS['SIZE_MARKET'])))
             market = [firm for firm in market if firm.get_total_quantity() > 0]
             if market:
                 chosen_firm = min(market, key=lambda firm: firm.prices)
                 # Buy from chosen company
-                change = chosen_firm.sale(money_this_sector, sim.regions, sim.params['TAX_CONSUMPTION'],
+                change = chosen_firm.sale(money_this_sector, sim.regions, sim.PARAMS['TAX_CONSUMPTION'],
                                           self.region_id, sim.PARAMS["TAX_ON_ORIGIN"])
                 self.total_balance += change
             else:
