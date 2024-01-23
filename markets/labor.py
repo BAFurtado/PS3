@@ -126,13 +126,10 @@ class LaborMarket:
 
     def gov_hire_fire(self, sim):
         total_gov_employees = ceil(self.gov_employees[self.gov_employees.ano == sim.clock.year].qtde_vinc_ativos.sum() *
-                                  sim.PARAMS['PERCENTAGE_ACTUAL_POP'])
-        mun_gov_firms = defaultdict(list)
-        these_regions = list(chain.from_iterable(sim.mun_to_regions.values()))
+                                   sim.PARAMS['PERCENTAGE_ACTUAL_POP'])
         gov_firms = [firm for firm in sim.firms.values()
                      if firm.sector == 'Government']
-        firms_num_employees = [f.num_employees() for f in gov_firms]
-        total_employment = sum(firms_num_employees)
+        total_employment = sum([f.num_employees for f in gov_firms])
         jobs_balance = total_gov_employees - total_employment
         if jobs_balance > 0:
             hiring_firms = sim.seed_np.choice(gov_firms, size=jobs_balance)
@@ -140,7 +137,6 @@ class LaborMarket:
         else:
             firing_firms = sim.seed_np.choice(gov_firms, size=jobs_balance * -1)
             [f.fire(self.seed) for f in firing_firms]
-        sim.funds.mun_gov_firms = mun_gov_firms
 
     def hire_fire(self, firms, firm_enter_freq, initialize=False):
         """Firms adjust their labor force based on profit"""
