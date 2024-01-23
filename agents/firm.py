@@ -128,7 +128,7 @@ class Firm:
                     # Check whether no quantity was sold and external market needs to be called
                     if money_this_sector == change:
                         # Go for external market
-                        # Todo Create and integrate external agent
+                        # TODO Create and integrate external agent
                         pass
                     self.input_inventory[sector] += money_this_sector - change
                     self.total_balance += change
@@ -290,8 +290,8 @@ class Firm:
         )
 
     def wage_base(self, unemployment, relevance_unemployment):
-        # Observing global economic performance to set salaries
-        # guarantees firms do not spend all revenue on salaries
+        # Observing global economic performance to set salaries, guarantees that firms do not spend all revenue
+        # on salaries
         # Calculating wage base on a per-employee basis.
         if self.num_employees > 0:
             return (self.revenue / self.num_employees) * (
@@ -649,7 +649,7 @@ class GovernmentFirm(Firm):
     def consume(self, sim):
         # As long as we provide labor and total_balance, the other methods are OK to use methods from regular firm
         # Consumption: government own consumption is used as update index. Other sectors consume here.
-        money_to_spend = self.budget_proportion
+        money_to_spend = self.total_balance
         for sector in sim.regional_market.final_demand.index:
             if sector == 'Government':
                 # Government on consumption is operated as update_index at funds.py
@@ -668,9 +668,9 @@ class GovernmentFirm(Firm):
                 # Buy from chosen company
                 change = chosen_firm.sale(money_this_sector, sim.regions, sim.params['TAX_CONSUMPTION'],
                                           self.region_id, sim.PARAMS["TAX_ON_ORIGIN"])
-                self.budget_proportion += change
+                self.total_balance += change
             else:
-                self.budget_proportion += money_this_sector.copy()
+                self.total_balance += money_this_sector.copy()
 
     def assign_proportion(self, value):
         self.budget_proportion = value

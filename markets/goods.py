@@ -29,7 +29,6 @@ class RegionalMarket:
     def consume(self):
         # TODO How to handle transport firms? Include a factor of distance by agent/household
         # TODO Include EXPORTS AND FBCF in the consumption market
-        # TODO Use gov budget_proportion to assign wages
         # TODO Check pycg (callgraph)
 
         for family in self.sim.families.values():
