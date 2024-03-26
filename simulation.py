@@ -18,7 +18,7 @@ from world import Generator, demographics, clock, population
 from world.firms import firm_growth
 from world.funds import Funds
 from world.geography import Geography, STATES_CODES, state_string
-from markets.goods import RegionalMarket
+from markets.goods import RegionalMarket, External
 
 
 class Simulation:
@@ -39,10 +39,15 @@ class Simulation:
         self.seed = random.Random(self._seed)
         self.seed_np = np.random.RandomState(self._seed)
         self.generator = Generator(self)
-
+        # Generate the external supplier
+        self.external = External(self)
+        self.mun_pops = dict()
+        self.reg_pops = dict()
+        self.grave = list()
         self.mun_to_regions = defaultdict(set)
         # Read necessary files
-        self.m_men, self.m_women, self.f = {}, {}, {}
+        self.m_men, self.m_women, self.f = dict(), dict(), dict()
+        self.avg_prices = 1
         for state in self.geo.states_on_process:
             self.m_men[state] = pd.read_csv(
                 "input/mortality/mortality_men_%s.csv" % state,
@@ -62,7 +67,11 @@ class Simulation:
                 header=0,
                 decimal=".",
             ).groupby("age")
-
+        self.labor_market = markets.LaborMarket(self, self.seed, self.seed_np)
+        self.housing = markets.HousingMarket()
+        self.pops, self.total_pop = population.load_pops(
+            self.geo.mun_codes, self.PARAMS, self.geo.year
+        )
         # Interest
         # Average interest rate - Earmarked new operations - Households - Real estate financing - Market rates
         # PORT. Taxa média de juros das operações de crédito com recursos direcionados - Pessoas físicas -
@@ -107,8 +116,6 @@ class Simulation:
                 agents, houses, families, firms, regions = pickle.load(f)
 
         # Count populations for each municipality and region
-        self.mun_pops = dict()
-        self.reg_pops = dict()
         for agent in agents.values():
             r_id = agent.region_id
             mun_code = r_id[:7]
@@ -153,13 +160,7 @@ class Simulation:
     def initialize(self):
         """Initiating simulation"""
         self.logger.logger.info("Initializing...")
-        self.grave = []
 
-        self.labor_market = markets.LaborMarket(self, self.seed, self.seed_np)
-        self.housing = markets.HousingMarket()
-        self.pops, self.total_pop = population.load_pops(
-            self.geo.mun_codes, self.PARAMS, self.geo.year
-        )
         (
             self.regions,
             self.agents,
@@ -225,7 +226,8 @@ class Simulation:
             firm.update_product_quantity(prod_exponent, prod_magnitude_divisor,
                                          self.regional_market,
                                          self.firms,
-                                         self.seed_np)
+                                         self.seed_np,
+                                         self.external)
 
         # Call demographics
         # Update agent life cycles
@@ -288,7 +290,7 @@ class Simulation:
         markup = self.PARAMS["MARKUP"]
         const_cash_flow = self.PARAMS["CONSTRUCTION_ACC_CASH_FLOW"]
         price_ruggedness = self.PARAMS["PRICE_RUGGEDNESS"]
-        avg_prices, _ = self.stats.update_price(self.firms, mid_simulation_calculus=True)
+        self.avg_prices, _ = self.stats.update_price(self.firms, mid_simulation_calculus=True)
         for firm in self.firms.values():
             # Tax workers when paying salaries
             firm.make_payment(
@@ -307,12 +309,13 @@ class Simulation:
                 sticky,
                 markup,
                 self.seed,
-                avg_prices,
+                self.avg_prices,
                 prod_exponent,
                 prod_magnitude_divisor,
                 const_cash_flow,
                 price_ruggedness,
             )
+
 
         # Construction firms
         vacancy = self.stats.calculate_house_vacancy(self.houses, False)
@@ -383,6 +386,7 @@ class Simulation:
         bank_taxes = self.central.collect_taxes()
 
         # Separate funds for region index update and separate for the policy case. Also, buy from intermediate market
+        self.funds.collect_from_external()
         self.funds.invest_taxes(self.clock.year, bank_taxes)
 
         # Apply policies if percentage is different from 0

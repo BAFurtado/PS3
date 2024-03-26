@@ -30,6 +30,8 @@
 20. Households buy from all sectors, following final demand IBGE's table
 21. Government budget division to participate in the intermediate market included.
 22. Government labor market distinctions (fixed exogenous values by year) were implemented
+23. Government firms participate in the consumption market, 
+additionally from being responsible for infrastructure and policy.
 
 ------
 ``` python 3.11```

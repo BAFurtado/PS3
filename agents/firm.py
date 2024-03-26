@@ -102,7 +102,7 @@ class Firm:
         return externalities_list
 
     # PRODUCTION DEPARTMENT
-    def buy_inputs(self, desired_quantity, regional_market, firms, seed_np):
+    def buy_inputs(self, desired_quantity, regional_market, firms, seed_np, external):
         """
         Buys inputs according to the technical coefficients.
         In fact, this is the intermediate consumer market (firms buying from firms)
@@ -114,6 +114,8 @@ class Firm:
             # Withdraw all the necessary money. If no inputs are available, change is returned
             self.total_balance -= money_to_spend_inputs
             # Going through the columns with designated the buying intermediate market
+            # TODO Check the necessity of double loop. I guess that for each sector we would need to go through the
+            # TODO column, right? So that each sector is covered?
             for sector in regional_market.technical_matrix.index:
                 for col in regional_market.technical_matrix.columns:
                     money_this_sector = money_to_spend_inputs * regional_market.technical_matrix[sector].loc[col]
@@ -129,17 +131,15 @@ class Firm:
                     if change:
                         # Check whether no quantity was sold and external market needs to be called
                         if money_this_sector == change:
-                            # Go for external market
-                            # TODO Create and integrate external agent
-                            pass
-                        self.input_inventory[sector] += money_this_sector - change
-                        self.total_balance += change
-
+                            # Go for external market: Provide goods, collect taxes, register sales
+                            # Assume all demand is met
+                            # TODO. Check intermediate external consumption is fine. Could double with foreign sectors
+                            external.intermediate_consumption(money_this_sector)
                     else:
                         self.input_inventory[sector] += money_this_sector
             # TODO. Check that we have at least 3 firms from each sector... include in the generator
 
-    def update_product_quantity(self, prod_expoent, prod_divisor, regional_market, firms, seed_np):
+    def update_product_quantity(self, prod_expoent, prod_divisor, regional_market, firms, seed_np, external):
         """
         Based on the MIP sector, buys inputs to produce a given money output of the activity, creates externalities
         and creates a price based on cost.
@@ -155,7 +155,7 @@ class Firm:
             # quantity per product should be adjusted accordingly
             # Currently, the index for the single product is 0
 
-            self.buy_inputs(desired_quantity, regional_market, firms, seed_np)
+            self.buy_inputs(desired_quantity, regional_market, firms, seed_np, external)
 
             # Check that we have enough inputs to produce desired quantity
             for sector in regional_market.technical_matrix.index:

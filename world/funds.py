@@ -221,7 +221,7 @@ class Funds:
         # distributed at GovernmentFirms to acquire products in the market
 
         # Setting number within firm that represent the part of the budget and
-        # Updatting dictionary of government firms
+        # Updating dictionary of government firms
         gov_firms = [f for f in self.sim.firms.values() if f.sector == 'Government']
         for mun_code in self.sim.geo.mun_codes:
             gov_firms_here = [f for f in gov_firms if f.region_id[:7] == mun_code]
@@ -255,7 +255,11 @@ class Funds:
             region.update_index_pop(pop_mun_minus[m_id]/pop_mun_t[m_id])
 
         v_local = defaultdict(int)
+        # Every month taxes to distribute start from 0
         v_equal = 0
+        # TODO. How to incorporate other_regions taxes into the metropolis? Actually, which fraction?
+        # TODO. At the moment, all taxes charged from other regions return back to the metropolis
+        v_equal += self.sim.external.collect_transfer_consumption_tax()
         if self.sim.PARAMS['ALTERNATIVE0']:
             # Dividing proportion of consumption into equal and local (state, municipality)
             # And adding local part of consumption plus transaction and property to local
