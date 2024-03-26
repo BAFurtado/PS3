@@ -109,8 +109,8 @@ You do not need to inform the python version. Let the configuration of current l
 
 The line below set on `python 3.11` on August 18, 2023
 
-`conda create -n ps3 -c conda-forge fiona geopandas shapely gdal pandas numba descartes scipy seaborn pyproj matplotlib 
-six cycler statsmodels joblib scikit-learn flask flask-wtf psutil`
+`conda create -n ps3_2 -c conda-forge fiona geopandas shapely gdal pandas numba descartes scipy seaborn pyproj matplotlib 
+six cycler statsmodels joblib scikit-learn flask flask-wtf psutil pyarrow`
 
 Finally, also add numpy_financial
 `pip install numpy_financial`

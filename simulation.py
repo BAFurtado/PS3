@@ -40,14 +40,15 @@ class Simulation:
         self.seed_np = np.random.RandomState(self._seed)
         self.generator = Generator(self)
         # Generate the external supplier
-        self.external = External(self)
+        self.avg_prices = 1
+        self.external = External(self, self.PARAMS["TAXES_STRUCTURE"]["consumption_equal"])
         self.mun_pops = dict()
         self.reg_pops = dict()
         self.grave = list()
         self.mun_to_regions = defaultdict(set)
         # Read necessary files
         self.m_men, self.m_women, self.f = dict(), dict(), dict()
-        self.avg_prices = 1
+
         for state in self.geo.states_on_process:
             self.m_men[state] = pd.read_csv(
                 "input/mortality/mortality_men_%s.csv" % state,
@@ -316,7 +317,6 @@ class Simulation:
                 price_ruggedness,
             )
 
-
         # Construction firms
         vacancy = self.stats.calculate_house_vacancy(self.houses, False)
         vacancy_value = None
@@ -386,7 +386,6 @@ class Simulation:
         bank_taxes = self.central.collect_taxes()
 
         # Separate funds for region index update and separate for the policy case. Also, buy from intermediate market
-        self.funds.collect_from_external()
         self.funds.invest_taxes(self.clock.year, bank_taxes)
 
         # Apply policies if percentage is different from 0

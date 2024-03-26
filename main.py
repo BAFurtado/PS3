@@ -28,6 +28,7 @@ import main_plotting
 from simulation import Simulation
 # from web import app
 
+matplotlib.pyplot.close('all')
 matplotlib.use('agg')
 
 logger = logging.getLogger('main')
@@ -127,7 +128,7 @@ def multiple_runs(overrides, runs, cpus, output_dir, fix_seeds=False):
 
 
 def gen_output_dir(command):
-    timestamp = datetime.datetime.utcnow().isoformat().replace(':', '_')
+    timestamp = datetime.datetime.now().isoformat().replace(':', '_')
     run_id = '{}__{}'.format(command, timestamp)
     return os.path.join(conf.RUN['OUTPUT_PATH'], run_id)
 

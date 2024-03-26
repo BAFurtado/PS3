@@ -61,14 +61,14 @@ class External:
     """
         Provision of inputs from all other metropolitan areas
     """
-    def __init__(self, sim):
-        self.amount_sold = 0,
-        self.total_quantity = 10e10,
+    def __init__(self, sim, tax_consumption):
+        self.sim = sim
+        self.amount_sold = 0
+        self.total_quantity = 10e10
         # Taxes paid go back to 0 every month.
-        self.taxes_paid = 0,
-        self.cumulative_taxes_paid = 0,
-        self.sim = sim,
-        self.tax_consumption = self.sim.PARAMS['TAX_CONSUMPTION']
+        self.taxes_paid = 0
+        self.cumulative_taxes_paid = 0
+        self.tax_consumption = tax_consumption
 
     def intermediate_consumption(self, amount):
         """Sell max amount of products for a given amount of money"""

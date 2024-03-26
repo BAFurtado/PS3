@@ -43,7 +43,7 @@ class Plotter:
 
         if clear:
             # reset figure
-            plt.close(fig)
+            plt.close('all')
 
     def make_plot(self, datas, title, labels, y_label=None, q1=None, q3=None):
         """Create plot based on input data"""
@@ -60,7 +60,7 @@ class Plotter:
             for i in range(len(q1)):
                 idx = pd.to_datetime(datas[i].index)
                 ax.plot(idx, datas[i], label=special_labels[i])
-                ax.fill_between(idx, q1[i], q3[i], alpha=0.2, label='lower-upper $2\sigma$ bounds')
+                ax.fill_between(idx, q1[i], q3[i], alpha=0.2, label='lower-upper $2\\sigma$ bounds')
         else:
             for d in datas:
                 d.plot(ax=ax)
