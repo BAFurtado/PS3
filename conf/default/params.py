@@ -197,4 +197,4 @@ PROCESSING_ACPS = ["IPATINGA"]
 STARTING_DAY = datetime.date(2010, 1, 1)
 
 # Maximum running time (restrained by official data) is 30 years,
-TOTAL_DAYS = (datetime.date(2012, 1, 1) - STARTING_DAY).days
+TOTAL_DAYS = (datetime.date(2011, 1, 1) - STARTING_DAY).days

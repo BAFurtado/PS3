@@ -152,7 +152,8 @@ class Plotter:
                 'families_commuting', 'families_savings', 'families_helped', 'amount_subsidised',
                 'firms_wealth', 'firms_profit', 'firms_median_stock', 'firms_median_wage_paid', 'gini_index',
                 'average_utility', 'pct_zero_consumption', 'rent_default', 'inflation', 'average_qli', 'house_vacancy',
-                'house_price', 'house_rent', 'affordable', 'p_delinquent', 'equally', 'locally', 'fpm', 'bank']
+                'house_price', 'house_rent', 'affordable', 'p_delinquent', 'equally', 'locally', 'fpm', 'bank',
+                'ext_amount_sold']
         titles = ['Total population', 'Average goods and services prices\' level', 'GDP absolute value',
                   'GDP growth in monthly perc.',
                   'Unemployment',
@@ -167,7 +168,8 @@ class Plotter:
                   'Average QLI index value', 'House vacancies', 'House prices', 'House rent prices',
                   'Affordable rent (less than 30% permanent income)',
                   'Percentual of delinquent loans', 'Taxes invested equally', 'Taxes invested locally',
-                  'Taxes invested via FPM', 'Taxes paid by the banks on top of interests']
+                  'Taxes invested via FPM', 'Taxes paid by the banks on top of interests',
+                  'Total amount of intermediate goods sold by other metropolis']
 
         # General plotting
         dats = [d.set_index('month') for d in dats]
