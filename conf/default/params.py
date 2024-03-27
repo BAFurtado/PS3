@@ -72,7 +72,7 @@ POLICY_DAYS = 360
 # Size of the poorest families to be helped
 POLICY_QUANTILE = 0.2
 # Change of policy for collecting consumption tax at:
-# firms' municipalities origin (True) or destin (consumers' municipality)
+# firms' municipalities origin (True) or destiny (consumers' municipality)
 TAX_ON_ORIGIN = True
 # LOANS ##############################################################################
 # Maximum age of borrower at the end of the contract

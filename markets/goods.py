@@ -9,7 +9,13 @@ technical_matrix = pd.read_csv('input/technical_matrix.csv')
 # Numbers refer to percentage of that sector in the total buying demand of that class of consumers (COLUMNS)
 final_demand = pd.read_csv('input/final_demand.csv')
 
-
+def read_technical_matrix(mun_codes): 
+    if not isinstance(mun_codes, list):
+        mun_codes =[mun_codes,]
+    technical_matrix = {mun_code: pd.read_json('input/technical matrix/'+mun_code+'_matrix_io.json') for mun_code in mun_codes}
+    #TODO: Should we drop the prefix _CONCURB_ from the col names and indexes?
+    
+    return technical_matrix
 class RegionalMarket:
     """
     The regional market contains interactions between productive sectors such as production functions from the
@@ -17,9 +23,9 @@ class RegionalMarket:
     """
 
     def __init__(self, sim):
-        self.technical_matrix = technical_matrix.set_index('sector')
-        self.final_demand = final_demand.set_index('sector')
         self.sim = sim
+        self.technical_matrix = read_technical_matrix(sim.geo.processing_acps) #TODO: How are firms locations infos stored
+        self.final_demand = final_demand.set_index('sector')
         self.if_origin = self.sim.PARAMS["TAX_ON_ORIGIN"]
 
     def consumption(self):
