@@ -107,7 +107,7 @@ class Firm:
         Buys inputs according to the technical coefficients.
         In fact, this is the intermediate consumer market (firms buying from firms)
         """
-
+        # TODO. Check that the quantity and the prices are being registered
         if self.total_balance > 0:
             money_to_spend_inputs = min(self.total_balance,
                                         desired_quantity * regional_market.technical_matrix[self.sector].sum())
