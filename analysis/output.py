@@ -4,6 +4,7 @@ from collections import defaultdict
 
 import conf
 
+# TODO. Check this is the right place to create the folder
 AGENTS_PATH = 'StoragedAgents'
 if not os.path.exists(AGENTS_PATH):
     os.mkdir(AGENTS_PATH)
@@ -35,7 +36,8 @@ OUTPUT_DATA_SPEC = {
                     'firms_median_stock', 'firms_median_wage_paid', 'gini_index', 'average_utility',
                     'pct_zero_consumption', 'rent_default', 'inflation', 'average_qli',
                     'house_vacancy', 'house_price', 'house_rent', 'affordable', 'p_delinquent', 'equally', 'locally',
-                    'fpm', 'bank']
+                    'fpm', 'bank',
+                    'ext_amount_sold']
     },
     'families': {
         'avg': {
@@ -163,6 +165,8 @@ class Output:
         sim.funds.families_subsided, sim.funds.money_applied_policy = 0, 0
         for k in ['equally', 'locally', 'fpm']:
             mun_applied_treasure[k] = sum(r.applied_treasure[k] for r in sim.regions.values())
+        # External
+        ext_amount_sold = sim.external.get_amount_sold()
 
         report = f"{sim.clock.days};{pop:d};" \
                  f"{price_index:.3f};{gdp_index:.3f};{gdp_growth:.3f};{unemployment:.3f};" \
@@ -181,7 +185,8 @@ class Output:
                  f"{pct_zero_consumption:.4f};{rent_default:.4f};{inflation:.4f};{average_qli:.3f};" \
                  f"{house_vacancy:.3f};{house_price:.4f};{house_rent:.4f};{affordable:.4f};{p_delinquent:.4f};" \
                  f"{mun_applied_treasure['equally']:.4f};{mun_applied_treasure['locally']:.4f};" \
-                 f"{mun_applied_treasure['fpm']:.4f};{mun_applied_treasure['bank']:.4f}\n"
+                 f"{mun_applied_treasure['fpm']:.4f};{mun_applied_treasure['bank']:.4f};" \
+                 f"{ext_amount_sold:.2f}\n"
 
         with open(self.stats_path, 'a') as f:
             f.write(report)

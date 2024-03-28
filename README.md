@@ -30,6 +30,8 @@
 20. Households buy from all sectors, following final demand IBGE's table
 21. Government budget division to participate in the intermediate market included.
 22. Government labor market distinctions (fixed exogenous values by year) were implemented
+23. Government firms participate in the consumption market, 
+additionally from being responsible for infrastructure and policy.
 
 ------
 ``` python 3.11```
@@ -107,8 +109,8 @@ You do not need to inform the python version. Let the configuration of current l
 
 The line below set on `python 3.11` on August 18, 2023
 
-`conda create -n ps3 -c conda-forge fiona geopandas shapely gdal pandas numba descartes scipy seaborn pyproj matplotlib 
-six cycler statsmodels joblib scikit-learn flask flask-wtf psutil`
+`conda create -n ps3_2 -c conda-forge fiona geopandas shapely gdal pandas numba descartes scipy seaborn pyproj matplotlib 
+six cycler statsmodels joblib scikit-learn flask flask-wtf psutil pyarrow`
 
 Finally, also add numpy_financial
 `pip install numpy_financial`

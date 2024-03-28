@@ -22,21 +22,18 @@ class RegionalMarket:
     input-output matrix, creation of externalities and market balancing.
     """
 
+    # TODO How to handle transport firms? Include a factor of distance by agent/household
+    # TODO Include EXPORTS AND FBCF in the consumption market
+    # TODO Check pycg (callgraph)
+
     def __init__(self, sim):
         self.sim = sim
         self.technical_matrix = read_technical_matrix(sim.geo.processing_acps) #TODO: How are firms locations infos stored
         self.final_demand = final_demand.set_index('sector')
         self.if_origin = self.sim.PARAMS["TAX_ON_ORIGIN"]
 
-    def consumption(self):
-        # Household consumption
-        self.consume()
-
     def consume(self):
-        # TODO How to handle transport firms? Include a factor of distance by agent/household
-        # TODO Include EXPORTS AND FBCF in the consumption market
-        # TODO Check pycg (callgraph)
-
+        # Household consumption
         for family in self.sim.families.values():
             family.consume(
                 self,
@@ -66,10 +63,37 @@ class RegionalMarket:
                          if_origin=self.sim.PARAMS['TAX_ON_ORIGIN'])
 
 
-class OtherRegions:
+class External:
     """
-    Summary of all other metropolitan areas
+        Provision of inputs from all other metropolitan areas
     """
+    def __init__(self, sim, tax_consumption):
+        self.sim = sim
+        self.amount_sold = 0
+        self.total_quantity = 10e10
+        # Taxes paid go back to 0 every month.
+        self.taxes_paid = 0
+        self.cumulative_taxes_paid = 0
+        self.tax_consumption = tax_consumption
+
+    def get_amount_sold(self):
+        return self.amount_sold
+
+    def intermediate_consumption(self, amount):
+        """Sell max amount of products for a given amount of money"""
+        if amount > 0:
+            # Sticking to a SINGLE product for firm
+            amount_per_product = amount / 1
+            bought_quantity = amount / self.sim.avg_prices
+            self.amount_sold += amount_per_product
+            self.total_quantity -= bought_quantity
+            self.taxes_paid += amount_per_product * self.tax_consumption
+            self.cumulative_taxes_paid += self.taxes_paid
+
+    def collect_transfer_consumption_tax(self):
+        taxes = self.taxes_paid * self.tax_consumption
+        self.taxes_paid = 0
+        return taxes
 
 
 class ForeignSector:
