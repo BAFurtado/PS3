@@ -150,15 +150,14 @@ class Firm:
                                       for sector in regional_market.technical_matrix.index])
             money_to_spend_inputs = min(self.total_balance,
                                         money_local_inputs+money_external_inputs)
-
             # TODO: Review changes
             # Withdraw all the necessary money. If no inputs are available, change is returned
             self.total_balance -= money_to_spend_inputs
             # First buy inputs locally
             for sector in regional_market.technical_matrix.index:
-                money_this_sector = money_to_spend_inputs * technical_matrix.loc[sector,self.sector]
-                external_money_this_sector = money_to_spend_inputs * external_technical_matrix.loc[sector,self.sector]
-                if money_this_sector == 0:
+                money_this_sector = money_to_spend_inputs * technical_matrix.loc[sector, self.sector]
+                external_money_this_sector = money_to_spend_inputs * external_technical_matrix.loc[sector, self.sector]
+                if money_this_sector == 0 and external_money_this_sector == 0:
                     continue
                 # Uses regional market to access intermediate consumption and each firm sale function
                 # Returns change, if any
@@ -166,15 +165,14 @@ class Firm:
                                                                   chosen_firms_per_sector[sector])
                 if change:
                     # Check whether no quantity was sold and external market needs to be called
-                    if money_this_sector == change:
-                        # Go for external market
-                        external.intermediate_consumption(money_this_sector)
-                    self.input_inventory[sector] += ((money_this_sector - change) /
+                    external_money_this_sector += change
+                    # Go for external market
+                    external.intermediate_consumption(external_money_this_sector)
+                    self.input_inventory[sector] += ((external_money_this_sector + money_this_sector) /
                                                      chosen_firms_per_sector[sector].chosen_price)
-                    self.total_balance += change
-
                 else:
                     self.input_inventory[sector] += money_this_sector/chosen_firms_per_sector[sector].chosen_price
+
             # TODO. Check that we have at least 3 firms from each sector... include in the generator
 
     def update_product_quantity(self, prod_exponent, prod_divisor, regional_market, firms, seed_np, external):
