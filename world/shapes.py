@@ -5,6 +5,7 @@ import pandas as pd
 
 
 def prepare_shapes_2010(geo):
+    # TODO. Get the shapefiles for AREAS PONDERAÇÃO new shapefiles
     urban = pd.DataFrame()
     temp = gpd.read_file('input/shapes/2010/urban_mun_2010.shp')
     for mun in geo.mun_codes:

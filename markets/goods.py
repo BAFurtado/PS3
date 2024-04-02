@@ -61,6 +61,7 @@ class RegionalMarket:
                 self.sim.clock.months,
                 self.if_origin
             )
+        # TODO. External demand. Use of the right-side of the 2n2n IO matrix (final/intermediate demands)
 
     #TODO: External final demand
     def government_consumption(self):
@@ -100,7 +101,8 @@ class External:
         if amount > 0:
             # Sticking to a SINGLE product for firm
             amount_per_product = amount / 1
-            bought_quantity = amount / self.sim.avg_prices
+            # FREIGHT included for external goods
+            bought_quantity = amount / (self.sim.avg_prices * (1 + self.sim.PARAMS['PUBLIC_TRANSIT_COST']))
             self.amount_sold += amount_per_product
             self.total_quantity -= bought_quantity
             self.taxes_paid += amount_per_product * self.tax_consumption

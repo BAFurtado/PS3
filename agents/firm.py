@@ -58,7 +58,7 @@ class Firm:
         # Firms makes existing products from class Products.
         # Products produced are stored by product_id in the inventory
         self.inventory = {}
-        self.input_inventory,self.external_input_inventory = initial_input_sectors,initial_input_sectors
+        self.input_inventory, self.external_input_inventory = initial_input_sectors,initial_input_sectors
         self.total_quantity = total_quantity
         # Amount monthly sold by the firm
         self.amount_sold = amount_sold
@@ -103,7 +103,7 @@ class Firm:
             externalities_list = money_output * row
 
         return externalities_list
-    
+
 
     # PRODUCTION DEPARTMENT
 
@@ -116,7 +116,7 @@ class Firm:
         chosen_firms,chosen_firm = {},None
         for sector in regional_market.technical_matrix.index:
             market = seed_np.sample(
-                                   [f for f in firms.values() if (f.sector == sector) & (f.id != self.id)], 
+                                   [f for f in firms.values() if (f.sector == sector) & (f.id != self.id)],
                                    min(len([f for f in firms.values() if (f.sector == sector) & (f.id != self.id)]), int(params['SIZE_MARKET'])))
             market = [firm for firm in market if firm.get_total_quantity() > 0]
             if market:
@@ -124,13 +124,14 @@ class Firm:
                 chosen_firm = min(market, key=lambda firm: firm.prices)
             chosen_firms[sector]=chosen_firm
         return chosen_firms
-    
+
     def buy_inputs(self,desired_quantity, regional_market, firms, seed_np):
         """
         Buys inputs according to the technical coefficients.
         In fact, this is the intermediate consumer market (firms buying from firms)
         """
         #TODO: Update the input quantities needed taking inventory into account
+        # TODO. Check that the quantity and the prices are being registered
         if self.total_balance > 0:
             acp = regional_market.sim.geo.acps[0]
             technical_matrix = regional_market.technical_matrix[acp]['local_local']
@@ -138,27 +139,27 @@ class Firm:
             params = regional_market.sim.PARAMS
             input_quantities_needed = desired_quantity * technical_matrix.loc[:,self.sector]
             external_input_quantities_needed = desired_quantity * external_technical_matrix.loc[:,self.sector]
-            
+
             # Choose the firm to buy inputs from
             chosen_firms_per_sector = self.choose_firm_per_sector(regional_market, firms, seed_np)
-            money_local_inputs = sum([input_quantities_needed[sector]*chosen_firms_per_sector[sector].prices 
+            money_local_inputs = sum([input_quantities_needed[sector]*chosen_firms_per_sector[sector].prices
                                       for sector in regional_market.technical_matrix.index])
-            
+
             #TODO: Define a better way to get external prices
-            money_external_inputs = sum([external_input_quantities_needed[sector]*chosen_firms_per_sector[sector].prices*(1+params['PUBLIC_TRANSIT_COST']) 
+            money_external_inputs = sum([external_input_quantities_needed[sector]*chosen_firms_per_sector[sector].prices*(1+params['PUBLIC_TRANSIT_COST'])
                                       for sector in regional_market.technical_matrix.index])
             money_to_spend_inputs = min(self.total_balance,
                                         money_local_inputs+money_external_inputs)
 
             #TODO: Review changes
-            
-            
+
+
             # Withdraw all the necessary money. If no inputs are available, change is returned
             self.total_balance -= money_to_spend_inputs
             # First buy inputs locally
             for sector in regional_market.technical_matrix.index:
-                money_this_sector = money_to_spend_inputs * technical_matrix.loc[sector,self.sector] 
-                external_money_this_sector = money_to_spend_inputs * external_technical_matrix.loc[sector,self.sector] 
+                money_this_sector = money_to_spend_inputs * technical_matrix.loc[sector,self.sector]
+                external_money_this_sector = money_to_spend_inputs * external_technical_matrix.loc[sector,self.sector]
                 if money_this_sector == 0:
                     continue
                 # Uses regional market to access intermediate consumption and each firm sale function
@@ -198,14 +199,14 @@ class Firm:
 
             # Check that we have enough inputs to produce desired quantity
             for sector in regional_market.technical_matrix.index:
-                
+
                 sector_quantity = min(desired_quantity * regional_market.technical_matrix.loc[sector,self.sector],
                                       self.input_inventory[sector])
                 self.input_inventory[sector] -= sector_quantity
                 # Note that input from other sectors are linearly added as this firm's product.
-                
+
                 quantity += sector_quantity
-               
+
                 self.inventory[0].quantity += quantity
                 self.amount_produced += quantity
 

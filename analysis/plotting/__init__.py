@@ -331,3 +331,6 @@ class Plotter:
             # Reset figure
             plt.close(fig)
         return plt
+
+    def plot_sectorial(self):
+        pass
