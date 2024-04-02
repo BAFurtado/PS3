@@ -13,22 +13,37 @@ def read_technical_matrix(mun_codes):
     if not isinstance(mun_codes, list):
         mun_codes =[mun_codes,]
     technical_matrix = {mun_code: pd.read_json('input/technical matrix/'+mun_code+'_matrix_io.json') for mun_code in mun_codes}
-    #TODO: Should we drop the prefix _CONCURB_ from the col names and indexes?
-    
-    return technical_matrix
+    sector_names = technical_matrix.index.str.split('_', expand=True)[1].unique()
+    n = len(sector_names)-1
+    #Splitting the matrix into the 4 region destination and origin
+    #Input direction origin->destination:
+    #LOCAL->LOCAL, EXTERNAL->LOCAL, LOCAL->EXTERNAL, EXTERNAL->EXTERNAL
+    for mun_code in technical_matrix:
+        technical_matrix[mun_code]={'local_local':technical_matrix.iloc[:n,:n],
+                                    'external_local':technical_matrix.iloc[n+1:,:n],
+                                    'local_external':technical_matrix.iloc[:n,n+1:],
+                                    'external_external':technical_matrix.iloc[n+1:,n+1:]}
+    matrix_list = [
+        technical_matrix.iloc[:n,:n], technical_matrix.iloc[n+1:,:n],
+        technical_matrix.iloc[:n,n+1:],technical_matrix.iloc[n+1:,:n+1:],]
+    for m in matrix_list:
+        m.index = sector_names
+        m.columns = sector_names
+    technical_matrix,loc_ext_matrix,ext_local_matrix,ext_ext_matrix = matrix_list
+    return technical_matrix,loc_ext_matrix,ext_local_matrix,ext_ext_matrix
 class RegionalMarket:
     """
     The regional market contains interactions between productive sectors such as production functions from the
     input-output matrix, creation of externalities and market balancing.
     """
 
-    # TODO How to handle transport firms? Include a factor of distance by agent/household
+    # TODO: How to handle transport firms? Include a factor of distance by agent/household
     # TODO Include EXPORTS AND FBCF in the consumption market
     # TODO Check pycg (callgraph)
 
     def __init__(self, sim):
         self.sim = sim
-        self.technical_matrix = read_technical_matrix(sim.geo.processing_acps) #TODO: How are firms locations infos stored
+        self.technical_matrix, self.loc_ext_matrix,self.ext_local_matrix,self.ext_ext_matrix = read_technical_matrix(sim.geo.processing_acps) #TODO: How are firms locations infos stored
         self.final_demand = final_demand.set_index('sector')
         self.if_origin = self.sim.PARAMS["TAX_ON_ORIGIN"]
 
@@ -47,6 +62,7 @@ class RegionalMarket:
                 self.if_origin
             )
 
+    #TODO: External final demand
     def government_consumption(self):
         gov_firms = [f for f in self.sim.firms.values() if f.sector == 'Government']
         for firm in gov_firms:
