@@ -1,12 +1,11 @@
-# New model. 
-## Enhancements and Improvements in PolicySpace2
+# New model. PolicySpace3--regional input-output matrices, environmental externalities
 
 ## Todo
 1. Fix labels plots (name instead of code)
 2. Use RAIS data to validate model (qualification, numbers, wages)
 
 
-### Changes made in this version
+### Enhancements and Improvements in PolicySpace2--Changes made in this version
 1. Addresses chosen with spatial join (instead of individually). Enhancement: faster run
 2. Fixed bug construction firm planning house
 3. Introduced new parameter to control for availability of lot space supply for construction
@@ -32,9 +31,14 @@
 22. Government labor market distinctions (fixed exogenous values by year) were implemented
 23. Government firms participate in the consumption market, 
 additionally from being responsible for infrastructure and policy.
+24. Intermediate market for sectoral firms
+25. Regionalization of metropolis versus rest of Brazil via decomposition of input-output official matrix
+26. Regionalization of final demands
+27. Implementation of new official urban concentration areas from IBGE, updated in 2022--CONURBs. 
+Due to inumerous mentions in the code, we will continue to use **ACPs despite them having been updated to CONURBs.**
 
 ------
-``` python 3.11```
+``` python 3.12```
 ------
 ------
 Previous work below

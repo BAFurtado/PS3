@@ -1,8 +1,8 @@
 import pandas as pd
 
 
-ACP_CODES = pd.read_csv('input/ACPs_BR.csv', sep=';', header=0, decimal=',')
-ACPS_MUN_CODES = pd.read_csv('input/ACPs_MUN_CODES.csv', sep=';', header=0, decimal=',')
+ACP_CODES = pd.read_csv('input/CONCURBs_BR.csv')
+ACPS_MUN_CODES = pd.read_csv('input/CONCURBs_MUN_CODES.csv', sep=';', header=0, decimal=',')
 STATES_CODES = pd.read_csv('input/STATES_ID_NUM.csv', sep=';', header=0, decimal=',')
 
 
