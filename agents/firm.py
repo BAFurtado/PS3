@@ -58,7 +58,7 @@ class Firm:
         # Firms makes existing products from class Products.
         # Products produced are stored by product_id in the inventory
         self.inventory = {}
-        self.input_inventory, self.external_input_inventory = initial_input_sectors,initial_input_sectors
+        self.input_inventory, self.external_input_inventory = initial_input_sectors, initial_input_sectors
         self.total_quantity = total_quantity
         # Amount monthly sold by the firm
         self.amount_sold = amount_sold
@@ -125,7 +125,7 @@ class Firm:
             chosen_firms[sector]=chosen_firm
         return chosen_firms
 
-    def buy_inputs(self,desired_quantity, regional_market, firms, seed_np):
+    def buy_inputs(self,desired_quantity, regional_market, firms, seed_np, external):
         """
         Buys inputs according to the technical coefficients.
         In fact, this is the intermediate consumer market (firms buying from firms)
@@ -145,15 +145,13 @@ class Firm:
             money_local_inputs = sum([input_quantities_needed[sector]*chosen_firms_per_sector[sector].prices
                                       for sector in regional_market.technical_matrix.index])
 
-            #TODO: Define a better way to get external prices
+            # TODO: Define a better way to get external prices
             money_external_inputs = sum([external_input_quantities_needed[sector]*chosen_firms_per_sector[sector].prices*(1+params['PUBLIC_TRANSIT_COST'])
                                       for sector in regional_market.technical_matrix.index])
             money_to_spend_inputs = min(self.total_balance,
                                         money_local_inputs+money_external_inputs)
 
-            #TODO: Review changes
-
-
+            # TODO: Review changes
             # Withdraw all the necessary money. If no inputs are available, change is returned
             self.total_balance -= money_to_spend_inputs
             # First buy inputs locally
@@ -170,16 +168,16 @@ class Firm:
                     # Check whether no quantity was sold and external market needs to be called
                     if money_this_sector == change:
                         # Go for external market
-                        # TODO: Integrate external agent
-                        pass
-                    self.input_inventory[sector] += (money_this_sector - change)/chosen_firms_per_sector[sector].chosen_price
+                        external.intermediate_consumption(money_this_sector)
+                    self.input_inventory[sector] += ((money_this_sector - change) /
+                                                     chosen_firms_per_sector[sector].chosen_price)
                     self.total_balance += change
 
                 else:
                     self.input_inventory[sector] += money_this_sector/chosen_firms_per_sector[sector].chosen_price
             # TODO. Check that we have at least 3 firms from each sector... include in the generator
 
-    def update_product_quantity(self, prod_expoent, prod_divisor, regional_market, firms, seed_np):
+    def update_product_quantity(self, prod_exponent, prod_divisor, regional_market, firms, seed_np, external):
         """
         Based on the MIP sector, buys inputs to produce a given money output of the activity, creates externalities
         and creates a price based on cost.
@@ -190,17 +188,17 @@ class Firm:
             # Call get_sum_qualification below: sum([employee.qualification ** parameters.PRODUCTIVITY_EXPONENT
             #                                   for employee in self.employees.values()])
             # Divide production by an order of magnitude adjustment parameter
-            desired_quantity = self.total_qualification(prod_expoent) / prod_divisor
+            desired_quantity = self.total_qualification(prod_exponent) / prod_divisor
             # Currently, each firm has only a single product. If more products should be introduced, allocation of
             # quantity per product should be adjusted accordingly
             # Currently, the index for the single product is 0
 
-            self.buy_inputs(desired_quantity, regional_market, firms, seed_np)
+            self.buy_inputs(desired_quantity, regional_market, firms, seed_np, external)
 
             # Check that we have enough inputs to produce desired quantity
             for sector in regional_market.technical_matrix.index:
 
-                sector_quantity = min(desired_quantity * regional_market.technical_matrix.loc[sector,self.sector],
+                sector_quantity = min(desired_quantity * regional_market.technical_matrix.loc[sector, self.sector],
                                       self.input_inventory[sector])
                 self.input_inventory[sector] -= sector_quantity
                 # Note that input from other sectors are linearly added as this firm's product.
@@ -257,7 +255,7 @@ class Firm:
             self.inventory
         )
 
-    def sale(self, amount, regions, tax_consumption, consumer_region_id, if_origin,intermediate=False):
+    def sale(self, amount, regions, tax_consumption, consumer_region_id, if_origin, intermediate=False):
         """Sell max amount of products for a given amount of money"""
         if amount > 0:
             # For each product in this firms' inventory, spend amount proportionally
