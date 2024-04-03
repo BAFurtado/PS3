@@ -14,20 +14,19 @@ final_demand = pd.read_csv('input/final_demand.csv')
 def read_technical_matrix(mun_codes):
     if not isinstance(mun_codes, list):
         mun_codes = [mun_codes, ]
-    tech_matrix = {mun_code: pd.read_json('input/technical_matrices/' + mun_code + '_matrix_io.json') for mun_code
-                   in mun_codes}
-    # Just using the first matrix to get sector names
-    sector_names = list(set([i[1] for i in tech_matrix[mun_codes[0]].index.str.split('_', expand=True)]))
+    tech_matrix = pd.read_json('input/technical_matrices/' + mun_codes[0] + '_matrix_io.json')
+    # Using matrix to get sector names
+    sector_names = list(set([i[1] for i in tech_matrix.index.str.split('_', expand=True)]))
     n = len(sector_names)
     # Splitting the matrix into the 4 region destination and origin
     # Input direction origin->destination:
     # LOCAL->LOCAL, EXTERNAL->LOCAL, LOCAL->EXTERNAL, EXTERNAL->EXTERNAL
     for mun_code in tech_matrix:
         matrix_list = [
-            tech_matrix[mun_code].iloc[:n, :n],
-            tech_matrix[mun_code].iloc[n:, :n],
-            tech_matrix[mun_code].iloc[:n, n:],
-            tech_matrix[mun_code].iloc[n:, n:]
+            tech_matrix.iloc[:n, :n],
+            tech_matrix.iloc[n:, :n],
+            tech_matrix.iloc[:n, n:],
+            tech_matrix.iloc[n:, n:]
         ]
     # Fixing matrices names
     new_matrix_list = list()
@@ -107,13 +106,14 @@ class External:
     def get_amount_sold(self):
         return self.amount_sold
 
-    def intermediate_consumption(self, amount):
+    #TODO: Check intermediate consumption and prices and clean code
+    def intermediate_consumption(self, amount,price=1):
         """Sell max amount of products for a given amount of money"""
         if amount > 0:
             # Sticking to a SINGLE product for firm
             amount_per_product = amount / 1
             # FREIGHT included for external goods
-            bought_quantity = amount / (self.sim.avg_prices * (1 + self.sim.PARAMS['PUBLIC_TRANSIT_COST']))
+            bought_quantity = amount / price #(self.sim.avg_prices * (1 + self.sim.PARAMS['PUBLIC_TRANSIT_COST']))
             self.amount_sold += amount_per_product
             self.total_quantity -= bought_quantity
             self.taxes_paid += amount_per_product * self.tax_consumption
