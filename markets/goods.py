@@ -16,8 +16,8 @@ def read_technical_matrix(mun_codes):
         mun_codes = [mun_codes, ]
     tech_matrix = pd.read_json('input/technical_matrices/' + mun_codes[0] + '_matrix_io.json')
     # Using matrix to get sector names
-    sector_names = list(set([i[1] for i in tech_matrix.index.str.split('_', expand=True)]))
-    n = len(sector_names)
+    n = 12
+    sector_names = [j.split('_')[1] for j in [i for i in tech_matrix.index][:n]]
     # Splitting the matrix into the 4 region destination and origin
     # Input direction origin->destination:
     # LOCAL->LOCAL, EXTERNAL->LOCAL, LOCAL->EXTERNAL, EXTERNAL->EXTERNAL

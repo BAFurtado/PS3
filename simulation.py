@@ -227,8 +227,7 @@ class Simulation:
             firm.update_product_quantity(prod_exponent, prod_magnitude_divisor,
                                          self.regional_market,
                                          self.firms,
-                                         self.seed_np,
-                                         self.external)
+                                         self.seed_np)
 
         # Call demographics
         # Update agent life cycles
