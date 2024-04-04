@@ -35,7 +35,6 @@ def read_technical_matrix(mun_codes):
         m.columns = sector_names
         new_matrix_list.append(m)
     local_local, loc_ext_matrix, ext_local_matrix, ext_ext_matrix = new_matrix_list
-    # TODO. CHECK WHY TO TO IT BY MUN_CODES (MORE THAN ONE METROPOLIS, BUT RETURN FOR ONLY ONE. CODE CAN BE SIMPLIFIED.
     return local_local, loc_ext_matrix, ext_local_matrix, ext_ext_matrix
 
 
@@ -45,8 +44,8 @@ class RegionalMarket:
     input-output matrix, creation of externalities and market balancing.
     """
 
-    # TODO: How to handle transport firms? Include a factor of distance by agent/household
-    # TODO Include EXPORTS AND FBCF in the consumption market
+    # TODO: How to handle transport firms? Include a factor of distance by agent/household (some included external)
+    # TODO Include FBCF in the consumption market. INCLUDE AN K (kind of technology) DECAYS WITH TIME
     # TODO Check pycg (callgraph)
 
     def __init__(self, sim):
