@@ -1,10 +1,11 @@
-import datetime
+import datetime,copy
 import numpy as np
 from dateutil import relativedelta
 from .house import House
 from .product import Product
-from collections import defaultdict
+from collections import defaultdict 
 
+np.seterr(divide='ignore', invalid='ignore')
 initial_input_sectors = {'Agriculture': 1,
                          'Business': 1,
                          'Construction': 1,
@@ -56,7 +57,7 @@ class Firm:
         # Firms makes existing products from class Products.
         # Products produced are stored by product_id in the inventory
         self.inventory = {}
-        self.input_inventory, self.external_input_inventory = initial_input_sectors, initial_input_sectors
+        self.input_inventory, self.external_input_inventory =  copy.deepcopy(initial_input_sectors), copy.deepcopy(initial_input_sectors)
         self.total_quantity = total_quantity
         # Amount monthly sold by the firm
         self.amount_sold = amount_sold
@@ -127,13 +128,16 @@ class Firm:
         Buys inputs according to the technical coefficients.
         In fact, this is the intermediate consumer market (firms buying from firms)
         """
-        # TODO: Check that input inventory of the firms is dynamic and saves bought stock.
         if self.total_balance > 0:
             technical_matrix = regional_market.technical_matrix
-            external_technical_matrix = regional_market.ext_local_matrix
+            external_technical_matrix = regional_market.loc_ext_matrix
             params = regional_market.sim.PARAMS
-            input_quantities_needed = desired_quantity * technical_matrix.loc[:, self.sector]
-            external_input_quantities_needed = desired_quantity * external_technical_matrix.loc[:, self.sector]
+            input_quantities_needed = np.clip(desired_quantity * 
+                                          technical_matrix.loc[:, self.sector]
+                                          -np.array(list(self.input_inventory.values())),0,None)
+            external_input_quantities_needed = np.clip(desired_quantity * 
+                                                   external_technical_matrix.loc[:, self.sector]
+                                                   -np.array(list(self.input_inventory.values())),0,None)
 
             # Choose the firm to buy inputs from
             chosen_firms_per_sector = self.choose_firm_per_sector(regional_market, firms, seed_np)
@@ -160,7 +164,7 @@ class Firm:
                 if chosen_firms_per_sector[sector]:
                     prices = chosen_firms_per_sector[sector].prices
                 else:
-                    prices = 0
+                    prices = 1
                 money_this_sector = (reduction_factor *
                                      input_quantities_needed[sector] *
                                      prices)
@@ -172,16 +176,21 @@ class Firm:
                     continue
                 # Uses regional market to access intermediate consumption and each firm sale function
                 # Returns change, if any
-                change = regional_market.intermediate_consumption(money_this_sector,
-                                                                  chosen_firms_per_sector[sector])
+                if chosen_firms_per_sector[sector]:
+                    change = regional_market.intermediate_consumption(money_this_sector,
+                                                                  chosen_firms_per_sector[sector]) 
+                else:
+                    change = money_this_sector 
                 # Check whether there was change and buy the rest from the external sector
+                if change is None:
+                    change = money_this_sector 
                 external_money_this_sector += change
                 # Go for external market which has full supply
                 regional_market.sim.external.intermediate_consumption(external_money_this_sector,
                                                                       prices *
                                                                       (1 + params['PUBLIC_TRANSIT_COST']))
                 self.input_inventory[sector] += (money_this_sector - change) / prices
-                self.external_input_inventory[sector] += (external_money_this_sector / prices *
+                self.external_input_inventory[sector] += ((external_money_this_sector / prices) *
                                                           (1 + params['PUBLIC_TRANSIT_COST']))
             # TODO. Check that we have at least 3 firms from each sector... include in the generator
 
@@ -203,35 +212,36 @@ class Firm:
             # Currently, the index for the single product is 0
 
             technical_matrix = regional_market.technical_matrix
-            external_technical_matrix = regional_market.ext_local_matrix
+            external_technical_matrix = regional_market.loc_ext_matrix
 
             self.buy_inputs(desired_quantity, regional_market, firms, seed_np)
             input_quantities_needed = desired_quantity * technical_matrix.loc[:, self.sector]
             external_input_quantities_needed = desired_quantity * external_technical_matrix.loc[:, self.sector]
 
             # The following process would be a traditional Leontief production function
-            local_productive_constraint = min([min(1, self.input_inventory[sector] / input_quantities_needed[sector])
-                                              for sector in regional_market.technical_matrix.index])
+            local_productive_constraint =[min(1, self.input_inventory[sector] / input_quantities_needed[sector])
+                                              for sector in regional_market.technical_matrix.index]
             external_productive_constraint = [
                 self.external_input_inventory[sector] / external_input_quantities_needed[sector]
                 for sector in regional_market.technical_matrix.index]
             for n, sector in enumerate(regional_market.technical_matrix.index):
                 # Calculation of need to transfer from external sectors to local markets
-                if local_productive_constraint < 1:
-                    inventory_transfer = min(input_quantities_needed[sector] - self.input_inventory[sector],
-                                             (input_quantities_needed[sector] * external_productive_constraint[n] -
-                                              input_quantities_needed[sector]) / 2)
-                    self.input_inventory += inventory_transfer
-                    self.external_input_inventory -= inventory_transfer
-            local_productive_constraint = np.min(
-                [np.min(1, self.input_inventory[sector] / input_quantities_needed[sector])
+                if local_productive_constraint[n] < 1:
+                    inventory_transfer = max(min(input_quantities_needed[sector] - self.input_inventory[sector],
+                                            (input_quantities_needed[sector] * external_productive_constraint[n] -
+                                            input_quantities_needed[sector]) / 2,
+                                            self.external_input_inventory[sector]),0)
+                    self.input_inventory[sector] += inventory_transfer
+                    self.external_input_inventory[sector] -= inventory_transfer
+            local_productive_constraint = min(
+                [min(1, self.input_inventory[sector] / input_quantities_needed[sector])
                  for sector in regional_market.technical_matrix.index])
-            external_productive_constraint = np.min(
+            external_productive_constraint = min(
                 [self.external_input_inventory[sector] / external_input_quantities_needed[sector]
                  for sector in regional_market.technical_matrix.index])
 
             # Check that we have enough inputs to produce desired quantity
-            productive_constraint = min(local_productive_constraint, external_productive_constraint)
+            productive_constraint = max(min(local_productive_constraint, external_productive_constraint),0)
             input_used = productive_constraint * input_quantities_needed
             external_input_used = productive_constraint * external_input_quantities_needed
             quantity = productive_constraint * desired_quantity
@@ -334,7 +344,6 @@ class Firm:
                     # Deducing money from clients upfront
                     amount -= amount_per_product
             self.amount_sold += dummy_bought_quantity
-
         # Return change to consumer, if any. Note that if there is no quantity to sell, full amount is returned
         return amount
 
