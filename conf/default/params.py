@@ -161,7 +161,7 @@ PUBLIC_TRANSIT_COST = 0.05
 # RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation
 # Minimum value to run depends on the size of municipality 0,001 is recommended minimum
-PERCENTAGE_ACTUAL_POP = 0.005
+PERCENTAGE_ACTUAL_POP = 0.01
 
 # Write exactly like the list above
 PROCESSING_ACPS = ["IPATINGA"]
