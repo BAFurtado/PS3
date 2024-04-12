@@ -44,14 +44,14 @@ class RegionalMarket:
     input-output matrix, creation of externalities and market balancing.
     """
 
-    # TODO: How to handle transport firms? Include a factor of distance by agent/household (some included external)
-    # TODO Include FBCF in the consumption market. INCLUDE AN K (kind of technology) DECAYS WITH TIME
+    # TODO: *** How to handle transport firms? Include a factor of distance by agent/household (some included external)
+    # TODO *** Include FBCF in the consumption market. INCLUDE AN K (kind of technology) DECAYS WITH TIME
     # TODO Check pycg (callgraph)
 
     def __init__(self, sim):
         self.sim = sim
         self.technical_matrix, self.loc_ext_matrix, self.ext_local_matrix, self.ext_ext_matrix = read_technical_matrix(
-            sim.geo.processing_acps)  # TODO: How are firms locations infos stored
+            sim.geo.processing_acps)
         self.final_demand = final_demand.set_index('sector')
         self.if_origin = self.sim.PARAMS["TAX_ON_ORIGIN"]
 
@@ -69,7 +69,7 @@ class RegionalMarket:
                 self.sim.clock.months,
                 self.if_origin
             )
-        # TODO. External demand. Use of the right-side of the 2n2n IO matrix (final/intermediate demands)
+        # TODO. *** External demand. Use of the right-side of the 2n2n IO matrix (final/intermediate demands)
 
     # TODO: External final demand
     def government_consumption(self):
@@ -105,14 +105,13 @@ class External:
     def get_amount_sold(self):
         return self.amount_sold
 
-    #TODO: Check intermediate consumption and prices and clean code
-    def intermediate_consumption(self, amount,price=1):
+    def intermediate_consumption(self, amount, price=1):
         """Sell max amount of products for a given amount of money"""
         if amount > 0:
             # Sticking to a SINGLE product for firm
             amount_per_product = amount / 1
             # FREIGHT included for external goods
-            bought_quantity = amount / price #(self.sim.avg_prices * (1 + self.sim.PARAMS['PUBLIC_TRANSIT_COST']))
+            bought_quantity = amount / price  # (self.sim.avg_prices * (1 + self.sim.PARAMS['PUBLIC_TRANSIT_COST']))
             self.amount_sold += amount_per_product
             self.total_quantity -= bought_quantity
             self.taxes_paid += amount_per_product * self.tax_consumption

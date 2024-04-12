@@ -1,9 +1,9 @@
-import datetime,copy
+import datetime, copy
 import numpy as np
 from dateutil import relativedelta
 from .house import House
 from .product import Product
-from collections import defaultdict 
+from collections import defaultdict
 
 np.seterr(divide='ignore', invalid='ignore')
 initial_input_sectors = {'Agriculture': 1,
@@ -57,7 +57,8 @@ class Firm:
         # Firms makes existing products from class Products.
         # Products produced are stored by product_id in the inventory
         self.inventory = {}
-        self.input_inventory, self.external_input_inventory =  copy.deepcopy(initial_input_sectors), copy.deepcopy(initial_input_sectors)
+        self.input_inventory, self.external_input_inventory = copy.deepcopy(initial_input_sectors), copy.deepcopy(
+            initial_input_sectors)
         self.total_quantity = total_quantity
         # Amount monthly sold by the firm
         self.amount_sold = amount_sold
@@ -89,7 +90,10 @@ class Firm:
             )
 
     def create_externalities(self, money_output: float, regional_market):
-        # TODO This is still at the conceptual phase. Revisit.
+        # TODO *** This is still at the conceptual phase. Revisit.
+        # Temos o total de emissões por UF por SETOR de 5 indicadores.
+        # Trazer esses indicadores por uf por setor de ecoficiencia e os indicadores de poluição vao ser minha massa
+        # salarial endógena dividida pela ecoficiencia que eu trouxe...
         """
         Based on empirical data, creates externalities according to money output produced by a given activity.
         """
@@ -129,27 +133,30 @@ class Firm:
         In fact, this is the intermediate consumer market (firms buying from firms)
         """
         if self.total_balance > 0:
+            # First the firm checks how much it needs to buy
             technical_matrix = regional_market.technical_matrix
             external_technical_matrix = regional_market.loc_ext_matrix
             params = regional_market.sim.PARAMS
-            input_quantities_needed = np.clip(desired_quantity * 
-                                          technical_matrix.loc[:, self.sector]
-                                          -np.array(list(self.input_inventory.values())),0,None)
-            external_input_quantities_needed = np.clip(desired_quantity * 
-                                                   external_technical_matrix.loc[:, self.sector]
-                                                   -np.array(list(self.input_inventory.values())),0,None)
+            input_quantities_needed = np.clip(desired_quantity *
+                                              technical_matrix.loc[:, self.sector]
+                                              - np.array(list(self.input_inventory.values())), 0, None)
+            external_input_quantities_needed = np.clip(desired_quantity *
+                                                       external_technical_matrix.loc[:, self.sector]
+                                                       - np.array(list(self.input_inventory.values())), 0, None)
 
             # Choose the firm to buy inputs from
             chosen_firms_per_sector = self.choose_firm_per_sector(regional_market, firms, seed_np)
             money_local_inputs = sum([input_quantities_needed[sector] * chosen_firms_per_sector[sector].prices
                                       for sector in regional_market.technical_matrix.index
                                       if chosen_firms_per_sector[sector]])
+
             # External buying of inputs includes an ADDITIONAL FREIGHT COST!
             money_external_inputs = sum([external_input_quantities_needed[sector] * chosen_firms_per_sector[
                 sector].prices * (1 + params['PUBLIC_TRANSIT_COST'])
                                          for sector in regional_market.technical_matrix.index
                                          if chosen_firms_per_sector[sector]])
-            # The reduction factor is used to account for the firm having less money than needed
+
+            # The reduction factor is used to account for the firm having LESS MONEY than needed
             if money_local_inputs + money_external_inputs > 0:
                 reduction_factor = min(self.total_balance,
                                        money_local_inputs + money_external_inputs) / (
@@ -164,7 +171,7 @@ class Firm:
                 if chosen_firms_per_sector[sector]:
                     prices = chosen_firms_per_sector[sector].prices
                 else:
-                    prices = 1
+                    prices = regional_market.sim.avg_prices
                 money_this_sector = (reduction_factor *
                                      input_quantities_needed[sector] *
                                      prices)
@@ -178,12 +185,12 @@ class Firm:
                 # Returns change, if any
                 if chosen_firms_per_sector[sector]:
                     change = regional_market.intermediate_consumption(money_this_sector,
-                                                                  chosen_firms_per_sector[sector]) 
+                                                                      chosen_firms_per_sector[sector])
                 else:
-                    change = money_this_sector 
+                    change = money_this_sector
+                # if change is None:
+                #     change = money_this_sector
                 # Check whether there was change and buy the rest from the external sector
-                if change is None:
-                    change = money_this_sector 
                 external_money_this_sector += change
                 # Go for external market which has full supply
                 regional_market.sim.external.intermediate_consumption(external_money_this_sector,
@@ -219,8 +226,8 @@ class Firm:
             external_input_quantities_needed = desired_quantity * external_technical_matrix.loc[:, self.sector]
 
             # The following process would be a traditional Leontief production function
-            local_productive_constraint =[min(1, self.input_inventory[sector] / input_quantities_needed[sector])
-                                              for sector in regional_market.technical_matrix.index]
+            local_productive_constraint = [min(1, self.input_inventory[sector] / input_quantities_needed[sector])
+                                           for sector in regional_market.technical_matrix.index]
             external_productive_constraint = [
                 self.external_input_inventory[sector] / external_input_quantities_needed[sector]
                 for sector in regional_market.technical_matrix.index]
@@ -228,9 +235,9 @@ class Firm:
                 # Calculation of need to transfer from external sectors to local markets
                 if local_productive_constraint[n] < 1:
                     inventory_transfer = max(min(input_quantities_needed[sector] - self.input_inventory[sector],
-                                            (input_quantities_needed[sector] * external_productive_constraint[n] -
-                                            input_quantities_needed[sector]) / 2,
-                                            self.external_input_inventory[sector]),0)
+                                                 (input_quantities_needed[sector] * external_productive_constraint[n] -
+                                                  input_quantities_needed[sector]) / 2,
+                                                 self.external_input_inventory[sector]), 0)
                     self.input_inventory[sector] += inventory_transfer
                     self.external_input_inventory[sector] -= inventory_transfer
             local_productive_constraint = min(
@@ -241,7 +248,7 @@ class Firm:
                  for sector in regional_market.technical_matrix.index])
 
             # Check that we have enough inputs to produce desired quantity
-            productive_constraint = max(min(local_productive_constraint, external_productive_constraint),0)
+            productive_constraint = max(min(local_productive_constraint, external_productive_constraint), 0)
             input_used = productive_constraint * input_quantities_needed
             external_input_used = productive_constraint * external_input_quantities_needed
             quantity = productive_constraint * desired_quantity
@@ -480,6 +487,15 @@ class ConstructionFirm(Firm):
         self.building = defaultdict(dict)
         self.cash_flow = defaultdict(float)
         self.monthly_planned_revenue = list()
+
+    # TODO VERIFY THAT WE WANT TO KEEP CONSTRUCTION AND GOVERNMENT FIRMS SELLING TO THE INTERMEDIATE MARKET
+    # def sale(self, amount, regions, tax_consumption, consumer_region_id, if_origin):
+    #     """ Sales for government companies are operated as increase (distribution) of total_balance when operating
+    #         taxes, specifically at procedures at funds.py.
+    #         Furthermore, this function should never be called as the final demand table lists 0 for household
+    #         consumption of government goods!
+    #     """
+    #     pass
 
     def plan_house(self, regions, houses, params, seed, seed_np, vacancy_prob):
         """Decide where to build with which attributes"""
@@ -761,13 +777,13 @@ class GovernmentFirm(Firm):
     def assign_proportion(self, value):
         self.budget_proportion = value
 
-    def sale(self, amount, regions, tax_consumption, consumer_region_id, if_origin):
-        """ Sales for government companies are operated as increase (distribution) of total_balance when operating
-            taxes, specifically at procedures at funds.py.
-            Furthermore, this function should never be called as the final demand table lists 0 for household
-            consumption of government goods!
-        """
-        pass
+    # def sale(self, amount, regions, tax_consumption, consumer_region_id, if_origin):
+    #     """ Sales for government companies are operated as increase (distribution) of total_balance when operating
+    #         taxes, specifically at procedures at funds.py.
+    #         Furthermore, this function should never be called as the final demand table lists 0 for household
+    #         consumption of government goods!
+    #     """
+    #     pass
 
     def government_transfer(self, amount):
         """ Equivalent to sales for regular firms,
