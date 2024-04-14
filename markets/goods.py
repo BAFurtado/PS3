@@ -21,14 +21,14 @@ def read_technical_matrix(mun_codes):
     # Splitting the matrix into the 4 region destination and origin
     # Input direction origin->destination:
     # LOCAL->LOCAL, EXTERNAL->LOCAL, LOCAL->EXTERNAL, EXTERNAL->EXTERNAL
-    for mun_code in tech_matrix:
-        matrix_list = [
-            tech_matrix.iloc[:n, :n],
-            tech_matrix.iloc[n:, :n],
-            tech_matrix.iloc[:n, n:],
-            tech_matrix.iloc[n:, n:]
-        ]
-    # Fixing matrices names
+    
+    matrix_list = [
+        tech_matrix.iloc[:n, :n],
+        tech_matrix.iloc[n:, :n],
+        tech_matrix.iloc[:n, n:],
+        tech_matrix.iloc[n:, n:]
+    ]
+# Fixing matrices names
     new_matrix_list = list()
     for m in matrix_list:
         m.index = sector_names
@@ -37,6 +37,34 @@ def read_technical_matrix(mun_codes):
     local_local, loc_ext_matrix, ext_local_matrix, ext_ext_matrix = new_matrix_list
     return local_local, loc_ext_matrix, ext_local_matrix, ext_ext_matrix
 
+def read_final_demand_matrix(mun_codes):
+    if not isinstance(mun_codes, list):
+        mun_codes = [mun_codes, ]
+    fin_matrix = pd.read_json('input/final_demand/' + mun_codes[0] + '_final_demand.json').T
+    # Using matrix to get sector names
+    n = int(len(fin_matrix.index)/2)
+    n_d = int(len(fin_matrix.columns)/2)
+    sector_names = [j.split('_')[1] for j in [i for i in fin_matrix.index][:n]]
+    demand_names = [j.split('_')[1] for j in [i for i in fin_matrix.columns][:n_d]]
+    # Splitting the matrix into the 4 region destination and origin
+    # Demand direction origin->destination:
+    # LOCAL->LOCAL, EXTERNAL->LOCAL, LOCAL->EXTERNAL, EXTERNAL->EXTERNAL
+    
+    matrix_list = [
+        fin_matrix.iloc[:n, :n_d],
+        fin_matrix.iloc[n:, :n_d],
+        fin_matrix.iloc[:n, n_d:],
+        fin_matrix.iloc[n:, n_d:]
+    ]
+    for m in matrix_list:
+        m.index = sector_names
+    # Calcualting the external demand multiplier:
+    # ext_dmand = multiplier * internal_demand
+    external_demand_multiplier = {}
+    for sector in sector_names:
+        b = sum(matrix_list[2].loc[sector,:])
+        external_demand_multiplier[sector] = b/(1-b)
+    return external_demand_multiplier
 
 class RegionalMarket:
     """
@@ -52,8 +80,13 @@ class RegionalMarket:
         self.sim = sim
         self.technical_matrix, self.loc_ext_matrix, self.ext_local_matrix, self.ext_ext_matrix = read_technical_matrix(
             sim.geo.processing_acps)
-        self.final_demand = final_demand.set_index('sector')
+        
+        
         self.if_origin = self.sim.PARAMS["TAX_ON_ORIGIN"]
+        #TODO: These are placeholders, we must read from the FINAL DEMAND regional files
+        self.final_demand = final_demand
+        self.final_demand.index = self.technical_matrix.index
+        self.external_demand_multipier = read_final_demand_matrix(sim.geo.processing_acps)
 
     def consume(self):
         # Household consumption
@@ -116,6 +149,47 @@ class External:
             self.total_quantity -= bought_quantity
             self.taxes_paid += amount_per_product * self.tax_consumption
             self.cumulative_taxes_paid += self.taxes_paid
+
+    def choose_firms_per_sector(self, firms, seed_np):
+        """
+        Choose local firms to buy inputs from
+        """
+        params = self.sim.PARAMS
+        chosen_firms, chosen_firm = {}, None
+        
+        for sector in self.sim.regional_market.technical_matrix.index:
+            n_firms = len([f for f in firms.values() if (f.sector == sector)])
+            market = seed_np.choice(
+                [f for f in firms.values() if (f.sector == sector) & (f.id != self.id)],
+                size=min(n_firms,
+                         3*int(params['SIZE_MARKET'])),replace=False)
+            market = [firm for firm in market if firm.get_total_quantity() > 0]
+            if market:
+                # Choose 10 firms with the cheapest prices
+                chosen_firm = market.sort(key=lambda firm: firm.prices)[0:min(10,n_firms)]
+            chosen_firms[sector] = chosen_firm
+        return chosen_firms
+
+    def final_consumption(self, internal_final_demand, seed_np):
+        """Consumes from local firms according to the regionalized SAM"""
+        
+        # Selects a subset of firms to buy from          
+        chosen_firms = self.choose_firms_per_sector(self.sim.firms,seed_np)
+        if internal_final_demand > 0:
+            for sector in self.sim.regional_market.technical_matrix.index:
+                # Sticking to a SINGLE product for firm
+                # External demand is a LINEAR FUNCTION of the internal demand
+                amount_per_product = self.external_demand_multipier[sector]*internal_final_demand[sector] / 1
+                amount_per_firm = amount_per_product/len(chosen_firms[sector])
+                # Buys from firms
+                for firm in chosen_firms[sector]:
+                    firm.sale(amount_per_firm, 
+                              self.sim.regions, 
+                              self.sim.PARAMS['TAX_CONSUMPTION'], 
+                              firm.region_id,
+                              if_origin=self.sim.PARAMS['TAX_ON_ORIGIN'],
+                              external=True)
+            
 
     def collect_transfer_consumption_tax(self):
         taxes = self.taxes_paid * self.tax_consumption
