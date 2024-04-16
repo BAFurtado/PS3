@@ -36,6 +36,7 @@ additionally from being responsible for infrastructure and policy.
 26. Regionalization of final demands
 27. Implementation of new official urban concentration areas from IBGE, updated in 2022--CONURBs. 
 Due to inumerous mentions in the code, we will continue to use **ACPs despite them having been updated to CONURBs.**
+28. Percentage of firms per sectors are now read from the data (not parameters anymore)
 
 ------
 ``` python 3.12```

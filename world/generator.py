@@ -53,6 +53,11 @@ sectors = {'Agriculture': AgricultureFirm,
 
 # Necessary input Data
 prop_urban = pd.read_csv("input/prop_urban_2000_2010.csv", sep=";")
+# Percentage of firms by input output sector:
+# SOURCE: Data read from RAIS, 2010, converting CNAE code to ISIS 12.
+# Deleted firms for sectors/municipalities below 3 firms
+# Construction and Government are already 0 in final demand table
+perc_firms_sector = pd.read_csv('input/CONCURBs_SECTOR.csv', sep=';', decimal=',')
 
 
 class Generator:
@@ -397,16 +402,18 @@ class Generator:
             family.owned_houses.append(house)
 
     def create_firms(self, num_firms, region):
+        acp = self.sim.geo.processing_acps[0]
+        p_firms_sector = perc_firms_sector[perc_firms_sector['concurb_name'] == acp].set_index('sector').drop('concurb_name', axis=1).to_dict()['participation']
         sector = dict()
 
         if num_firms == 1:
-            key = self.sim.seed_np.choice(list(self.sim.PARAMS['PERCENT_FIRMS_PER_SECTORS'].keys()),
-                                          p=list(self.sim.PARAMS['PERCENT_FIRMS_PER_SECTORS'].values()))
+            key = self.sim.seed_np.choice(list(p_firms_sector.keys()),
+                                          p=list(p_firms_sector.values()))
             num_firms_by_sector = {key: 1}
         else:
             num_firms_by_sector = {
-                key: math.ceil(num_firms * self.sim.PARAMS['PERCENT_FIRMS_PER_SECTORS'][key])
-                for key in self.sim.PARAMS["PERCENT_FIRMS_PER_SECTORS"]
+                key: math.ceil(num_firms * p_firms_sector[key])
+                for key in p_firms_sector
             }
         num_firms = sum(num_firms_by_sector.values())
         addresses = self.get_random_points_in_polygon(region, number_addresses=num_firms)
