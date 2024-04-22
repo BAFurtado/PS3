@@ -21,7 +21,7 @@ initial_input_sectors = {'Agriculture': 1,
                          'Government': 1
                          }
 
-emissions = pd.read_csv('input/mediana_eco_emissoes_sector_mun_2010.csv')
+emissions = pd.read_csv('input/mediana_eco_emissoes_sector_mun_2010.csv', dtype={'mun_code': str})
 
 
 class Firm:
