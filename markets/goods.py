@@ -21,7 +21,7 @@ def read_technical_matrix(mun_codes):
     # Splitting the matrix into the 4 region destination and origin
     # Input direction origin->destination:
     # LOCAL->LOCAL, EXTERNAL->LOCAL, LOCAL->EXTERNAL, EXTERNAL->EXTERNAL
-    
+
     matrix_list = [
         tech_matrix.iloc[:n, :n],
         tech_matrix.iloc[n:, :n],
@@ -37,6 +37,7 @@ def read_technical_matrix(mun_codes):
     local_local, loc_ext_matrix, ext_local_matrix, ext_ext_matrix = new_matrix_list
     return local_local, loc_ext_matrix, ext_local_matrix, ext_ext_matrix
 
+
 def read_final_demand_matrix(mun_codes):
     if not isinstance(mun_codes, list):
         mun_codes = [mun_codes, ]
@@ -49,7 +50,7 @@ def read_final_demand_matrix(mun_codes):
     # Splitting the matrix into the 4 region destination and origin
     # Demand direction origin->destination:
     # LOCAL->LOCAL, EXTERNAL->LOCAL, LOCAL->EXTERNAL, EXTERNAL->EXTERNAL
-    
+
     matrix_list = [
         fin_matrix.iloc[:n, :n_d],
         fin_matrix.iloc[n:, :n_d],
@@ -58,13 +59,14 @@ def read_final_demand_matrix(mun_codes):
     ]
     for m in matrix_list:
         m.index = sector_names
-    # Calcualting the external demand multiplier:
-    # ext_dmand = multiplier * internal_demand
+    # Calculating the external demand multiplier:
+    # ext_demand = multiplier * internal_demand
     external_demand_multiplier = {}
     for sector in sector_names:
         b = sum(matrix_list[2].loc[sector,:])
         external_demand_multiplier[sector] = b/(1-b)
     return external_demand_multiplier
+
 
 class RegionalMarket:
     """
@@ -74,19 +76,16 @@ class RegionalMarket:
 
     # TODO: *** How to handle transport firms? Include a factor of distance by agent/household (some included external)
     # TODO *** Include FBCF in the consumption market. INCLUDE AN K (kind of technology) DECAYS WITH TIME
-    # TODO Check pycg (callgraph)
 
     def __init__(self, sim):
         self.sim = sim
         self.technical_matrix, self.loc_ext_matrix, self.ext_local_matrix, self.ext_ext_matrix = read_technical_matrix(
             sim.geo.processing_acps)
-        
-        
+
         self.if_origin = self.sim.PARAMS["TAX_ON_ORIGIN"]
-        #TODO: These are placeholders, we must read from the FINAL DEMAND regional files
         self.final_demand = final_demand
         self.final_demand.index = self.technical_matrix.index
-        self.external_demand_multipier = read_final_demand_matrix(sim.geo.processing_acps)
+        self.external_demand_multiplier = read_final_demand_matrix(sim.geo.processing_acps)
 
     def consume(self):
         # Household consumption
@@ -104,7 +103,6 @@ class RegionalMarket:
             )
         # TODO. *** External demand. Use of the right-side of the 2n2n IO matrix (final/intermediate demands)
 
-    # TODO: External final demand
     def government_consumption(self):
         gov_firms = [f for f in self.sim.firms.values() if f.sector == 'Government']
         for firm in gov_firms:
@@ -139,7 +137,7 @@ class External:
         return self.amount_sold
 
     def intermediate_consumption(self, amount, price=1):
-        """Sell max amount of products for a given amount of money"""
+        """ Sell max amount of products for a given amount of money """
         if amount > 0:
             # Sticking to a SINGLE product for firm
             amount_per_product = amount / 1
@@ -156,7 +154,7 @@ class External:
         """
         params = self.sim.PARAMS
         chosen_firms, chosen_firm = {}, None
-        
+
         for sector in self.sim.regional_market.technical_matrix.index:
             n_firms = len([f for f in firms.values() if (f.sector == sector)])
             market = seed_np.choice(
@@ -172,28 +170,27 @@ class External:
 
     def final_consumption(self, internal_final_demand, seed_np):
         """Consumes from local firms according to the regionalized SAM"""
-        
-        # Selects a subset of firms to buy from          
-        chosen_firms = self.choose_firms_per_sector(self.sim.firms,seed_np)
+        # Selects a subset of firms to buy from
+        chosen_firms = self.choose_firms_per_sector(self.sim.firms, seed_np)
         if internal_final_demand > 0:
             for sector in self.sim.regional_market.technical_matrix.index:
                 # Sticking to a SINGLE product for firm
                 # External demand is a LINEAR FUNCTION of the internal demand
-                amount_per_product = self.external_demand_multipier[sector]*internal_final_demand[sector] / 1
-                amount_per_firm = amount_per_product/len(chosen_firms[sector])
+                amount_per_product = self.external_demand_multiplier[sector] * internal_final_demand[sector] / 1
+                amount_per_firm = amount_per_product / len(chosen_firms[sector])
                 # Buys from firms
                 for firm in chosen_firms[sector]:
-                    firm.sale(amount_per_firm, 
-                              self.sim.regions, 
-                              self.sim.PARAMS['TAX_CONSUMPTION'], 
+                    firm.sale(amount_per_firm,
+                              self.sim.regions,
+                              self.sim.PARAMS['TAX_CONSUMPTION'],
                               firm.region_id,
                               if_origin=self.sim.PARAMS['TAX_ON_ORIGIN'],
                               external=True)
-            
 
     def collect_transfer_consumption_tax(self):
         taxes = self.taxes_paid * self.tax_consumption
         self.taxes_paid = 0
+        self.cumulative_taxes_paid += taxes
         return taxes
 
 
