@@ -277,7 +277,6 @@ class Simulation:
         self.housing.process_monthly_rent(self)
         # Collect loan repayments
         self.central.collect_loan_payments(self)
-
         # Government firms consumption
         self.regional_market.government_consumption()
 
@@ -298,8 +297,9 @@ class Simulation:
                 current_unemployment,
                 prod_exponent,
                 tax_labor,
-                relevance_unemployment,
-            )
+                relevance_unemployment)
+            # Firms update generated externalities, based on own sector and wages paid this month
+            firm.create_externalities()
             # Tax firms before profits: (revenue - salaries paid)
             firm.pay_taxes(self.regions, tax_firm)
             # Profits are after taxes

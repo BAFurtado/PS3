@@ -21,6 +21,8 @@ initial_input_sectors = {'Agriculture': 1,
                          'Government': 1
                          }
 
+emissions = pd.read_csv('input/mediana_eco_emissoes_sector_mun_2010.csv')
+
 
 class Firm:
     """
@@ -47,7 +49,10 @@ class Firm:
             taxes_paid=0,
             prices=None,
             sector=None,
+            env_indicators=None,
     ):
+        if env_indicators is None:
+            env_indicators = {'emissions': 0}
         self.increase_production = False
         self.id = _id
         self.address = address
@@ -59,8 +64,8 @@ class Firm:
         # Firms makes existing products from class Products.
         # Products produced are stored by product_id in the inventory
         self.inventory = {}
-        self.input_inventory, self.external_input_inventory = copy.deepcopy(initial_input_sectors), copy.deepcopy(
-            initial_input_sectors)
+        self.input_inventory, self.external_input_inventory = (copy.deepcopy(initial_input_sectors),
+                                                               copy.deepcopy(initial_input_sectors))
         self.total_quantity = total_quantity
         # Amount monthly sold by the firm
         self.amount_sold = amount_sold
@@ -74,6 +79,11 @@ class Firm:
         self.taxes_paid = taxes_paid
         self.prices = prices
         self.sector = sector
+        try:
+            self.emissions_base = emissions[(emissions.isic_12 == self.sector) &
+                                            (emissions.mun_code == self.region_id)]['med_eco']
+        except KeyError:
+            self.no_emissions = True
 
     # Product procedures ##############################################################################################
     def create_product(self):
@@ -87,25 +97,18 @@ class Firm:
                     self.product_index, dummy_quantity, dummy_price
                 )
                 self.product_index += 1
-            self.prices = sum(p.price for p in self.inventory.values()) / len(
-                self.inventory
-            )
+            self.prices = sum(p.price for p in self.inventory.values()) / len(self.inventory)
 
-    def create_externalities(self, money_output: float, regional_market):
+    def create_externalities(self):
         """
         Based on empirical data, creates externalities according to money output produced by a given activity.
         """
         # Environmental indicators (emissions, water, energy, waste) by municipality and sector
         # Using median from 2010.
         # Procedure: Apply endogenous salary amount to external ecoefficiency to find estimated output indicator
-
-        externalities = regional_market.externalities_matrix
-        externalities_list = []
-
-        for row in externalities[self.sector]:
-            externalities_list = money_output * row
-
-        return externalities_list
+        if not self.no_emissions:
+            emissions_this_month = self.wages_paid / self.emissions_base
+            self.env_indicators['emissions'] = emissions_this_month
 
     # PRODUCTION DEPARTMENT
     def choose_firm_per_sector(self, regional_market, firms, seed_np):
@@ -391,8 +394,8 @@ class Firm:
         )
 
     def wage_base(self, unemployment, relevance_unemployment):
-        # Observing global economic performance to set salaries, guarantees that firms do not spend all revenue
-        # on salaries
+        # Observing global economic performance to set salaries,
+        # guarantees that firms do not spend all revenue on salaries
         # Calculating wage base on a per-employee basis.
         if self.num_employees > 0:
             return (self.revenue / self.num_employees) * (
