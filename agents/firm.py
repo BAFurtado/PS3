@@ -52,7 +52,7 @@ class Firm:
             env_indicators=None,
     ):
         if env_indicators is None:
-            env_indicators = {'emissions': 0}
+            self.env_indicators = {'emissions': 0}
         self.increase_production = False
         self.id = _id
         self.address = address
@@ -79,6 +79,7 @@ class Firm:
         self.taxes_paid = taxes_paid
         self.prices = prices
         self.sector = sector
+        self.no_emissions = False
         try:
             self.emissions_base = emissions[(emissions.isic_12 == self.sector) &
                                             (emissions.mun_code == self.region_id)]['med_eco']
@@ -108,7 +109,7 @@ class Firm:
         # Procedure: Apply endogenous salary amount to external ecoefficiency to find estimated output indicator
         if not self.no_emissions:
             emissions_this_month = self.wages_paid / self.emissions_base
-            self.env_indicators['emissions'] = emissions_this_month
+            self.env_indicators['emissions'] += emissions_this_month
 
     # PRODUCTION DEPARTMENT
     def choose_firm_per_sector(self, regional_market, firms, seed_np):
