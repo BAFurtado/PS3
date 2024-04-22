@@ -82,7 +82,8 @@ class Firm:
         self.no_emissions = False
         try:
             self.emissions_base = emissions[(emissions.isic_12 == self.sector) &
-                                            (emissions.mun_code == self.region_id[:7])]['med_eco']
+                                            (emissions.mun_code == self.region_id[:7])
+                                            ]['med_eco'].reset_index(drop=True)[0]
         except KeyError:
             self.no_emissions = True
 
@@ -101,6 +102,7 @@ class Firm:
             self.prices = sum(p.price for p in self.inventory.values()) / len(self.inventory)
 
     def create_externalities(self):
+        # TODO WE CAN USE THE OWN EVOLUTION OF EMISSIONS AS VALIDATION. WE INPUT ONLY 2010
         """
         Based on empirical data, creates externalities according to money output produced by a given activity.
         """
