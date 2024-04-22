@@ -82,7 +82,7 @@ class Firm:
         self.no_emissions = False
         try:
             self.emissions_base = emissions[(emissions.isic_12 == self.sector) &
-                                            (emissions.mun_code == self.region_id)]['med_eco']
+                                            (emissions.mun_code == self.region_id[:7])]['med_eco']
         except KeyError:
             self.no_emissions = True
 
