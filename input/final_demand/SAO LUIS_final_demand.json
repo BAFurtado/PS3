@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "SAO LUIS_Realestate":{
+    "SAO LUIS_RealEstate":{
         "SAO LUIS_Export":0.0054332022,
         "SAO LUIS_GovernmentConsumption":0.0,
         "SAO LUIS_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "SAO LUIS_Export":0.0000054672,
         "SAO LUIS_GovernmentConsumption":0.0,
         "SAO LUIS_ConsumptionNGOs":0.0,

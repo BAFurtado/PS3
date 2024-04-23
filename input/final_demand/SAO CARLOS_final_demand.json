@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "SAO CARLOS_Realestate":{
+    "SAO CARLOS_RealEstate":{
         "SAO CARLOS_Export":0.0038105596,
         "SAO CARLOS_GovernmentConsumption":0.0,
         "SAO CARLOS_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "SAO CARLOS_Export":0.0,
         "SAO CARLOS_GovernmentConsumption":0.0,
         "SAO CARLOS_ConsumptionNGOs":0.0,

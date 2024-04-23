@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "APUCARANA_Realestate":{
+    "APUCARANA_RealEstate":{
         "APUCARANA_Export":0.0004699675,
         "APUCARANA_GovernmentConsumption":0.0,
         "APUCARANA_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "APUCARANA_Export":0.0,
         "APUCARANA_GovernmentConsumption":0.0,
         "APUCARANA_ConsumptionNGOs":0.0,

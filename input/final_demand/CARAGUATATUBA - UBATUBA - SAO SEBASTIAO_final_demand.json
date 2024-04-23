@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "CARAGUATATUBA - UBATUBA - SAO SEBASTIAO_Realestate":{
+    "CARAGUATATUBA - UBATUBA - SAO SEBASTIAO_RealEstate":{
         "CARAGUATATUBA - UBATUBA - SAO SEBASTIAO_Export":0.0059733639,
         "CARAGUATATUBA - UBATUBA - SAO SEBASTIAO_GovernmentConsumption":0.0,
         "CARAGUATATUBA - UBATUBA - SAO SEBASTIAO_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "CARAGUATATUBA - UBATUBA - SAO SEBASTIAO_Export":0.0000063318,
         "CARAGUATATUBA - UBATUBA - SAO SEBASTIAO_GovernmentConsumption":0.0,
         "CARAGUATATUBA - UBATUBA - SAO SEBASTIAO_ConsumptionNGOs":0.0,

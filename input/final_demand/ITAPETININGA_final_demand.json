@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "ITAPETININGA_Realestate":{
+    "ITAPETININGA_RealEstate":{
         "ITAPETININGA_Export":0.0063065333,
         "ITAPETININGA_GovernmentConsumption":0.0,
         "ITAPETININGA_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "ITAPETININGA_Export":0.0000044543,
         "ITAPETININGA_GovernmentConsumption":0.0,
         "ITAPETININGA_ConsumptionNGOs":0.0,

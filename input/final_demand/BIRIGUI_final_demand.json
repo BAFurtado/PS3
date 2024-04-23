@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "BIRIGUI_Realestate":{
+    "BIRIGUI_RealEstate":{
         "BIRIGUI_Export":0.0003726658,
         "BIRIGUI_GovernmentConsumption":0.0,
         "BIRIGUI_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "BIRIGUI_Export":0.0,
         "BIRIGUI_GovernmentConsumption":0.0,
         "BIRIGUI_ConsumptionNGOs":0.0,

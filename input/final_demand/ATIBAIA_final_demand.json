@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "ATIBAIA_Realestate":{
+    "ATIBAIA_RealEstate":{
         "ATIBAIA_Export":0.0062530221,
         "ATIBAIA_GovernmentConsumption":0.0,
         "ATIBAIA_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "ATIBAIA_Export":0.0000055774,
         "ATIBAIA_GovernmentConsumption":0.0,
         "ATIBAIA_ConsumptionNGOs":0.0,

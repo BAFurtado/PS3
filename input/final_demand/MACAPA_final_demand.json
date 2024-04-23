@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "MACAPA_Realestate":{
+    "MACAPA_RealEstate":{
         "MACAPA_Export":0.0045865598,
         "MACAPA_GovernmentConsumption":0.0,
         "MACAPA_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "MACAPA_Export":0.000001303,
         "MACAPA_GovernmentConsumption":0.0,
         "MACAPA_ConsumptionNGOs":0.0,

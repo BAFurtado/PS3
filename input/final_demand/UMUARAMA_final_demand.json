@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "UMUARAMA_Realestate":{
+    "UMUARAMA_RealEstate":{
         "UMUARAMA_Export":0.0003801901,
         "UMUARAMA_GovernmentConsumption":0.0,
         "UMUARAMA_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "UMUARAMA_Export":0.0,
         "UMUARAMA_GovernmentConsumption":0.0,
         "UMUARAMA_ConsumptionNGOs":0.0,

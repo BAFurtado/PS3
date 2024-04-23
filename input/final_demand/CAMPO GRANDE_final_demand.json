@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "CAMPO GRANDE_Realestate":{
+    "CAMPO GRANDE_RealEstate":{
         "CAMPO GRANDE_Export":0.0052946298,
         "CAMPO GRANDE_GovernmentConsumption":0.0,
         "CAMPO GRANDE_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "CAMPO GRANDE_Export":0.0000042243,
         "CAMPO GRANDE_GovernmentConsumption":0.0,
         "CAMPO GRANDE_ConsumptionNGOs":0.0,

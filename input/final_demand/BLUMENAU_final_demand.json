@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "BLUMENAU_Realestate":{
+    "BLUMENAU_RealEstate":{
         "BLUMENAU_Export":0.0058998976,
         "BLUMENAU_GovernmentConsumption":0.0,
         "BLUMENAU_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "BLUMENAU_Export":0.0000106336,
         "BLUMENAU_GovernmentConsumption":0.0,
         "BLUMENAU_ConsumptionNGOs":0.0,

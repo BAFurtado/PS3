@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "CAXIAS DO SUL_Realestate":{
+    "CAXIAS DO SUL_RealEstate":{
         "CAXIAS DO SUL_Export":0.0077621283,
         "CAXIAS DO SUL_GovernmentConsumption":0.0,
         "CAXIAS DO SUL_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "CAXIAS DO SUL_Export":0.0000295354,
         "CAXIAS DO SUL_GovernmentConsumption":0.0,
         "CAXIAS DO SUL_ConsumptionNGOs":0.0,

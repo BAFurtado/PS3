@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "JOINVILLE_Realestate":{
+    "JOINVILLE_RealEstate":{
         "JOINVILLE_Export":0.0016056985,
         "JOINVILLE_GovernmentConsumption":0.0,
         "JOINVILLE_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "JOINVILLE_Export":0.0,
         "JOINVILLE_GovernmentConsumption":0.0,
         "JOINVILLE_ConsumptionNGOs":0.0,

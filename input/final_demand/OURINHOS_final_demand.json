@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "OURINHOS_Realestate":{
+    "OURINHOS_RealEstate":{
         "OURINHOS_Export":0.0052539414,
         "OURINHOS_GovernmentConsumption":0.0,
         "OURINHOS_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "OURINHOS_Export":0.0000025962,
         "OURINHOS_GovernmentConsumption":0.0,
         "OURINHOS_ConsumptionNGOs":0.0,

@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "SAO JOAO DEL REI_Realestate":{
+    "SAO JOAO DEL REI_RealEstate":{
         "SAO JOAO DEL REI_Export":0.0032730971,
         "SAO JOAO DEL REI_GovernmentConsumption":0.0,
         "SAO JOAO DEL REI_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "SAO JOAO DEL REI_Export":0.0000000968,
         "SAO JOAO DEL REI_GovernmentConsumption":0.0,
         "SAO JOAO DEL REI_ConsumptionNGOs":0.0,

@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "CONSELHEIRO LAFAIETE_Realestate":{
+    "CONSELHEIRO LAFAIETE_RealEstate":{
         "CONSELHEIRO LAFAIETE_Export":0.0012443785,
         "CONSELHEIRO LAFAIETE_GovernmentConsumption":0.0,
         "CONSELHEIRO LAFAIETE_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "CONSELHEIRO LAFAIETE_Export":0.0,
         "CONSELHEIRO LAFAIETE_GovernmentConsumption":0.0,
         "CONSELHEIRO LAFAIETE_ConsumptionNGOs":0.0,

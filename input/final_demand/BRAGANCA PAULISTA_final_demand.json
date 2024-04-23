@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "BRAGANCA PAULISTA_Realestate":{
+    "BRAGANCA PAULISTA_RealEstate":{
         "BRAGANCA PAULISTA_Export":0.0038529785,
         "BRAGANCA PAULISTA_GovernmentConsumption":0.0,
         "BRAGANCA PAULISTA_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "BRAGANCA PAULISTA_Export":0.0000004904,
         "BRAGANCA PAULISTA_GovernmentConsumption":0.0,
         "BRAGANCA PAULISTA_ConsumptionNGOs":0.0,

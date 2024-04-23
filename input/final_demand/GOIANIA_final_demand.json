@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "GOIANIA_Realestate":{
+    "GOIANIA_RealEstate":{
         "GOIANIA_Export":0.0102956419,
         "GOIANIA_GovernmentConsumption":0.0,
         "GOIANIA_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "GOIANIA_Export":0.0001261115,
         "GOIANIA_GovernmentConsumption":0.0,
         "GOIANIA_ConsumptionNGOs":0.0,

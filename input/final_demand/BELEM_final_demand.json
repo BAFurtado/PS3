@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "BELEM_Realestate":{
+    "BELEM_RealEstate":{
         "BELEM_Export":0.0048039284,
         "BELEM_GovernmentConsumption":0.0,
         "BELEM_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "BELEM_Export":0.0,
         "BELEM_GovernmentConsumption":0.0,
         "BELEM_ConsumptionNGOs":0.0,

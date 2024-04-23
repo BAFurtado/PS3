@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "INTERNACIONAL DE SANT'ANA DO LIVRAMENTO_Realestate":{
+    "INTERNACIONAL DE SANT'ANA DO LIVRAMENTO_RealEstate":{
         "INTERNACIONAL DE SANT'ANA DO LIVRAMENTO_Export":0.0078761258,
         "INTERNACIONAL DE SANT'ANA DO LIVRAMENTO_GovernmentConsumption":0.0,
         "INTERNACIONAL DE SANT'ANA DO LIVRAMENTO_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "INTERNACIONAL DE SANT'ANA DO LIVRAMENTO_Export":0.0000026654,
         "INTERNACIONAL DE SANT'ANA DO LIVRAMENTO_GovernmentConsumption":0.0,
         "INTERNACIONAL DE SANT'ANA DO LIVRAMENTO_ConsumptionNGOs":0.0,

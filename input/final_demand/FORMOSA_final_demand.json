@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "FORMOSA_Realestate":{
+    "FORMOSA_RealEstate":{
         "FORMOSA_Export":0.0040312113,
         "FORMOSA_GovernmentConsumption":0.0,
         "FORMOSA_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "FORMOSA_Export":0.0000006811,
         "FORMOSA_GovernmentConsumption":0.0,
         "FORMOSA_ConsumptionNGOs":0.0,

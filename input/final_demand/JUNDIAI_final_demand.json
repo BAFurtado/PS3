@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "JUNDIAI_Realestate":{
+    "JUNDIAI_RealEstate":{
         "JUNDIAI_Export":0.0014710428,
         "JUNDIAI_GovernmentConsumption":0.0,
         "JUNDIAI_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "JUNDIAI_Export":0.0,
         "JUNDIAI_GovernmentConsumption":0.0,
         "JUNDIAI_ConsumptionNGOs":0.0,

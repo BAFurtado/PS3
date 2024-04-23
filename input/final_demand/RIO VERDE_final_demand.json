@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "RIO VERDE_Realestate":{
+    "RIO VERDE_RealEstate":{
         "RIO VERDE_Export":0.0031874048,
         "RIO VERDE_GovernmentConsumption":0.0,
         "RIO VERDE_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "RIO VERDE_Export":0.0,
         "RIO VERDE_GovernmentConsumption":0.0,
         "RIO VERDE_ConsumptionNGOs":0.0,

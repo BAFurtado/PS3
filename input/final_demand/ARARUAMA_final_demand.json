@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "ARARUAMA_Realestate":{
+    "ARARUAMA_RealEstate":{
         "ARARUAMA_Export":0.0044623155,
         "ARARUAMA_GovernmentConsumption":0.0,
         "ARARUAMA_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "ARARUAMA_Export":0.0000012185,
         "ARARUAMA_GovernmentConsumption":0.0,
         "ARARUAMA_ConsumptionNGOs":0.0,

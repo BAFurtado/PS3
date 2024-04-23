@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "SAO PAULO_Realestate":{
+    "SAO PAULO_RealEstate":{
         "SAO PAULO_Export":0.0058578202,
         "SAO PAULO_GovernmentConsumption":0.0,
         "SAO PAULO_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "SAO PAULO_Export":0.0,
         "SAO PAULO_GovernmentConsumption":0.0,
         "SAO PAULO_ConsumptionNGOs":0.0,

@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "PORTO ALEGRE_Realestate":{
+    "PORTO ALEGRE_RealEstate":{
         "PORTO ALEGRE_Export":0.0082599128,
         "PORTO ALEGRE_GovernmentConsumption":0.0,
         "PORTO ALEGRE_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "PORTO ALEGRE_Export":0.0001028624,
         "PORTO ALEGRE_GovernmentConsumption":0.0,
         "PORTO ALEGRE_ConsumptionNGOs":0.0,

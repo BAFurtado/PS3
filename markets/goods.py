@@ -1,5 +1,5 @@
 import pandas as pd
-
+from collections import defaultdict
 
 # This is Table 14--Matriz dos coeficientes tecnicos intersetoriais D.Bn 2015 from IBGE
 # technical_matrix = pd.read_csv('input/technical_matrix.csv')
@@ -28,7 +28,7 @@ def read_technical_matrix(mun_codes):
         tech_matrix.iloc[:n, n:],
         tech_matrix.iloc[n:, n:]
     ]
-# Fixing matrices names
+    # Fixing matrices names
     new_matrix_list = list()
     for m in matrix_list:
         m.index = sector_names
@@ -43,8 +43,8 @@ def read_final_demand_matrix(mun_codes):
         mun_codes = [mun_codes, ]
     fin_matrix = pd.read_json('input/final_demand/' + mun_codes[0] + '_final_demand.json').T
     # Using matrix to get sector names
-    n = int(len(fin_matrix.index)/2)
-    n_d = int(len(fin_matrix.columns)/2)
+    n = int(len(fin_matrix.index) / 2)
+    n_d = int(len(fin_matrix.columns) / 2)
     sector_names = [j.split('_')[1] for j in [i for i in fin_matrix.index][:n]]
     demand_names = [j.split('_')[1] for j in [i for i in fin_matrix.columns][:n_d]]
     # Splitting the matrix into the 4 region destination and origin
@@ -63,8 +63,8 @@ def read_final_demand_matrix(mun_codes):
     # ext_demand = multiplier * internal_demand
     external_demand_multiplier = {}
     for sector in sector_names:
-        b = sum(matrix_list[2].loc[sector,:])
-        external_demand_multiplier[sector] = b/(1-b)
+        b = sum(matrix_list[2].loc[sector, :])
+        external_demand_multiplier[sector] = b / (1 - b)
     return external_demand_multiplier
 
 
@@ -86,11 +86,14 @@ class RegionalMarket:
         self.final_demand = final_demand
         self.final_demand.index = self.technical_matrix.index
         self.external_demand_multiplier = read_final_demand_matrix(sim.geo.processing_acps)
+        self.monthly_hh_consumption = defaultdict(float)
+        self.monthly_gov_consumption = defaultdict(float)
 
     def consume(self):
+        self.monthly_hh_consumption = defaultdict(float)
         # Household consumption
         for family in self.sim.families.values():
-            family.consume(
+            consumption = family.consume(
                 self,
                 self.sim.firms,
                 self.sim.central,
@@ -101,12 +104,16 @@ class RegionalMarket:
                 self.sim.clock.months,
                 self.if_origin
             )
-        # TODO. *** External demand. Use of the right-side of the 2n2n IO matrix (final/intermediate demands)
+            for key, value in consumption.items():
+                self.monthly_hh_consumption[key] += value
 
     def government_consumption(self):
+        self.monthly_gov_consumption = defaultdict(float)
         gov_firms = [f for f in self.sim.firms.values() if f.sector == 'Government']
         for firm in gov_firms:
-            firm.consume(self.sim)
+            consumption = firm.consume(self.sim)
+            for key, value in consumption.items():
+                self.monthly_gov_consumption[key] += value
 
     def gross_fixed_capital_formation(self):
         pass
@@ -157,26 +164,35 @@ class External:
 
         for sector in self.sim.regional_market.technical_matrix.index:
             n_firms = len([f for f in firms.values() if (f.sector == sector)])
+            # TODO. Consider a higher (proportional) number of firms (> 3*) to benefit from external demand?
             market = seed_np.choice(
-                [f for f in firms.values() if (f.sector == sector) & (f.id != self.id)],
+                [f for f in firms.values() if f.sector == sector],
                 size=min(n_firms,
-                         3*int(params['SIZE_MARKET'])),replace=False)
+                         3 * int(params['SIZE_MARKET'])),
+                replace=False)
             market = [firm for firm in market if firm.get_total_quantity() > 0]
             if market:
                 # Choose 10 firms with the cheapest prices
-                chosen_firm = market.sort(key=lambda firm: firm.prices)[0:min(10,n_firms)]
+                market.sort(key=lambda firm: firm.prices)
+                chosen_firm = market[0: min(10, n_firms)]
             chosen_firms[sector] = chosen_firm
         return chosen_firms
 
     def final_consumption(self, internal_final_demand, seed_np):
         """Consumes from local firms according to the regionalized SAM"""
-        # Selects a subset of firms to buy from
+        # Selects a subset of firms to buy from playing the role of rest of Brazil demand from simulated region.
         chosen_firms = self.choose_firms_per_sector(self.sim.firms, seed_np)
-        if internal_final_demand > 0:
-            for sector in self.sim.regional_market.technical_matrix.index:
-                # Sticking to a SINGLE product for firm
-                # External demand is a LINEAR FUNCTION of the internal demand
-                amount_per_product = self.external_demand_multiplier[sector] * internal_final_demand[sector] / 1
+
+        for sector in self.sim.regional_market.technical_matrix.index:
+            # Sticking to a SINGLE product for firm
+            # External demand is a LINEAR FUNCTION of the internal demand
+            if chosen_firms[sector]:
+                if ((self.sim.regional_market.external_demand_multiplier[sector]) and
+                        (internal_final_demand[sector])):
+                    amount_per_product = (self.sim.regional_market.external_demand_multiplier[sector] *
+                                          internal_final_demand[sector])
+                else:
+                    continue
                 amount_per_firm = amount_per_product / len(chosen_firms[sector])
                 # Buys from firms
                 for firm in chosen_firms[sector]:

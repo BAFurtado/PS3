@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "BAIXADA SANTISTA_Realestate":{
+    "BAIXADA SANTISTA_RealEstate":{
         "BAIXADA SANTISTA_Export":0.0052339876,
         "BAIXADA SANTISTA_GovernmentConsumption":0.0,
         "BAIXADA SANTISTA_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "BAIXADA SANTISTA_Export":0.0000014215,
         "BAIXADA SANTISTA_GovernmentConsumption":0.0,
         "BAIXADA SANTISTA_ConsumptionNGOs":0.0,

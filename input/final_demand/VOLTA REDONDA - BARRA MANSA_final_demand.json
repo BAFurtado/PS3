@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "VOLTA REDONDA - BARRA MANSA_Realestate":{
+    "VOLTA REDONDA - BARRA MANSA_RealEstate":{
         "VOLTA REDONDA - BARRA MANSA_Export":0.0044615823,
         "VOLTA REDONDA - BARRA MANSA_GovernmentConsumption":0.0,
         "VOLTA REDONDA - BARRA MANSA_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "VOLTA REDONDA - BARRA MANSA_Export":0.000001507,
         "VOLTA REDONDA - BARRA MANSA_GovernmentConsumption":0.0,
         "VOLTA REDONDA - BARRA MANSA_ConsumptionNGOs":0.0,

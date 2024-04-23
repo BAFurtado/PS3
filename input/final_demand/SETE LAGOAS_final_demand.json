@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "SETE LAGOAS_Realestate":{
+    "SETE LAGOAS_RealEstate":{
         "SETE LAGOAS_Export":0.0043852048,
         "SETE LAGOAS_GovernmentConsumption":0.0,
         "SETE LAGOAS_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "SETE LAGOAS_Export":0.0000016833,
         "SETE LAGOAS_GovernmentConsumption":0.0,
         "SETE LAGOAS_ConsumptionNGOs":0.0,

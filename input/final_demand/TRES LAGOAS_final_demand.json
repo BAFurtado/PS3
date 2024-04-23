@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "TRES LAGOAS_Realestate":{
+    "TRES LAGOAS_RealEstate":{
         "TRES LAGOAS_Export":0.0011654012,
         "TRES LAGOAS_GovernmentConsumption":0.0,
         "TRES LAGOAS_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "TRES LAGOAS_Export":0.0,
         "TRES LAGOAS_GovernmentConsumption":0.0,
         "TRES LAGOAS_ConsumptionNGOs":0.0,

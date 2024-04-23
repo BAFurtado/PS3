@@ -32,7 +32,7 @@ class Simulation:
         self.stats = analysis.Statistics()
         self.logger = analysis.Logger(hex(id(self))[-5:])
         self._seed = (
-            secrets.randbelow(2**32)
+            secrets.randbelow(2 ** 32)
             if conf.RUN["KEEP_RANDOM_SEED"]
             else conf.RUN.get("SEED", 0)
         )
@@ -273,12 +273,19 @@ class Simulation:
         # Equalize money within family members
         # Tax consumption when doing sales are realized
         self.regional_market.consume()
+        # Government firms consumption
+        self.regional_market.government_consumption()
+        # External consumption based on internal household and government consumption
+        internal_consumption = defaultdict(float)
+        for key, value in self.regional_market.monthly_gov_consumption.items():
+            internal_consumption[key] += value
+        for key, value in self.regional_market.monthly_hh_consumption.items():
+            internal_consumption[key] += value
+        self.external.final_consumption(internal_consumption, self.seed_np)
         # Make rent payments
         self.housing.process_monthly_rent(self)
         # Collect loan repayments
         self.central.collect_loan_payments(self)
-        # Government firms consumption
-        self.regional_market.government_consumption()
 
         # FIRMS
         # Accessing dictionary parameters outside the loop for performance

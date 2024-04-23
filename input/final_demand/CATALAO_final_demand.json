@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "CATALAO_Realestate":{
+    "CATALAO_RealEstate":{
         "CATALAO_Export":0.0017102391,
         "CATALAO_GovernmentConsumption":0.0,
         "CATALAO_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "CATALAO_Export":0.0,
         "CATALAO_GovernmentConsumption":0.0,
         "CATALAO_ConsumptionNGOs":0.0,

@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "INTERNACIONAL DE URUGUAIANA_Realestate":{
+    "INTERNACIONAL DE URUGUAIANA_RealEstate":{
         "INTERNACIONAL DE URUGUAIANA_Export":0.0064129867,
         "INTERNACIONAL DE URUGUAIANA_GovernmentConsumption":0.0,
         "INTERNACIONAL DE URUGUAIANA_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "INTERNACIONAL DE URUGUAIANA_Export":0.0000032843,
         "INTERNACIONAL DE URUGUAIANA_GovernmentConsumption":0.0,
         "INTERNACIONAL DE URUGUAIANA_ConsumptionNGOs":0.0,

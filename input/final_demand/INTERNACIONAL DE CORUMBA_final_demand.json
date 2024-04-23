@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "INTERNACIONAL DE CORUMBA_Realestate":{
+    "INTERNACIONAL DE CORUMBA_RealEstate":{
         "INTERNACIONAL DE CORUMBA_Export":0.0004295172,
         "INTERNACIONAL DE CORUMBA_GovernmentConsumption":0.0,
         "INTERNACIONAL DE CORUMBA_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "INTERNACIONAL DE CORUMBA_Export":0.0,
         "INTERNACIONAL DE CORUMBA_GovernmentConsumption":0.0,
         "INTERNACIONAL DE CORUMBA_ConsumptionNGOs":0.0,

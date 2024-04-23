@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "FORTALEZA_Realestate":{
+    "FORTALEZA_RealEstate":{
         "FORTALEZA_Export":0.0051485593,
         "FORTALEZA_GovernmentConsumption":0.0,
         "FORTALEZA_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "FORTALEZA_Export":0.0,
         "FORTALEZA_GovernmentConsumption":0.0,
         "FORTALEZA_ConsumptionNGOs":0.0,

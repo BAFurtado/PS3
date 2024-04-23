@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "PETROPOLIS_Realestate":{
+    "PETROPOLIS_RealEstate":{
         "PETROPOLIS_Export":0.0072852486,
         "PETROPOLIS_GovernmentConsumption":0.0,
         "PETROPOLIS_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "PETROPOLIS_Export":0.0000107664,
         "PETROPOLIS_GovernmentConsumption":0.0,
         "PETROPOLIS_ConsumptionNGOs":0.0,

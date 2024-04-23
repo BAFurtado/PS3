@@ -1,6 +1,7 @@
 import datetime
 
 import numpy as np
+from collections import defaultdict
 
 
 class Family:
@@ -219,6 +220,7 @@ class Family:
         Family general consumption depends on its permanent income, based on members wages, working life expectancy
         and real estate and savings interest
         """
+        total_consumption = defaultdict(float)
         money_to_spend = self.decision_on_consumption(central, central.interest, year, month)
         # Decision on how much money to consume or save
 
@@ -255,6 +257,8 @@ class Family:
 
                     # Update monthly family utility
                     self.average_utility += money_this_sector - change
+                    total_consumption[sector] += money_this_sector - change
+        return total_consumption
 
     @property
     def agents(self):

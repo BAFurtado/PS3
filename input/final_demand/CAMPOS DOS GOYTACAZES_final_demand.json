@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "CAMPOS DOS GOYTACAZES_Realestate":{
+    "CAMPOS DOS GOYTACAZES_RealEstate":{
         "CAMPOS DOS GOYTACAZES_Export":0.0067766229,
         "CAMPOS DOS GOYTACAZES_GovernmentConsumption":0.0,
         "CAMPOS DOS GOYTACAZES_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "CAMPOS DOS GOYTACAZES_Export":0.0000113675,
         "CAMPOS DOS GOYTACAZES_GovernmentConsumption":0.0,
         "CAMPOS DOS GOYTACAZES_ConsumptionNGOs":0.0,

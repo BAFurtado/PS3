@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "NATAL_Realestate":{
+    "NATAL_RealEstate":{
         "NATAL_Export":0.0068958222,
         "NATAL_GovernmentConsumption":0.0,
         "NATAL_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "NATAL_Export":0.0000271701,
         "NATAL_GovernmentConsumption":0.0,
         "NATAL_ConsumptionNGOs":0.0,

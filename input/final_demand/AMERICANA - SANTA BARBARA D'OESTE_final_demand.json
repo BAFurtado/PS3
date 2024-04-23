@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "AMERICANA - SANTA BARBARA D'OESTE_Realestate":{
+    "AMERICANA - SANTA BARBARA D'OESTE_RealEstate":{
         "AMERICANA - SANTA BARBARA D'OESTE_Export":0.0036525016,
         "AMERICANA - SANTA BARBARA D'OESTE_GovernmentConsumption":0.0,
         "AMERICANA - SANTA BARBARA D'OESTE_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "AMERICANA - SANTA BARBARA D'OESTE_Export":0.0,
         "AMERICANA - SANTA BARBARA D'OESTE_GovernmentConsumption":0.0,
         "AMERICANA - SANTA BARBARA D'OESTE_ConsumptionNGOs":0.0,

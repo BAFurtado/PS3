@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "BARRETOS_Realestate":{
+    "BARRETOS_RealEstate":{
         "BARRETOS_Export":0.0046769605,
         "BARRETOS_GovernmentConsumption":0.0,
         "BARRETOS_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "BARRETOS_Export":0.0000019108,
         "BARRETOS_GovernmentConsumption":0.0,
         "BARRETOS_ConsumptionNGOs":0.0,

@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "ITU - SALTO_Realestate":{
+    "ITU - SALTO_RealEstate":{
         "ITU - SALTO_Export":0.0016858114,
         "ITU - SALTO_GovernmentConsumption":0.0,
         "ITU - SALTO_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "ITU - SALTO_Export":0.0,
         "ITU - SALTO_GovernmentConsumption":0.0,
         "ITU - SALTO_ConsumptionNGOs":0.0,

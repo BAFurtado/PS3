@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "GUARAPUAVA_Realestate":{
+    "GUARAPUAVA_RealEstate":{
         "GUARAPUAVA_Export":0.0016622126,
         "GUARAPUAVA_GovernmentConsumption":0.0,
         "GUARAPUAVA_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "GUARAPUAVA_Export":0.0,
         "GUARAPUAVA_GovernmentConsumption":0.0,
         "GUARAPUAVA_ConsumptionNGOs":0.0,

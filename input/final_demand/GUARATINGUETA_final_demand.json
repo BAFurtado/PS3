@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "GUARATINGUETA_Realestate":{
+    "GUARATINGUETA_RealEstate":{
         "GUARATINGUETA_Export":0.0028091517,
         "GUARATINGUETA_GovernmentConsumption":0.0,
         "GUARATINGUETA_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "GUARATINGUETA_Export":0.0,
         "GUARATINGUETA_GovernmentConsumption":0.0,
         "GUARATINGUETA_ConsumptionNGOs":0.0,

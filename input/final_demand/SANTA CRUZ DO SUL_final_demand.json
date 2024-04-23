@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "SANTA CRUZ DO SUL_Realestate":{
+    "SANTA CRUZ DO SUL_RealEstate":{
         "SANTA CRUZ DO SUL_Export":0.0015142642,
         "SANTA CRUZ DO SUL_GovernmentConsumption":0.0,
         "SANTA CRUZ DO SUL_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "SANTA CRUZ DO SUL_Export":0.0,
         "SANTA CRUZ DO SUL_GovernmentConsumption":0.0,
         "SANTA CRUZ DO SUL_ConsumptionNGOs":0.0,

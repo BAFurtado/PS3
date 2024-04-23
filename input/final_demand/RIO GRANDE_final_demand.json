@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "RIO GRANDE_Realestate":{
+    "RIO GRANDE_RealEstate":{
         "RIO GRANDE_Export":0.0053681496,
         "RIO GRANDE_GovernmentConsumption":0.0,
         "RIO GRANDE_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "RIO GRANDE_Export":0.000004183,
         "RIO GRANDE_GovernmentConsumption":0.0,
         "RIO GRANDE_ConsumptionNGOs":0.0,

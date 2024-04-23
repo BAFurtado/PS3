@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "TOLEDO_Realestate":{
+    "TOLEDO_RealEstate":{
         "TOLEDO_Export":0.0006048595,
         "TOLEDO_GovernmentConsumption":0.0,
         "TOLEDO_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "TOLEDO_Export":0.0,
         "TOLEDO_GovernmentConsumption":0.0,
         "TOLEDO_ConsumptionNGOs":0.0,

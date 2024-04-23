@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "RIO CLARO_Realestate":{
+    "RIO CLARO_RealEstate":{
         "RIO CLARO_Export":0.0032170285,
         "RIO CLARO_GovernmentConsumption":0.0,
         "RIO CLARO_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "RIO CLARO_Export":0.0,
         "RIO CLARO_GovernmentConsumption":0.0,
         "RIO CLARO_ConsumptionNGOs":0.0,

@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "LAVRAS_Realestate":{
+    "LAVRAS_RealEstate":{
         "LAVRAS_Export":0.0017852951,
         "LAVRAS_GovernmentConsumption":0.0,
         "LAVRAS_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "LAVRAS_Export":0.0,
         "LAVRAS_GovernmentConsumption":0.0,
         "LAVRAS_ConsumptionNGOs":0.0,

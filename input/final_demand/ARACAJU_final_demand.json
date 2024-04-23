@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "ARACAJU_Realestate":{
+    "ARACAJU_RealEstate":{
         "ARACAJU_Export":0.0081253888,
         "ARACAJU_GovernmentConsumption":0.0,
         "ARACAJU_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "ARACAJU_Export":0.0000398674,
         "ARACAJU_GovernmentConsumption":0.0,
         "ARACAJU_ConsumptionNGOs":0.0,

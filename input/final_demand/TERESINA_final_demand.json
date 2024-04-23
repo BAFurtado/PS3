@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "TERESINA_Realestate":{
+    "TERESINA_RealEstate":{
         "TERESINA_Export":0.0112334749,
         "TERESINA_GovernmentConsumption":0.0,
         "TERESINA_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "TERESINA_Export":0.0000942391,
         "TERESINA_GovernmentConsumption":0.0,
         "TERESINA_ConsumptionNGOs":0.0,

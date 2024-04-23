@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "SOROCABA_Realestate":{
+    "SOROCABA_RealEstate":{
         "SOROCABA_Export":0.0013090296,
         "SOROCABA_GovernmentConsumption":0.0,
         "SOROCABA_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "SOROCABA_Export":0.0,
         "SOROCABA_GovernmentConsumption":0.0,
         "SOROCABA_ConsumptionNGOs":0.0,

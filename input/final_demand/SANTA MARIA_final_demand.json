@@ -107,7 +107,7 @@
         "RestBR_HouseholdConsumption":0.0,
         "RestBR_FBCFixo":0.0
     },
-    "SANTA MARIA_Realestate":{
+    "SANTA MARIA_RealEstate":{
         "SANTA MARIA_Export":0.0047227501,
         "SANTA MARIA_GovernmentConsumption":0.0,
         "SANTA MARIA_ConsumptionNGOs":0.0,
@@ -251,7 +251,7 @@
         "RestBR_HouseholdConsumption":0.9419275935,
         "RestBR_FBCFixo":0.0
     },
-    "RestBR_Realestate":{
+    "RestBR_RealEstate":{
         "SANTA MARIA_Export":0.0000027422,
         "SANTA MARIA_GovernmentConsumption":0.0,
         "SANTA MARIA_ConsumptionNGOs":0.0,
