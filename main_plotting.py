@@ -131,7 +131,7 @@ def plot_results(output_dir, logger):
     avgs = []
     for r in results:
         if not conf.RUN.get('SKIP_PARAM_GROUP_PLOTS'):
-            plot_runs_with_avg(r, logger, conf.RUN.get('AVERAGE_DATA'))
+            plot_runs_with_avg(r, logger=logger, only=conf.RUN.get('AVERAGE_DATA'))
 
         # group averages, with labels, to plot together
         label = conf_to_str(r['overrides'], delimiter='\n')

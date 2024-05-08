@@ -165,11 +165,12 @@ python tests.py
 Runs simulation over a range of values for a specific parameter. For continuous parameters, the syntax is
 `NAME:MIN:MAX:NUMBER_STEPS`. For boolean parameters, just provide the parameter name.
 It now also accepts selected "PROCESSING_ACPS-BRASILIA-CAMPINAS-FORTALEZA-BELO HORIZONTE"
+To see the comparative resulting graphs, you have to run at least 2 runs for each parameter. So: -n 2 or more is a must
 
 Example:
 
 ```
-python main.py sensitivity ALPHA:0:1:7
+python main.py -n 2 sensitivity ALPHA:0:1:7
 ```
 
 Will run the simulation once for each value `ALPHA=0`, `ALPHA=0.17`, `ALPHA=0.33`, ... `ALPHA=1`.
@@ -179,7 +180,7 @@ You can also set up multiple sensitivity runs at once.
 For example:
 
 ```
-python main.py sensitivity MARKUP:.05:.15:7 PRODUCTIVITY_EXPONENT:.4:.6:3
+python main.py -n 2 sensitivity MARKUP:.05:.15:7 PRODUCTIVITY_EXPONENT:.4:.6:3
 ```
 
 is equivalent to running the previous two examples in sequence.
