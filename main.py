@@ -93,7 +93,9 @@ def multiple_runs(overrides, runs, cpus, output_dir, fix_seeds=False):
             json.dump({
                 'RUN': conf.RUN,
                 'PARAMS': params
-            }, f, default=str)
+            }, f,
+                indent=4,
+                default=str)
 
         # average run data and then plot
         runs = [p for p in glob('{}/*'.format(path)) if os.path.isdir(p)]
@@ -109,7 +111,9 @@ def multiple_runs(overrides, runs, cpus, output_dir, fix_seeds=False):
             'avg_type': conf.RUN['AVERAGE_TYPE']
         })
     with open(os.path.join(output_dir, 'meta.json'), 'w') as f:
-        json.dump(results, f, default=str)
+        json.dump(results, f,
+                  indent=4,
+                  default=str)
 
     main_plotting.plot_results(output_dir, logger)
 
@@ -225,11 +229,11 @@ def sensitivity(ctx, params):
             p_name = ps
             p_vals = my_dict.values()
             ctx.obj['output_dir'] = ctx.obj['output_dir'].replace('sensitivity', '_'.join(k for k in keys))
-            confs = permutations_dicts
+            confs = permutations_dicts.copy()
         # Fix the same seed for each run
         conf.RUN['KEEP_RANDOM_SEED'] = True
         # conf.RUN['FORCE_NEW_POPULATION'] = False # Ideally this is True, but it slows things down a lot
-        conf.RUN['SKIP_PARAM_GROUP_PLOTS'] = False
+        conf.RUN['SKIP_PARAM_GROUP_PLOTS'] = True
 
         logger.info('Sensitivity run over {} for values: {}, {} run(s) each'.format(p_name, p_vals, ctx.obj['runs']))
         multiple_runs(confs, ctx.obj['runs'], ctx.obj['cpus'], ctx.obj['output_dir'])

@@ -105,7 +105,7 @@ def plot(input_paths, output_path, params, logger, avg=None, sim=None, only=None
         plotter.plot_geo(sim, 'final')
 
 
-def plot_runs_with_avg(run_data, logger, only=None,):
+def plot_runs_with_avg(run_data, logger, only=None):
     """Plot results of simulations sharing a configuration,
     with their average results"""
     # individual runs

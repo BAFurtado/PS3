@@ -395,4 +395,6 @@ class Output:
                 'firms': firms,
                 'houses': houses,
                 'agents': agents
-            }, f, default=str)
+            }, f,
+                indent=4,
+                default=str)

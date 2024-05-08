@@ -132,7 +132,7 @@ class Simulation:
         self.logger.logger.info("Starting run.")
         self.logger.logger.info("Output: {}".format(self.output.path))
         self.logger.logger.info(
-            "Params: {}".format(json.dumps(self.PARAMS, default=str))
+            "Params: {}".format(json.dumps(self.PARAMS, indent=4, default=str))
         )
         self.logger.logger.info("Seed: {}".format(self._seed))
 
