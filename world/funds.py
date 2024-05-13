@@ -13,6 +13,8 @@ class Funds:
         self.sim = sim
         self.families_subsided = 0
         self.money_applied_policy = 0
+        self.mun_gov_firms = defaultdict(list)
+        self.gov_consumption_parameter = self.sim.regional_market.final_demand['GovernmentConsumption']['Government']
         if sim.PARAMS['FPM_DISTRIBUTION']:
             self.fpm = {
                 state: pd.read_csv('input/fpm/%s.csv' % state, sep=',', header=0, decimal='.', encoding='latin1')
@@ -50,7 +52,7 @@ class Funds:
         if self.sim.PARAMS['POLICIES'] not in ['buy', 'rent', 'wage']:
             # Baseline scenario. Do nothing!
             return
-        # Reset indicator every month to reflect subside in a given month, not cumulatively
+        # Reset indicator every month to reflect subside in a given month, mun_popsnot cumulatively
         self.families_subsided = 0
         self.update_policy_families()
         # Implement policies only after first year of simulation run
@@ -95,7 +97,7 @@ class Funds:
         # Families are sorted in self.policy_families. Buy and give as much as money allows
         for mun in self.policy_money.keys():
             for firm in self.sim.firms.values():
-                if firm.type == 'CONSTRUCTION':
+                if firm.sector == 'Construction':
                     # Get the list of the houses for sale within the municipality
                     self.temporary_houses[mun] += [h for h in firm.houses_for_sale if h.region_id[:7] == mun]
             # Sort houses and families by cheapest, poorest.
@@ -159,6 +161,11 @@ class Funds:
             mun_code = region.id[:7]
             regional_fpm = fpm_region[id] / sum(set(fpm_region.values())) * value * pop_t[id] / pop_mun_t[mun_code]
 
+            # Dividing government investment between intermediate consumption and own consumption
+            gov_firms_money = (1 - self.gov_consumption_parameter) * regional_fpm
+            [f.government_transfer(gov_firms_money * f.budget_proportion) for f in self.mun_gov_firms[mun_code]]
+            regional_fpm = self.gov_consumption_parameter * regional_fpm
+
             # Separating money for policy
             if self.sim.PARAMS['POLICY_COEFFICIENT']:
                 self.policy_money[mun_code] += regional_fpm * self.sim.PARAMS['POLICY_COEFFICIENT']
@@ -170,28 +177,59 @@ class Funds:
 
     def locally(self, value, regions, mun_code, pop_t, pop_mun_t):
         for mun in mun_code.keys():
-            for id in mun_code[mun]:
-                amount = value[mun] * pop_t[id] / pop_mun_t[mun]
+            for id_ in mun_code[mun]:
+                amount = value[mun] * pop_t[id_] / pop_mun_t[mun]
+                # Dividing government investment between intermediate consumption and own consumption
+                # Check whether there are gov. firms in this municipality at all.
+                # When there are no firms, amount is unchanged and goes all to policies and infrastructure
+                if self.mun_gov_firms[mun]:
+                    firms_here = [f for f in self.mun_gov_firms[mun] if f.region_id == id_]
+                    if firms_here:
+                        gov_firms_money = (1 - self.gov_consumption_parameter) * amount
+                        [f.government_transfer(gov_firms_money * f.budget_proportion)
+                         for f in list(self.mun_gov_firms[mun_code])]
+                        amount = self.gov_consumption_parameter * amount
 
                 # Separating money for policy
                 if self.sim.PARAMS['POLICY_COEFFICIENT']:
                     self.policy_money[mun] += amount * self.sim.PARAMS['POLICY_COEFFICIENT']
                     amount *= 1 - self.sim.PARAMS['POLICY_COEFFICIENT']
 
-                regions[id].update_index(amount * self.sim.PARAMS['MUNICIPAL_EFFICIENCY_MANAGEMENT'])
-                regions[id].update_applied_taxes(amount, 'locally')
+                regions[id_].update_index(amount * self.sim.PARAMS['MUNICIPAL_EFFICIENCY_MANAGEMENT'])
+                regions[id_].update_applied_taxes(amount, 'locally')
 
     def equally(self, value, regions, pop_t, pop_total):
+        # Dividing government investment between intermediate consumption and own consumption
+        gov_firms_money = (1 - self.gov_consumption_parameter) * value
+        value = self.gov_consumption_parameter * value
+        for mun_code in self.mun_gov_firms:
+            [f.government_transfer(gov_firms_money * f.budget_proportion) for f in self.mun_gov_firms[mun_code]]
+
         for id, region in regions.items():
             amount = value * pop_t[id] / pop_total
             # Separating money for policy
             if self.sim.PARAMS['POLICY_COEFFICIENT']:
                 self.policy_money[id[:7]] += amount * self.sim.PARAMS['POLICY_COEFFICIENT']
                 amount *= 1 - self.sim.PARAMS['POLICY_COEFFICIENT']
+
             region.update_index(amount * self.sim.PARAMS['MUNICIPAL_EFFICIENCY_MANAGEMENT'])
             region.update_applied_taxes(amount, 'equally')
 
     def invest_taxes(self, year, bank_taxes):
+        # The part of final demand that is not consumed by the government itself is applied in the intermediate
+        # market as government purchase. Thus, part of the budget of government following final demand table is
+        # distributed at GovernmentFirms to acquire products in the market
+
+        # Setting number within firm that represent the part of the budget and
+        # Updating dictionary of government firms
+        gov_firms = [f for f in self.sim.firms.values() if f.sector == 'Government']
+        for mun_code in self.sim.geo.mun_codes:
+            gov_firms_here = [f for f in gov_firms if f.region_id[:7] == mun_code]
+            firms_num_employees = [f.num_employees() for f in gov_firms_here]
+            total_employment = sum(firms_num_employees)
+            [f.assign_proportion(i / total_employment) for f, i in zip(gov_firms_here, firms_num_employees)]
+            self.mun_gov_firms[mun_code] = gov_firms_here
+
         if self.sim.PARAMS['POLICIES'] not in ['buy', 'rent', 'wage']:
             self.sim.PARAMS['POLICY_COEFFICIENT'] = 0
         # Collect and UPDATE pop_t-1 and pop_t
@@ -217,9 +255,13 @@ class Funds:
             region.update_index_pop(pop_mun_minus[m_id]/pop_mun_t[m_id])
 
         v_local = defaultdict(int)
+        # Every month taxes to distribute start from 0
         v_equal = 0
+        # TODO. How to incorporate other_regions taxes into the metropolis? Actually, which fraction?
+        # TODO. At the moment, all taxes charged from other regions return back to the metropolis
+        v_equal += self.sim.external.collect_transfer_consumption_tax()
         if self.sim.PARAMS['ALTERNATIVE0']:
-            # Dividing proortion of consumption into equal and local (state, municipality)
+            # Dividing proportion of consumption into equal and local (state, municipality)
             # And adding local part of consumption plus transaction and property to local
             v_equal += sum([treasure[key]['consumption'] for key in treasure.keys()]) * \
                       self.sim.PARAMS['TAXES_STRUCTURE']['consumption_equal']

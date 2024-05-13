@@ -4,6 +4,7 @@ from collections import defaultdict
 
 import conf
 
+# TODO. Check this is the right place to create the folder
 AGENTS_PATH = 'StoragedAgents'
 if not os.path.exists(AGENTS_PATH):
     os.mkdir(AGENTS_PATH)
@@ -16,7 +17,6 @@ GENERATOR_PARAMS = [
     'SIMPLIFY_POP_EVOLUTION',
     'PERCENTAGE_ACTUAL_POP',
     'PERC_SUPPLY_SIZE_N_LICENSES_PER_REGION',
-    'PERCENT_CONSTRUCTION_FIRMS',
     'STARTING_DAY'
 ]
 
@@ -26,17 +26,40 @@ OUTPUT_DATA_SPEC = {
             'groupings': ['month'],
             'columns': 'ALL'
         },
-        'columns': ['month', 'pop', 'price_index', 'gdp_index', 'gdp_growth', 'unemployment', 'average_workers',
+        'columns': ['month',
+                    'pop',
+                    'price_index',
+                    'gdp_index',
+                    'gdp_growth',
+                    'unemployment',
+                    'average_workers',
                     'families_median_wealth',
                     'families_wages_received',
                     'families_commuting',
                     'families_savings',
                     'families_helped',
-                    'amount_subsidised', 'firms_wealth', 'firms_profit',
-                    'firms_median_stock', 'firms_median_wage_paid', 'gini_index', 'average_utility',
-                    'pct_zero_consumption', 'rent_default', 'inflation', 'average_qli',
-                    'house_vacancy', 'house_price', 'house_rent', 'affordable', 'p_delinquent', 'equally', 'locally',
-                    'fpm', 'bank']
+                    'amount_subsidised',
+                    'firms_wealth',
+                    'firms_profit',
+                    'firms_median_stock',
+                    'firms_median_wage_paid',
+                    'gini_index',
+                    'average_utility',
+                    'pct_zero_consumption',
+                    'rent_default',
+                    'inflation',
+                    'average_qli',
+                    'house_vacancy',
+                    'house_price',
+                    'house_rent',
+                    'affordable',
+                    'p_delinquent',
+                    'equally',
+                    'locally',
+                    'fpm',
+                    'bank',
+                    'ext_amount_sold',
+                    'emissions']
     },
     'families': {
         'avg': {
@@ -69,10 +92,10 @@ OUTPUT_DATA_SPEC = {
                         'stocks', 'amount_produced', 'price', 'amount_sold',
                         'revenue', 'profit', 'wages_paid']
         },
-        'columns':  ['month', 'firm_id', 'region_id', 'mun_id',
-                     'long', 'lat', 'total_balance$', 'number_employees',
-                     'stocks', 'amount_produced', 'price', 'amount_sold',
-                     'revenue', 'profit', 'wages_paid']
+        'columns': ['month', 'firm_id', 'region_id', 'mun_id',
+                    'long', 'lat', 'total_balance$', 'number_employees',
+                    'stocks', 'amount_produced', 'price', 'amount_sold',
+                    'revenue', 'profit', 'wages_paid']
     },
     'construction': {
         'avg': {
@@ -81,10 +104,10 @@ OUTPUT_DATA_SPEC = {
                         'stocks', 'amount_produced', 'price', 'amount_sold',
                         'revenue', 'profit', 'wages_paid']
         },
-        'columns':  ['month', 'firm_id', 'region_id', 'mun_id',
-                     'long', 'lat', 'total_balance$', 'number_employees',
-                     'stocks', 'amount_produced', 'price', 'amount_sold',
-                     'revenue', 'profit', 'wages_paid']
+        'columns': ['month', 'firm_id', 'region_id', 'mun_id',
+                    'long', 'lat', 'total_balance$', 'number_employees',
+                    'stocks', 'amount_produced', 'price', 'amount_sold',
+                    'revenue', 'profit', 'wages_paid']
     },
     'regional': {
         'avg': {
@@ -135,7 +158,7 @@ class Output:
         n_active = len(active)
         pop = len(sim.agents)
         p_delinquent = len(bank.delinquent_loans()) / n_active if n_active else 0
-        price_index, inflation = sim.stats.update_price(sim.consumer_firms)
+        price_index, inflation = sim.stats.update_price(sim.firms)
         gdp_index, gdp_growth = sim.stats.sum_region_gdp(sim.firms, sim.regions)
         unemployment = sim.stats.update_unemployment(sim.agents.values(), True)
         average_workers = sim.stats.calculate_average_workers(sim.firms)
@@ -164,6 +187,9 @@ class Output:
         sim.funds.families_subsided, sim.funds.money_applied_policy = 0, 0
         for k in ['equally', 'locally', 'fpm']:
             mun_applied_treasure[k] = sum(r.applied_treasure[k] for r in sim.regions.values())
+        # External
+        ext_amount_sold = sim.external.get_amount_sold()
+        emissions = sim.stats.calculate_emissions(sim.firms)
 
         report = f"{sim.clock.days};{pop:d};" \
                  f"{price_index:.3f};{gdp_index:.3f};{gdp_growth:.3f};{unemployment:.3f};" \
@@ -182,7 +208,9 @@ class Output:
                  f"{pct_zero_consumption:.4f};{rent_default:.4f};{inflation:.4f};{average_qli:.3f};" \
                  f"{house_vacancy:.3f};{house_price:.4f};{house_rent:.4f};{affordable:.4f};{p_delinquent:.4f};" \
                  f"{mun_applied_treasure['equally']:.4f};{mun_applied_treasure['locally']:.4f};" \
-                 f"{mun_applied_treasure['fpm']:.4f};{mun_applied_treasure['bank']:.4f}\n"
+                 f"{mun_applied_treasure['fpm']:.4f};{mun_applied_treasure['bank']:.4f};" \
+                 f"{ext_amount_sold:.2f};" \
+                 f"{emissions}\n"
 
         with open(self.stats_path, 'a') as f:
             f.write(report)
@@ -233,7 +261,7 @@ class Output:
                 mun_applied_treasure[k] = sum(r.applied_treasure[k] for r in regions)
 
             # average QLI of regions
-            mun_qli = sum(r.index for r in regions)/len(regions)
+            mun_qli = sum(r.index for r in regions) / len(regions)
 
             reports.append('%s;%s;%.3f;%d;%.3f;%.4f;%.3f;%.4f;%.5f;%.3f;%.6f;%.6f;%.6f;%.6f;%s'
                            % (sim.clock.days, mun_id, commuting, mun_pop, mun_gdp, mun_gini, mun_house_values,
@@ -244,7 +272,7 @@ class Output:
                               licenses))
 
         with open(self.regional_path, 'a') as f:
-            f.write('\n'+'\n'.join(reports))
+            f.write('\n' + '\n'.join(reports))
 
     def save_data(self, sim):
         # firms data is necessary for plots,
@@ -261,31 +289,32 @@ class Output:
     def save_firms_data(self, sim):
         with open(self.firms_path, 'a') as f:
             [f.write('%s; %s; %s; %s; %.3f; %.3f; %.3f; %s; %.3f; %.3f; %.3f ; %.3f; %.3f; %.3f; %.3f \n' %
-                            (sim.clock.days, firm.id, firm.region_id, firm.region_id[:7], firm.address.x,
-                             firm.address.y, firm.total_balance, firm.num_employees,
-                             firm.total_quantity, firm.amount_produced, firm.inventory[0].price,
-                             firm.amount_sold, firm.revenue, firm.profit,
-                             firm.wages_paid))
-            for firm in sim.consumer_firms.values()]
+                     (sim.clock.days, firm.id, firm.region_id, firm.region_id[:7], firm.address.x,
+                      firm.address.y, firm.total_balance, firm.num_employees,
+                      firm.total_quantity, firm.amount_produced, firm.inventory[0].price,
+                      firm.amount_sold, firm.revenue, firm.profit,
+                      firm.wages_paid))
+             for firm in sim.firms.values()]
 
         with open(self.construction_path, 'a') as f:
             [f.write('%s; %s; %s; %s; %.3f; %.3f; %.3f; %s; %.3f; %.3f; %.3f ; %.3f; %.3f; %.3f; %.3f \n' %
-                            (sim.clock.days, firm.id, firm.region_id, firm.region_id[:7], firm.address.x,
-                            firm.address.y, firm.total_balance, firm.num_employees,
-                            firm.total_quantity, len(firm.houses_built), firm.mean_house_price(),
-                            firm.n_houses_sold, firm.revenue, firm.profit,
-                            firm.wages_paid))
-            for firm in sim.construction_firms.values()]
+                     (sim.clock.days, firm.id, firm.region_id, firm.region_id[:7], firm.address.x,
+                      firm.address.y, firm.total_balance, firm.num_employees,
+                      firm.total_quantity, len(firm.houses_built), firm.mean_house_price(),
+                      firm.n_houses_sold, firm.revenue, firm.profit,
+                      firm.wages_paid))
+             for firm in sim.firms.values()
+             if firm.sector == 'Construction']
 
     def save_agents_data(self, sim):
         with open(self.agents_path, 'a') as f:
             [f.write('%s;%s;%s;%.3f;%.3f;%s;%s;%s;%s;%s;%.3f;%s\n' % (sim.clock.days, agent.region_id,
-                                                                           agent.gender, agent.address.x,
-                                                                           agent.address.y, agent.id, agent.age,
-                                                                           agent.qualification, agent.firm_id,
-                                                                           agent.family.id, agent.money,
-                                                                           agent.distance))
-            for agent in sim.agents.values()]
+                                                                      agent.gender, agent.address.x,
+                                                                      agent.address.y, agent.id, agent.age,
+                                                                      agent.qualification, agent.firm_id,
+                                                                      agent.family.id, agent.money,
+                                                                      agent.distance))
+             for agent in sim.agents.values()]
 
     def save_grave_data(self, sim):
         with open(self.grave_path, 'a') as f:
@@ -298,7 +327,7 @@ class Output:
                                                                        agent.family.id if agent.family else None,
                                                                        agent.money, agent.utility,
                                                                        agent.distance))
-            for agent in sim.grave]
+             for agent in sim.grave]
 
     def save_house_data(self, sim):
         with open(self.houses_path, 'a') as f:
@@ -328,7 +357,7 @@ class Output:
                                                           family.total_wage(),
                                                           family.savings,
                                                           family.num_members))
-            for family in sim.families.values()]
+             for family in sim.families.values()]
 
     def save_banks_data(self, sim):
         bank = sim.central
@@ -366,4 +395,6 @@ class Output:
                 'firms': firms,
                 'houses': houses,
                 'agents': agents
-            }, f, default=str)
+            }, f,
+                indent=4,
+                default=str)

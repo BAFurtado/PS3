@@ -122,6 +122,9 @@ class Statistics(object):
     def calculate_firms_wealth(self, firms):
         return np.sum([firms[firm].total_balance for firm in firms.keys()])
 
+    def calculate_emissions(self, firms):
+        return np.sum([firms[firm].env_indicators['emissions'] for firm in firms.keys()])
+
     def calculate_firms_median_wealth(self, firms):
         return np.median([firms[firm].total_balance for firm in firms.keys()])
 

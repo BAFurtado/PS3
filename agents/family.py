@@ -1,6 +1,7 @@
 import datetime
 
 import numpy as np
+from collections import defaultdict
 
 
 class Family:
@@ -214,36 +215,50 @@ class Family:
             self.savings += (money - consumption)
         return consumption
 
-    def consume(self, firms, central, regions, params, seed, year, month, origin):
+    def consume(self, regional_market, firms, central, regions, params, seed, year, month, if_origin):
         """Consumption from goods and services firms, based on criteria of price or distance.
         Family general consumption depends on its permanent income, based on members wages, working life expectancy
         and real estate and savings interest
         """
+        total_consumption = defaultdict(float)
         money_to_spend = self.decision_on_consumption(central, central.interest, year, month)
         # Decision on how much money to consume or save
 
         if money_to_spend is not None:
             # Picks SIZE_MARKET number of firms at seed and choose the closest or the cheapest
             # Consumes from each product the chosen firm offers
-            market = seed.sample(firms, min(len(firms), int(params['SIZE_MARKET'])))
-            market = [firm for firm in market if firm.get_total_quantity() > 0]
-            if market:
-                # Choose between cheapest or closest
-                firm_strategy = seed.choice(['Price', 'Distance'])
+            self.average_utility = 0
+            # Here each sector to buy from are in the rows, and the buying column refer to HouseholdConsumption
+            # Construction and Government are 0 in the table. Specific construction market apply
+            for sector in regional_market.final_demand.index:
+                money_this_sector = money_to_spend * regional_market.final_demand['HouseholdConsumption'][sector]
+                # Some sectors have 0 value, such as Government, Mining, and Construction (explicit markets are used)
+                if money_this_sector == 0:
+                    continue
+                # Choose the firm to buy inputs from
+                sector_firms = [f for f in firms.values() if f.sector == sector]
+                market = seed.sample(sector_firms, min(len(sector_firms), int(params['SIZE_MARKET'])))
+                market = [firm for firm in market if firm.get_total_quantity() > 0]
+                if market:
+                    # Choose between cheapest or closest
+                    firm_strategy = seed.choice(['Price', 'Distance'])
 
-                if firm_strategy == 'Price':
-                    # Choose firm with the cheapest average prices
-                    chosen_firm = min(market, key=lambda firm: firm.prices)
-                else:
-                    # Choose the closest firm
-                    chosen_firm = min(market, key=lambda firm: self.house.distance_to_firm(firm))
+                    if firm_strategy == 'Price':
+                        # Choose firm with the cheapest average prices
+                        chosen_firm = min(market, key=lambda firm: firm.prices)
+                    else:
+                        # Choose the closest firm
+                        chosen_firm = min(market, key=lambda firm: self.house.distance_to_firm(firm))
 
-                # Buy from chosen company
-                change = chosen_firm.sale(money_to_spend, regions, params['TAX_CONSUMPTION'], self.region_id, origin)
-                self.savings += change
+                    # Buy from chosen company
+                    change = chosen_firm.sale(money_this_sector, regions, params['TAX_CONSUMPTION'],
+                                              self.region_id, if_origin)
+                    self.savings += change
 
-                # Update monthly family utility
-                self.average_utility = money_to_spend - change
+                    # Update monthly family utility
+                    self.average_utility += money_this_sector - change
+                    total_consumption[sector] += money_this_sector - change
+        return total_consumption
 
     @property
     def agents(self):

@@ -69,7 +69,7 @@ def load_pops(mun_codes, params, year):
 
         # rename from cod_mun b/c we may also have
         # AP codes, not just municipal codes
-        pop.rename(columns={'cod_mun': 'code'}, inplace=True)
+        pop = pop.rename(columns={'cod_mun': 'code'})
         pops[gender] = pop
 
     ap_pops = pd.read_csv(f'input/num_people_age_gender_AP_{year}.csv', sep=';', header=0)
