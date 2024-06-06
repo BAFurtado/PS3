@@ -133,9 +133,9 @@ WAGE_TO_CAR_OWNERSHIP_QUANTILES = [
     0.7779,
     0.9135,
 ]
-PRIVATE_TRANSIT_COST = 0.25
-PUBLIC_TRANSIT_COST = 0.05
-
+PRIVATE_TRANSIT_COST = .25
+PUBLIC_TRANSIT_COST = .05
+REGIONAL_FREIGHT_COST = .3
 
 # RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation

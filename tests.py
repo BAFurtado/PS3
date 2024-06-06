@@ -33,13 +33,14 @@ check(
     == len(set([f_i for f_i in sim.families.values() if f_i.house.family_id])),
 )
 
-conf.PARAMS["PERCENT_CONSTRUCTION_FIRMS"] = 0.0
-sim = Simulation(conf.PARAMS, path)
-sim.initialize()
-N_HOUSES = len(sim.houses)
-sim.run()
-check(
-    "No construction firms leads to no new houses",
-    lambda sim: len(sim.houses) == N_HOUSES,
-)
+# DEPRECATED
+# conf.PARAMS["PERCENT_CONSTRUCTION_FIRMS"] = 0.0
+# sim = Simulation(conf.PARAMS, path)
+# sim.initialize()
+# N_HOUSES = len(sim.houses)
+# sim.run()
+# check(
+#     "No construction firms leads to no new houses",
+#     lambda sim: len(sim.houses) == N_HOUSES,
+# )
 

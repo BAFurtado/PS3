@@ -149,7 +149,7 @@ class External:
             # Sticking to a SINGLE product for firm
             amount_per_product = amount / 1
             # FREIGHT included for external goods
-            bought_quantity = amount / price  # (self.sim.avg_prices * (1 + self.sim.PARAMS['PUBLIC_TRANSIT_COST']))
+            bought_quantity = amount / price
             self.amount_sold += amount_per_product
             self.total_quantity -= bought_quantity
             self.taxes_paid += amount_per_product * self.tax_consumption
