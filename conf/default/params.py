@@ -4,31 +4,31 @@ import datetime
 
 # FIRMS #########################################################
 # Production function, labour with decaying exponent, Alpha for K. [0, 1]
-PRODUCTIVITY_EXPONENT = 0.62
+PRODUCTIVITY_EXPONENT = 1
 # Order of magnitude correction of production. Production divided by parameter
-PRODUCTIVITY_MAGNITUDE_DIVISOR = 3
+PRODUCTIVITY_MAGNITUDE_DIVISOR = 10
 # GENERAL CALIBRATION PARAMETERS
 # Order of magnitude parameter of input into municipality investment
-MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.00004
+MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.00003
 # INTEREST. Choose either: 'nominal', 'real' or 'fixed'. Default 'real'
 INTEREST = "real"
 # By how much percentage to increase prices
-MARKUP = 0.16
+MARKUP = 0.15
 # Frequency firms change prices. Probability > than parameter
-STICKY_PRICES = 0.5
+STICKY_PRICES = .8
 # Price ruggedness a positive value (below 1) that multiplies the magnitude of price reduction
 # Reflects a reluctance of businesses to lower prices. Amount estimated for reduction multiplied by parameter
-PRICE_RUGGEDNESS = 0.5
+PRICE_RUGGEDNESS = 0.8
 # Number of firms consulted before consumption
-SIZE_MARKET = 10
+SIZE_MARKET = 24
 # Frequency firms enter the market
-LABOR_MARKET = 0.5
+LABOR_MARKET = 0.2
 # Percentage of employees firms hired by distance
-PCT_DISTANCE_HIRING = 0.5
+PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
-RELEVANCE_UNEMPLOYMENT_SALARIES = 0.2
+RELEVANCE_UNEMPLOYMENT_SALARIES = 0.17
 # Candidate sample size for the labor market
-HIRING_SAMPLE_SIZE = 10
+HIRING_SAMPLE_SIZE = 20
 # GOVERNMENT ####################################################################
 # ALTERNATIVE OF DISTRIBUTION OF TAXES COLLECTED. REPLICATING THE NOTION OF A COMMON POOL OF RESOURCES ################
 # Alternative0 is True, municipalities are just normal as INPUT
@@ -60,11 +60,11 @@ MAX_LOAN_AGE = 70
 # Used to calculate monthly payment for the families, thus limiting maximum loan by number of months and age
 # Because permanent income includes wealth, it should be just a small percentage,
 # otherwise compromises monthly consumption.
-LOAN_PAYMENT_TO_PERMANENT_INCOME = 0.05
+LOAN_PAYMENT_TO_PERMANENT_INCOME = 0.07
 # Refers to the maximum loan monthly payment to total wealth
 # MAX_LOAN_PAYMENT_TO_WEALTH=.4
 # Refers to the maximum rate of the loan on the value of the estate
-MAX_LOAN_TO_VALUE = 0.4
+MAX_LOAN_TO_VALUE = 0.35
 # This parameter refers to the total amount of resources available at the bank.
 MAX_LOAN_BANK_PERCENT = 0.6
 
@@ -81,12 +81,12 @@ ON_MARKET_DECAY_FACTOR = -0.01
 # LOWER BOUND, THAT IS, AT LEAST 50% PERCENT OF VALUE WILL REMAIN AT END OF PERIOD, IF PARAMETER IS .5
 MAX_OFFER_DISCOUNT = 0.6
 # Percentage of households pursuing new location (on average families move about once every 20 years)
-PERCENTAGE_ENTERING_ESTATE_MARKET = 0.0042
-NEIGHBORHOOD_EFFECT = 1
+PERCENTAGE_ENTERING_ESTATE_MARKET = 0.002
+NEIGHBORHOOD_EFFECT = 2
 
 # RENTAL #######################
-RENTAL_SHARE = 0.2
-INITIAL_RENTAL_PRICE = 0.004
+RENTAL_SHARE = 0.25
+INITIAL_RENTAL_PRICE = 0.0003
 
 # CONSTRUCTION #################################################################################
 # LICENSES ARE URBANIZED LOTS AVAILABLE FOR CONSTRUCTION PER NEIGHBORHOOD PER MONTH.
@@ -143,13 +143,13 @@ REGIONAL_FREIGHT_COST = .3
 PERCENTAGE_ACTUAL_POP = 0.01
 
 # Write exactly like the list above
-PROCESSING_ACPS = ["IPATINGA"]
+PROCESSING_ACPS = ["BRASILIA"]
 
 # Selecting the starting year to build the Agents, can be: 1991, 2000 or 2010
 STARTING_DAY = datetime.date(2010, 1, 1)
 
 # Maximum running time (restrained by official data) is 30 years,
-TOTAL_DAYS = (datetime.date(2012, 1, 1) - STARTING_DAY).days
+TOTAL_DAYS = (datetime.date(2020, 1, 1) - STARTING_DAY).days
 
 # Select the possible ACPs (Population Concentration Areas) from the list below.
 # Actually they are URBAN CONCENTRATION AREAS FROM IBGE, 2022
