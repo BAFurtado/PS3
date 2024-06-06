@@ -157,7 +157,7 @@ class Firm:
 
             # External buying of inputs includes an ADDITIONAL FREIGHT COST!
             money_external_inputs = sum([external_input_quantities_needed[sector] * chosen_firms_per_sector[
-                sector].prices * (1 + params['PUBLIC_TRANSIT_COST'])
+                sector].prices * (1 + params['REGIONAL_FREIGHT_COST'])
                                          for sector in regional_market.technical_matrix.index
                                          if chosen_firms_per_sector[sector]])
 
@@ -184,7 +184,7 @@ class Firm:
                 # External money includes FREIGHT
                 external_money_this_sector = (reduction_factor * external_input_quantities_needed[sector] *
                                               prices *
-                                              (1 + params['PUBLIC_TRANSIT_COST']))
+                                              (1 + params['REGIONAL_FREIGHT_COST']))
                 if money_this_sector == 0 and external_money_this_sector == 0:
                     continue
                 # Uses regional market to access intermediate consumption and each firm sale function
@@ -201,11 +201,11 @@ class Firm:
                 # Go for external market which has full supply
                 regional_market.sim.external.intermediate_consumption(external_money_this_sector,
                                                                       prices *
-                                                                      (1 + params['PUBLIC_TRANSIT_COST']))
+                                                                      (1 + params['REGIONAL_FREIGHT_COST']))
                 self.input_inventory[sector] += (money_this_sector - change) / prices
                 self.external_input_inventory[sector] += external_money_this_sector / (prices *
                                                                                        (1 + params[
-                                                                                           'PUBLIC_TRANSIT_COST']))
+                                                                                           'REGIONAL_FREIGHT_COST']))
             # TODO. Check that we have at least 3 firms from each sector... include in the generator
 
     def update_product_quantity(self, prod_exponent, prod_divisor, regional_market, firms, seed_np):
