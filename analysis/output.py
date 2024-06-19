@@ -39,7 +39,6 @@ OUTPUT_DATA_SPEC = {
                     'families_savings',
                     'families_helped',
                     'amount_subsidised',
-                    'firms_wealth',
                     'firms_profit',
                     'firms_median_stock',
                     'firms_median_wage_paid',
@@ -166,7 +165,6 @@ class Output:
         families_savings = sim.stats.calculate_families_savings(sim.families)
         families_wages_received = sim.stats.calculate_families_wages_received(sim.families)
         commuting = sim.stats.update_commuting(sim.families.values())
-        firms_wealth = sim.stats.calculate_firms_wealth(sim.firms)
         firms_profit = sim.stats.calculate_firms_profit(sim.firms)
         firms_median_stock = sim.stats.calculate_firms_median_stock(sim.firms)
         firms_median_wages_paid = sim.stats.calculate_firms_median_wages_paid(sim.firms)
@@ -200,7 +198,6 @@ class Output:
                  f"{families_savings:.3f};" \
                  f"{families_helped:.0f};" \
                  f"{amount_subsided:.3f};" \
-                 f"{firms_wealth:.3f};" \
                  f"{firms_profit:.3f};" \
                  f"{firms_median_stock:.2f};" \
                  f"{firms_median_wages_paid:.3f};" \

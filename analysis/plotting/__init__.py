@@ -150,7 +150,7 @@ class Plotter:
         cols = ['pop', 'price_index', 'gdp_index', 'gdp_growth', 'unemployment', 'average_workers',
                 'families_median_wealth', 'families_wages_received',
                 'families_commuting', 'families_savings', 'families_helped', 'amount_subsidised',
-                'firms_wealth', 'firms_profit', 'firms_median_stock', 'firms_median_wage_paid', 'gini_index',
+                'firms_profit', 'firms_median_stock', 'firms_median_wage_paid', 'gini_index',
                 'average_utility', 'pct_zero_consumption', 'rent_default', 'inflation', 'average_qli', 'house_vacancy',
                 'house_price', 'house_rent', 'affordable', 'p_delinquent', 'equally', 'locally', 'fpm', 'bank',
                 'ext_amount_sold', 'emissions']
@@ -161,7 +161,7 @@ class Plotter:
                   'Families\' median wages received', 'Families\' total commuting',
                   'Families\' absolute savings', 'Number of families receiving policy help',
                   'Amount of $ implemented by policy',
-                  'Firms\' absolute capital', 'Firms\' profit', 'Firms\' median stock',
+                  'Firms\' profit', 'Firms\' median stock',
                   'Firms\' median wages paid', 'GINI index',
                   'Average families\' utility', 'Percentual families zero consumption',
                   'Percentual default among renting families', 'Monthly goods and services inflation',

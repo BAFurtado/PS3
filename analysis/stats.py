@@ -119,9 +119,6 @@ class Statistics(object):
         return np.sum([1 for family in families.values() if family.rent_default == 1 and family.is_renting]) / \
             np.sum([1 for family in families.values() if family.is_renting])
 
-    def calculate_firms_wealth(self, firms):
-        return np.sum([firms[firm].total_balance for firm in firms.keys()])
-
     def calculate_emissions(self, firms):
         return np.sum([firms[firm].env_indicators['emissions'] for firm in firms.keys()])
 
