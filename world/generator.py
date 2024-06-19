@@ -148,7 +148,7 @@ class Generator:
 
             # Allocating only percentage of houses to ownership.
             owners_size = int(
-                (1 - self.sim.PARAMS["RENTAL_SHARE"]) * len(regional_houses)
+                (1 - self.sim.PARAMS["INITIAL_RENTAL_SHARE"]) * len(regional_houses)
             )
 
             # Do not allocate all houses to families. Some families (parameter) will have to rent

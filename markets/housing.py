@@ -89,7 +89,7 @@ class HousingMarket:
         # Only rent from families, not firms
         family_houses_to_rent = [h for h in self.for_sale if h.family_owner]
         houses_to_rent = sim.seed.sample(family_houses_to_rent,
-                                         int(len(family_houses_to_rent) * sim.PARAMS['RENTAL_SHARE']))
+                                         int(len(family_houses_to_rent) * sim.PARAMS['INITIAL_RENTAL_SHARE']))
 
         # Deduce houses that are to be rented from sales pool and
         # Restrict list of available houses to families' maximum paying ability
@@ -120,7 +120,7 @@ class HousingMarket:
             for quality_key in purchasing:
                 renting[quality_key] = sim.seed.sample(purchasing[quality_key],
                                                        int(len(purchasing[quality_key]) *
-                                                           sim.PARAMS['RENTAL_SHARE']))
+                                                           sim.PARAMS['INITIAL_RENTAL_SHARE']))
                 # The families that are not renting, want to join the purchasing list
                 willing[quality_key] = [f for f in purchasing[quality_key] if f not in renting[quality_key]]
 

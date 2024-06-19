@@ -85,7 +85,7 @@ PERCENTAGE_ENTERING_ESTATE_MARKET = 0.002
 NEIGHBORHOOD_EFFECT = 2
 
 # RENTAL #######################
-RENTAL_SHARE = 0.25
+INITIAL_RENTAL_SHARE = 0.25
 INITIAL_RENTAL_PRICE = 0.0003
 
 # CONSTRUCTION #################################################################################
