@@ -186,7 +186,7 @@ class Output:
         for k in ['equally', 'locally', 'fpm']:
             mun_applied_treasure[k] = sum(r.applied_treasure[k] for r in sim.regions.values())
         # External
-        ext_amount_sold = sim.external.get_amount_sold()
+        ext_amount_sold = sim.external.get_external_amount_sold()
         emissions = sim.stats.calculate_emissions(sim.firms)
 
         report = f"{sim.clock.days};{pop:d};" \
@@ -292,6 +292,7 @@ class Output:
                       firm.amount_sold, firm.revenue, firm.profit,
                       firm.wages_paid))
              for firm in sim.firms.values()]
+        [f.reset_amount_sold() for f in sim.firms.values()]
 
         with open(self.construction_path, 'a') as f:
             [f.write('%s; %s; %s; %s; %.3f; %.3f; %.3f; %s; %.3f; %.3f; %.3f ; %.3f; %.3f; %.3f; %.3f \n' %

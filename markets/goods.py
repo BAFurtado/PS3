@@ -140,7 +140,7 @@ class External:
         self.cumulative_taxes_paid = 0
         self.tax_consumption = tax_consumption
 
-    def get_amount_sold(self):
+    def get_external_amount_sold(self):
         return self.amount_sold
 
     def intermediate_consumption(self, amount, price=1):

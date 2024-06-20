@@ -209,7 +209,7 @@ class Family:
                     else:
                         consumption = 0
 
-        # If we grabed more than planned
+        # If we grabbed more than planned
         if money > consumption + rent + loan:
             # Deposit money above that of expenses
             self.savings += (money - consumption)
@@ -221,13 +221,15 @@ class Family:
         and real estate and savings interest
         """
         total_consumption = defaultdict(float)
-        money_to_spend = self.decision_on_consumption(central, central.interest, year, month)
         # Decision on how much money to consume or save
+        money_to_spend = self.decision_on_consumption(central, central.interest, year, month)
+
+        # Reset monthly's family consumption
+        self.average_utility = 0
 
         if money_to_spend is not None:
             # Picks SIZE_MARKET number of firms at seed and choose the closest or the cheapest
             # Consumes from each product the chosen firm offers
-            self.average_utility = 0
             # Here each sector to buy from are in the rows, and the buying column refer to HouseholdConsumption
             # Construction and Government are 0 in the table. Specific construction market apply
             for sector in regional_market.final_demand.index:
