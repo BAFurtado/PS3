@@ -150,7 +150,7 @@ class HousingMarket:
         # For each family
         for quality_key in purchasing:
             for family in purchasing[quality_key]:
-                # Sending a smaller list to negotiating with specific submarket
+                # Sending a smaller list to negotiate within specific submarket
                 # (same quality as household savings distribution quantile)
                 self.negotiating(family, houses_to_sell_by_quality[quality_key], sim, vacancy)
 

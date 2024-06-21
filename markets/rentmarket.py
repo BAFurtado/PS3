@@ -89,8 +89,6 @@ class RentalMarket:
         # Families that come here without a house (from marriage or immigration) need to move in or give up their plans
         # In that case, the list of houses is any unoccupied houses. Not a sample list separated for the rental market
         # Check for no rental market test
-        if sim.PARAMS['INITIAL_RENTAL_SHARE'] == 0:
-            return
         try:
             vacancy = sim.stats.calculate_house_vacancy(sim.houses, False)
         # When houses have not generated yet, at time 0
