@@ -26,7 +26,7 @@ class House:
         self.owner_type = owner_type
         self.rent_data = None
         self.on_market = 0
-        # Cache firm distances, since houses never change address
+        # Cache firm distances, since houses and firms never change address
         self._firm_distances = {}
 
     def update_price(self, regions, k, bound, neighborhood, value):

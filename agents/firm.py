@@ -1,10 +1,13 @@
-import datetime, copy
+import copy
+import datetime
+from collections import defaultdict
+
 import numpy as np
 import pandas as pd
 from dateutil import relativedelta
+
 from .house import House
 from .product import Product
-from collections import defaultdict
 
 np.seterr(divide='ignore', invalid='ignore')
 initial_input_sectors = {'Agriculture': 1,
@@ -113,7 +116,7 @@ class Firm:
             emissions_this_month = self.wages_paid / self.emissions_base
             self.env_indicators['emissions'] += emissions_this_month
 
-    # PRODUCTION DEPARTMENT
+    # PRODUCTION DEPARTMENT ###########################################################################################
     def choose_firm_per_sector(self, regional_market, firms, seed_np):
         """
         Choose local firms to buy inputs from
@@ -132,15 +135,14 @@ class Firm:
             chosen_firms[sector] = chosen_firm
         return chosen_firms
 
-    def buy_inputs(self, desired_quantity, regional_market, firms, seed_np):
+    def buy_inputs(self, desired_quantity, regional_market, firms, seed_np,
+                   technical_matrix, external_technical_matrix):
         """
         Buys inputs according to the technical coefficients.
         In fact, this is the intermediate consumer market (firms buying from firms)
         """
         if self.total_balance > 0:
             # First the firm checks how much it needs to buy
-            technical_matrix = regional_market.technical_matrix
-            external_technical_matrix = regional_market.loc_ext_matrix
             params = regional_market.sim.PARAMS
             input_quantities_needed = np.clip(desired_quantity *
                                               technical_matrix.loc[:, self.sector]
@@ -182,6 +184,7 @@ class Firm:
                                      input_quantities_needed[sector] *
                                      prices)
                 # External money includes FREIGHT
+                # TODO. Check flow consistency, where does FREIGHT MONEY GOES?
                 external_money_this_sector = (reduction_factor * external_input_quantities_needed[sector] *
                                               prices *
                                               (1 + params['REGIONAL_FREIGHT_COST']))
@@ -227,7 +230,9 @@ class Firm:
             technical_matrix = regional_market.technical_matrix
             external_technical_matrix = regional_market.loc_ext_matrix
 
-            self.buy_inputs(desired_quantity, regional_market, firms, seed_np)
+            # Buy inputs fills up input_inventory and external_input_inventory
+            self.buy_inputs(desired_quantity, regional_market, firms, seed_np,
+                            technical_matrix, external_technical_matrix)
             input_quantities_needed = desired_quantity * technical_matrix.loc[:, self.sector]
             external_input_quantities_needed = desired_quantity * external_technical_matrix.loc[:, self.sector]
 
@@ -259,7 +264,6 @@ class Firm:
                 aa = {sector:
                           self.external_input_inventory[sector] / external_input_quantities_needed[sector]
                       for sector in regional_market.technical_matrix.index}
-                pass
             input_used = productive_constraint * input_quantities_needed
             external_input_used = productive_constraint * external_input_quantities_needed
             quantity = productive_constraint * desired_quantity

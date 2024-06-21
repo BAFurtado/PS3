@@ -85,7 +85,7 @@ PERCENTAGE_ENTERING_ESTATE_MARKET = 0.002
 NEIGHBORHOOD_EFFECT = 2
 
 # RENTAL #######################
-INITIAL_RENTAL_SHARE = 0
+INITIAL_RENTAL_SHARE = 0.25
 INITIAL_RENTAL_PRICE = 0.003
 
 # CONSTRUCTION #################################################################################
@@ -140,7 +140,7 @@ REGIONAL_FREIGHT_COST = .3
 # RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation
 # Minimum value to run depends on the size of municipality 0,001 is recommended minimum
-PERCENTAGE_ACTUAL_POP = 0.01
+PERCENTAGE_ACTUAL_POP = 0.001
 
 # Write exactly like the list above
 PROCESSING_ACPS = ["BRASILIA"]
