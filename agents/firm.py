@@ -163,7 +163,7 @@ class Firm:
 
             # External buying of inputs includes an ADDITIONAL FREIGHT COST!
             money_external_inputs = sum([external_input_quantities_needed[sector] * chosen_firms_per_sector[
-                sector].prices * (1 + params['REGIONAL_FREIGHT_COST'])
+                sector][0].prices * (1 + params['REGIONAL_FREIGHT_COST'])
                                          for sector in regional_market.technical_matrix.index
                                          if chosen_firms_per_sector[sector]])
 
