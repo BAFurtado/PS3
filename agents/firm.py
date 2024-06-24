@@ -197,10 +197,12 @@ class Firm:
                 # Uses regional market to access intermediate consumption and each firm sale function
                 # Returns change, if any
                 if chosen_firms_per_sector[sector]:
+                    change = 0
                     # Buy inputs from all selected firms (from 1 to 3)
                     money_this_sector = money_this_sector / len(chosen_firms_per_sector[sector])
-                    change = regional_market.intermediate_consumption(money_this_sector,
-                                                                      chosen_firms_per_sector[sector])
+                    for firm in chosen_firms_per_sector[sector]:
+                        change += regional_market.intermediate_consumption(money_this_sector,
+                                                                           firm)
                 else:
                     change = money_this_sector
                 # if change is None:
