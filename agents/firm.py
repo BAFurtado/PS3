@@ -157,7 +157,7 @@ class Firm:
             # Choose the firm to buy inputs from
             int_size_market = regional_market.sim.PARAMS['INTERMEDIATE_SIZE_MARKET']
             chosen_firms_per_sector = self.choose_firm_per_sector(regional_market, firms, seed_np, int_size_market)
-            money_local_inputs = sum([input_quantities_needed[sector] * chosen_firms_per_sector[sector].prices
+            money_local_inputs = sum([input_quantities_needed[sector] * chosen_firms_per_sector[sector][0].prices
                                       for sector in regional_market.technical_matrix.index
                                       if chosen_firms_per_sector[sector]])
 
