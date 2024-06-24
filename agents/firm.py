@@ -131,9 +131,9 @@ class Firm:
             market = [firm for firm in market if firm.get_total_quantity() > 0]
             if market:
                 # Choose firms with the cheapest average prices
-                chosen_firm = market.sort(key=lambda firm: firm.prices)
+                market.sort(key=lambda firm: firm.prices)
                 # Choose the THREE cheapest firms, when available
-                chosen_firms[sector] = chosen_firm[:min(len(chosen_firm), int_size_market)]
+                chosen_firms[sector] = market[:min(len(market), int_size_market)]
             else:
                 chosen_firms[sector] = None
         return chosen_firms
