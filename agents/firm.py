@@ -122,7 +122,7 @@ class Firm:
         Choose local firms to buy inputs from
         """
         params = regional_market.sim.PARAMS
-        chosen_firms, chosen_firm = {}, None
+        chosen_firms = {}
         for sector in regional_market.technical_matrix.index:
             market = seed_np.choice(
                 [f for f in firms.values() if (f.sector == sector) & (f.id != self.id)],
@@ -132,8 +132,10 @@ class Firm:
             if market:
                 # Choose firms with the cheapest average prices
                 chosen_firm = market.sort(key=lambda firm: firm.prices)
-            # Choose the THREE cheapest firms, when available
-            chosen_firms[sector] = chosen_firm[:min(len(chosen_firm), int_size_market)]
+                # Choose the THREE cheapest firms, when available
+                chosen_firms[sector] = chosen_firm[:min(len(chosen_firm), int_size_market)]
+            else:
+                chosen_firms[sector] = None
         return chosen_firms
 
     def buy_inputs(self, desired_quantity, regional_market, firms, seed_np,
