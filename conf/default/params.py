@@ -21,6 +21,8 @@ STICKY_PRICES = .8
 PRICE_RUGGEDNESS = 0.8
 # Number of firms consulted before consumption
 SIZE_MARKET = 24
+# Number of firms to buy from in the INTERMEDIATE market
+INTERMEDIATE_SIZE_MARKET = 3
 # Frequency firms enter the market
 LABOR_MARKET = 0.2
 # Percentage of employees firms hired by distance

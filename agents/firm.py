@@ -117,7 +117,7 @@ class Firm:
             self.env_indicators['emissions'] += emissions_this_month
 
     # PRODUCTION DEPARTMENT ###########################################################################################
-    def choose_firm_per_sector(self, regional_market, firms, seed_np):
+    def choose_firm_per_sector(self, regional_market, firms, seed_np, int_size_market):
         """
         Choose local firms to buy inputs from
         """
@@ -130,9 +130,10 @@ class Firm:
                          int(params['SIZE_MARKET'])), replace=False)
             market = [firm for firm in market if firm.get_total_quantity() > 0]
             if market:
-                # Choose firm with the cheapest average prices
-                chosen_firm = min(market, key=lambda firm: firm.prices)
-            chosen_firms[sector] = chosen_firm
+                # Choose firms with the cheapest average prices
+                chosen_firm = market.sort(key=lambda firm: firm.prices)
+            # Choose the THREE cheapest firms, when available
+            chosen_firms[sector] = chosen_firm[:min(len(chosen_firm), int_size_market)]
         return chosen_firms
 
     def buy_inputs(self, desired_quantity, regional_market, firms, seed_np,
@@ -152,7 +153,8 @@ class Firm:
                                                        - pd.Series(self.external_input_inventory), 0, None)
 
             # Choose the firm to buy inputs from
-            chosen_firms_per_sector = self.choose_firm_per_sector(regional_market, firms, seed_np)
+            int_size_market = regional_market.sim.PARAMS['INTERMEDIATE_SIZE_MARKET']
+            chosen_firms_per_sector = self.choose_firm_per_sector(regional_market, firms, seed_np, int_size_market)
             money_local_inputs = sum([input_quantities_needed[sector] * chosen_firms_per_sector[sector].prices
                                       for sector in regional_market.technical_matrix.index
                                       if chosen_firms_per_sector[sector]])
@@ -174,10 +176,10 @@ class Firm:
             # Withdraw all the necessary money. If no inputs are available, change is returned
             self.total_balance -= reduction_factor * (money_local_inputs + money_external_inputs)
 
-            # First buy inputs locally
+            # First buy inputs locally. Pay cheapest firm prices
             for sector in regional_market.technical_matrix.index:
                 if chosen_firms_per_sector[sector]:
-                    prices = chosen_firms_per_sector[sector].prices
+                    prices = chosen_firms_per_sector[sector][0].prices
                 else:
                     prices = regional_market.sim.avg_prices
                 money_this_sector = (reduction_factor *
@@ -193,6 +195,8 @@ class Firm:
                 # Uses regional market to access intermediate consumption and each firm sale function
                 # Returns change, if any
                 if chosen_firms_per_sector[sector]:
+                    # Buy inputs from all selected firms (from 1 to 3)
+                    money_this_sector = money_this_sector / len(chosen_firms_per_sector[sector])
                     change = regional_market.intermediate_consumption(money_this_sector,
                                                                       chosen_firms_per_sector[sector])
                 else:
