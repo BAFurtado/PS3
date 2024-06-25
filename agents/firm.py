@@ -133,7 +133,7 @@ class Firm:
                 # Choose firms with the cheapest average prices
                 market.sort(key=lambda firm: firm.prices)
                 # Choose the THREE cheapest firms, when available
-                chosen_firms[sector] = market[:min(len(market), params['INTERMEDIATE_SIZE_MARKET'])]
+                chosen_firms[sector] = market[:min(len(market), int(params['INTERMEDIATE_SIZE_MARKET']))]
             else:
                 chosen_firms[sector] = None
         return chosen_firms
@@ -155,8 +155,8 @@ class Firm:
                                                        - pd.Series(self.external_input_inventory), 0, None)
 
             # Choose the firm to buy inputs from
-            int_size_market = regional_market.sim.PARAMS['INTERMEDIATE_SIZE_MARKET']
-            chosen_firms_per_sector = self.choose_firm_per_sector(regional_market, firms, seed_np, int_size_market)
+            chosen_firms_per_sector = self.choose_firm_per_sector(regional_market, firms, seed_np,
+                                                                  params['INTERMEDIATE_SIZE_MARKET'])
             money_local_inputs = sum([input_quantities_needed[sector] * chosen_firms_per_sector[sector][0].prices
                                       for sector in regional_market.technical_matrix.index
                                       if chosen_firms_per_sector[sector]])
