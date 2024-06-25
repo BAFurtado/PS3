@@ -10,18 +10,18 @@ from .house import House
 from .product import Product
 
 np.seterr(divide='ignore', invalid='ignore')
-initial_input_sectors = {'Agriculture': 1,
-                         'Mining': 1,
-                         'Manufacturing': 1,
-                         'Utilities': 1,
-                         'Construction': 1,
-                         'Trade': 1,
-                         'Transport': 1,
-                         'Business': 1,
-                         'Financial': 1,
-                         'RealEstate': 1,
-                         'OtherServices': 1,
-                         'Government': 1
+initial_input_sectors = {'Agriculture': 100,
+                         'Mining': 100,
+                         'Manufacturing': 100,
+                         'Utilities': 100,
+                         'Construction': 100,
+                         'Trade': 100,
+                         'Transport': 100,
+                         'Business': 100,
+                         'Financial': 100,
+                         'RealEstate': 100,
+                         'OtherServices': 100,
+                         'Government': 100
                          }
 
 emissions = pd.read_csv('input/mediana_eco_emissoes_sector_mun_2010.csv', dtype={'mun_code': str})
@@ -117,7 +117,7 @@ class Firm:
             self.env_indicators['emissions'] += emissions_this_month
 
     # PRODUCTION DEPARTMENT ###########################################################################################
-    def choose_firm_per_sector(self, regional_market, firms, seed_np, int_size_market):
+    def choose_firm_per_sector(self, regional_market, firms, seed_np):
         """
         Choose local firms to buy inputs from
         """
@@ -133,7 +133,7 @@ class Firm:
                 # Choose firms with the cheapest average prices
                 market.sort(key=lambda firm: firm.prices)
                 # Choose the THREE cheapest firms, when available
-                chosen_firms[sector] = market[:min(len(market), int_size_market)]
+                chosen_firms[sector] = market[:min(len(market), params['INTERMEDIATE_SIZE_MARKET'])]
             else:
                 chosen_firms[sector] = None
         return chosen_firms
