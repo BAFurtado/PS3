@@ -506,15 +506,6 @@ class ConstructionFirm(Firm):
         self.cash_flow = defaultdict(float)
         self.monthly_planned_revenue = list()
 
-    # TODO VERIFY THAT WE WANT TO KEEP CONSTRUCTION AND GOVERNMENT FIRMS SELLING TO THE INTERMEDIATE MARKET
-    # def sale(self, amount, regions, tax_consumption, consumer_region_id, if_origin):
-    #     """ Sales for government companies are operated as increase (distribution) of total_balance when operating
-    #         taxes, specifically at procedures at funds.py.
-    #         Furthermore, this function should never be called as the final demand table lists 0 for household
-    #         consumption of government goods!
-    #     """
-    #     pass
-
     def plan_house(self, regions, houses, params, seed, seed_np, vacancy_prob):
         """Decide where to build with which attributes"""
         # Check whether production capacity does not exceed hired construction
@@ -797,14 +788,6 @@ class GovernmentFirm(Firm):
 
     def assign_proportion(self, value):
         self.budget_proportion = value
-
-    # def sale(self, amount, regions, tax_consumption, consumer_region_id, if_origin):
-    #     """ Sales for government companies are operated as increase (distribution) of total_balance when operating
-    #         taxes, specifically at procedures at funds.py.
-    #         Furthermore, this function should never be called as the final demand table lists 0 for household
-    #         consumption of government goods!
-    #     """
-    #     pass
 
     def government_transfer(self, amount):
         """ Equivalent to sales for regular firms,
