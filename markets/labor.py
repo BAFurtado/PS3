@@ -25,8 +25,9 @@ class LaborMarket:
 
     def process_gov_employees_year(self):
         employees = pd.read_csv('input/qtde_vinc_gov_rais.csv')
+        geo_codes_6_digit = [int(str(_)[:6]) for _ in self.sim.geo.mun_codes]
         # Just municipalities in this run
-        return employees[employees['codemun'].isin(self.sim.geo.mun_codes)]
+        return employees[employees['codemun'].isin(geo_codes_6_digit)]#self.sim.geo.mun_codes)]
 
     def add_post(self, firm):
         self.available_postings.append(firm)
@@ -123,7 +124,7 @@ class LaborMarket:
 
     def look_for_jobs(self, agents):
         self.candidates += [agent for agent in agents.values() if 16 < agent.age < 70 and agent.firm_id is None]
-
+        pass
     def gov_hire_fire(self, sim):
         total_gov_employees = ceil(self.gov_employees[self.gov_employees.ano == sim.clock.year].qtde_vinc_ativos.sum() *
                                    sim.PARAMS['PERCENTAGE_ACTUAL_POP'])
@@ -131,6 +132,7 @@ class LaborMarket:
                      if firm.sector == 'Government']
         total_employment = sum([f.num_employees for f in gov_firms])
         jobs_balance = total_gov_employees - total_employment
+        #TODO: O governo está demitindo todo mundo de cara??
         if jobs_balance > 0:
             hiring_firms = sim.seed_np.choice(gov_firms, size=jobs_balance)
             [self.add_post(f) for f in hiring_firms]
