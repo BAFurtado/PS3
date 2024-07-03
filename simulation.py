@@ -264,9 +264,9 @@ class Simulation:
         # Firms initialization
         for firm in self.firms.values():
             firm.present = self.clock
-            firm.amount_sold = 0
             if firm.sector != 'Construction':
                 # Reset the monthly revenue of firms!
+                # TODO: Check if this is OK
                 firm.revenue = 0
 
         # FAMILIES CONSUMPTION -- using payment received from previous month

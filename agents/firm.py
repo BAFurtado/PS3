@@ -246,6 +246,8 @@ class Firm:
         """
         # """ Production equation = Labor * qualification ** alpha """
         quantity = 0
+        if self.sector =="Government":
+            pass
         if self.employees and self.inventory:
             # Call get_sum_qualification below: sum([employee.qualification ** parameters.PRODUCTIVITY_EXPONENT
             #                                   for employee in self.employees.values()])
@@ -283,7 +285,6 @@ class Firm:
             quantity = productive_constraint_numeric * desired_quantity
             for sector in regional_market.technical_matrix.index:
                 self.input_inventory[sector] -= input_used[sector]
-
             self.inventory[0].quantity += quantity
             self.amount_produced += quantity
         return quantity
@@ -333,9 +334,11 @@ class Firm:
     def reset_amount_sold(self):
         # Resetting amount sold to record monthly amounts
         self.amount_sold = 0
+        
 
     def sale(self, amount, regions, tax_consumption, consumer_region_id, if_origin, external=False):
         """Sell max amount of products for a given amount of money"""
+        init_inv = copy.deepcopy(self.inventory[0].quantity)
         if amount > 0:
             # For each product in this firms' inventory, spend amount proportionally
             dummy_bought_quantity = 0
@@ -380,10 +383,23 @@ class Firm:
                             )
                     # Quantifying quantity sold
                     dummy_bought_quantity += bought_quantity
+                    if dummy_bought_quantity!=bought_quantity:
+                        pass
 
                     # Deducing money from clients upfront
                     amount -= amount_per_product
             self.amount_sold += dummy_bought_quantity
+            #if self.id=='42da62b1-b69':
+            #    print("FIRM "+self.id)
+            #    print("Amount produced: ",self.amount_produced)
+            #    print('Amount sold: ',self.amount_sold)
+            #    print("This month inv variation: ",self.amount_produced-self.amount_sold)
+            #    #print("This month inv variation:", -self.amount_sold)
+            #    print('predicted inventory:',init_inv-dummy_bought_quantity)
+            #    print("Inventory:", self.inventory[0].quantity)
+            #    print('--'*8)
+            #    if self.amount_produced-self.amount_sold>self.inventory[0].quantity:
+            #        pass
         # Return change to consumer, if any. Note that if there is no quantity to sell, full amount is returned
         return amount
 
@@ -784,6 +800,7 @@ class GovernmentFirm(Firm):
         # As long as we provide labor and total_balance, the other methods are OK to use methods from regular firm
         # Consumption: government own consumption is used as update index. Other sectors consume here.
         total_consumption = defaultdict(float)
+        #TODO: What's going on here?
         money_to_spend = self.total_balance
         for sector in sim.regional_market.final_demand.index:
             if sector == 'Government':
