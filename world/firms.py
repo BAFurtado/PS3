@@ -50,7 +50,8 @@ def firm_growth(sim):
     for mun_code, regions in sim.mun_to_regions.items():
         # Get growth based on historical data
         growth = sim.generator.firm_data.avg_monthly_deltas[int(mun_code)] * sim.PARAMS['PERCENTAGE_ACTUAL_POP']
-        growth = int(round(growth))
+        #TODO: Check if this won't overestimate the number of firms
+        growth = int(np.ceil(growth))
 
         # Ignoring shrinkage for now
         if growth <= 0:
@@ -88,6 +89,7 @@ def firm_growth(sim):
 
         # For each new firm, randomly select its region based on the probabilities we computed
         # and then create the new firm
+        #TODO: Do the new firms hire employees? How is the process defined?
         for _ in range(growth):
             region_id = sim.seed.choices(regions, weights=region_ps)
             region = sim.regions[region_id[0]]

@@ -126,7 +126,9 @@ class Statistics(object):
         return np.median([firms[firm].total_balance for firm in firms.keys()])
 
     def calculate_firms_median_stock(self, firms):
-        return np.median([firms[firm].get_total_quantity() for firm in firms.keys()])
+        stock = np.median([firms[firm].get_total_quantity() for firm in firms.keys()])
+        logger.info(f'Median Stock: {stock:.2f}')
+        return stock
 
     def calculate_firms_median_wages_paid(self, firms):
         return np.median([firms[firm].wages_paid for firm in firms.keys()])

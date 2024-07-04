@@ -85,6 +85,7 @@ class LaborMarket:
         self.candidates = []
 
     def matching_firm_offers(self, lst_firms, params, cand_looking=None, flag=None):
+        n_hired = 0
         if cand_looking:
             candidates = cand_looking
         else:
@@ -95,8 +96,10 @@ class LaborMarket:
         # This organizes a number of offers of candidates per firm, according to their own location
         # and "size" of a firm, giving by its more recent revenue level
         for firm, wage in lst_firms:
-            candidates = self.seed.sample(candidates, min(len(candidates), int(params['HIRING_SAMPLE_SIZE'])))
-            for c in candidates:
+            #TODO: The market restriction seems to be sampling always the SAME 20 candidates for all firms
+            # It samples as it should in the first iteration, but then repeats the same!!!!!!!!
+            sampled_candidates = self.seed.sample(candidates, min(len(candidates), int(params['HIRING_SAMPLE_SIZE'])))
+            for c in sampled_candidates: 
                 transit_cost = params['PRIVATE_TRANSIT_COST'] if c.has_car else params['PUBLIC_TRANSIT_COST']
                 score = wage - (c.family.house.distance_to_firm(firm) * transit_cost)
                 if flag:
@@ -106,11 +109,14 @@ class LaborMarket:
 
         # Then, the criteria is used to order all candidates
         offers = sorted(offers, key=lambda o: o[2], reverse=True)
+        unique_candidates = set([cands for _,cands,_ in offers])
         for firm, candidate, score in offers:
             if firm not in done_firms and candidate not in done_cands:
                 self.apply_assign(candidate, firm)
                 done_firms.add(firm)
                 done_cands.add(candidate)
+                n_hired+=1
+        print('N of hired: ',n_hired)
 
         # If this run was for qualification, another run for distance has to go through
         if flag:
@@ -143,6 +149,7 @@ class LaborMarket:
     def hire_fire(self, firms, firm_enter_freq, initialize=False):
         """Firms adjust their labor force based on profit"""
         random_value = self.seed_np.random(size=len(firms.values()))
+        n_fired = 0
         for i, firm in enumerate(firms.values()):
             # `firm_enter_freq` is the frequency firms enter the market
             if random_value[i] < firm_enter_freq:
@@ -154,8 +161,10 @@ class LaborMarket:
                 elif firm.profit < 0 and firm.wages_paid > firm.revenue:
                     if not firm.increase_production:
                         firm.fire(self.seed)
+                        n_fired+=1
                         # Condition is valid only once
                         firm.increase_production = True
+        print('N of fired: ',n_fired)
 
     def __repr__(self):
         return self.available_postings, self.candidates

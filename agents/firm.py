@@ -778,7 +778,8 @@ class GovernmentFirm(Firm):
         # Consumption: government own consumption is used as update index. Other sectors consume here.
         total_consumption = defaultdict(float)
         #TODO: What's going on here?
-        money_to_spend = self.total_balance
+        money_to_spend = self.total_balance/1000
+        self.total_balance -= money_to_spend
         for sector in sim.regional_market.final_demand.index:
             if sector == 'Government':
                 # Government on consumption is operated as update_index at funds.py
