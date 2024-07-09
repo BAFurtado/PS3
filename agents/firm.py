@@ -50,6 +50,7 @@ class Firm:
             present=datetime.date(2000, 1, 1),
             revenue=0,
             taxes_paid=0,
+            input_cost=0,
             prices=None,
             sector=None,
             env_indicators=None,
@@ -62,6 +63,7 @@ class Firm:
         self.total_balance = total_balance
         self.region_id = region_id
         self.profit = profit
+        self.input_cost = input_cost
         # Pool of workers in a given firm
         self.employees = {}
         # Firms makes existing products from class Products.
@@ -144,6 +146,8 @@ class Firm:
         Buys inputs according to the technical coefficients.
         In fact, this is the intermediate consumer market (firms buying from firms)
         """
+        # Reset input cost
+        self.input_cost = 0
         if self.total_balance > 0:
             # First the firm checks how much it needs to buy
             params = regional_market.sim.PARAMS
@@ -213,7 +217,6 @@ class Firm:
                 else:
                     change = money_this_sector
                 # Check whether there was change and buy the rest from the external sector
-                # TODO: Adjust for the freight cost
                 #  so that firms wont consistently buy less than needed while having money
                 if self.total_balance > ((1 + params['REGIONAL_FREIGHT_COST']) - 1) * change:
                     self.total_balance -= ((1 + params['REGIONAL_FREIGHT_COST']) - 1) * change
@@ -228,11 +231,7 @@ class Firm:
                 self.input_inventory[sector] += ((money_this_sector - change) / prices +
                                                  external_money_this_sector / (prices *
                                                                                (1 + params['REGIONAL_FREIGHT_COST'])))
-
-                amount_bought_l = (money_this_sector - change) / prices
-                amount_bought_e = (external_money_this_sector /
-                                   (prices * (1 + params['REGIONAL_FREIGHT_COST'])))
-                amount_bought = amount_bought_e + amount_bought_l
+                self.input_cost+=money_this_sector+external_money_this_sector
             # TODO. Check that we have at least 3 firms from each sector... include in the generator
 
     def update_product_quantity(self, prod_exponent, prod_divisor, regional_market, firms, seed_np):
@@ -321,10 +320,10 @@ class Firm:
         # Resetting amount sold to record monthly amounts
         self.amount_sold = 0
         
+        
 
     def sale(self, amount, regions, tax_consumption, consumer_region_id, if_origin, external=False):
         """Sell max amount of products for a given amount of money"""
-        init_inv = copy.deepcopy(self.inventory[0].quantity)
         if amount > 0:
             # For each product in this firms' inventory, spend amount proportionally
             dummy_bought_quantity = 0
@@ -369,23 +368,9 @@ class Firm:
                             )
                     # Quantifying quantity sold
                     dummy_bought_quantity += bought_quantity
-                    if dummy_bought_quantity!=bought_quantity:
-                        pass
-
                     # Deducing money from clients upfront
                     amount -= amount_per_product
             self.amount_sold += dummy_bought_quantity
-            #if self.id=='42da62b1-b69':
-            #    print("FIRM "+self.id)
-            #    print("Amount produced: ",self.amount_produced)
-            #    print('Amount sold: ',self.amount_sold)
-            #    print("This month inv variation: ",self.amount_produced-self.amount_sold)
-            #    #print("This month inv variation:", -self.amount_sold)
-            #    print('predicted inventory:',init_inv-dummy_bought_quantity)
-            #    print("Inventory:", self.inventory[0].quantity)
-            #    print('--'*8)
-            #    if self.amount_produced-self.amount_sold>self.inventory[0].quantity:
-            #        pass
         # Return change to consumer, if any. Note that if there is no quantity to sell, full amount is returned
         return amount
 
@@ -398,10 +383,10 @@ class Firm:
     def calculate_profit(self):
         # Calculate profits considering last month wages paid and taxes on firm
         # (labor and consumption taxes are already deducted)
-        self.profit = self.revenue - self.wages_paid - self.taxes_paid
+        self.profit = self.revenue - self.wages_paid - self.taxes_paid -self.input_cost
 
     def pay_taxes(self, regions, tax_firm):
-        taxes = (self.revenue - self.wages_paid) * tax_firm
+        taxes = (self.revenue - self.wages_paid-self.input_cost) * tax_firm
         if taxes >= 0:
             # Revenue minus salaries paid in previous month may be negative.
             # In this case, no taxes are paid
@@ -422,11 +407,11 @@ class Firm:
         # guarantees that firms do not spend all revenue on salaries
         # Calculating wage base on a per-employee basis.
         if self.num_employees > 0:
-            return (self.revenue / self.num_employees) * (
+            return ((self.revenue-self.input_cost) / self.num_employees) * (
                     1 - (unemployment * relevance_unemployment)
             )
         else:
-            return self.revenue * (1 - (unemployment * relevance_unemployment))
+            return (self.revenue-self.input_cost) * (1 - (unemployment * relevance_unemployment))
 
     def make_payment(self, regions, unemployment, alpha, tax_labor, relevance_unemployment):
         """ Pay employees based on revenue, relative employee qualification, labor taxes, and alpha param

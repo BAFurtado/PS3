@@ -96,8 +96,6 @@ class LaborMarket:
         # This organizes a number of offers of candidates per firm, according to their own location
         # and "size" of a firm, giving by its more recent revenue level
         for firm, wage in lst_firms:
-            #TODO: The market restriction seems to be sampling always the SAME 20 candidates for all firms
-            # It samples as it should in the first iteration, but then repeats the same!!!!!!!!
             sampled_candidates = self.seed.sample(candidates, min(len(candidates), int(params['HIRING_SAMPLE_SIZE'])))
             for c in sampled_candidates: 
                 transit_cost = params['PRIVATE_TRANSIT_COST'] if c.has_car else params['PUBLIC_TRANSIT_COST']
@@ -109,7 +107,6 @@ class LaborMarket:
 
         # Then, the criteria is used to order all candidates
         offers = sorted(offers, key=lambda o: o[2], reverse=True)
-        unique_candidates = set([cands for _,cands,_ in offers])
         for firm, candidate, score in offers:
             if firm not in done_firms and candidate not in done_cands:
                 self.apply_assign(candidate, firm)
@@ -158,7 +155,8 @@ class LaborMarket:
                     self.add_post(firm)
                 # Three-way criteria: Wages exceed sales, profits (considering taxes) are negative
                 # and there is no need to increase production due to low prices and inventories
-                elif firm.profit < 0 and firm.wages_paid > firm.revenue:
+                #TODO: Aren't the wages paid always greater than the revenue?
+                elif firm.profit < 0:# and firm.wages_paid > firm.revenue:
                     if not firm.increase_production:
                         firm.fire(self.seed)
                         n_fired+=1

@@ -237,8 +237,8 @@ class Family:
                 # Some sectors have 0 value, such as Government, Mining, and Construction (explicit markets are used)
                 if money_this_sector == 0:
                     continue
-                # Choose the firm to buy inputs from
-                sector_firms = [f for f in firms.values() if f.sector == sector]
+                # Choose the firm to buy from
+                sector_firms = [f for f in firms.values() if f.sector == sector] # and f.get_total_quantity()>0
                 market = seed.sample(sector_firms, min(len(sector_firms), int(params['SIZE_MARKET'])))
                 market = [firm for firm in market if firm.get_total_quantity() > 0]
                 if market:
@@ -260,6 +260,7 @@ class Family:
                     # Update monthly family utility
                     self.average_utility += money_this_sector - change
                     total_consumption[sector] += money_this_sector - change
+        pass
         return total_consumption
 
     @property

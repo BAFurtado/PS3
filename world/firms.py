@@ -50,8 +50,8 @@ def firm_growth(sim):
     for mun_code, regions in sim.mun_to_regions.items():
         # Get growth based on historical data
         growth = sim.generator.firm_data.avg_monthly_deltas[int(mun_code)] * sim.PARAMS['PERCENTAGE_ACTUAL_POP']
-        #TODO: Check if this won't overestimate the number of firms
-        growth = int(np.ceil(growth))
+        # Round the value and use the remainder as probability
+        growth = round(growth)+int(np.random.random()<growth-round(growth))
 
         # Ignoring shrinkage for now
         if growth <= 0:

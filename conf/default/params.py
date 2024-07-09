@@ -20,7 +20,7 @@ STICKY_PRICES = .8
 # Reflects a reluctance of businesses to lower prices. Amount estimated for reduction multiplied by parameter
 PRICE_RUGGEDNESS = 0.8
 # Number of firms consulted before consumption
-SIZE_MARKET = 24
+SIZE_MARKET = 6
 # Number of firms to buy from in the INTERMEDIATE market
 INTERMEDIATE_SIZE_MARKET = 3
 # Frequency firms enter the market
@@ -142,10 +142,10 @@ REGIONAL_FREIGHT_COST = .3
 # RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation
 # Minimum value to run depends on the size of municipality 0,001 is recommended minimum
-PERCENTAGE_ACTUAL_POP = 0.01
+PERCENTAGE_ACTUAL_POP = 0.005
 
-# Write exactly like the list above
-PROCESSING_ACPS = ["BELO HORIZONTE"]
+# Write exactly like the list below
+PROCESSING_ACPS = ["BRASILIA"]
 
 # Selecting the starting year to build the Agents, can be: 1991, 2000 or 2010
 STARTING_DAY = datetime.date(2010, 1, 1)
