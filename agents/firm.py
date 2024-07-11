@@ -319,6 +319,7 @@ class Firm:
     def reset_amount_sold(self):
         # Resetting amount sold to record monthly amounts
         self.amount_sold = 0
+        self.revenue = 0
         
         
 
