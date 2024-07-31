@@ -302,6 +302,9 @@ class Plotter:
         fig = self.make_plot(dats_to_plot, title, labels=labels, y_label='Median of employees')
         self.save_fig(fig, 'median_number_of_employees_by_firm_index')
 
+    def plot_sectors(self):
+        pass
+
     def plot_construction(self):
         dat = self._load_single_run('construction', 'construction.csv')
         cols = ['amount_produced', 'price']

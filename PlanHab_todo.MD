@@ -15,4 +15,9 @@
 4. Conferir: rental market
 5. Conferir: credit market
 
-
+# Usar dinâmica familiar, migração existente para avaliar o acerto das projeçoes vis-à-vis censo 2022 observado
+1. Migração
+2. População
+3. Casamento
+4. Divorcio
+5. Households
