@@ -95,7 +95,7 @@ class Statistics(object):
     def update_unemployment(self, agents, global_u=False):
         employable = [m for m in agents if 16 < m.age < 70]
         temp = len([m for m in employable if m.firm_id is None]) / len(employable) if employable else 0
-        logger.info(f'Unemployment rate: {temp * 100:.2f}')
+        #logger.info(f'Unemployment rate: {temp * 100:.2f}')
         if global_u:
             self.global_unemployment_rate = temp
         return temp
@@ -113,6 +113,7 @@ class Statistics(object):
 
     def calculate_families_savings(self, families):
         dummy_savings = np.sum([families[family].savings for family in families])
+        logger.info(f'Total savings {dummy_savings:,.0f}')
         return dummy_savings
 
     def calculate_rent_default(self, families):
@@ -137,6 +138,11 @@ class Statistics(object):
         return np.sum([1 for family in families.values() if family.average_utility == 0]) / len(families)
 
     def calculate_firms_profit(self, firms):
+        v = [firms[firm].profit for firm in firms.keys()]
+        profit = np.sum(v)
+        loss = np.min(v)
+        logger.info(f'Aggregate profit {profit:,.0f}')
+
         return np.sum([firms[firm].profit for firm in firms.keys()])
 
     # Calculate inequality (GINI)

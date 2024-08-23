@@ -4,7 +4,7 @@ import datetime
 
 # FIRMS #########################################################
 # Production function, labour with decaying exponent, Alpha for K. [0, 1]
-PRODUCTIVITY_EXPONENT = .1
+PRODUCTIVITY_EXPONENT = .9
 # Order of magnitude correction of production. Production divided by parameter
 PRODUCTIVITY_MAGNITUDE_DIVISOR = 1
 # GENERAL CALIBRATION PARAMETERS
@@ -13,9 +13,9 @@ MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.00003
 # INTEREST. Choose either: 'nominal', 'real' or 'fixed'. Default 'real'
 INTEREST = "real"
 # By how much percentage to increase prices
-MARKUP = 0.15
+MARKUP = 0.05
 # Frequency firms change prices. Probability > than parameter
-STICKY_PRICES = .8
+STICKY_PRICES = .05
 # Price ruggedness a positive value (below 1) that multiplies the magnitude of price reduction
 # Reflects a reluctance of businesses to lower prices. Amount estimated for reduction multiplied by parameter
 PRICE_RUGGEDNESS = 0.8
@@ -24,7 +24,7 @@ SIZE_MARKET = 6
 # Number of firms to buy from in the INTERMEDIATE market
 INTERMEDIATE_SIZE_MARKET = 3
 # Frequency firms enter the market
-LABOR_MARKET = 0.2
+LABOR_MARKET = 0.99
 # Percentage of employees firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter

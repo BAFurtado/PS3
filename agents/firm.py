@@ -10,18 +10,18 @@ from .house import House
 from .product import Product
 
 np.seterr(divide='ignore', invalid='ignore')
-initial_input_sectors = {'Agriculture': 10,
-                         'Mining': 10,
-                         'Manufacturing': 10,
-                         'Utilities': 10,
-                         'Construction': 10,
-                         'Trade': 10,
-                         'Transport': 10,
-                         'Business': 10,
-                         'Financial': 10,
-                         'RealEstate': 10,
-                         'OtherServices': 10,
-                         'Government': 10
+initial_input_sectors = {'Agriculture': 0,
+                         'Mining': 0,
+                         'Manufacturing': 0,
+                         'Utilities': 0,
+                         'Construction': 0,
+                         'Trade': 0,
+                         'Transport': 0,
+                         'Business': 0,
+                         'Financial': 0,
+                         'RealEstate': 0,
+                         'OtherServices': 0,
+                         'Government': 0
                          }
 
 emissions = pd.read_csv('input/mediana_eco_emissoes_sector_mun_2010.csv', dtype={'mun_code': str})
@@ -214,6 +214,7 @@ class Firm:
                     for firm in chosen_firms_per_sector[sector]:
                         change += regional_market.intermediate_consumption(money_this_sector_this_firm,
                                                                            firm)
+                        
                 else:
                     change = money_this_sector
                 # Check whether there was change and buy the rest from the external sector
@@ -231,7 +232,7 @@ class Firm:
                 self.input_inventory[sector] += ((money_this_sector - change) / prices +
                                                  external_money_this_sector / (prices *
                                                                                (1 + params['REGIONAL_FREIGHT_COST'])))
-                self.input_cost+=money_this_sector+external_money_this_sector
+                self.input_cost+=money_this_sector - change+external_money_this_sector
             # TODO. Check that we have at least 3 firms from each sector... include in the generator
 
     def update_product_quantity(self, prod_exponent, prod_divisor, regional_market, firms, seed_np):
@@ -385,7 +386,9 @@ class Firm:
         # Calculate profits considering last month wages paid and taxes on firm
         # (labor and consumption taxes are already deducted)
         self.profit = self.revenue - self.wages_paid - self.taxes_paid -self.input_cost
-
+        #TODO: Remover
+        if self.profit<0:
+            pass
     def pay_taxes(self, regions, tax_firm):
         taxes = (self.revenue - self.wages_paid-self.input_cost) * tax_firm
         if taxes >= 0:
@@ -442,6 +445,8 @@ class Firm:
                 regions[self.region_id].collect_taxes(labor_tax, "labor")
                 self.total_balance -= total_salary_paid
                 self.wages_paid = total_salary_paid
+            else:
+                self.wages_paid = 0
 
     # Human resources department #################
     def add_employee(self, employee):
@@ -764,10 +769,12 @@ class GovernmentFirm(Firm):
         # Consumption: government own consumption is used as update index. Other sectors consume here.
         total_consumption = defaultdict(float)
         #TODO: What's going on here?
-        money_to_spend = self.total_balance/1000
+
+        money_to_spend = self.total_balance
         self.total_balance -= money_to_spend
         for sector in sim.regional_market.final_demand.index:
             if sector == 'Government':
+                self.total_balance+=money_to_spend * sim.regional_market.final_demand['GovernmentConsumption'][sector]
                 # Government on consumption is operated as update_index at funds.py
                 continue
             # This makes sure that only the final demand percentage of total balance is consumed at other sectors

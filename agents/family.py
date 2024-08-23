@@ -238,7 +238,7 @@ class Family:
                 if money_this_sector == 0:
                     continue
                 # Choose the firm to buy from
-                sector_firms = [f for f in firms.values() if f.sector == sector] # and f.get_total_quantity()>0
+                sector_firms = [f for f in firms.values() if f.sector == sector and f.get_total_quantity()>0]
                 market = seed.sample(sector_firms, min(len(sector_firms), int(params['SIZE_MARKET'])))
                 market = [firm for firm in market if firm.get_total_quantity() > 0]
                 if market:
