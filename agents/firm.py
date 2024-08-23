@@ -385,10 +385,8 @@ class Firm:
     def calculate_profit(self):
         # Calculate profits considering last month wages paid and taxes on firm
         # (labor and consumption taxes are already deducted)
-        self.profit = self.revenue - self.wages_paid - self.taxes_paid -self.input_cost
-        #TODO: Remover
-        if self.profit<0:
-            pass
+        self.profit = self.revenue - self.wages_paid - self.taxes_paid - self.input_cost
+
     def pay_taxes(self, regions, tax_firm):
         taxes = (self.revenue - self.wages_paid-self.input_cost) * tax_firm
         if taxes >= 0:
