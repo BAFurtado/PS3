@@ -6,7 +6,7 @@ import datetime
 # Production function, labour with decaying exponent, Alpha for K. [0, 1]
 PRODUCTIVITY_EXPONENT = .9
 # Order of magnitude correction of production. Production divided by parameter
-PRODUCTIVITY_MAGNITUDE_DIVISOR = 1
+PRODUCTIVITY_MAGNITUDE_DIVISOR = .3
 # GENERAL CALIBRATION PARAMETERS
 # Order of magnitude parameter of input into municipality investment
 MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.00003
@@ -18,13 +18,13 @@ MARKUP = 0.05
 STICKY_PRICES = .05
 # Price ruggedness a positive value (below 1) that multiplies the magnitude of price reduction
 # Reflects a reluctance of businesses to lower prices. Amount estimated for reduction multiplied by parameter
-PRICE_RUGGEDNESS = 0.8
+PRICE_RUGGEDNESS = 0.3
 # Number of firms consulted before consumption
-SIZE_MARKET = 6
+SIZE_MARKET = 3
 # Number of firms to buy from in the INTERMEDIATE market
 INTERMEDIATE_SIZE_MARKET = 3
 # Frequency firms enter the market
-LABOR_MARKET = 0.99
+LABOR_MARKET = 0.5
 # Percentage of employees firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
