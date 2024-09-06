@@ -92,10 +92,11 @@ class Statistics(object):
             dummy_gdp_capita = dummy_gdp
         return dummy_gdp_capita
 
-    def update_unemployment(self, agents, global_u=False):
+    def update_unemployment(self, agents, global_u=False,log=False):
         employable = [m for m in agents if 16 < m.age < 70]
         temp = len([m for m in employable if m.firm_id is None]) / len(employable) if employable else 0
-        #logger.info(f'Unemployment rate: {temp * 100:.2f}')
+        if log:
+            logger.info(f'Unemployment rate: {temp * 100:.2f}')
         if global_u:
             self.global_unemployment_rate = temp
         return temp

@@ -159,7 +159,7 @@ class Output:
         p_delinquent = len(bank.delinquent_loans()) / n_active if n_active else 0
         price_index, inflation = sim.stats.update_price(sim.firms)
         gdp_index, gdp_growth = sim.stats.sum_region_gdp(sim.firms, sim.regions)
-        unemployment = sim.stats.update_unemployment(sim.agents.values(), True)
+        unemployment = sim.stats.update_unemployment(sim.agents.values(), True,True)
         average_workers = sim.stats.calculate_average_workers(sim.firms)
         families_median_wealth = sim.stats.calculate_families_median_wealth(sim.families)
         families_savings = sim.stats.calculate_families_savings(sim.families)
