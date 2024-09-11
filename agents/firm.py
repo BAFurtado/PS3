@@ -54,9 +54,11 @@ class Firm:
             prices=None,
             sector=None,
             env_indicators=None,
+            env_efficiency = 1
     ):
         if env_indicators is None:
             self.env_indicators = {'emissions': 0}
+        self.env_efficiency = env_efficiency
         self.increase_production = False
         self.id = _id
         self.address = address
@@ -110,14 +112,42 @@ class Firm:
         # TODO WE CAN USE THE OWN EVOLUTION OF EMISSIONS AS VALIDATION. WE INPUT ONLY 2010
         """
         Based on empirical data, creates externalities according to money output produced by a given activity.
+        Total emissions are multiplied by firm-level env efficiency.
         """
         # Environmental indicators (emissions, water, energy, waste) by municipality and sector
         # Using median from 2010.
         # Procedure: Apply endogenous salary amount to external ecoefficiency to find estimated output indicator
         if not self.no_emissions:
-            emissions_this_month = self.wages_paid / self.emissions_base
+            emissions_this_month = self.env_efficiency * self.wages_paid / self.emissions_base
             self.env_indicators['emissions'] += emissions_this_month
 
+    def invest_eco_efficiency(self,expected_cost,random_value):
+        """
+        Reduce overall emissions per wage employed. 
+        """
+        # Decide how much to invest based on expected cost and benefit analysis
+        eco_investment = self.decision_on_eco_efficiency(expected_cost)
+
+        # Stochastic process to actually reduce firm-level parameter
+        p_success = self.probality_success(eco_investment)
+        if p_success>random_value:
+            # Inovation was successful
+            pass
+        pass
+
+    def decision_on_eco_efficiency(self,expected_cost):
+        """
+        Choose how much to invest based on expected emission cost
+        Also accounts for possible environmental policies
+         """
+        
+        pass
+
+    def emission_cost(self, total_emissions):
+        """ Calculates how much the emissions will cost based on taxes, reputational costs and intrinsic cost
+        """
+        pass
+    
     # PRODUCTION DEPARTMENT ###########################################################################################
     def choose_firm_per_sector(self, regional_market, firms, seed_np, market_size):
         """
