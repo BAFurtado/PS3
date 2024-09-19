@@ -87,6 +87,7 @@ class Firm:
         self.prices = prices
         self.sector = sector
         self.no_emissions = False
+        self.last_emissions = 0
         try:
             self.emissions_base = emissions[(emissions.isic_12 == self.sector) &
                                             (emissions.mun_code == self.region_id[:7])
@@ -107,7 +108,13 @@ class Firm:
                 )
                 self.product_index += 1
             self.prices = sum(p.price for p in self.inventory.values()) / len(self.inventory)
-
+    
+    # ECOLOGICAL PROCEDURES ##############################################################################################
+    def probality_success(self,eco_investment,eco_lambda):
+        """ 
+        Returns the probability of success given the amount invested per wages paid (I/W)
+        """
+        return 1-np.exp(-eco_lambda*eco_investment)
     def create_externalities(self):
         # TODO WE CAN USE THE OWN EVOLUTION OF EMISSIONS AS VALIDATION. WE INPUT ONLY 2010
         """
@@ -119,34 +126,63 @@ class Firm:
         # Procedure: Apply endogenous salary amount to external ecoefficiency to find estimated output indicator
         if not self.no_emissions:
             emissions_this_month = self.env_efficiency * self.wages_paid / self.emissions_base
+            self.last_emissions = emissions_this_month
             self.env_indicators['emissions'] += emissions_this_month
 
-    def invest_eco_efficiency(self,expected_cost,random_value):
+    def invest_eco_efficiency(self,regional_market,expected_cost,random_value):
         """
         Reduce overall emissions per wage employed. 
         """
         # Decide how much to invest based on expected cost and benefit analysis
-        eco_investment = self.decision_on_eco_efficiency(expected_cost)
+        eco_investment = self.decision_on_eco_efficiency(regional_market)
 
+        # Check if firm has enough balance
+
+
+        params = regional_market.sim.PARAMS
         # Stochastic process to actually reduce firm-level parameter
-        p_success = self.probality_success(eco_investment)
+        p_success = self.probality_success(eco_investment,params['ECO_INVESTMENT_LAMBDA']) #regional_market.
         if p_success>random_value:
             # Inovation was successful
+            self.env_efficiency *= params['ENVIRONMENTAL_EFFICIENCY_STEP']
+        else:
+            # Nothing happens
             pass
-        pass
 
-    def decision_on_eco_efficiency(self,expected_cost):
-        """
-        Choose how much to invest based on expected emission cost
+    def decision_on_eco_efficiency(self,regional_market):
+        """ 
+        Choose how much to invest based on expected emission cost (taxes, reputational costs and intrinsic cost)
         Also accounts for possible environmental policies
-         """
-        
-        pass
-
-    def emission_cost(self, total_emissions):
-        """ Calculates how much the emissions will cost based on taxes, reputational costs and intrinsic cost
         """
-        pass
+        params = regional_market.sim.PARAMS
+        ## Calculate expected emission cost with adaptative expectations
+        # Tax cost
+        tax_cost = self.last_emissions * regional_market.sim.PARAMS['TAX_EMISSION']
+
+        # TODO: Implement other emission costs
+        reputation_cost, intrinsic_cost = 0,0
+        total_cost = tax_cost+reputation_cost+intrinsic_cost
+
+        # The next step assumes linearity in costs
+        # TODO: Define wether costs are linear or not: we can make any function over total_emission and have
+        # expected_cost_reduction = cost(last_emissions)-cost((1-delta)*last_emissions)
+        expected_cost_reduction = (1-params['ENVIRONMENTAL_EFFICIENCY_STEP']) * total_cost
+
+        # Profit maximization formula yields the formula below
+        eco_lambda=params['ECO_INVESTMENT_LAMBDA']
+
+        # TODO: Define if this should have a separate fund or should be drained from gov balance
+        subsidies = params['ECO_INVESTMENT_SUBSIDIES']
+        investment_per_wages_paid = (np.log(
+                                            eco_lambda*expected_cost_reduction/(subsidies*self.wages_paid))*
+                                     (self.wages_paid/eco_lambda))
+        paid_subsidies = subsidies*investment_per_wages_paid*self.wages_paid
+        # Check if government has money for subsidies
+        # If it doesn't, what happens??? Firm invest as if there wasn't subsidies?
+        if investment_per_wages_paid<0:
+            investment_per_wages_paid=0
+
+        return investment_per_wages_paid
     
     # PRODUCTION DEPARTMENT ###########################################################################################
     def choose_firm_per_sector(self, regional_market, firms, seed_np, market_size):
@@ -331,8 +367,9 @@ class Firm:
                 # Dawid 2018 p.26 Firm observes excess or shortage inventory and relative price considering other firms
                 # Considering inventory to last one month only
                 delta_price = seed.randint(0, int(2 * markup * 100)) / 100
+                productive_capacity = self.total_qualification(prod_exponent) / prod_magnitude_divisor
                 low_inventory = (
-                        self.total_quantity <= self.amount_sold or self.total_quantity == 0
+                        ((self.total_quantity + productive_capacity) <= self.amount_sold) or self.total_quantity == 0
                 )
                 low_prices = p.price < avg_prices if avg_prices != 1 else True
                 if low_inventory:

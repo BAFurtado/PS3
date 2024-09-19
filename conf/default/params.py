@@ -31,6 +31,10 @@ PCT_DISTANCE_HIRING = 0.2
 RELEVANCE_UNEMPLOYMENT_SALARIES = 2#0.17
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 20
+# Reduction size in case of eco innovation success: multiplies firm parameters
+ENVIRONMENTAL_EFFICIENCY_STEP = .9
+# Innovation process probability: 1-exp(lambda*investment/wage_base)
+ECO_INVESTMENT_LAMBDA = 1
 # GOVERNMENT ####################################################################
 # ALTERNATIVE OF DISTRIBUTION OF TAXES COLLECTED. REPLICATING THE NOTION OF A COMMON POOL OF RESOURCES ################
 # Alternative0 is True, municipalities are just normal as INPUT
@@ -119,6 +123,8 @@ TAX_LABOR = 0.15
 TAX_ESTATE_TRANSACTION = 0.004
 TAX_FIRM = 0.15
 TAX_PROPERTY = 0.004
+# Taxes on emission are given by tax*total_emissions
+TAX_EMISSION = 0.001
 # Consumption_equal: ratio of consumption tax distributed at state level (equal)
 # Fpm: ratio of 'labor' and 'firm' taxes distributed per the fpm ruling
 TAXES_STRUCTURE = {"consumption_equal": 0.1875, "fpm": 0.235}
