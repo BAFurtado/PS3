@@ -301,8 +301,9 @@ class Firm:
                 # Dawid 2018 p.26 Firm observes excess or shortage inventory and relative price considering other firms
                 # Considering inventory to last one month only
                 delta_price = seed.randint(0, int(2 * markup * 100)) / 100
+                productive_capacity = self.total_qualification(prod_exponent) / prod_magnitude_divisor
                 low_inventory = (
-                        self.total_quantity <= self.amount_sold or self.total_quantity == 0
+                        ((self.total_quantity + productive_capacity) <= self.amount_sold) or self.total_quantity == 0
                 )
                 low_prices = p.price < avg_prices if avg_prices != 1 else True
                 if low_inventory:
