@@ -547,9 +547,6 @@ class ConstructionFirm(Firm):
         region_ids = [r.id for r in regions]
         region_prices = defaultdict(list)
         for region_id in region_ids:
-            # Only take a sample
-            if len(region_prices[region_id]) > 100:
-                continue
             for h in houses:
                 # In correct region
                 # within 40 size units,
@@ -560,6 +557,9 @@ class ConstructionFirm(Firm):
                         and abs(h.quality - building_quality) <= 2
                 ):
                     region_prices[h.region_id].append(h.price)
+                    # Only take a sample
+                    if len(region_prices[region_id]) > 100:
+                        break
             if len(region_prices[region_id]) == 0:
                 region_prices.pop(region_id)
 
