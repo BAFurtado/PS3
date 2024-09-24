@@ -214,7 +214,7 @@ class Firm:
                     for firm in chosen_firms_per_sector[sector]:
                         change += regional_market.intermediate_consumption(money_this_sector_this_firm,
                                                                            firm)
-                        
+
                 else:
                     change = money_this_sector
                 # Check whether there was change and buy the rest from the external sector
@@ -232,7 +232,7 @@ class Firm:
                 self.input_inventory[sector] += ((money_this_sector - change) / prices +
                                                  external_money_this_sector / (prices *
                                                                                (1 + params['REGIONAL_FREIGHT_COST'])))
-                self.input_cost+=money_this_sector - change+external_money_this_sector
+                self.input_cost += money_this_sector - change + external_money_this_sector
             # TODO. Check that we have at least 3 firms from each sector... include in the generator
 
     def update_product_quantity(self, prod_exponent, prod_divisor, regional_market, firms, seed_np):
@@ -242,7 +242,7 @@ class Firm:
         """
         # """ Production equation = Labor * qualification ** alpha """
         quantity = 0
-        if self.sector =="Government":
+        if self.sector == "Government":
             pass
         if self.employees and self.inventory:
             # Call get_sum_qualification below: sum([employee.qualification ** parameters.PRODUCTIVITY_EXPONENT
@@ -260,7 +260,7 @@ class Firm:
             self.buy_inputs(desired_quantity, regional_market, firms, seed_np,
                             technical_matrix, external_technical_matrix)
             input_quantities_needed = desired_quantity * (
-                        technical_matrix.loc[:, self.sector] + external_technical_matrix.loc[:, self.sector])
+                    technical_matrix.loc[:, self.sector] + external_technical_matrix.loc[:, self.sector])
             # The following process would be a traditional Leontief production function
             productive_constraint = np.divide(pd.Series(self.input_inventory),
                                               input_quantities_needed)
@@ -321,8 +321,6 @@ class Firm:
         # Resetting amount sold to record monthly amounts
         self.amount_sold = 0
         self.revenue = 0
-        
-        
 
     def sale(self, amount, regions, tax_consumption, consumer_region_id, if_origin, external=False):
         """Sell max amount of products for a given amount of money"""
@@ -388,7 +386,7 @@ class Firm:
         self.profit = self.revenue - self.wages_paid - self.taxes_paid - self.input_cost
 
     def pay_taxes(self, regions, tax_firm):
-        taxes = (self.revenue - self.wages_paid-self.input_cost) * tax_firm
+        taxes = (self.revenue - self.wages_paid - self.input_cost) * tax_firm
         if taxes >= 0:
             # Revenue minus salaries paid in previous month may be negative.
             # In this case, no taxes are paid
@@ -409,11 +407,11 @@ class Firm:
         # guarantees that firms do not spend all revenue on salaries
         # Calculating wage base on a per-employee basis.
         if self.num_employees > 0:
-            return ((self.revenue-self.input_cost) / self.num_employees) * (
+            return ((self.revenue - self.input_cost) / self.num_employees) * (
                     1 - (unemployment * relevance_unemployment)
             )
         else:
-            return (self.revenue-self.input_cost) * (1 - (unemployment * relevance_unemployment))
+            return (self.revenue - self.input_cost) * (1 - (unemployment * relevance_unemployment))
 
     def make_payment(self, regions, unemployment, alpha, tax_labor, relevance_unemployment):
         """ Pay employees based on revenue, relative employee qualification, labor taxes, and alpha param
@@ -516,13 +514,11 @@ class ConstructionFirm(Firm):
         # Check whether production capacity does not exceed hired construction
         # for the next construction cash flow period
         if self.building:
-            # Number of houses being built is endogenously dependent on number of workers and productivity within a
-            # parameter-specified number of months.
+            # Number of houses being built is endogenously dependent on number of workers (production capacity)
             if (
                     sum([self.building[b]["cost"] for b in self.building])
-                    > params["CONSTRUCTION_ACC_CASH_FLOW"]
-                    * self.total_qualification(params["PRODUCTIVITY_EXPONENT"])
-                    / params["PRODUCTIVITY_MAGNITUDE_DIVISOR"]
+                    > (self.total_qualification(params["PRODUCTIVITY_EXPONENT"])
+                       / params["PRODUCTIVITY_MAGNITUDE_DIVISOR"])
             ):
                 return
             else:
@@ -547,24 +543,23 @@ class ConstructionFirm(Firm):
         b, c, d = 0.38, 0.3, 0.1
         building_quality = seed_np.choice([1, 2, 3, 4], p=[1 - (b + c + d), b, c, d])
 
-        # Get information about region house prices
+        # Get information about regions' house prices
         region_ids = [r.id for r in regions]
         region_prices = defaultdict(list)
-        for h in houses:
-            # In correct region
-            # within 40 size units,
-            # within 2 quality
-            if (
-                    h.region_id in region_ids
-                    and abs(h.size - building_size) <= 40
-                    and abs(h.quality - building_quality) <= 2
-            ):
-                region_prices[h.region_id].append(h.price)
-                # Only take a sample
-                if len(region_prices[h.region_id]) > 100:
-                    region_ids.remove(h.region_id)
-                    if not region_ids:
-                        break
+        for region_id in region_ids:
+            # Only take a sample
+            if len(region_prices[region_id]) > 100:
+                continue
+            for h in houses:
+                # In correct region
+                # within 40 size units,
+                # within 2 quality
+                if (
+                        h.region_id in region_id
+                        and abs(h.size - building_size) <= 40
+                        and abs(h.quality - building_quality) <= 2
+                ):
+                    region_prices[h.region_id].append(h.price)
 
         # Number of product quantities needed for the house
         gross_cost = building_size * building_quality
@@ -766,13 +761,12 @@ class GovernmentFirm(Firm):
         # As long as we provide labor and total_balance, the other methods are OK to use methods from regular firm
         # Consumption: government own consumption is used as update index. Other sectors consume here.
         total_consumption = defaultdict(float)
-        #TODO: What's going on here?
 
         money_to_spend = self.total_balance
         self.total_balance -= money_to_spend
         for sector in sim.regional_market.final_demand.index:
             if sector == 'Government':
-                self.total_balance+=money_to_spend * sim.regional_market.final_demand['GovernmentConsumption'][sector]
+                self.total_balance += money_to_spend * sim.regional_market.final_demand['GovernmentConsumption'][sector]
                 # Government on consumption is operated as update_index at funds.py
                 continue
             # This makes sure that only the final demand percentage of total balance is consumed at other sectors

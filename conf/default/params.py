@@ -9,7 +9,7 @@ PRODUCTIVITY_EXPONENT = .9
 PRODUCTIVITY_MAGNITUDE_DIVISOR = .05
 # GENERAL CALIBRATION PARAMETERS
 # Order of magnitude parameter of input into municipality investment
-MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.00003
+MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.000001
 # INTEREST. Choose either: 'nominal', 'real' or 'fixed'. Default 'real'
 INTEREST = "real"
 # By how much percentage to increase prices
@@ -28,7 +28,7 @@ LABOR_MARKET = 0.125 #0.15
 # Percentage of employees firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
-RELEVANCE_UNEMPLOYMENT_SALARIES = 2#0.17
+RELEVANCE_UNEMPLOYMENT_SALARIES = 2 #0.17
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 20
 # GOVERNMENT ####################################################################
