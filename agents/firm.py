@@ -560,6 +560,8 @@ class ConstructionFirm(Firm):
                         and abs(h.quality - building_quality) <= 2
                 ):
                     region_prices[h.region_id].append(h.price)
+            if len(region_prices[region_id]) == 0:
+                region_prices.pop(region_id)
 
         # Number of product quantities needed for the house
         gross_cost = building_size * building_quality
