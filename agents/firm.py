@@ -1,6 +1,7 @@
 import copy
 import datetime
 from collections import defaultdict
+from unicodedata import category
 
 import numpy as np
 import pandas as pd
@@ -8,6 +9,7 @@ from dateutil import relativedelta
 
 from .house import House
 from .product import Product
+
 
 np.seterr(divide='ignore', invalid='ignore')
 initial_input_sectors = {'Agriculture': 0,
@@ -553,7 +555,7 @@ class ConstructionFirm(Firm):
                 # within 2 quality
                 if (
                         h.region_id in region_id
-                        and abs(h.size - building_size) <= 40
+                        and abs(h.size - building_size) <= 80
                         and abs(h.quality - building_quality) < 2
                 ):
                     region_prices[h.region_id].append(h.price)
@@ -576,6 +578,8 @@ class ConstructionFirm(Firm):
             r_id: sum(vs) / len(vs) for r_id, vs in region_prices.items()
         }
         # Using median prices for regions without price information
+        if len(list(region_mean_prices.values())) == 0:
+            print('stop')
         median_prices = np.median(list(region_mean_prices.values()))
         region_profitability = [
             region_mean_prices.get(r.id, median_prices)
