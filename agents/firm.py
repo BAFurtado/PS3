@@ -554,7 +554,7 @@ class ConstructionFirm(Firm):
                 if (
                         h.region_id in region_id
                         and abs(h.size - building_size) <= 40
-                        and abs(h.quality - building_quality) <= 2
+                        and abs(h.quality - building_quality) < 2
                 ):
                     region_prices[h.region_id].append(h.price)
                     # Only take a sample
@@ -575,8 +575,10 @@ class ConstructionFirm(Firm):
         region_mean_prices = {
             r_id: sum(vs) / len(vs) for r_id, vs in region_prices.items()
         }
+        # Using median prices for regions without price information
+        median_prices = np.median(list(region_mean_prices.values()))
         region_profitability = [
-            region_mean_prices.get(r.id, 0)
+            region_mean_prices.get(r.id, median_prices)
             - (r.license_price * building_cost * (1 + params["LOT_COST"]))
             for r in regions
         ]
@@ -587,7 +589,8 @@ class ConstructionFirm(Firm):
             return
 
         # Choose region with the highest profitability
-        region = max(regions, key=lambda rp: rp[1])[0]
+        region_sample = [r[0] for r in sorted(regions, key=lambda rp: rp[1], reverse=True)[:params['SIZE_MARKET']]]
+        region = seed_np.choice(region_sample)
         idx = max(self.building) + 1 if self.building else 0
         self.building[idx]["region"] = region.id
         self.building[idx]["size"] = building_size

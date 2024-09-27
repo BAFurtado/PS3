@@ -9,7 +9,7 @@ PRODUCTIVITY_EXPONENT = .9
 PRODUCTIVITY_MAGNITUDE_DIVISOR = .05
 # GENERAL CALIBRATION PARAMETERS
 # Order of magnitude parameter of input into municipality investment
-MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.000001
+MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.0000003
 # INTEREST. Choose either: 'nominal', 'real' or 'fixed'. Default 'real'
 INTEREST = "real"
 # By how much percentage to increase prices
@@ -83,7 +83,7 @@ ON_MARKET_DECAY_FACTOR = -0.01
 # LOWER BOUND, THAT IS, AT LEAST 50% PERCENT OF VALUE WILL REMAIN AT END OF PERIOD, IF PARAMETER IS .5
 MAX_OFFER_DISCOUNT = 0.6
 # Percentage of households pursuing new location (on average families move about once every 20 years)
-PERCENTAGE_ENTERING_ESTATE_MARKET = 0.002
+PERCENTAGE_ENTERING_ESTATE_MARKET = 0.0015
 NEIGHBORHOOD_EFFECT = 2
 
 # RENTAL #######################
