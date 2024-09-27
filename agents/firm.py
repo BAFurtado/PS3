@@ -578,9 +578,10 @@ class ConstructionFirm(Firm):
             r_id: sum(vs) / len(vs) for r_id, vs in region_prices.items()
         }
         # Using median prices for regions without price information
-        if len(list(region_mean_prices.values())) == 0:
-            print('stop')
-        median_prices = np.median(list(region_mean_prices.values()))
+        try:
+            median_prices = np.median(list(region_mean_prices.values()))
+        except RuntimeWarning:
+            median_prices = 0
         region_profitability = [
             region_mean_prices.get(r.id, median_prices)
             - (r.license_price * building_cost * (1 + params["LOT_COST"]))
