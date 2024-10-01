@@ -555,7 +555,7 @@ class ConstructionFirm(Firm):
                 # within 2 quality
                 if (
                         h.region_id in region_id
-                        and abs(h.size - building_size) <= 80
+                        and abs(h.size - building_size) <= 100
                         and abs(h.quality - building_quality) < 2
                 ):
                     region_prices[h.region_id].append(h.price)
@@ -594,7 +594,7 @@ class ConstructionFirm(Firm):
             return
 
         # Choose region with the highest profitability
-        region_sample = [r[0] for r in sorted(regions, key=lambda rp: rp[1], reverse=True)[:params['SIZE_MARKET']]]
+        region_sample = [r[0] for r in sorted(regions, key=lambda rp: rp[1], reverse=True)[:int(params['SIZE_MARKET'])]]
         region = seed_np.choice(region_sample)
         idx = max(self.building) + 1 if self.building else 0
         self.building[idx]["region"] = region.id
