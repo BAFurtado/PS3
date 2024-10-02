@@ -10,7 +10,6 @@ from dateutil import relativedelta
 from .house import House
 from .product import Product
 
-
 np.seterr(divide='ignore', invalid='ignore')
 initial_input_sectors = {'Agriculture': 0,
                          'Mining': 0,
@@ -788,7 +787,9 @@ class GovernmentFirm(Firm):
             if money_this_sector == 0:
                 continue
             sector_firms = [f for f in sim.firms.values() if f.sector == sector]
-            market = sim.seed.sample(sector_firms, min(len(sector_firms), int(sim.PARAMS['SIZE_MARKET'])))
+            market = sim.seed_np.choice(sector_firms,
+                                        size=min(len(sector_firms), int(sim.PARAMS['SIZE_MARKET'])),
+                                        replace=False)
             market = [firm for firm in market if firm.get_total_quantity() > 0]
             if market:
                 chosen_firm = min(market, key=lambda firm: firm.prices)
