@@ -456,9 +456,9 @@ class Firm:
     def obit(self, employee):
         del self.employees[employee.id]
 
-    def fire(self, seed):
+    def fire(self, seed_np):
         if self.employees:
-            id_ = seed.choice(list(self.employees.keys()))
+            id_ = seed_np.choice(list(self.employees.keys()), size=1)[0]
             self.employees[id_].firm_id = None
             self.employees[id_].set_commute(None)
             del self.employees[id_]
@@ -541,7 +541,7 @@ class ConstructionFirm(Firm):
                 return
 
         # Targets
-        building_size = seed.lognormvariate(4.96, 0.5)
+        building_size = seed_np.lognormal(4.96, 0.5)
         b, c, d = 0.38, 0.3, 0.1
         building_quality = seed_np.choice([1, 2, 3, 4], p=[1 - (b + c + d), b, c, d])
 
@@ -569,7 +569,7 @@ class ConstructionFirm(Firm):
         gross_cost = building_size * building_quality
         # Productivity of the company may vary double than exogenous set markup.
         # Productivity reduces the cost of construction and sets the size of profiting when selling
-        productivity = seed.randint(100 - int(2 * params["MARKUP"] * 100), 100) / 100
+        productivity = seed_np.randint(100 - int(2 * params["MARKUP"] * 100), 101) / 100
         building_cost = gross_cost * productivity
 
         # Choose region where construction is most profitable

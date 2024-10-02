@@ -45,7 +45,7 @@ class LaborMarket:
         pct_distance_hiring = params['PCT_DISTANCE_HIRING']
         relevance_unemployment = params['RELEVANCE_UNEMPLOYMENT_SALARIES']
 
-        self.seed.shuffle(self.candidates)
+        self.seed_np.shuffle(self.candidates)
         if wage_deciles is not None:
             for c in self.candidates:
                 if c.last_wage:
@@ -62,7 +62,7 @@ class LaborMarket:
         # If parameter of distance or qualification is ON, firms are the ones that are divided by the criteria
         # Candidates consider distance when they deduce cost of mobility from potential wage bundle
         # Division between qualification and proximity is done randomly
-        self.seed.shuffle(self.available_postings)
+        self.seed_np.shuffle(self.available_postings)
         if len(self.available_postings) >= 2:
             split = int(len(self.available_postings) * (1 - pct_distance_hiring))
             by_qual = self.available_postings[0:split]
@@ -145,7 +145,7 @@ class LaborMarket:
             [self.add_post(f) for f in hiring_firms]
         else:
             firing_firms = sim.seed_np.choice(gov_firms, size=jobs_balance * -1)
-            [f.fire(self.seed) for f in firing_firms]
+            [f.fire(self.seed_np) for f in firing_firms]
 
     def hire_fire(self, firms, firm_enter_freq, initialize=False):
         """Firms adjust their labor force based on profit"""
@@ -161,7 +161,7 @@ class LaborMarket:
                 # and there is no need to increase production due to low prices and inventories
                 elif firm.profit < 0:  # and firm.wages_paid > firm.revenue:
                     if not firm.increase_production:
-                        firm.fire(self.seed)
+                        firm.fire(self.seed_np)
                         n_fired += 1
                         # Condition is valid only once
                         firm.increase_production = True

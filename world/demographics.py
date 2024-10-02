@@ -47,9 +47,9 @@ def birth(sim):
     age = 0
     qualification = int(sim.seed.gammavariate(3, 3))
     qualification = [qualification if qualification < 21 else 20][0]
-    money = sim.seed.randrange(20, 40)
+    money = sim.seed_np.randint(20, 41)
     month = sim.seed.randrange(1, 13, 1)
-    gender = sim.seed.choice(['Male', 'Female'])
+    gender = sim.seed_np.choice(['Male', 'Female'], size=1)[0]
     sim.total_pop += 1
     return Agent((sim.total_pop - 1), gender, age, qualification, money, month)
 

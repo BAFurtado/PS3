@@ -107,7 +107,7 @@ class RentalMarket:
                                                     replace=False))
                 in_budget = [h for h in my_market if h.price * base_proportion < family.get_permanent_income()]
                 if in_budget:
-                    house = sim.seed.choice(in_budget)
+                    house = sim.seed_np.choice(in_budget, size=1)[0]
                     price = house.price * base_proportion
                 else:
                     if my_market:

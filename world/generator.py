@@ -259,7 +259,7 @@ class Generator:
     def allocate_to_family(self, agents, families):
         """Allocate agents to families"""
         agents = list(agents.values())
-        self.seed.shuffle(agents)
+        self.seed_np.shuffle(agents)
         fams = list(families.values())
         # Separate adults to make sure all families have at least one adult
         adults = [a for a in agents if a.age > 21]
@@ -272,7 +272,7 @@ class Generator:
 
         # Allocate children into random families
         for agent in chd:
-            family = self.seed.choice(fams)
+            family = self.seed_np.choice(fams, size=1)[0]
             if not agent.belongs_to_family:
                 family.add_agent(agent)
         return agents, families
@@ -377,7 +377,7 @@ class Generator:
     def allocate_to_households(self, families, households):
         """Allocate houses to families"""
         unclaimed = list(households)
-        self.seed.shuffle(unclaimed)
+        self.seed_np.shuffle(unclaimed)
         house_id = None
         while unclaimed:
             for family in families.values():
@@ -399,7 +399,7 @@ class Generator:
         families = list(families)
         houses = [h for h in houses if h.owner_id is None]
         for house in houses:
-            family = self.seed.choice(families)
+            family = self.seed_np.choice(families, size=1)[0]
             house.owner_id = family.id
             family.owned_houses.append(house)
 

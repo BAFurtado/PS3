@@ -198,7 +198,7 @@ def marriage(sim):
 
     # Marry individuals.
     # NOTE individuals are paired randomly
-    sim.seed.shuffle(to_marry)
+    sim.seed_np.shuffle(to_marry)
     to_marry = iter(to_marry)
     for a, b in zip(to_marry, to_marry):
         if a.family.id != b.family.id:

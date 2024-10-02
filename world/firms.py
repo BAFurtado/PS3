@@ -85,14 +85,14 @@ def firm_growth(sim):
                 region_ps.append((p_profit + p_n_emp)/2)
 
         # Normalize probabilities
-        region_ps = region_ps/np.sum(region_ps)
+        region_ps = region_ps / np.sum(region_ps)
 
         # For each new firm, randomly select its region based on the probabilities we computed
         # and then create the new firm
-        #TODO: Do the new firms hire employees? How is the process defined?
+        # TODO: Do the new firms hire employees? How is the process defined?
         for _ in range(growth):
-            region_id = sim.seed.choices(regions, weights=region_ps)
-            region = sim.regions[region_id[0]]
+            region_id = sim.seed_np.choice(regions, size=1, replace=True, p=region_ps)[0]
+            region = sim.regions[region_id]
             firm = list(sim.generator.create_firms(1, region).values())[0]
             firm.create_product()
             sim.firms[firm.id] = firm
