@@ -290,7 +290,7 @@ class Output:
                       firm.address.y, firm.total_balance, firm.num_employees,
                       firm.get_total_quantity(), firm.amount_produced, firm.inventory[0].price,
                       firm.amount_sold, firm.revenue, firm.profit,
-                      firm.wages_paid, firm.input_cost,firm.sector))
+                      firm.wages_paid, firm.input_cost, firm.sector))
              for firm in sim.firms.values()]
         [f.reset_amount_sold() for f in sim.firms.values()]
 

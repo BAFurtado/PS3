@@ -278,7 +278,8 @@ class Firm:
         return quantity
 
     def get_total_quantity(self):
-        self.total_quantity = sum(p.quantity for p in self.inventory.values())
+        # Simplifying for JUST ONE PRODUCT. More products will need rearranging it
+        self.total_quantity = self.inventory[0].quantity
         return self.total_quantity
 
     # Commercial department
@@ -537,7 +538,7 @@ class ConstructionFirm(Firm):
 
         # Probability depends on size of market
         if vacancy_prob:
-            if seed.random() > vacancy_prob:
+            if seed.random() < vacancy_prob:
                 return
 
         # Targets
@@ -578,10 +579,10 @@ class ConstructionFirm(Firm):
             r_id: sum(vs) / len(vs) for r_id, vs in region_prices.items()
         }
         # Using median prices for regions without price information
-        try:
-            median_prices = np.median(list(region_mean_prices.values()))
-        except RuntimeWarning:
+        if not region_mean_prices.values():
             median_prices = 0
+        else:
+            median_prices = np.median(list(region_mean_prices.values()))
         region_profitability = [
             region_mean_prices.get(r.id, median_prices)
             - (r.license_price * building_cost * (1 + params["LOT_COST"]))
@@ -594,7 +595,8 @@ class ConstructionFirm(Firm):
             return
 
         # Choose region with the highest profitability
-        region_sample = [r[0] for r in sorted(regions, key=lambda rp: rp[1], reverse=True)[:int(params['SIZE_MARKET'])]]
+        region_sample = [r[0] for r in
+                         sorted(regions, key=lambda rp: rp[1], reverse=True)[:int(params['HIRING_SAMPLE_SIZE'])]]
         region = seed_np.choice(region_sample)
         idx = max(self.building) + 1 if self.building else 0
         self.building[idx]["region"] = region.id

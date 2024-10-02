@@ -322,7 +322,7 @@ class Simulation:
         # Construction firms
         vacancy = self.stats.calculate_house_vacancy(self.houses, False)
         vacancy_value = None
-        # Probability depends on size of market
+        # Probability depends (strongly) on market supply
         if self.PARAMS["OFFER_SIZE_ON_PRICE"]:
             vacancy_value = 1 - (vacancy * self.PARAMS["OFFER_SIZE_ON_PRICE"])
             if vacancy_value < self.PARAMS["MAX_OFFER_DISCOUNT"]:
