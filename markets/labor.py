@@ -53,7 +53,7 @@ class LaborMarket:
                         if d > c.last_wage:
                             break
                     p_car = params['WAGE_TO_CAR_OWNERSHIP_QUANTILES'][i]
-                    c.has_car = self.seed.random() < p_car
+                    c.has_car = self.seed_np.rand() < p_car
                 else:
                     c.has_car = False
         else:

@@ -56,7 +56,7 @@ def birth(sim):
 
 def pregnant(sim, agent, p_pregnancy):
     """An agent is born"""
-    if sim.seed.random() < p_pregnancy:
+    if sim.seed_np.rand() < p_pregnancy:
         child = birth(sim)
         agent.family.add_agent(child)
         sim.agents[child.id] = child

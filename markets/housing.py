@@ -193,7 +193,7 @@ class HousingMarket:
                     return
                 cash += loan_amount
             elif savings / p > sim.PARAMS['CAPPED_LOW_VALUE']:
-                if sim.seed.random() < vacancy:
+                if sim.seed_np.rand() < vacancy:
                     price = savings
                 else:
                     continue

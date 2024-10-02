@@ -437,7 +437,7 @@ class Generator:
         return quali_sum
 
     def qual(self, cod):
-        sel = self.quali > self.seed.random()
+        sel = self.quali > self.seed_np.rand()
         idx = sel.idxmax(1)
         loc = idx.loc[int(cod)]
         if self.sim.geo.year == 2010:

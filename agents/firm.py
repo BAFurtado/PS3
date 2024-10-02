@@ -287,7 +287,7 @@ class Firm:
             self,
             sticky_prices,
             markup,
-            seed,
+            seed_np,
             avg_prices,
             prod_exponent=None,
             prod_magnitude_divisor=None,
@@ -297,13 +297,13 @@ class Firm:
         """ Update prices based on inventory and average prices
             Save signal for the labor market """
         # Sticky prices (KLENOW, MALIN, 2010)
-        if seed.random() > sticky_prices:
+        if seed_np.rand() > sticky_prices:
             for p in self.inventory.values():
                 self.get_total_quantity()
                 # if the firm has sold this month more than available in stocks, prices rise
                 # Dawid 2018 p.26 Firm observes excess or shortage inventory and relative price considering other firms
                 # Considering inventory to last one month only
-                delta_price = seed.randint(0, int(2 * markup * 100)) / 100
+                delta_price = seed_np.randint(0, int(2 * markup * 100) + 1) / 100
                 low_inventory = (
                         self.total_quantity <= self.amount_sold or self.total_quantity == 0
                 )
@@ -538,7 +538,7 @@ class ConstructionFirm(Firm):
 
         # Probability depends on size of market
         if vacancy_prob:
-            if seed.random() < vacancy_prob:
+            if seed_np.rand() < vacancy_prob:
                 return
 
         # Targets
@@ -705,7 +705,7 @@ class ConstructionFirm(Firm):
             self,
             sticky_prices,
             markup,
-            seed,
+            seed_np,
             avg_prices,
             prod_exponent=None,
             prod_magnitude_divisor=None,
@@ -713,7 +713,7 @@ class ConstructionFirm(Firm):
             price_ruggedness=None,
     ):
         """Update signal for the labor market"""
-        if seed.random() > sticky_prices:
+        if seed_np.rand() > sticky_prices:
             if self.building:
                 # Number of houses being built is endogenously dependent on number of workers and productivity within a
                 # parameter-specified number of months.

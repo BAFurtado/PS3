@@ -311,7 +311,7 @@ class Simulation:
             firm.decision_on_prices_production(
                 sticky,
                 markup,
-                self.seed,
+                self.seed_np,
                 self.avg_prices,
                 prod_exponent,
                 prod_magnitude_divisor,
