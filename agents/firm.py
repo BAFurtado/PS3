@@ -458,10 +458,10 @@ class Firm:
 
     def fire(self, seed_np):
         if self.employees:
-            id_ = seed_np.choice(list(self.employees.keys()), size=1)[0]
-            self.employees[id_].firm_id = None
-            self.employees[id_].set_commute(None)
-            del self.employees[id_]
+            employee = seed_np.choice(list(self.employees.values()), size=1)[0]
+            self.employees[employee.id].firm_id = None
+            self.employees[employee.id].set_commute(None)
+            del self.employees[employee.id]
 
     def is_worker(self, id_):
         # Returns true if agent is a member of this firm
