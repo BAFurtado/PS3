@@ -320,13 +320,9 @@ class Simulation:
             )
 
         # Construction firms
-        vacancy = self.stats.calculate_house_vacancy(self.houses, False)
-        vacancy_value = None
         # Probability depends (strongly) on market supply
         if self.PARAMS["OFFER_SIZE_ON_PRICE"]:
-            vacancy_value = 1 - (vacancy * self.PARAMS["OFFER_SIZE_ON_PRICE"])
-            if vacancy_value < self.PARAMS["MAX_OFFER_DISCOUNT"]:
-                vacancy_value = self.PARAMS["MAX_OFFER_DISCOUNT"]
+            vacancy = self.stats.calculate_house_vacancy(self.houses, False)
         construction_firms = [f for f in self.firms.values() if f.sector == 'Construction']
         for firm in construction_firms:
             # See if firm can build a house
@@ -334,9 +330,9 @@ class Simulation:
                 self.regions.values(),
                 self.houses.values(),
                 self.PARAMS,
-                self.seed,
+                self,
                 self.seed_np,
-                vacancy_value,
+                vacancy,
             )
             # See whether a house has been completed. If so, register. Else, continue
             house = firm.build_house(self.regions, self.generator)

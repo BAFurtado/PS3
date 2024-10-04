@@ -18,17 +18,17 @@ MARKUP = 0.05
 STICKY_PRICES = .2
 # Price ruggedness a positive value (below 1) that multiplies the magnitude of price reduction
 # Reflects a reluctance of businesses to lower prices. Amount estimated for reduction multiplied by parameter
-PRICE_RUGGEDNESS = 0.3
+PRICE_RUGGEDNESS = 0.1
 # Number of firms consulted before consumption
 SIZE_MARKET = 6
 # Number of firms to buy from in the INTERMEDIATE market
 INTERMEDIATE_SIZE_MARKET = 3
 # Frequency firms enter the market
-LABOR_MARKET = 0.125 #0.15
+LABOR_MARKET = 0.125  # 0.15
 # Percentage of employees firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
-RELEVANCE_UNEMPLOYMENT_SALARIES = 2 #0.17
+RELEVANCE_UNEMPLOYMENT_SALARIES = 2  # 0.17
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 20
 # GOVERNMENT ####################################################################
@@ -142,10 +142,10 @@ REGIONAL_FREIGHT_COST = .3
 # RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation
 # Minimum value to run depends on the size of municipality 0,001 is recommended minimum
-PERCENTAGE_ACTUAL_POP = 0.005
+PERCENTAGE_ACTUAL_POP = 0.01
 
 # Write exactly like the list below
-PROCESSING_ACPS = ["IPATINGA"]
+PROCESSING_ACPS = ["BELO HORIZONTE"]
 
 # Selecting the starting year to build the Agents, can be: 1991, 2000 or 2010
 STARTING_DAY = datetime.date(2010, 1, 1)

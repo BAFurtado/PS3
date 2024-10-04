@@ -511,20 +511,31 @@ class ConstructionFirm(Firm):
         self.cash_flow = defaultdict(float)
         self.monthly_planned_revenue = list()
 
-    def plan_house(self, regions, houses, params, seed, seed_np, vacancy_prob):
+    def plan_house(self, regions, houses, params, sim, seed_np, vacancy):
         """Decide where to build with which attributes"""
+        # Probability depends on size of market
+        if vacancy:
+            if seed_np.rand() < vacancy:
+                return
+
         # Check whether production capacity does not exceed hired construction
         # for the next construction cash flow period
-        if self.building:
-            # Number of houses being built is endogenously dependent on number of workers (production capacity)
-            if (
-                    sum([self.building[b]["cost"] for b in self.building])
-                    > (self.total_qualification(params["PRODUCTIVITY_EXPONENT"])
-                       / params["PRODUCTIVITY_MAGNITUDE_DIVISOR"])
-            ):
-                return
-            else:
-                self.increase_production = True
+        monthly_productivity_capacity = (self.total_qualification(params["PRODUCTIVITY_EXPONENT"]) /
+                                         params["PRODUCTIVITY_MAGNITUDE_DIVISOR"])
+        months_since_start = ((sim.clock.days.year - params['STARTING_DAY'].year) * 12 +
+                              (sim.clock.days.month - params['STARTING_DAY'].month))
+
+        stock = sum([b.size * b.quality for b in self.houses_for_sale])
+        sold = sum([b.size * b.quality for b in self.houses_built]) / months_since_start if months_since_start else 0
+        if not self.building and not self.houses_for_sale:
+            # Start building plan
+            pass
+        # Checking whether productivity capacity plus stock is less than sold
+        elif monthly_productivity_capacity + stock < sold:
+            # Also start building plan
+            pass
+        else:
+            return
 
         # Candidate regions for licenses and check of funds to buy license
         regions = [
@@ -534,11 +545,6 @@ class ConstructionFirm(Firm):
         ]
         if not regions:
             return
-
-        # Probability depends on size of market
-        if vacancy_prob:
-            if seed_np.rand() < vacancy_prob:
-                return
 
         # Targets
         building_size = seed_np.lognormal(4.96, 0.5)
@@ -699,32 +705,6 @@ class ConstructionFirm(Firm):
             )
         else:
             return self.revenue * (1 - (unemployment * relevance_unemployment))
-
-    def decision_on_prices_production(
-            self,
-            sticky_prices,
-            markup,
-            seed_np,
-            avg_prices,
-            prod_exponent=None,
-            prod_magnitude_divisor=None,
-            const_cash_flow=None,
-            price_ruggedness=None,
-    ):
-        """Update signal for the labor market"""
-        if seed_np.rand() > sticky_prices:
-            if self.building:
-                # Number of houses being built is endogenously dependent on number of workers and productivity within a
-                # parameter-specified number of months.
-                if (
-                        sum([self.building[b]["cost"] for b in self.building])
-                        > const_cash_flow
-                        * self.total_qualification(prod_exponent)
-                        / prod_magnitude_divisor
-                ):
-                    self.increase_production = True
-            else:
-                self.increase_production = False
 
     @property
     def n_houses_sold(self):
