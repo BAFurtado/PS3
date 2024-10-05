@@ -119,10 +119,10 @@ class HousingMarket:
             # Rationale for decision on renting in the literature is dependent on loads of future uncertainties.
             renting, willing = defaultdict(list), defaultdict(list)
             for quality_key in purchasing:
-                renting[quality_key] = sim.seed_np.choice(purchasing[quality_key],
-                                                          size=int(len(purchasing[quality_key]) *
-                                                                   sim.PARAMS['INITIAL_RENTAL_SHARE']),
-                                                          replace=False)
+                renting[quality_key] = list(sim.seed_np.choice(purchasing[quality_key],
+                                                               size=int(len(purchasing[quality_key]) *
+                                                                        sim.PARAMS['INITIAL_RENTAL_SHARE']),
+                                                               replace=False))
                 # The families that are not renting, want to join the purchasing list
                 willing[quality_key] = [f for f in purchasing[quality_key] if f not in renting[quality_key]]
 
