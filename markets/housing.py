@@ -88,9 +88,9 @@ class HousingMarket:
 
         # Only rent from families, not firms
         family_houses_to_rent = [h for h in self.for_sale if h.family_owner]
-        houses_to_rent = sim.seed_np.choice(family_houses_to_rent,
-                                            size=int(len(family_houses_to_rent) * sim.PARAMS['INITIAL_RENTAL_SHARE']),
-                                            replace=False)
+
+        houses_to_rent = sim.seed.sample(family_houses_to_rent,
+                                         int(len(family_houses_to_rent) * sim.PARAMS['INITIAL_RENTAL_SHARE']))
 
         # Deduce houses that are to be rented from sales pool and
         # Restrict list of available houses to families' maximum paying ability
@@ -119,10 +119,10 @@ class HousingMarket:
             # Rationale for decision on renting in the literature is dependent on loads of future uncertainties.
             renting, willing = defaultdict(list), defaultdict(list)
             for quality_key in purchasing:
-                renting[quality_key] = list(sim.seed_np.choice(purchasing[quality_key],
-                                                               size=int(len(purchasing[quality_key]) *
-                                                                        sim.PARAMS['INITIAL_RENTAL_SHARE']),
-                                                               replace=False))
+                renting[quality_key] = sim.seed.sample(purchasing[quality_key],
+                                                       int(len(purchasing[quality_key]) *
+                                                       sim.PARAMS['INITIAL_RENTAL_SHARE']))
+
                 # The families that are not renting, want to join the purchasing list
                 willing[quality_key] = [f for f in purchasing[quality_key] if f not in renting[quality_key]]
 
@@ -159,9 +159,7 @@ class HousingMarket:
     def negotiating(self, family, for_sale, sim, vacancy):
         savings = family.savings + family.bank_savings
         savings_with_mortgage = family.savings_with_loan
-        my_market = list(sim.seed_np.choice(for_sale,
-                                            size=min(len(for_sale), int(sim.PARAMS['SIZE_MARKET']) * 3),
-                                            replace=False))
+        my_market = sim.seed.sample(for_sale, min(len(for_sale), int(sim.PARAMS['SIZE_MARKET']) * 3))
         my_market.sort(key=lambda h: h.price, reverse=True)
         # If family has enough funds, or successfully gets a loan, it buys the first house of the stack.
         # Only houses that are within savings or savings plus loan compose each family individual market

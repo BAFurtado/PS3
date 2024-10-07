@@ -102,9 +102,8 @@ class RentalMarket:
                 # Make sure list of vacant houses is up-to-date
                 self.unoccupied = [h for h in self.unoccupied if h.family_id is None]
                 # Matching
-                my_market = list(sim.seed_np.choice(self.unoccupied,
-                                                    size=min(len(self.unoccupied), int(sim.PARAMS['SIZE_MARKET']) * 3),
-                                                    replace=False))
+                my_market = sim.seed.sample(self.unoccupied,
+                                            min(len(self.unoccupied), int(sim.PARAMS['SIZE_MARKET']) * 3))
                 in_budget = [h for h in my_market if h.price * base_proportion < family.get_permanent_income()]
                 if in_budget:
                     house = sim.seed_np.choice(in_budget, size=1)[0]

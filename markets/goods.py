@@ -92,17 +92,24 @@ class RegionalMarket:
     def consume(self):
         self.monthly_hh_consumption = defaultdict(float)
         # Household consumption
+
+        # Create sector-wise dictionary to reduce filtering within families
+        firms_by_sector = {
+            sector: [f for f in self.sim.firms.values() if f.sector == sector and f.get_total_quantity() > 0]
+            for sector in self.sim.regional_market.final_demand.index
+        }
         for family in self.sim.families.values():
             consumption = family.consume(
                 self,
-                self.sim.firms,
+                self.sim.seed,
                 self.sim.central,
                 self.sim.regions,
                 self.sim.PARAMS,
                 self.sim.seed_np,
                 self.sim.clock.year,
                 self.sim.clock.months,
-                self.if_origin
+                self.if_origin,
+                firms_by_sector
             )
             for key, value in consumption.items():
                 self.monthly_hh_consumption[key] += value

@@ -237,9 +237,7 @@ class Generator:
         """Create random agents by sampling the existing
         agent population and creating clones of the sampled agents"""
         new_agents = {}
-        sample = self.seed_np.choice(list(self.sim.agents.values()),
-                                     size=n_agents,
-                                     replace=False)
+        sample = self.seed.sample(list(self.sim.agents.values()), n_agents)
         moneys = self.seed_np.lognormal(3, 0.5, size=len(sample))
         for i, a in enumerate(sample):
             agent_id = self.gen_id()

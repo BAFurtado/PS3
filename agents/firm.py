@@ -544,12 +544,13 @@ class ConstructionFirm(Firm):
         #     # This check happens after the regular firm decision on prices and affects only construction firms
         #     # that have much larger capacity
         #     pass
-        elif len(self.houses_for_sale) < 3:
+        elif len(self.houses_for_sale) <= params['MAX_HOUSE_STOCK']:
             # self.increase_production = False
             pass
         else:
             print('NAO PASSOU NO CRITERIO')
-            self.increase_production = False
+            if not monthly_productivity_capacity == 0:
+                self.increase_production = False
             return
 
         # Candidate regions for licenses and check of funds to buy license
@@ -589,7 +590,8 @@ class ConstructionFirm(Firm):
         gross_cost = building_size * building_quality
         # Productivity of the company may vary double than exogenous set markup.
         # Productivity reduces the cost of construction and sets the size of profiting when selling
-        productivity = seed_np.randint(100 - int(2 * params["MARKUP"] * 100), 101) / 100
+        productivity = seed_np.randint(100 - int(params['CONSTRUCTION_FIRM_MARKUP_MULTIPLIER'] *
+                                                 params["MARKUP"] * 100), 101) / 100
         building_cost = gross_cost * productivity
 
         # Choose region where construction is most profitable
@@ -614,9 +616,12 @@ class ConstructionFirm(Firm):
             return
 
         # Choose region with the highest profitability
-        region_sample = [r[0] for r in
-                         sorted(regions, key=lambda rp: rp[1], reverse=True)[:int(params['HIRING_SAMPLE_SIZE'])]]
-        region = seed_np.choice(region_sample)
+        # region_sample = [r[0] for r in
+        #                  sorted(regions, key=lambda rp: rp[1], reverse=True)[:int(params['HIRING_SAMPLE_SIZE'])]]
+        # region = seed_np.choice(region_sample)
+
+        # Building in any profitable region
+        region = seed_np.choice([r[0] for r in regions], size=1)[0]
         idx = max(self.building) + 1 if self.building else 0
         self.building[idx]["region"] = region.id
         self.building[idx]["size"] = building_size

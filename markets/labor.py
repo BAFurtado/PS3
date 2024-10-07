@@ -96,9 +96,8 @@ class LaborMarket:
         # This organizes a number of offers of candidates per firm, according to their own location
         # and "size" of a firm, giving by its more recent revenue level
         for firm, wage in lst_firms:
-            sampled_candidates = self.seed_np.choice(candidates,
-                                                     size=min(len(candidates), int(params['HIRING_SAMPLE_SIZE'])),
-                                                     replace=False).tolist()
+            sampled_candidates = self.seed.sample(candidates,
+                                                  min(len(candidates), int(params['HIRING_SAMPLE_SIZE'])))
             for c in sampled_candidates:
                 transit_cost = params['PRIVATE_TRANSIT_COST'] if c.has_car else params['PUBLIC_TRANSIT_COST']
                 try:

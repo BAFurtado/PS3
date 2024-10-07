@@ -103,6 +103,10 @@ CONSTRUCTION_ACC_CASH_FLOW = 24
 LOT_COST = 0.15
 # Initial percentage of vacant houses
 HOUSE_VACANCY = 0.1
+# MAX_NUMBER OF HOUSES IN STOCK
+MAX_HOUSE_STOCK = 7
+# HOW LARGER IS CONSTRUCTION FIRMS PROFIT RELATIVE TO USUAL MARKUP (firms' productivity, given current prices)
+CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 8
 
 # POPULATION AND DEMOGRAPHY
 # Families run parameters (on average) for year 2000, or no information. 2010 uses APs average data
@@ -142,10 +146,10 @@ REGIONAL_FREIGHT_COST = .3
 # RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation
 # Minimum value to run depends on the size of municipality 0,001 is recommended minimum
-PERCENTAGE_ACTUAL_POP = 0.01
+PERCENTAGE_ACTUAL_POP = 0.005
 
 # Write exactly like the list below
-PROCESSING_ACPS = ["BELO HORIZONTE"]
+PROCESSING_ACPS = ["IPATINGA"]
 
 # Selecting the starting year to build the Agents, can be: 1991, 2000 or 2010
 STARTING_DAY = datetime.date(2010, 1, 1)
