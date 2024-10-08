@@ -105,7 +105,6 @@ class RegionalMarket:
                 self.sim.central,
                 self.sim.regions,
                 self.sim.PARAMS,
-                self.sim.seed_np,
                 self.sim.clock.year,
                 self.sim.clock.months,
                 self.if_origin,

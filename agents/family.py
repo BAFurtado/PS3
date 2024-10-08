@@ -215,7 +215,7 @@ class Family:
             self.savings += (money - consumption)
         return consumption
 
-    def consume(self, regional_market, seed, central, regions, params, seed_np, year, month, if_origin,
+    def consume(self, regional_market, seed, central, regions, params, year, month, if_origin,
                 firms_by_sector):
         """Consumption from goods and services firms, based on criteria of price or distance.
         Family general consumption depends on its permanent income, based on members wages, working life expectancy
@@ -240,9 +240,12 @@ class Family:
                     continue
                 # Choose the firm to buy from
                 sector_firms = firms_by_sector[sector]
-                market = seed.sample(sector_firms,
-                                     min(len(sector_firms), int(params['SIZE_MARKET'])))
-                market = [firm for firm in market if firm.get_total_quantity() > 0]
+                if not sector_firms:
+                    continue
+                if len(sector_firms) <= int(params['SIZE_MARKET']):
+                    market = seed.sample(sector_firms, len(sector_firms))
+                else:
+                    market = seed.sample(sector_firms, int(params['SIZE_MARKET']))
                 if market:
                     # Choose between cheapest or closest
                     firm_strategy = seed.choice(['Price', 'Distance'])
