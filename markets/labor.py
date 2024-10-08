@@ -145,10 +145,10 @@ class LaborMarket:
         jobs_balance = total_gov_employees - total_employment
 
         if jobs_balance > 0:
-            hiring_firms = sim.seed.sample(gov_firms, jobs_balance)
+            hiring_firms = sim.seed.sample(gov_firms, min(jobs_balance, len(gov_firms)))
             [self.add_post(f) for f in hiring_firms]
         else:
-            firing_firms = sim.seed.sample(gov_firms, jobs_balance * -1)
+            firing_firms = sim.seed.sample(gov_firms, min((jobs_balance * -1), len(gov_firms)))
             [f.fire(self.seed) for f in firing_firms]
 
     def hire_fire(self, firms, firm_enter_freq, initialize=False):
