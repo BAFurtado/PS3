@@ -355,7 +355,7 @@ class Simulation:
         sample_size = math.floor(len(self.agents) * 0.5)
         last_wages = [
             a.last_wage
-            for a in list(self.seed_np.choice(list(self.agents.values()), size=sample_size, replace=False))
+            for a in list(self.seed.sample(list(self.agents.values()), sample_size))
             if a.last_wage is not None
         ]
         wage_deciles = np.percentile(last_wages, np.arange(0, 100, 10))

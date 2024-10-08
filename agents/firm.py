@@ -127,7 +127,7 @@ class Firm:
         params = regional_market.sim.PARAMS
         chosen_firms = {}
         for sector in regional_market.technical_matrix.index:
-            market = seed.choice(
+            market = seed.sample(
                 [f for f in firms.values() if (f.sector == sector) & (f.id != self.id)],
                 min(len([f for f in firms.values() if (f.sector == sector) & (f.id != self.id)]),
                     int(params['SIZE_MARKET'])))
@@ -457,7 +457,7 @@ class Firm:
 
     def fire(self, seed):
         if self.employees:
-            employee = seed.choice(list(self.employees.values()), 1)
+            employee = seed.choice(list(self.employees.values()))
             self.employees[employee.id].firm_id = None
             self.employees[employee.id].set_commute(None)
             del self.employees[employee.id]
@@ -620,7 +620,7 @@ class ConstructionFirm(Firm):
         # region = seed_np.choice(region_sample)
 
         # Building in any profitable region
-        region = sim.seed.choice([r[0] for r in regions], 1)
+        region = sim.seed.choice([r[0] for r in regions])
         idx = max(self.building) + 1 if self.building else 0
         self.building[idx]["region"] = region.id
         self.building[idx]["size"] = building_size
@@ -785,7 +785,7 @@ class GovernmentFirm(Firm):
             if money_this_sector == 0:
                 continue
             sector_firms = [f for f in sim.firms.values() if f.sector == sector]
-            market = sim.seed.choice(sector_firms,
+            market = sim.seed.sample(sector_firms,
                                      min(len(sector_firms), int(sim.PARAMS['SIZE_MARKET'])))
             market = [firm for firm in market if firm.get_total_quantity() > 0]
             if market:

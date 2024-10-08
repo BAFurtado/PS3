@@ -106,7 +106,7 @@ class RentalMarket:
                                             min(len(self.unoccupied), int(sim.PARAMS['SIZE_MARKET']) * 3))
                 in_budget = [h for h in my_market if h.price * base_proportion < family.get_permanent_income()]
                 if in_budget:
-                    house = sim.seed_np.choice(in_budget, size=1)[0]
+                    house = sim.seed.choice(in_budget)
                     price = house.price * base_proportion
                 else:
                     if my_market:

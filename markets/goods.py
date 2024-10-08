@@ -171,7 +171,7 @@ class External:
 
         for sector in self.sim.regional_market.technical_matrix.index:
             n_firms = len([f for f in firms.values() if (f.sector == sector)])
-            market = seed.choice(
+            market = seed.sample(
                 [f for f in firms.values() if f.sector == sector],
                 min(n_firms, 3 * int(params['SIZE_MARKET'])))
             market = [firm for firm in market if firm.get_total_quantity() > 0]

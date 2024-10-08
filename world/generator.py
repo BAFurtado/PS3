@@ -270,7 +270,7 @@ class Generator:
 
         # Allocate children into random families
         for agent in chd:
-            family = self.seed_np.choice(fams, size=1)[0]
+            family = self.seed.choice(fams)
             if not agent.belongs_to_family:
                 family.add_agent(agent)
         return agents, families
@@ -397,7 +397,7 @@ class Generator:
         families = list(families)
         houses = [h for h in houses if h.owner_id is None]
         for house in houses:
-            family = self.seed_np.choice(families, size=1)[0]
+            family = self.seed.choice(families)
             house.owner_id = family.id
             family.owned_houses.append(house)
 
