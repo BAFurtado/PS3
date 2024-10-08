@@ -182,10 +182,10 @@ class External:
             chosen_firms[sector] = chosen_firm
         return chosen_firms
 
-    def final_consumption(self, internal_final_demand, seed_np):
+    def final_consumption(self, internal_final_demand, seed):
         """Consumes from local firms according to the regionalized SAM"""
         # Selects a subset of firms to buy from playing the role of rest of Brazil demand from simulated region.
-        chosen_firms = self.choose_firms_per_sector(self.sim.firms, seed_np)
+        chosen_firms = self.choose_firms_per_sector(self.sim.firms, seed)
 
         for sector in self.sim.regional_market.technical_matrix.index:
             # Sticking to a SINGLE product for firm

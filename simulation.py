@@ -277,7 +277,7 @@ class Simulation:
             internal_consumption[key] += value
         for key, value in self.regional_market.monthly_hh_consumption.items():
             internal_consumption[key] += value
-        self.external.final_consumption(internal_consumption, self.seed_np)
+        self.external.final_consumption(internal_consumption, self.seed)
         # Make rent payments
         self.housing.process_monthly_rent(self)
         # Collect loan repayments
