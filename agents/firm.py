@@ -120,17 +120,17 @@ class Firm:
             self.env_indicators['emissions'] += emissions_this_month
 
     # PRODUCTION DEPARTMENT ###########################################################################################
-    def choose_firm_per_sector(self, regional_market, firms, seed_np, market_size):
+    def choose_firm_per_sector(self, regional_market, firms, seed, market_size):
         """
         Choose local firms to buy inputs from
         """
         params = regional_market.sim.PARAMS
         chosen_firms = {}
         for sector in regional_market.technical_matrix.index:
-            market = seed_np.choice(
+            market = seed.choice(
                 [f for f in firms.values() if (f.sector == sector) & (f.id != self.id)],
-                size=min(len([f for f in firms.values() if (f.sector == sector) & (f.id != self.id)]),
-                         int(params['SIZE_MARKET'])), replace=False)
+                min(len([f for f in firms.values() if (f.sector == sector) & (f.id != self.id)]),
+                    int(params['SIZE_MARKET'])))
             market = [firm for firm in market if firm.get_total_quantity() > 0]
             if market:
                 # Choose firms with the cheapest average prices
@@ -141,7 +141,7 @@ class Firm:
                 chosen_firms[sector] = None
         return chosen_firms
 
-    def buy_inputs(self, desired_quantity, regional_market, firms, seed_np,
+    def buy_inputs(self, desired_quantity, regional_market, firms, seed,
                    technical_matrix, external_technical_matrix):
         """
         Buys inputs according to the technical coefficients.
@@ -165,7 +165,7 @@ class Firm:
                                                         input_quantities_needed)
             external_input_quantities_needed = input_quantities_needed - local_input_quantities_needed
             # Choose the firm to buy inputs from
-            chosen_firms_per_sector = self.choose_firm_per_sector(regional_market, firms, seed_np,
+            chosen_firms_per_sector = self.choose_firm_per_sector(regional_market, firms, seed,
                                                                   params['INTERMEDIATE_SIZE_MARKET'])
             money_local_inputs = sum([local_input_quantities_needed[sector] * chosen_firms_per_sector[sector][0].prices
                                       for sector in regional_market.technical_matrix.index
@@ -219,7 +219,7 @@ class Firm:
                 else:
                     change = money_this_sector
                 # Check whether there was change and buy the rest from the external sector
-                #  so that firms wont consistently buy less than needed while having money
+                #  so that firms won't consistently buy less than needed while having money
                 if self.total_balance > ((1 + params['REGIONAL_FREIGHT_COST']) - 1) * change:
                     self.total_balance -= ((1 + params['REGIONAL_FREIGHT_COST']) - 1) * change
                     external_money_this_sector += (1 + params['REGIONAL_FREIGHT_COST']) * change
@@ -234,9 +234,8 @@ class Firm:
                                                  external_money_this_sector / (prices *
                                                                                (1 + params['REGIONAL_FREIGHT_COST'])))
                 self.input_cost += money_this_sector - change + external_money_this_sector
-            # TODO. Check that we have at least 3 firms from each sector... include in the generator
 
-    def update_product_quantity(self, prod_exponent, prod_divisor, regional_market, firms, seed_np):
+    def update_product_quantity(self, prod_exponent, prod_divisor, regional_market, firms, seed):
         """
         Based on the MIP sector, buys inputs to produce a given money output of the activity, creates externalities
         and creates a price based on cost.
@@ -258,7 +257,7 @@ class Firm:
             external_technical_matrix = regional_market.ext_local_matrix
 
             # Buy inputs fills up input_inventory and external_input_inventory
-            self.buy_inputs(desired_quantity, regional_market, firms, seed_np,
+            self.buy_inputs(desired_quantity, regional_market, firms, seed,
                             technical_matrix, external_technical_matrix)
             input_quantities_needed = desired_quantity * (
                     technical_matrix.loc[:, self.sector] + external_technical_matrix.loc[:, self.sector])
@@ -456,9 +455,9 @@ class Firm:
     def obit(self, employee):
         del self.employees[employee.id]
 
-    def fire(self, seed_np):
+    def fire(self, seed):
         if self.employees:
-            employee = seed_np.choice(list(self.employees.values()), size=1)[0]
+            employee = seed.choice(list(self.employees.values()), 1)
             self.employees[employee.id].firm_id = None
             self.employees[employee.id].set_commute(None)
             del self.employees[employee.id]
@@ -621,7 +620,7 @@ class ConstructionFirm(Firm):
         # region = seed_np.choice(region_sample)
 
         # Building in any profitable region
-        region = seed_np.choice([r[0] for r in regions], size=1)[0]
+        region = sim.seed.choice([r[0] for r in regions], 1)
         idx = max(self.building) + 1 if self.building else 0
         self.building[idx]["region"] = region.id
         self.building[idx]["size"] = building_size
@@ -786,9 +785,8 @@ class GovernmentFirm(Firm):
             if money_this_sector == 0:
                 continue
             sector_firms = [f for f in sim.firms.values() if f.sector == sector]
-            market = sim.seed_np.choice(sector_firms,
-                                        size=min(len(sector_firms), int(sim.PARAMS['SIZE_MARKET'])),
-                                        replace=False)
+            market = sim.seed.choice(sector_firms,
+                                     min(len(sector_firms), int(sim.PARAMS['SIZE_MARKET'])))
             market = [firm for firm in market if firm.get_total_quantity() > 0]
             if market:
                 chosen_firm = min(market, key=lambda firm: firm.prices)

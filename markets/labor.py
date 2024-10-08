@@ -145,11 +145,11 @@ class LaborMarket:
         jobs_balance = total_gov_employees - total_employment
 
         if jobs_balance > 0:
-            hiring_firms = list(sim.seed_np.choice(gov_firms, size=jobs_balance))
+            hiring_firms = list(sim.seed.choice(gov_firms, jobs_balance))
             [self.add_post(f) for f in hiring_firms]
         else:
             firing_firms = list(sim.seed_np.choice(gov_firms, size=jobs_balance * -1))
-            [f.fire(self.seed_np) for f in firing_firms]
+            [f.fire(self.seed) for f in firing_firms]
 
     def hire_fire(self, firms, firm_enter_freq, initialize=False):
         """Firms adjust their labor force based on profit"""

@@ -240,9 +240,8 @@ class Family:
                     continue
                 # Choose the firm to buy from
                 sector_firms = firms_by_sector[sector]
-                market = seed_np.choice(sector_firms,
-                                        size=min(len(sector_firms), int(params['SIZE_MARKET'])),
-                                        replace=False)
+                market = seed.sample(sector_firms,
+                                     min(len(sector_firms), int(params['SIZE_MARKET'])))
                 market = [firm for firm in market if firm.get_total_quantity() > 0]
                 if market:
                     # Choose between cheapest or closest

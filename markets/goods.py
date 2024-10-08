@@ -162,7 +162,7 @@ class External:
             self.taxes_paid += amount_per_product * self.tax_consumption
             self.cumulative_taxes_paid += self.taxes_paid
 
-    def choose_firms_per_sector(self, firms, seed_np):
+    def choose_firms_per_sector(self, firms, seed):
         """
         Choose local firms to buy inputs from
         """
@@ -171,12 +171,9 @@ class External:
 
         for sector in self.sim.regional_market.technical_matrix.index:
             n_firms = len([f for f in firms.values() if (f.sector == sector)])
-            # TODO. Consider a higher (proportional) number of firms (> 3*) to benefit from external demand?
-            market = seed_np.choice(
+            market = seed.choice(
                 [f for f in firms.values() if f.sector == sector],
-                size=min(n_firms,
-                         3 * int(params['SIZE_MARKET'])),
-                replace=False)
+                min(n_firms, 3 * int(params['SIZE_MARKET'])))
             market = [firm for firm in market if firm.get_total_quantity() > 0]
             if market:
                 # Choose 10 firms with the cheapest prices
