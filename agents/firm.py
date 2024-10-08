@@ -515,41 +515,20 @@ class ConstructionFirm(Firm):
         # Probability depends on size of market
         if vacancy:
             if seed_np.rand() < vacancy:
-                print('NAO PASSOU NO SORTEIO')
                 return
 
         # Check whether production capacity does not exceed hired construction
         # for the next construction cash flow period
         monthly_productivity_capacity = self.total_qualification(params["PRODUCTIVITY_EXPONENT"])
-        print(f'CAPACIDADE PRODUTIVA {monthly_productivity_capacity}')
-        months_since_start = ((sim.clock.days.year - params['STARTING_DAY'].year) * 12 +
-                              (sim.clock.days.month - params['STARTING_DAY'].month))
-
-        stock = sum([b.price for b in self.houses_for_sale])
-        built = sum([b.price for b in self.houses_built]) #/ months_since_start if months_since_start else 0
-        print(f'STOCK {stock}')
-        print(f'BUILT {built}')
         if monthly_productivity_capacity == 0:
             self.increase_production = True
         if not self.building and not self.houses_for_sale:
             # Start building plan
-            print('COMECOU A CONSTRUIR')
             self.increase_production = True
             pass
-        # Checking whether productivity capacity plus stock is less than sold
-        # elif stock < monthly_productivity_capacity:
-        #     # Also start building plan
-        #     print('CAPACIDADE mais stock MENOR QUE SOLD')
-        #     # This check happens after the regular firm decision on prices and affects only construction firms
-        #     # that have much larger capacity
-        #     pass
         elif len(self.houses_for_sale) <= params['MAX_HOUSE_STOCK']:
-            # self.increase_production = False
             pass
         else:
-            print('NAO PASSOU NO CRITERIO')
-            if not monthly_productivity_capacity == 0:
-                self.increase_production = False
             return
 
         # Candidate regions for licenses and check of funds to buy license
@@ -571,7 +550,7 @@ class ConstructionFirm(Firm):
         for region_id in region_ids:
             for h in houses:
                 # In correct region
-                # within 40 size units,
+                # within 100 size units,
                 # within 2 quality
                 if (
                         h.region_id in region_id

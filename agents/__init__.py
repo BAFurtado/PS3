@@ -96,15 +96,14 @@ class Agent:
 
     def __repr__(self):
         return (
-            "Ag. ID: %s, %s, Qual. %s, Age: %s, Money $ %.2f, Firm: %s, Util. %.2f"
+            "Ag. ID: %s, %s, Qual. %s, Age: %s, Money $ %.2f, Firm: %s"
             % (
                 self.id,
                 self.gender,
                 self.qualification,
                 self.age,
                 self.money,
-                self.firm_id,
-                self.utility,
+                self.firm_id
             )
         )
 
