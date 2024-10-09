@@ -287,6 +287,7 @@ class Simulation:
         # Accessing dictionary parameters outside the loop for performance
         tax_labor = self.PARAMS["TAX_LABOR"]
         tax_firm = self.PARAMS["TAX_FIRM"]
+        tax_emission = self.PARAMS["TAX_EMISSION"]
         relevance_unemployment = self.PARAMS["RELEVANCE_UNEMPLOYMENT_SALARIES"]
         sticky = self.PARAMS["STICKY_PRICES"]
         markup = self.PARAMS["MARKUP"]
@@ -302,7 +303,7 @@ class Simulation:
                 tax_labor,
                 relevance_unemployment)
             # Firms update generated externalities, based on own sector and wages paid this month
-            firm.create_externalities()
+            firm.create_externalities(self.regions, tax_emission)
             # Tax firms before profits: (revenue - salaries paid)
             firm.pay_taxes(self.regions, tax_firm)
             # Profits are after taxes
@@ -318,6 +319,10 @@ class Simulation:
                 const_cash_flow,
                 price_ruggedness,
             )
+            firm.invest_eco_efficiency(
+                self.regional_market,
+                self.regions,
+                self.seed_np)
 
         # Construction firms
         vacancy = self.stats.calculate_house_vacancy(self.houses, False)

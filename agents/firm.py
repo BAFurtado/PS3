@@ -84,6 +84,7 @@ class Firm:
         # Monthly income received from sales
         self.revenue = revenue
         self.taxes_paid = taxes_paid
+        self.emission_taxes_paid = 0
         self.prices = prices
         self.sector = sector
         self.no_emissions = False
@@ -115,7 +116,7 @@ class Firm:
         Returns the probability of success given the amount invested per wages paid (I/W)
         """
         return 1-np.exp(-eco_lambda*eco_investment)
-    def create_externalities(self):
+    def create_externalities(self,regions,tax_emission):
         # TODO WE CAN USE THE OWN EVOLUTION OF EMISSIONS AS VALIDATION. WE INPUT ONLY 2010
         """
         Based on empirical data, creates externalities according to money output produced by a given activity.
@@ -128,26 +129,42 @@ class Firm:
             emissions_this_month = self.env_efficiency * self.wages_paid / self.emissions_base
             self.last_emissions = emissions_this_month
             self.env_indicators['emissions'] += emissions_this_month
+            emission_tax = emissions_this_month * tax_emission
+            if emission_tax >= 0:
+                self.emission_taxes_paid = emission_tax
+                self.total_balance -= emission_tax
+                regions[self.region_id].collect_taxes(self.taxes_paid, "emissions")
+            else:
+                self.emission_taxes_paid = 0
 
-    def invest_eco_efficiency(self,regional_market,expected_cost,random_value):
+
+    def invest_eco_efficiency(self,regional_market,regions,seed_np):
         """
         Reduce overall emissions per wage employed. 
         """
         # Decide how much to invest based on expected cost and benefit analysis
-        eco_investment = self.decision_on_eco_efficiency(regional_market)
+        eco_investment, paid_subsidies = self.decision_on_eco_efficiency(regional_market)
 
         # Check if firm has enough balance
+        if self.total_balance >= eco_investment:
+            self.total_balance -= eco_investment
+        else:
+            eco_investment = self.total_balance
+            self.total_balance = 0
 
 
         params = regional_market.sim.PARAMS
         # Stochastic process to actually reduce firm-level parameter
         p_success = self.probality_success(eco_investment,params['ECO_INVESTMENT_LAMBDA']) #regional_market.
+        random_value = seed_np.rand()
         if p_success>random_value:
             # Inovation was successful
             self.env_efficiency *= params['ENVIRONMENTAL_EFFICIENCY_STEP']
         else:
             # Nothing happens
             pass
+        regions[self.region_id].collect_taxes(-paid_subsidies, "emissions")
+        self.total_balance += paid_subsidies
 
     def decision_on_eco_efficiency(self,regional_market):
         """ 
@@ -157,7 +174,7 @@ class Firm:
         params = regional_market.sim.PARAMS
         ## Calculate expected emission cost with adaptative expectations
         # Tax cost
-        tax_cost = self.last_emissions * regional_market.sim.PARAMS['TAX_EMISSION']
+        tax_cost = self.emission_taxes_paid
 
         # TODO: Implement other emission costs
         reputation_cost, intrinsic_cost = 0,0
@@ -169,20 +186,19 @@ class Firm:
         expected_cost_reduction = (1-params['ENVIRONMENTAL_EFFICIENCY_STEP']) * total_cost
 
         # Profit maximization formula yields the formula below
-        eco_lambda=params['ECO_INVESTMENT_LAMBDA']
-
-        # TODO: Define if this should have a separate fund or should be drained from gov balance
-        subsidies = params['ECO_INVESTMENT_SUBSIDIES']
-        investment_per_wages_paid = (np.log(
-                                            eco_lambda*expected_cost_reduction/(subsidies*self.wages_paid))*
+        eco_lambda, subsidies = params['ECO_INVESTMENT_LAMBDA'], params['ECO_INVESTMENT_SUBSIDIES']
+        if self.wages_paid>0:
+            investment_per_wages_paid = (np.log(
+                                            eco_lambda*expected_cost_reduction/((1-subsidies)*self.wages_paid))*
                                      (self.wages_paid/eco_lambda))
+        else:
+            investment_per_wages_paid = 0
+        
+        if investment_per_wages_paid < 0:
+            investment_per_wages_paid = 0
+        # TODO: Can the government enter deficit?
         paid_subsidies = subsidies*investment_per_wages_paid*self.wages_paid
-        # Check if government has money for subsidies
-        # If it doesn't, what happens??? Firm invest as if there wasn't subsidies?
-        if investment_per_wages_paid<0:
-            investment_per_wages_paid=0
-
-        return investment_per_wages_paid
+        return investment_per_wages_paid, paid_subsidies
     
     # PRODUCTION DEPARTMENT ###########################################################################################
     def choose_firm_per_sector(self, regional_market, firms, seed_np, market_size):
@@ -452,10 +468,17 @@ class Firm:
     def calculate_profit(self):
         # Calculate profits considering last month wages paid and taxes on firm
         # (labor and consumption taxes are already deducted)
-        self.profit = self.revenue - self.wages_paid - self.taxes_paid - self.input_cost
+        self.profit = (self.revenue 
+                       - self.wages_paid 
+                       - self.taxes_paid 
+                       - self.input_cost
+                       - self.emission_taxes_paid)
 
     def pay_taxes(self, regions, tax_firm):
-        taxes = (self.revenue - self.wages_paid-self.input_cost) * tax_firm
+        taxes = (self.revenue 
+                 - self.wages_paid 
+                 - self.input_cost 
+                 - self.emission_taxes_paid) * tax_firm
         if taxes >= 0:
             # Revenue minus salaries paid in previous month may be negative.
             # In this case, no taxes are paid
@@ -748,6 +771,7 @@ class ConstructionFirm(Firm):
                 date += relativedelta.relativedelta(months=+1)
 
     def wage_base(self, unemployment, relevance_unemployment):
+        #TODO: Verify this statement
         self.revenue = self.cash_flow[self.present]
         # Using temporary planned income before money starts to flow in
         if self.revenue == 0 and self.monthly_planned_revenue:

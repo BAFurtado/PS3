@@ -41,6 +41,7 @@ OUTPUT_DATA_SPEC = {
                     'amount_subsidised',
                     'firms_profit',
                     'firms_median_stock',
+                    'firms_avg_eco_eff',
                     'firms_median_wage_paid',
                     'gini_index',
                     'average_utility',
@@ -166,6 +167,7 @@ class Output:
         families_wages_received = sim.stats.calculate_families_wages_received(sim.families)
         commuting = sim.stats.update_commuting(sim.families.values())
         firms_profit = sim.stats.calculate_firms_profit(sim.firms)
+        firms_avg_eco_efficiency = sim.stats.calculate_firms_eco_efficiency(sim.firms)
         firms_median_stock = sim.stats.calculate_firms_median_stock(sim.firms)
         firms_median_wages_paid = sim.stats.calculate_firms_median_wages_paid(sim.firms)
         gini_index = sim.stats.calculate_GINI(sim.families)
@@ -200,6 +202,7 @@ class Output:
                  f"{amount_subsided:.3f};" \
                  f"{firms_profit:.3f};" \
                  f"{firms_median_stock:.2f};" \
+                 f"{firms_avg_eco_efficiency:.2f};" \
                  f"{firms_median_wages_paid:.3f};" \
                  f"{gini_index:.3f};{average_utility:.4f};" \
                  f"{pct_zero_consumption:.4f};{rent_default:.4f};{inflation:.4f};{average_qli:.3f};" \
@@ -290,7 +293,7 @@ class Output:
                       firm.address.y, firm.total_balance, firm.num_employees,
                       firm.get_total_quantity(), firm.amount_produced, firm.inventory[0].price,
                       firm.amount_sold, firm.revenue, firm.profit,
-                      firm.wages_paid, firm.input_cost,firm.sector))
+                      firm.wages_paid, firm.input_cost, firm.sector))
              for firm in sim.firms.values()]
         [f.reset_amount_sold() for f in sim.firms.values()]
 

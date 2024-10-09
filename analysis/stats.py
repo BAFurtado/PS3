@@ -56,6 +56,14 @@ class Statistics(object):
                              == region.id])
         region.gdp = region_GDP
         return region_GDP
+    
+    def calculate_region_eco_efficiency(self, firms, region):
+        """Eco efficiency based on FIRMS' revenues"""
+        # Added value for all firms in a given period
+        avg_eco_eff = np.mean([firms[firm].env_efficiency for firm in firms.keys() if firms[firm].region_id
+                             == region.id])
+        return avg_eco_eff
+
 
     def calculate_avg_regional_house_price(self, regional_families):
         return np.average([f.house.price for f in regional_families if f.num_members > 0])
@@ -122,7 +130,9 @@ class Statistics(object):
             np.sum([1 for family in families.values() if family.is_renting])
 
     def calculate_emissions(self, firms):
-        return np.sum([firms[firm].env_indicators['emissions'] for firm in firms.keys()])
+        v = np.sum([firms[firm].env_indicators['emissions'] for firm in firms.keys()])
+        logger.info(f'Total emissions {v:,.1f}')
+        return 
 
     def calculate_firms_median_wealth(self, firms):
         return np.median([firms[firm].total_balance for firm in firms.keys()])
@@ -143,8 +153,13 @@ class Statistics(object):
         profit = np.sum(v)
         loss = np.min(v)
         logger.info(f'Aggregate profit {profit:,.0f}')
-
-        return np.sum([firms[firm].profit for firm in firms.keys()])
+        return np.sum(v)
+    
+    def calculate_firms_eco_efficiency(self, firms):
+        v = [firms[firm].env_efficiency for firm in firms.keys()]
+        eco_eff = np.mean(v)
+        logger.info(f'Average eco efficiency {eco_eff:,.2f}')
+        return eco_eff
 
     # Calculate inequality (GINI)
     def calculate_utility(self, families):
