@@ -9,7 +9,7 @@ PRODUCTIVITY_EXPONENT = .9
 PRODUCTIVITY_MAGNITUDE_DIVISOR = 1
 # GENERAL CALIBRATION PARAMETERS
 # Order of magnitude parameter of input into municipality investment
-MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.00003
+MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.0000003
 # INTEREST. Choose either: 'nominal', 'real' or 'fixed'. Default 'real'
 INTEREST = "real"
 # By how much percentage to increase prices
@@ -18,17 +18,17 @@ MARKUP = 0.05
 STICKY_PRICES = .2
 # Price ruggedness a positive value (below 1) that multiplies the magnitude of price reduction
 # Reflects a reluctance of businesses to lower prices. Amount estimated for reduction multiplied by parameter
-PRICE_RUGGEDNESS = 0.3
+PRICE_RUGGEDNESS = 0.1
 # Number of firms consulted before consumption
 SIZE_MARKET = 6
 # Number of firms to buy from in the INTERMEDIATE market
 INTERMEDIATE_SIZE_MARKET = 3
 # Frequency firms enter the market
-LABOR_MARKET = 0.125 #0.15
+LABOR_MARKET = 0.125  # 0.15
 # Percentage of employees firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
-RELEVANCE_UNEMPLOYMENT_SALARIES = 2#0.17
+RELEVANCE_UNEMPLOYMENT_SALARIES = 2  # 0.17
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 20
 # Reduction size in case of eco innovation success: multiplies firm parameters
@@ -83,11 +83,11 @@ OFFER_SIZE_ON_PRICE = 1
 # TOO LONG ON THE MARKET:
 # value=(1 - MAX_OFFER_DISCOUNT) * e ** (ON_MARKET_DECAY_FACTOR * MONTHS ON MARKET) + MAX_OFFER_DISCOUNT
 # AS SUCH (-.02) DECAY OF 1% FIRST MONTH, 10% FIRST YEAR. SET TO 0 TO ELIMINATE EFFECT
-ON_MARKET_DECAY_FACTOR = -0.01
+ON_MARKET_DECAY_FACTOR = -0.02
 # LOWER BOUND, THAT IS, AT LEAST 50% PERCENT OF VALUE WILL REMAIN AT END OF PERIOD, IF PARAMETER IS .5
 MAX_OFFER_DISCOUNT = 0.6
 # Percentage of households pursuing new location (on average families move about once every 20 years)
-PERCENTAGE_ENTERING_ESTATE_MARKET = 0.002
+PERCENTAGE_ENTERING_ESTATE_MARKET = 0.05
 NEIGHBORHOOD_EFFECT = 2
 
 # RENTAL #######################
@@ -107,6 +107,10 @@ CONSTRUCTION_ACC_CASH_FLOW = 24
 LOT_COST = 0.15
 # Initial percentage of vacant houses
 HOUSE_VACANCY = 0.1
+# MAX_NUMBER OF HOUSES IN STOCK
+MAX_HOUSE_STOCK = 7
+# HOW LARGER IS CONSTRUCTION FIRMS PROFIT RELATIVE TO USUAL MARKUP (firms' productivity, given current prices)
+CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 8
 
 # POPULATION AND DEMOGRAPHY
 # Families run parameters (on average) for year 2000, or no information. 2010 uses APs average data

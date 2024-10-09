@@ -257,7 +257,7 @@ class Generator:
     def allocate_to_family(self, agents, families):
         """Allocate agents to families"""
         agents = list(agents.values())
-        self.seed.shuffle(agents)
+        self.seed_np.shuffle(agents)
         fams = list(families.values())
         # Separate adults to make sure all families have at least one adult
         adults = [a for a in agents if a.age > 21]
@@ -375,7 +375,7 @@ class Generator:
     def allocate_to_households(self, families, households):
         """Allocate houses to families"""
         unclaimed = list(households)
-        self.seed.shuffle(unclaimed)
+        self.seed_np.shuffle(unclaimed)
         house_id = None
         while unclaimed:
             for family in families.values():
@@ -437,7 +437,7 @@ class Generator:
         return quali_sum
 
     def qual(self, cod):
-        sel = self.quali > self.seed.random()
+        sel = self.quali > self.seed_np.rand()
         idx = sel.idxmax(1)
         loc = idx.loc[int(cod)]
         if self.sim.geo.year == 2010:

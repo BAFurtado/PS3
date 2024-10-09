@@ -1,6 +1,7 @@
 import copy
 import datetime
 from collections import defaultdict
+from unicodedata import category
 
 import numpy as np
 import pandas as pd
@@ -201,17 +202,17 @@ class Firm:
         return investment_per_wages_paid, paid_subsidies
     
     # PRODUCTION DEPARTMENT ###########################################################################################
-    def choose_firm_per_sector(self, regional_market, firms, seed_np, market_size):
+    def choose_firm_per_sector(self, regional_market, firms, seed, market_size):
         """
         Choose local firms to buy inputs from
         """
         params = regional_market.sim.PARAMS
         chosen_firms = {}
         for sector in regional_market.technical_matrix.index:
-            market = seed_np.choice(
+            market = seed.sample(
                 [f for f in firms.values() if (f.sector == sector) & (f.id != self.id)],
-                size=min(len([f for f in firms.values() if (f.sector == sector) & (f.id != self.id)]),
-                         int(params['SIZE_MARKET'])), replace=False)
+                min(len([f for f in firms.values() if (f.sector == sector) & (f.id != self.id)]),
+                    int(params['SIZE_MARKET'])))
             market = [firm for firm in market if firm.get_total_quantity() > 0]
             if market:
                 # Choose firms with the cheapest average prices
@@ -222,7 +223,7 @@ class Firm:
                 chosen_firms[sector] = None
         return chosen_firms
 
-    def buy_inputs(self, desired_quantity, regional_market, firms, seed_np,
+    def buy_inputs(self, desired_quantity, regional_market, firms, seed,
                    technical_matrix, external_technical_matrix):
         """
         Buys inputs according to the technical coefficients.
@@ -246,7 +247,7 @@ class Firm:
                                                         input_quantities_needed)
             external_input_quantities_needed = input_quantities_needed - local_input_quantities_needed
             # Choose the firm to buy inputs from
-            chosen_firms_per_sector = self.choose_firm_per_sector(regional_market, firms, seed_np,
+            chosen_firms_per_sector = self.choose_firm_per_sector(regional_market, firms, seed,
                                                                   params['INTERMEDIATE_SIZE_MARKET'])
             money_local_inputs = sum([local_input_quantities_needed[sector] * chosen_firms_per_sector[sector][0].prices
                                       for sector in regional_market.technical_matrix.index
@@ -296,11 +297,11 @@ class Firm:
                     for firm in chosen_firms_per_sector[sector]:
                         change += regional_market.intermediate_consumption(money_this_sector_this_firm,
                                                                            firm)
-                        
+
                 else:
                     change = money_this_sector
                 # Check whether there was change and buy the rest from the external sector
-                #  so that firms wont consistently buy less than needed while having money
+                #  so that firms won't consistently buy less than needed while having money
                 if self.total_balance > ((1 + params['REGIONAL_FREIGHT_COST']) - 1) * change:
                     self.total_balance -= ((1 + params['REGIONAL_FREIGHT_COST']) - 1) * change
                     external_money_this_sector += (1 + params['REGIONAL_FREIGHT_COST']) * change
@@ -314,17 +315,16 @@ class Firm:
                 self.input_inventory[sector] += ((money_this_sector - change) / prices +
                                                  external_money_this_sector / (prices *
                                                                                (1 + params['REGIONAL_FREIGHT_COST'])))
-                self.input_cost+=money_this_sector - change+external_money_this_sector
-            # TODO. Check that we have at least 3 firms from each sector... include in the generator
+                self.input_cost += money_this_sector - change + external_money_this_sector
 
-    def update_product_quantity(self, prod_exponent, prod_divisor, regional_market, firms, seed_np):
+    def update_product_quantity(self, prod_exponent, prod_divisor, regional_market, firms, seed):
         """
         Based on the MIP sector, buys inputs to produce a given money output of the activity, creates externalities
         and creates a price based on cost.
         """
         # """ Production equation = Labor * qualification ** alpha """
         quantity = 0
-        if self.sector =="Government":
+        if self.sector == "Government":
             pass
         if self.employees and self.inventory:
             # Call get_sum_qualification below: sum([employee.qualification ** parameters.PRODUCTIVITY_EXPONENT
@@ -339,10 +339,10 @@ class Firm:
             external_technical_matrix = regional_market.ext_local_matrix
 
             # Buy inputs fills up input_inventory and external_input_inventory
-            self.buy_inputs(desired_quantity, regional_market, firms, seed_np,
+            self.buy_inputs(desired_quantity, regional_market, firms, seed,
                             technical_matrix, external_technical_matrix)
             input_quantities_needed = desired_quantity * (
-                        technical_matrix.loc[:, self.sector] + external_technical_matrix.loc[:, self.sector])
+                    technical_matrix.loc[:, self.sector] + external_technical_matrix.loc[:, self.sector])
             # The following process would be a traditional Leontief production function
             productive_constraint = np.divide(pd.Series(self.input_inventory),
                                               input_quantities_needed)
@@ -358,7 +358,8 @@ class Firm:
         return quantity
 
     def get_total_quantity(self):
-        self.total_quantity = sum(p.quantity for p in self.inventory.values())
+        # Simplifying for JUST ONE PRODUCT. More products will need rearranging it
+        self.total_quantity = self.inventory[0].quantity
         return self.total_quantity
 
     # Commercial department
@@ -366,7 +367,7 @@ class Firm:
             self,
             sticky_prices,
             markup,
-            seed,
+            seed_np,
             avg_prices,
             prod_exponent=None,
             prod_magnitude_divisor=None,
@@ -376,14 +377,13 @@ class Firm:
         """ Update prices based on inventory and average prices
             Save signal for the labor market """
         # Sticky prices (KLENOW, MALIN, 2010)
-        if seed.random() > sticky_prices:
+        if seed_np.rand() > sticky_prices:
             for p in self.inventory.values():
                 self.get_total_quantity()
                 # if the firm has sold this month more than available in stocks, prices rise
                 # Dawid 2018 p.26 Firm observes excess or shortage inventory and relative price considering other firms
                 # Considering inventory to last one month only
-                delta_price = seed.randint(0, int(2 * markup * 100)) / 100
-                productive_capacity = self.total_qualification(prod_exponent) / prod_magnitude_divisor
+                delta_price = seed_np.randint(0, int(2 * markup * 100) + 1) / 100
                 low_inventory = (
                         ((self.total_quantity + productive_capacity) <= self.amount_sold) or self.total_quantity == 0
                 )
@@ -404,8 +404,6 @@ class Firm:
         # Resetting amount sold to record monthly amounts
         self.amount_sold = 0
         self.revenue = 0
-        
-        
 
     def sale(self, amount, regions, tax_consumption, consumer_region_id, if_origin, external=False):
         """Sell max amount of products for a given amount of money"""
@@ -475,10 +473,7 @@ class Firm:
                        - self.emission_taxes_paid)
 
     def pay_taxes(self, regions, tax_firm):
-        taxes = (self.revenue 
-                 - self.wages_paid 
-                 - self.input_cost 
-                 - self.emission_taxes_paid) * tax_firm
+        taxes = (self.revenue - self.wages_paid - self.input_cost) * tax_firm
         if taxes >= 0:
             # Revenue minus salaries paid in previous month may be negative.
             # In this case, no taxes are paid
@@ -499,11 +494,11 @@ class Firm:
         # guarantees that firms do not spend all revenue on salaries
         # Calculating wage base on a per-employee basis.
         if self.num_employees > 0:
-            return ((self.revenue-self.input_cost) / self.num_employees) * (
+            return ((self.revenue - self.input_cost) / self.num_employees) * (
                     1 - (unemployment * relevance_unemployment)
             )
         else:
-            return (self.revenue-self.input_cost) * (1 - (unemployment * relevance_unemployment))
+            return (self.revenue - self.input_cost) * (1 - (unemployment * relevance_unemployment))
 
     def make_payment(self, regions, unemployment, alpha, tax_labor, relevance_unemployment):
         """ Pay employees based on revenue, relative employee qualification, labor taxes, and alpha param
@@ -548,10 +543,10 @@ class Firm:
 
     def fire(self, seed):
         if self.employees:
-            id_ = seed.choice(list(self.employees.keys()))
-            self.employees[id_].firm_id = None
-            self.employees[id_].set_commute(None)
-            del self.employees[id_]
+            employee = seed.choice(list(self.employees.values()))
+            self.employees[employee.id].firm_id = None
+            self.employees[employee.id].set_commute(None)
+            del self.employees[employee.id]
 
     def is_worker(self, id_):
         # Returns true if agent is a member of this firm
@@ -601,22 +596,26 @@ class ConstructionFirm(Firm):
         self.cash_flow = defaultdict(float)
         self.monthly_planned_revenue = list()
 
-    def plan_house(self, regions, houses, params, seed, seed_np, vacancy_prob):
+    def plan_house(self, regions, houses, params, sim, seed_np, vacancy):
         """Decide where to build with which attributes"""
+        # Probability depends on size of market
+        if vacancy:
+            if seed_np.rand() < vacancy:
+                return
+
         # Check whether production capacity does not exceed hired construction
         # for the next construction cash flow period
-        if self.building:
-            # Number of houses being built is endogenously dependent on number of workers and productivity within a
-            # parameter-specified number of months.
-            if (
-                    sum([self.building[b]["cost"] for b in self.building])
-                    > params["CONSTRUCTION_ACC_CASH_FLOW"]
-                    * self.total_qualification(params["PRODUCTIVITY_EXPONENT"])
-                    / params["PRODUCTIVITY_MAGNITUDE_DIVISOR"]
-            ):
-                return
-            else:
-                self.increase_production = True
+        monthly_productivity_capacity = self.total_qualification(params["PRODUCTIVITY_EXPONENT"])
+        if monthly_productivity_capacity == 0:
+            self.increase_production = True
+        if not self.building and not self.houses_for_sale:
+            # Start building plan
+            self.increase_production = True
+            pass
+        elif len(self.houses_for_sale) <= params['MAX_HOUSE_STOCK']:
+            pass
+        else:
+            return
 
         # Candidate regions for licenses and check of funds to buy license
         regions = [
@@ -626,41 +625,37 @@ class ConstructionFirm(Firm):
         ]
         if not regions:
             return
-
-        # Probability depends on size of market
-        if vacancy_prob:
-            if seed.random() > vacancy_prob:
-                return
-
         # Targets
-        building_size = seed.lognormvariate(4.96, 0.5)
+        building_size = seed_np.lognormal(4.96, 0.5)
         b, c, d = 0.38, 0.3, 0.1
         building_quality = seed_np.choice([1, 2, 3, 4], p=[1 - (b + c + d), b, c, d])
 
-        # Get information about region house prices
+        # Get information about regions' house prices
         region_ids = [r.id for r in regions]
         region_prices = defaultdict(list)
-        for h in houses:
-            # In correct region
-            # within 40 size units,
-            # within 2 quality
-            if (
-                    h.region_id in region_ids
-                    and abs(h.size - building_size) <= 40
-                    and abs(h.quality - building_quality) <= 2
-            ):
-                region_prices[h.region_id].append(h.price)
-                # Only take a sample
-                if len(region_prices[h.region_id]) > 100:
-                    region_ids.remove(h.region_id)
-                    if not region_ids:
+        for region_id in region_ids:
+            for h in houses:
+                # In correct region
+                # within 100 size units,
+                # within 2 quality
+                if (
+                        h.region_id in region_id
+                        and abs(h.size - building_size) <= 100
+                        and abs(h.quality - building_quality) < 2
+                ):
+                    region_prices[h.region_id].append(h.price)
+                    # Only take a sample
+                    if len(region_prices[region_id]) > 100:
                         break
+            if len(region_prices[region_id]) == 0:
+                region_prices.pop(region_id)
 
         # Number of product quantities needed for the house
         gross_cost = building_size * building_quality
         # Productivity of the company may vary double than exogenous set markup.
         # Productivity reduces the cost of construction and sets the size of profiting when selling
-        productivity = seed.randint(100 - int(2 * params["MARKUP"] * 100), 100) / 100
+        productivity = seed_np.randint(100 - int(params['CONSTRUCTION_FIRM_MARKUP_MULTIPLIER'] *
+                                                 params["MARKUP"] * 100), 101) / 100
         building_cost = gross_cost * productivity
 
         # Choose region where construction is most profitable
@@ -668,8 +663,13 @@ class ConstructionFirm(Firm):
         region_mean_prices = {
             r_id: sum(vs) / len(vs) for r_id, vs in region_prices.items()
         }
+        # Using median prices for regions without price information
+        if not region_mean_prices.values():
+            median_prices = 0
+        else:
+            median_prices = np.median(list(region_mean_prices.values()))
         region_profitability = [
-            region_mean_prices.get(r.id, 0)
+            region_mean_prices.get(r.id, median_prices)
             - (r.license_price * building_cost * (1 + params["LOT_COST"]))
             for r in regions
         ]
@@ -680,7 +680,12 @@ class ConstructionFirm(Firm):
             return
 
         # Choose region with the highest profitability
-        region = max(regions, key=lambda rp: rp[1])[0]
+        # region_sample = [r[0] for r in
+        #                  sorted(regions, key=lambda rp: rp[1], reverse=True)[:int(params['HIRING_SAMPLE_SIZE'])]]
+        # region = seed_np.choice(region_sample)
+
+        # Building in any profitable region
+        region = sim.seed.choice([r[0] for r in regions])
         idx = max(self.building) + 1 if self.building else 0
         self.building[idx]["region"] = region.id
         self.building[idx]["size"] = building_size
@@ -785,32 +790,6 @@ class ConstructionFirm(Firm):
         else:
             return self.revenue * (1 - (unemployment * relevance_unemployment))
 
-    def decision_on_prices_production(
-            self,
-            sticky_prices,
-            markup,
-            seed,
-            avg_prices,
-            prod_exponent=None,
-            prod_magnitude_divisor=None,
-            const_cash_flow=None,
-            price_ruggedness=None,
-    ):
-        """Update signal for the labor market"""
-        if seed.random() > sticky_prices:
-            if self.building:
-                # Number of houses being built is endogenously dependent on number of workers and productivity within a
-                # parameter-specified number of months.
-                if (
-                        sum([self.building[b]["cost"] for b in self.building])
-                        > const_cash_flow
-                        * self.total_qualification(prod_exponent)
-                        / prod_magnitude_divisor
-                ):
-                    self.increase_production = True
-            else:
-                self.increase_production = False
-
     @property
     def n_houses_sold(self):
         return len(self.houses_built) - len(self.houses_for_sale)
@@ -857,13 +836,12 @@ class GovernmentFirm(Firm):
         # As long as we provide labor and total_balance, the other methods are OK to use methods from regular firm
         # Consumption: government own consumption is used as update index. Other sectors consume here.
         total_consumption = defaultdict(float)
-        #TODO: What's going on here?
 
         money_to_spend = self.total_balance
         self.total_balance -= money_to_spend
         for sector in sim.regional_market.final_demand.index:
             if sector == 'Government':
-                self.total_balance+=money_to_spend * sim.regional_market.final_demand['GovernmentConsumption'][sector]
+                self.total_balance += money_to_spend * sim.regional_market.final_demand['GovernmentConsumption'][sector]
                 # Government on consumption is operated as update_index at funds.py
                 continue
             # This makes sure that only the final demand percentage of total balance is consumed at other sectors
@@ -873,7 +851,8 @@ class GovernmentFirm(Firm):
             if money_this_sector == 0:
                 continue
             sector_firms = [f for f in sim.firms.values() if f.sector == sector]
-            market = sim.seed.sample(sector_firms, min(len(sector_firms), int(sim.PARAMS['SIZE_MARKET'])))
+            market = sim.seed.sample(sector_firms,
+                                     min(len(sector_firms), int(sim.PARAMS['SIZE_MARKET'])))
             market = [firm for firm in market if firm.get_total_quantity() > 0]
             if market:
                 chosen_firm = min(market, key=lambda firm: firm.prices)

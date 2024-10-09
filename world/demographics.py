@@ -47,7 +47,7 @@ def birth(sim):
     age = 0
     qualification = int(sim.seed.gammavariate(3, 3))
     qualification = [qualification if qualification < 21 else 20][0]
-    money = sim.seed.randrange(20, 40)
+    money = sim.seed_np.randint(20, 41)
     month = sim.seed.randrange(1, 13, 1)
     gender = sim.seed.choice(['Male', 'Female'])
     sim.total_pop += 1
@@ -56,7 +56,7 @@ def birth(sim):
 
 def pregnant(sim, agent, p_pregnancy):
     """An agent is born"""
-    if sim.seed.random() < p_pregnancy:
+    if sim.seed_np.rand() < p_pregnancy:
         child = birth(sim)
         agent.family.add_agent(child)
         sim.agents[child.id] = child

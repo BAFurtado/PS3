@@ -92,17 +92,23 @@ class RegionalMarket:
     def consume(self):
         self.monthly_hh_consumption = defaultdict(float)
         # Household consumption
+
+        # Create sector-wise dictionary to reduce filtering within families
+        firms_by_sector = {
+            sector: [f for f in self.sim.firms.values() if f.sector == sector and f.get_total_quantity() > 0]
+            for sector in self.sim.regional_market.final_demand.index
+        }
         for family in self.sim.families.values():
             consumption = family.consume(
                 self,
-                self.sim.firms,
+                self.sim.seed,
                 self.sim.central,
                 self.sim.regions,
                 self.sim.PARAMS,
-                self.sim.seed,
                 self.sim.clock.year,
                 self.sim.clock.months,
-                self.if_origin
+                self.if_origin,
+                firms_by_sector
             )
             for key, value in consumption.items():
                 self.monthly_hh_consumption[key] += value
@@ -155,7 +161,7 @@ class External:
             self.taxes_paid += amount_per_product * self.tax_consumption
             self.cumulative_taxes_paid += self.taxes_paid
 
-    def choose_firms_per_sector(self, firms, seed_np):
+    def choose_firms_per_sector(self, firms, seed):
         """
         Choose local firms to buy inputs from
         """
@@ -164,12 +170,9 @@ class External:
 
         for sector in self.sim.regional_market.technical_matrix.index:
             n_firms = len([f for f in firms.values() if (f.sector == sector)])
-            # TODO. Consider a higher (proportional) number of firms (> 3*) to benefit from external demand?
-            market = seed_np.choice(
+            market = seed.sample(
                 [f for f in firms.values() if f.sector == sector],
-                size=min(n_firms,
-                         3 * int(params['SIZE_MARKET'])),
-                replace=False)
+                min(n_firms, 3 * int(params['SIZE_MARKET'])))
             market = [firm for firm in market if firm.get_total_quantity() > 0]
             if market:
                 # Choose 10 firms with the cheapest prices
@@ -178,10 +181,10 @@ class External:
             chosen_firms[sector] = chosen_firm
         return chosen_firms
 
-    def final_consumption(self, internal_final_demand, seed_np):
+    def final_consumption(self, internal_final_demand, seed):
         """Consumes from local firms according to the regionalized SAM"""
         # Selects a subset of firms to buy from playing the role of rest of Brazil demand from simulated region.
-        chosen_firms = self.choose_firms_per_sector(self.sim.firms, seed_np)
+        chosen_firms = self.choose_firms_per_sector(self.sim.firms, seed)
 
         for sector in self.sim.regional_market.technical_matrix.index:
             # Sticking to a SINGLE product for firm

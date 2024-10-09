@@ -88,6 +88,7 @@ class HousingMarket:
 
         # Only rent from families, not firms
         family_houses_to_rent = [h for h in self.for_sale if h.family_owner]
+
         houses_to_rent = sim.seed.sample(family_houses_to_rent,
                                          int(len(family_houses_to_rent) * sim.PARAMS['INITIAL_RENTAL_SHARE']))
 
@@ -120,7 +121,8 @@ class HousingMarket:
             for quality_key in purchasing:
                 renting[quality_key] = sim.seed.sample(purchasing[quality_key],
                                                        int(len(purchasing[quality_key]) *
-                                                           sim.PARAMS['INITIAL_RENTAL_SHARE']))
+                                                       sim.PARAMS['INITIAL_RENTAL_SHARE']))
+
                 # The families that are not renting, want to join the purchasing list
                 willing[quality_key] = [f for f in purchasing[quality_key] if f not in renting[quality_key]]
 
@@ -193,7 +195,7 @@ class HousingMarket:
                     return
                 cash += loan_amount
             elif savings / p > sim.PARAMS['CAPPED_LOW_VALUE']:
-                if sim.seed.random() < vacancy:
+                if sim.seed_np.rand() < vacancy:
                     price = savings
                 else:
                     continue

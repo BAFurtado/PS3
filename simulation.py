@@ -227,7 +227,7 @@ class Simulation:
             firm.update_product_quantity(prod_exponent, prod_magnitude_divisor,
                                          self.regional_market,
                                          self.firms,
-                                         self.seed_np)
+                                         self.seed)
 
         # Call demographics
         # Update agent life cycles
@@ -277,7 +277,7 @@ class Simulation:
             internal_consumption[key] += value
         for key, value in self.regional_market.monthly_hh_consumption.items():
             internal_consumption[key] += value
-        self.external.final_consumption(internal_consumption, self.seed_np)
+        self.external.final_consumption(internal_consumption, self.seed)
         # Make rent payments
         self.housing.process_monthly_rent(self)
         # Collect loan repayments
@@ -312,7 +312,7 @@ class Simulation:
             firm.decision_on_prices_production(
                 sticky,
                 markup,
-                self.seed,
+                self.seed_np,
                 self.avg_prices,
                 prod_exponent,
                 prod_magnitude_divisor,
@@ -325,13 +325,9 @@ class Simulation:
                 self.seed_np)
 
         # Construction firms
-        vacancy = self.stats.calculate_house_vacancy(self.houses, False)
-        vacancy_value = None
-        # Probability depends on size of market
+        # Probability depends (strongly) on market supply
         if self.PARAMS["OFFER_SIZE_ON_PRICE"]:
-            vacancy_value = 1 - (vacancy * self.PARAMS["OFFER_SIZE_ON_PRICE"])
-            if vacancy_value < self.PARAMS["MAX_OFFER_DISCOUNT"]:
-                vacancy_value = self.PARAMS["MAX_OFFER_DISCOUNT"]
+            vacancy = self.stats.calculate_house_vacancy(self.houses, False)
         construction_firms = [f for f in self.firms.values() if f.sector == 'Construction']
         for firm in construction_firms:
             # See if firm can build a house
@@ -339,9 +335,9 @@ class Simulation:
                 self.regions.values(),
                 self.houses.values(),
                 self.PARAMS,
-                self.seed,
+                self,
                 self.seed_np,
-                vacancy_value,
+                vacancy,
             )
             # See whether a house has been completed. If so, register. Else, continue
             house = firm.build_house(self.regions, self.generator)
@@ -363,9 +359,9 @@ class Simulation:
         # Sample used only to calculate wage deciles
         sample_size = math.floor(len(self.agents) * 0.5)
         last_wages = [
-            self.agents[a].last_wage
-            for a in self.seed.sample(list(self.agents), sample_size)
-            if self.agents[a].last_wage is not None
+            a.last_wage
+            for a in list(self.seed.sample(list(self.agents.values()), sample_size))
+            if a.last_wage is not None
         ]
         wage_deciles = np.percentile(last_wages, np.arange(0, 100, 10))
         self.labor_market.assign_post(current_unemployment, wage_deciles, self.PARAMS)
