@@ -509,6 +509,7 @@ class ConstructionFirm(Firm):
         self.building = defaultdict(dict)
         self.cash_flow = defaultdict(float)
         self.monthly_planned_revenue = list()
+        self.productivity = 0
 
     def plan_house(self, regions, houses, params, sim, seed_np, vacancy):
         """Decide where to build with which attributes"""
@@ -568,9 +569,10 @@ class ConstructionFirm(Firm):
         gross_cost = building_size * building_quality
         # Productivity of the company may vary double than exogenous set markup.
         # Productivity reduces the cost of construction and sets the size of profiting when selling
-        productivity = seed_np.randint(100 - int(params['CONSTRUCTION_FIRM_MARKUP_MULTIPLIER'] *
-                                                 params["MARKUP"] * 100), 101) / 100
-        building_cost = gross_cost * productivity
+        if not self.productivity:
+            self.productivity = seed_np.randint(100 - int(params['CONSTRUCTION_FIRM_MARKUP_MULTIPLIER'] *
+                                                params["MARKUP"] * 100), 101) / 100
+        building_cost = gross_cost * self.productivity
 
         # Choose region where construction is most profitable
         # There might not be samples for all regions, so fallback to price of 0
