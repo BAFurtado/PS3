@@ -6,7 +6,7 @@ import datetime
 # Production function, labour with decaying exponent, Alpha for K. [0, 1]
 PRODUCTIVITY_EXPONENT = .9
 # Order of magnitude correction of production. Production divided by parameter
-PRODUCTIVITY_MAGNITUDE_DIVISOR = 1
+PRODUCTIVITY_MAGNITUDE_DIVISOR = 10
 # GENERAL CALIBRATION PARAMETERS
 # Order of magnitude parameter of input into municipality investment
 MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.0000003
@@ -34,7 +34,7 @@ HIRING_SAMPLE_SIZE = 20
 # Reduction size in case of eco innovation success: multiplies firm parameters
 ENVIRONMENTAL_EFFICIENCY_STEP = .9
 # Innovation process probability: 1-exp(lambda*investment/wage_base)
-ECO_INVESTMENT_LAMBDA = 100
+ECO_INVESTMENT_LAMBDA = 25
 # GOVERNMENT ####################################################################
 # ALTERNATIVE OF DISTRIBUTION OF TAXES COLLECTED. REPLICATING THE NOTION OF A COMMON POOL OF RESOURCES ################
 # Alternative0 is True, municipalities are just normal as INPUT
@@ -155,10 +155,10 @@ REGIONAL_FREIGHT_COST = .3
 # RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation
 # Minimum value to run depends on the size of municipality 0,001 is recommended minimum
-PERCENTAGE_ACTUAL_POP = 0.01
+PERCENTAGE_ACTUAL_POP = 0.005
 
 # Write exactly like the list below
-PROCESSING_ACPS = ["IPATINGA"]
+PROCESSING_ACPS = ["BELO HORIZONTE"]
 
 # Selecting the starting year to build the Agents, can be: 1991, 2000 or 2010
 STARTING_DAY = datetime.date(2010, 1, 1)

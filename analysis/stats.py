@@ -132,7 +132,7 @@ class Statistics(object):
     def calculate_emissions(self, firms):
         v = np.sum([firms[firm].env_indicators['emissions'] for firm in firms.keys()])
         logger.info(f'Total emissions {v:,.1f}')
-        return 
+        return v
 
     def calculate_firms_median_wealth(self, firms):
         return np.median([firms[firm].total_balance for firm in firms.keys()])
@@ -158,7 +158,7 @@ class Statistics(object):
     def calculate_firms_eco_efficiency(self, firms):
         v = [firms[firm].env_efficiency for firm in firms.keys()]
         eco_eff = np.mean(v)
-        logger.info(f'Average eco efficiency {eco_eff:,.2f}')
+        logger.info(f'Average eco efficiency {eco_eff:,.3f}')
         return eco_eff
 
     # Calculate inequality (GINI)

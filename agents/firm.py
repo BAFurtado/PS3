@@ -164,6 +164,7 @@ class Firm:
         else:
             # Nothing happens
             pass
+        #TODO: Subsídio não deve sair direto do tesouro
         regions[self.region_id].collect_taxes(-paid_subsidies, "emissions")
         self.total_balance += paid_subsidies
 
@@ -176,10 +177,11 @@ class Firm:
         ## Calculate expected emission cost with adaptative expectations
         # Tax cost
         tax_cost = self.emission_taxes_paid
+        input_cost = self.input_cost
 
         # TODO: Implement other emission costs
         reputation_cost, intrinsic_cost = 0,0
-        total_cost = tax_cost+reputation_cost+intrinsic_cost
+        total_cost = tax_cost+reputation_cost+intrinsic_cost+input_cost
 
         # The next step assumes linearity in costs
         # TODO: Define wether costs are linear or not: we can make any function over total_emission and have
@@ -339,9 +341,10 @@ class Firm:
             external_technical_matrix = regional_market.ext_local_matrix
 
             # Buy inputs fills up input_inventory and external_input_inventory
-            self.buy_inputs(desired_quantity, regional_market, firms, seed,
+            # Env efficiency reduces the amount of inputs needed, so the firms buys less
+            self.buy_inputs(self.env_efficiency*desired_quantity, regional_market, firms, seed,
                             technical_matrix, external_technical_matrix)
-            input_quantities_needed = desired_quantity * (
+            input_quantities_needed = self.env_efficiency * desired_quantity * (
                     technical_matrix.loc[:, self.sector] + external_technical_matrix.loc[:, self.sector])
             # The following process would be a traditional Leontief production function
             productive_constraint = np.divide(pd.Series(self.input_inventory),
@@ -384,6 +387,7 @@ class Firm:
                 # Dawid 2018 p.26 Firm observes excess or shortage inventory and relative price considering other firms
                 # Considering inventory to last one month only
                 delta_price = seed_np.randint(0, int(2 * markup * 100) + 1) / 100
+                productive_capacity = self.total_qualification(prod_exponent) / prod_magnitude_divisor
                 low_inventory = (
                         ((self.total_quantity + productive_capacity) <= self.amount_sold) or self.total_quantity == 0
                 )

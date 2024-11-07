@@ -113,8 +113,7 @@ class LaborMarket:
                 self.apply_assign(candidate, firm)
                 done_firms.add(firm)
                 done_cands.add(candidate)
-                n_hired += 1
-        # print('N of hired: ',n_hired)
+                
 
         # If this run was for qualification, another run for distance has to go through
         if flag:

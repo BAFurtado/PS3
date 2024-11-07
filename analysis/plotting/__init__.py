@@ -162,7 +162,7 @@ class Plotter:
                   'Families\' absolute savings', 'Number of families receiving policy help',
                   'Amount of $ implemented by policy',
                   'Firms\' profit', 'Firms\' median stock',
-                  'Firms\' average eco efficiency stock',
+                  'Firms\' average eco efficiency',
                   'Firms\' median wages paid', 'GINI index',
                   'Average families\' utility', 'Percentual families zero consumption',
                   'Percentual default among renting families', 'Monthly goods and services inflation',
