@@ -595,11 +595,6 @@ class ConstructionFirm(Firm):
         if not regions:
             return
 
-        # Choose region with the highest profitability
-        # region_sample = [r[0] for r in
-        #                  sorted(regions, key=lambda rp: rp[1], reverse=True)[:int(params['HIRING_SAMPLE_SIZE'])]]
-        # region = seed_np.choice(region_sample)
-
         # Building in any profitable region
         region = sim.seed.choice([r[0] for r in regions])
         idx = max(self.building) + 1 if self.building else 0
