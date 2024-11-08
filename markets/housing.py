@@ -179,13 +179,13 @@ class HousingMarket:
                     price = (savings + p) / 2
             # If not, check whether loan can help
             elif savings_with_mortgage > p:
-                if savings_with_mortgage / p > 1.3:
-                    price = p * 1.15
+                if savings_with_mortgage / p > sim.PARAMS['CAPPED_TOP_VALUE']:
+                    price = p * sim.PARAMS['CAPPED_TOP_VALUE'] / 2
                 else:
                     price = (savings_with_mortgage + p) / 2
                 # Get loan to make up the difference
                 loan_amount = price - savings
-                # Check macroprudential policy. If loan to value is above set value, no loan, leave the market.
+                # Check macroprudencial policy. If loan to value is above set value, no loan, leave the market.
                 if (loan_amount / price) > sim.PARAMS['MAX_LOAN_TO_VALUE']:
                     return
                 # Attempt to actually get the loan from the bank
