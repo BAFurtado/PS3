@@ -146,7 +146,9 @@ class Family:
 
     # Consumption ####################################################################################################
     def decision_enter_house_market(self, sim, house_price_quantiles):
-        # In construction adding criteria: affordability, housing needs (renting), estability (jobs), space constraints?
+        # It considers current employment status, space constraints, financial availability,
+        # including consumption and payments, housing needs (is renting).
+        # In construction adding criteria: affordability
         # 0. If family has not made goods consumption, or is defaulting on rent don't consider entering housing market
         if not self.average_utility or self.rent_default:
             return False

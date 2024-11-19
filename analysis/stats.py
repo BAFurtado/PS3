@@ -64,7 +64,6 @@ class Statistics(object):
                              == region.id])
         return avg_eco_eff
 
-
     def calculate_avg_regional_house_price(self, regional_families):
         return np.average([f.house.price for f in regional_families if f.num_members > 0])
 

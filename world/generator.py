@@ -348,7 +348,7 @@ class Generator:
             sizes = self.seed_np.lognormal(np.log(70), 0.5, size=num_houses)
             # Loose estimate of qualities in the universe
             qualities = self.seed_np.choice(
-                [1, 2, 3, 4], p=[0.4, 0.3, 0.2, 0.1], size=num_houses
+                [1, 2, 3, 4], p=self.sim.PARAMS["PERC_HOUSE_CATEGORIES"], size=num_houses
             )
             prices = np.multiply(np.multiply(sizes, qualities), region.index)
         for i in range(num_houses):
