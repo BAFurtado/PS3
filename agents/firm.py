@@ -112,11 +112,12 @@ class Firm:
             self.prices = sum(p.price for p in self.inventory.values()) / len(self.inventory)
     
     # ECOLOGICAL PROCEDURES ##############################################################################################
-    def probality_success(self,eco_investment,eco_lambda):
+    def probability_success(self, eco_investment, eco_lambda):
         """ 
         Returns the probability of success given the amount invested per wages paid (I/W)
         """
-        return 1-np.exp(-eco_lambda*eco_investment)
+        return 1 - np.exp(-eco_lambda * eco_investment)
+
     def create_externalities(self,regions,tax_emission):
         # TODO WE CAN USE THE OWN EVOLUTION OF EMISSIONS AS VALIDATION. WE INPUT ONLY 2010
         """
@@ -138,7 +139,6 @@ class Firm:
             else:
                 self.emission_taxes_paid = 0
 
-
     def invest_eco_efficiency(self,regional_market,regions,seed_np):
         """
         Reduce overall emissions per wage employed. 
@@ -153,13 +153,12 @@ class Firm:
             eco_investment = self.total_balance
             self.total_balance = 0
 
-
         params = regional_market.sim.PARAMS
         # Stochastic process to actually reduce firm-level parameter
-        p_success = self.probality_success(eco_investment,params['ECO_INVESTMENT_LAMBDA']) #regional_market.
+        p_success = self.probability_success(eco_investment,params['ECO_INVESTMENT_LAMBDA']) #regional_market.
         random_value = seed_np.rand()
         if p_success>random_value:
-            # Inovation was successful
+            # Innovation was successful
             self.env_efficiency *= params['ENVIRONMENTAL_EFFICIENCY_STEP']
         else:
             # Nothing happens
@@ -174,7 +173,7 @@ class Firm:
         Also accounts for possible environmental policies
         """
         params = regional_market.sim.PARAMS
-        ## Calculate expected emission cost with adaptative expectations
+        ## Calculate expected emission cost with adaptively expectations
         # Tax cost
         tax_cost = self.emission_taxes_paid
         input_cost = self.input_cost
@@ -192,8 +191,9 @@ class Firm:
         eco_lambda, subsidies = params['ECO_INVESTMENT_LAMBDA'], params['ECO_INVESTMENT_SUBSIDIES']
         if self.wages_paid>0:
             investment_per_wages_paid = (np.log(
-                                            eco_lambda*expected_cost_reduction/((1-subsidies)*self.wages_paid))*
-                                     (self.wages_paid/eco_lambda))
+                                            eco_lambda * expected_cost_reduction /
+                                            ((1 - subsidies) * self.wages_paid)) *
+                                            (self.wages_paid/eco_lambda))
         else:
             investment_per_wages_paid = 0
         
@@ -256,16 +256,16 @@ class Firm:
                                       if chosen_firms_per_sector[sector]])
 
             # External buying of inputs includes an ADDITIONAL FREIGHT COST!
-            money_external_inputs = sum([external_input_quantities_needed[sector] * chosen_firms_per_sector[
-                sector][0].prices * (1 + params['REGIONAL_FREIGHT_COST'])
+            money_external_inputs = sum([external_input_quantities_needed[sector] *
+                                         chosen_firms_per_sector[sector][0].prices *
+                                         (1 + params['REGIONAL_FREIGHT_COST'])
                                          for sector in regional_market.technical_matrix.index
                                          if chosen_firms_per_sector[sector]])
 
             # The reduction factor is used to account for the firm having LESS MONEY than needed
             if money_local_inputs + money_external_inputs > 0:
-                reduction_factor = min(self.total_balance,
-                                       money_local_inputs + money_external_inputs) / (
-                                           money_local_inputs + money_external_inputs)
+                reduction_factor = (min(self.total_balance, money_local_inputs + money_external_inputs) /
+                                       (money_local_inputs + money_external_inputs))
             else:
                 reduction_factor = 1
 
