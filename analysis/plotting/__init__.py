@@ -153,7 +153,7 @@ class Plotter:
                 'firms_profit', 'firms_median_stock', 'firms_avg_eco_eff','firms_median_wage_paid', 'gini_index',
                 'average_utility', 'pct_zero_consumption', 'rent_default', 'inflation', 'average_qli', 'house_vacancy',
                 'house_price', 'house_rent', 'affordable', 'p_delinquent', 'equally', 'locally', 'fpm', 'bank',
-                'ext_amount_sold', 'emissions']
+                'ext_amount_sold', 'affordability_decis_median', 'emissions']
         titles = ['Total population', 'Average goods and services prices\' level', 'GDP absolute value',
                   'GDP growth in monthly perc.',
                   'Unemployment',
@@ -171,6 +171,7 @@ class Plotter:
                   'Percentual of delinquent loans', 'Taxes invested equally', 'Taxes invested locally',
                   'Taxes invested via FPM', 'Taxes paid by the banks on top of interests',
                   'Total amount of intermediate goods sold by other metropolis',
+                  'Affordability median',
                   'Total amount of emissions by firms']
 
         # General plotting

@@ -363,7 +363,7 @@ class Simulation:
             for a in list(self.seed.sample(list(self.agents.values()), sample_size))
             if a.last_wage is not None
         ]
-        wage_deciles = np.percentile(last_wages, np.arange(0, 100, 10))
+        wage_deciles = np.percentile(last_wages, np.arange(10, 101, 10))
         self.labor_market.assign_post(current_unemployment, wage_deciles, self.PARAMS)
 
         # Initiating Real Estate Market
@@ -376,6 +376,7 @@ class Simulation:
         house_prices = [h.price for h in self.houses.values()]
         house_price_percentiles = np.percentile(house_prices, q=np.arange(10, 101, 10))
         house_price_quantiles = np.quantile(house_prices, q=np.cumsum(self.PARAMS["PERC_HOUSE_CATEGORIES"]).tolist())
+        affordability_decis = house_price_percentiles / wage_deciles
 
         self.housing.housing_market(self, house_price_quantiles)
         # (changed location) self.housing.process_monthly_rent(self)
@@ -397,7 +398,7 @@ class Simulation:
             self.funds.apply_policies()
 
         # Pass monthly information to be stored in Statistics
-        self.output.save_stats_report(self, bank_taxes)
+        self.output.save_stats_report(self, bank_taxes, affordability_decis)
 
         # Getting regional GDP
         self.output.save_regional_report(self)

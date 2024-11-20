@@ -59,6 +59,7 @@ OUTPUT_DATA_SPEC = {
                     'fpm',
                     'bank',
                     'ext_amount_sold',
+                    'affordability_decis_median',
                     'emissions']
     },
     'families': {
@@ -151,7 +152,7 @@ class Output:
             '_'.join(sim.geo.states_on_process),
             '_'.join(sim.geo.processing_acps_codes))
 
-    def save_stats_report(self, sim, bank_taxes):
+    def save_stats_report(self, sim, bank_taxes, affordability_decis):
         # Banks
         bank = sim.central
         active = bank.active_loans()
@@ -210,6 +211,7 @@ class Output:
                  f"{mun_applied_treasure['equally']:.4f};{mun_applied_treasure['locally']:.4f};" \
                  f"{mun_applied_treasure['fpm']:.4f};{mun_applied_treasure['bank']:.4f};" \
                  f"{ext_amount_sold:.2f};" \
+                 f"{affordability_decis[4]:.2f};" \
                  f"{emissions}\n"
 
         with open(self.stats_path, 'a') as f:
