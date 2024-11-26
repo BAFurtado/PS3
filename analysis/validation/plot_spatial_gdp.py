@@ -11,11 +11,10 @@ def read_model_output_regional_gdp(path, cols):
     return data
 
 
-def plot(data, text='Real',):
+def plot(data, text, full_region, urban_region):
     """Generate a spatial plot"""
     # Loading the shapefiles
-    full_region = gpd.read_file('../../input/shapes/mun_ACPS_ibge_2014_latlong_wgs1984_fixed.shp')
-    urban_region = gpd.read_file('../../input/shapes/URBAN_IBGE_ACPs.shp')
+
     if len(data.columns) == 4:
 
         plots = data.columns[2:]
@@ -92,7 +91,10 @@ if __name__ == '__main__':
     d = d[cols_d]
     d = d[d['cod_mun'].isin(s['cod_mun'])]
 
+    full_r = gpd.read_file('../../input/shapes/mun_ACPS_ibge_2014_latlong_wgs1984_fixed.shp')
+    urban_r = gpd.read_file('../../input/shapes/URBAN_IBGE_ACPs.shp')
+
     # Plot
     for each in zip([d, s], ['real', 'simulated']):
-        plot(each[0], each[1])
+        plot(each[0], each[1], full_r, urban_r)
 
