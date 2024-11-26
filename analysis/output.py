@@ -4,7 +4,7 @@ from collections import defaultdict
 
 import conf
 
-# TODO. Check this is the right place to create the folder
+
 AGENTS_PATH = 'StoragedAgents'
 if not os.path.exists(AGENTS_PATH):
     os.mkdir(AGENTS_PATH)

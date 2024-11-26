@@ -8,7 +8,8 @@ colunas = [
     (95, 95 + 85), # Código RM
     (412, 419), # Código concentração urbana
     (896, 915),  # valor adicionado a preços correntes
-    (934, 953) # pib a preços correntes
+    (934, 953), # pib a preços correntes
+    (953, 971) # pib per capita
     ]
 
 # Nomes das colunas
@@ -18,7 +19,8 @@ nomes_colunas = [
     "rm",
     "cod_conc_urb",
     "va_corrente",
-    "pib_corrente"
+    "pib_corrente",
+    "pib_percapita_corrente"
 ]
 
 
