@@ -42,6 +42,7 @@ class Family:
         self.rent_voucher = 0
         self.average_utility = 0
         self.last_permanent_income = list()
+        self.affordability_ratio = 1
 
         # Previous region id
         if house is not None:
@@ -130,7 +131,10 @@ class Family:
         # Calculated as "discounted sum of current income and expected future income" plus "financial wealth"
         # Perpetuity of income is a fraction (r_1_r) of income t0 divided by interest r
         self.last_permanent_income.append(r_1_r * t0 + r_1_r * (t0 / r) + self.get_wealth(bank) * r)
-        return self.get_permanent_income()
+        value = self.get_permanent_income()
+        # Update affordability
+        self.affordability_ratio = self.house.price / value if value else np.nan
+        return value
 
     def prob_employed(self):
         """Proportion of members that are employed"""

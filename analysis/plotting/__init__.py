@@ -153,7 +153,7 @@ class Plotter:
                 'firms_profit', 'firms_median_stock', 'firms_avg_eco_eff','firms_median_wage_paid', 'gini_index',
                 'average_utility', 'pct_zero_consumption', 'rent_default', 'inflation', 'average_qli', 'house_vacancy',
                 'house_price', 'house_rent', 'affordable', 'p_delinquent', 'equally', 'locally', 'fpm', 'bank',
-                'ext_amount_sold', 'affordability_decis_median', 'emissions']
+                'ext_amount_sold', 'affordability_median', 'emissions']
         titles = ['Total population', 'Average goods and services prices\' level', 'GDP absolute value',
                   'GDP growth in monthly perc.',
                   'Unemployment',

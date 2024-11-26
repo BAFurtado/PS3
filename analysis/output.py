@@ -4,7 +4,6 @@ from collections import defaultdict
 
 import conf
 
-# TODO. Check this is the right place to create the folder
 AGENTS_PATH = 'StoragedAgents'
 if not os.path.exists(AGENTS_PATH):
     os.mkdir(AGENTS_PATH)
@@ -152,7 +151,7 @@ class Output:
             '_'.join(sim.geo.states_on_process),
             '_'.join(sim.geo.processing_acps_codes))
 
-    def save_stats_report(self, sim, bank_taxes, affordability_decis):
+    def save_stats_report(self, sim, bank_taxes):
         # Banks
         bank = sim.central
         active = bank.active_loans()
@@ -191,6 +190,7 @@ class Output:
         # External
         ext_amount_sold = sim.external.get_external_amount_sold()
         emissions = sim.stats.calculate_emissions(sim.firms)
+        affordability_median = sim.stats.calculate_affordability_median(sim.families)
 
         report = f"{sim.clock.days};{pop:d};" \
                  f"{price_index:.3f};{gdp_index:.3f};{gdp_growth:.3f};{unemployment:.3f};" \
@@ -211,7 +211,7 @@ class Output:
                  f"{mun_applied_treasure['equally']:.4f};{mun_applied_treasure['locally']:.4f};" \
                  f"{mun_applied_treasure['fpm']:.4f};{mun_applied_treasure['bank']:.4f};" \
                  f"{ext_amount_sold:.2f};" \
-                 f"{affordability_decis[4]:.2f};" \
+                 f"{affordability_median:.2f};" \
                  f"{emissions}\n"
 
         with open(self.stats_path, 'a') as f:

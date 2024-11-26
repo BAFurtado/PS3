@@ -374,9 +374,7 @@ class Simulation:
         # Property tax (IPTU) collected. One twelfth per month
         # self.central.calculate_monthly_mortgage_rate()
         house_prices = [h.price for h in self.houses.values()]
-        house_price_percentiles = np.percentile(house_prices, q=np.arange(10, 101, 10))
         house_price_quantiles = np.quantile(house_prices, q=np.cumsum(self.PARAMS["PERC_HOUSE_CATEGORIES"]).tolist())
-        affordability_decis = house_price_percentiles / wage_deciles
 
         self.housing.housing_market(self, house_price_quantiles)
         # (changed location) self.housing.process_monthly_rent(self)
@@ -398,7 +396,7 @@ class Simulation:
             self.funds.apply_policies()
 
         # Pass monthly information to be stored in Statistics
-        self.output.save_stats_report(self, bank_taxes, affordability_decis)
+        self.output.save_stats_report(self, bank_taxes)
 
         # Getting regional GDP
         self.output.save_regional_report(self)

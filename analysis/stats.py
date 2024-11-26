@@ -116,6 +116,9 @@ class Statistics(object):
     def calculate_families_median_wealth(self, families):
         return np.median([family.get_permanent_income() for family in families.values()])
 
+    def calculate_affordability_median(self, families):
+        return np.median([family.affordability_ratio for family in families.values()])
+
     def calculate_families_wages_received(self, families):
         return np.median([family.total_wage() for family in families.values()])
 
