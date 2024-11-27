@@ -836,6 +836,7 @@ class GovernmentFirm(Firm):
     def consume(self, sim):
         # As long as we provide labor and total_balance, the other methods are OK to use methods from regular firm
         # Consumption: government own consumption is used as update index. Other sectors consume here.
+        # This consumption is an intermediate consumption measure 
         total_consumption = defaultdict(float)
 
         money_to_spend = self.total_balance

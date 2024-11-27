@@ -130,7 +130,7 @@ class Statistics(object):
             np.sum([1 for family in families.values() if family.is_renting])
 
     def calculate_emissions(self, firms):
-        v = np.sum([firms[firm].env_indicators['emissions'] for firm in firms.keys()])
+        v = np.sum([firms[firm].last_emissions for firm in firms.keys()])
         logger.info(f'Total emissions {v:,.1f}')
         return v
 
