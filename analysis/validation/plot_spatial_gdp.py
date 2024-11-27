@@ -77,7 +77,7 @@ def plot(data, text, full_region, urban_region):
 
 if __name__ == '__main__':
     # Simulated data
-    run = 'run__2024-11-26T10_02_16.935529'
+    run = 'run__2024-11-27T14_51_00.553290'
     regional_file = f'../../output/{run}/0/regional.csv'
     cols_spec = OUTPUT_DATA_SPEC['regional']['columns']
     s = read_model_output_regional_gdp(regional_file, cols_spec)
