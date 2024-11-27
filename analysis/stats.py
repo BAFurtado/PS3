@@ -64,7 +64,6 @@ class Statistics(object):
                              == region.id])
         return avg_eco_eff
 
-
     def calculate_avg_regional_house_price(self, regional_families):
         return np.average([f.house.price for f in regional_families if f.num_members > 0])
 
@@ -116,6 +115,9 @@ class Statistics(object):
     # Calculate wealth: families, firms and profits
     def calculate_families_median_wealth(self, families):
         return np.median([family.get_permanent_income() for family in families.values()])
+
+    def calculate_affordability_median(self, families):
+        return np.median([family.affordability_ratio for family in families.values()])
 
     def calculate_families_wages_received(self, families):
         return np.median([family.total_wage() for family in families.values()])

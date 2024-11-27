@@ -363,7 +363,7 @@ class Simulation:
             for a in list(self.seed.sample(list(self.agents.values()), sample_size))
             if a.last_wage is not None
         ]
-        wage_deciles = np.percentile(last_wages, np.arange(0, 100, 10))
+        wage_deciles = np.percentile(last_wages, np.arange(10, 101, 10))
         self.labor_market.assign_post(current_unemployment, wage_deciles, self.PARAMS)
 
         # Initiating Real Estate Market
@@ -373,9 +373,9 @@ class Simulation:
         # Tax transaction taxes (ITBI) when selling house
         # Property tax (IPTU) collected. One twelfth per month
         # self.central.calculate_monthly_mortgage_rate()
-        house_price_quantiles = np.quantile(
-            [h.price for h in self.houses.values()], q=[0.25, 0.5, 0.75]
-        )
+        house_prices = [h.price for h in self.houses.values()]
+        house_price_quantiles = np.quantile(house_prices, q=np.cumsum(self.PARAMS["PERC_HOUSE_CATEGORIES"]).tolist())
+
         self.housing.housing_market(self, house_price_quantiles)
         # (changed location) self.housing.process_monthly_rent(self)
         for house in self.houses.values():
