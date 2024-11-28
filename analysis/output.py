@@ -58,7 +58,7 @@ OUTPUT_DATA_SPEC = {
                     'fpm',
                     'bank',
                     'ext_amount_sold',
-                    'affordability_decis_median',
+                    'affordability_median',
                     'emissions']
     },
     'families': {
@@ -90,12 +90,13 @@ OUTPUT_DATA_SPEC = {
             'groupings': ['month', 'firm_id'],
             'columns': ['total_balance$', 'number_employees',
                         'stocks', 'amount_produced', 'price', 'amount_sold',
-                        'revenue', 'profit', 'wages_paid']
+                        'revenue', 'profit', 'wages_paid', 'input_cost']
         },
         'columns': ['month', 'firm_id', 'region_id', 'mun_id',
                     'long', 'lat', 'total_balance$', 'number_employees',
                     'stocks', 'amount_produced', 'price', 'amount_sold',
-                    'revenue', 'profit', 'wages_paid', 'sector']
+                    'revenue', 'profit', 'wages_paid', 'input_cost', 'sector']
+
     },
     'construction': {
         'avg': {
