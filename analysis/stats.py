@@ -64,7 +64,6 @@ class Statistics(object):
                              == region.id])
         return avg_eco_eff
 
-
     def calculate_avg_regional_house_price(self, regional_families):
         return np.average([f.house.price for f in regional_families if f.num_members > 0])
 
@@ -117,6 +116,9 @@ class Statistics(object):
     def calculate_families_median_wealth(self, families):
         return np.median([family.get_permanent_income() for family in families.values()])
 
+    def calculate_affordability_median(self, families):
+        return np.median([family.affordability_ratio for family in families.values()])
+
     def calculate_families_wages_received(self, families):
         return np.median([family.total_wage() for family in families.values()])
 
@@ -130,7 +132,7 @@ class Statistics(object):
             np.sum([1 for family in families.values() if family.is_renting])
 
     def calculate_emissions(self, firms):
-        v = np.sum([firms[firm].env_indicators['emissions'] for firm in firms.keys()])
+        v = np.sum([firms[firm].last_emissions for firm in firms.keys()])
         logger.info(f'Total emissions {v:,.1f}')
         return v
 
@@ -151,7 +153,6 @@ class Statistics(object):
     def calculate_firms_profit(self, firms):
         v = [firms[firm].profit for firm in firms.keys()]
         profit = np.sum(v)
-        loss = np.min(v)
         logger.info(f'Aggregate profit {profit:,.0f}')
         return np.sum(v)
     

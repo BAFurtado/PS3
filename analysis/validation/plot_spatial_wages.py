@@ -1,8 +1,7 @@
 import geopandas as gpd
-
+import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-import numpy as np
 import sys,os
 
 
@@ -82,32 +81,32 @@ def plot(data, text, full_region, urban_region):
         plt.show()
 
 def plot_mun_hist(real,sim, text, full_region, urban_region):
-    real = real.sort_values(by='pib_percapita_corrente', ascending=False)
+    real = real.sort_values(by='massa_salarial_sum', ascending=False)
     sim = sim.sort_values(by='gdp_percapita', ascending=False)
-    real['pib'] = real['pib_percapita_corrente']/np.mean(real['pib_percapita_corrente'])#(real['pib_percapita_corrente']-np.mean(real['pib_percapita_corrente']))/np.std(real['pib_percapita_corrente'])
-    sim['pib'] = sim['gdp_percapita']/np.mean(sim['gdp_percapita'])#(sim['gdp_percapita']-np.mean(sim['gdp_percapita']))/np.std(sim['gdp_percapita'])
+    real['wages'] = real['massa_salarial_sum']/np.mean(real['massa_salarial_sum'])
+    sim['wages'] = sim['gdp_percapita']/np.mean(sim['gdp_percapita'])
     sim['rank'] = range(1, len(sim) + 1)
     real['rank'] = range(1, len(real) + 1)
     #plt.figure(figsize=(10, 6))
     
     bar_width = 0.4
     x = np.arange(len(sim))
-    fig, ax = plt.subplots(figsize=(10, 6), subplot_kw={'aspect': 'equal'})
-    ax.bar(x - bar_width / 2, sim['pib'], width=bar_width, label='Simulated Data', color='blue')
-    ax.bar(x + bar_width / 2, real['pib'], width=bar_width, label='Real Data', color='green')
+    
+    fig, ax = plt.subplots(figsize=(15, 15), subplot_kw={'aspect': 'equal'})
+    ax.bar(x - bar_width / 2, sim['wages'], width=bar_width, label='Simulated Data', color='blue')
+    ax.bar(x + bar_width / 2, real['wages'], width=bar_width, label='Real Data', color='green')
+    
 
     ax.grid(True, color='grey', linestyle='-')
-    title = f'Normalized GDP Distribution'
+    title = f'Normalized mean wage distribution'
     ax.set_title(title)
 
 
     # Customize plot
    
-    #plt.xlabel('Rank')
+    
+    plt.xlabel('Rank')
     plt.ylabel('Normalized GDP')
-
-    
-    
     #plt.xticks(x, [f"Rank {i+1}" for i in range(len(df1))])  # Label ranks
     plt.legend()
     plt.grid(axis='y', linestyle='--', alpha=0.7)
@@ -115,30 +114,37 @@ def plot_mun_hist(real,sim, text, full_region, urban_region):
     plt.savefig(project_folder +'/analysis/validation/'+f'results/{title}.png')
     plt.show()
 
-
-
 if __name__ == '__main__':
     # Simulated data
     run = 'run__2024-12-19T15_57_43.169698' #PS3\output\PS3\output\
     regional_file = project_folder + f'/output/{run}/0/regional.csv'
     cols_spec = OUTPUT_DATA_SPEC['regional']['columns']
     s = read_model_output_regional_gdp(regional_file, cols_spec)
-    cols_s = ['mun_id', 'gdp_region', 'gdp_percapita']
+    cols_s = ['mun_id', 'gdp_percapita', 'pop']
     s = s.loc[s.month == '2019-12-01'][cols_s]
+    #s['employment'] = s['pop'] *(1- s['regional_unemployment'])
+    s['6digit'] = s['mun_id'].apply(lambda x: int(str(x)[:-1]))
     s.rename(columns={'mun_id': 'cod_mun'}, inplace=True)
 
     # Real data
-    d = pd.read_csv(project_folder +'/analysis/validation/pib_municipios2021.csv')
-    cols_d = ['cod_mun', 'nome_mun', 'pib_corrente', 'pib_percapita_corrente']
+    d = pd.read_csv(project_folder +'/analysis/validation/real_world_data/mun_isic12_2010.csv')
+    cols_d = ['cod_mun', 'qtde_vinc_ativos_sum', 'massa_salarial_sum']
+    #d.rename(columns={'codemun': 'cod_mun'}, inplace=True)
+    d = d.groupby(['codemun'], as_index=False).sum()
+    
+    d = d[d['codemun'].isin(s['6digit'])]
+    d = pd.merge(d, s[['6digit', 'cod_mun']], how='left', left_on='codemun', right_on='6digit')
     d = d[cols_d]
-    d = d[d['cod_mun'].isin(s['cod_mun'])]
+    s.drop('6digit', axis=1, inplace=True)
 
     full_r = gpd.read_file(project_folder +'/input/shapes/mun_ACPS_ibge_2014_latlong_wgs1984_fixed.shp')
     urban_r = gpd.read_file(project_folder +'/input/shapes/URBAN_IBGE_ACPs.shp')
+    plot_mun_hist(d, s, 'real', full_r, urban_r)
 
-    plot_mun_hist(d, s, 'spatial gdp', full_r, urban_r)
     # Plot
     for each in zip([d, s], ['real', 'simulated']):
         pass
         #plot(each[0], each[1], full_r, urban_r)
+        #project_folder
 
+    pass
