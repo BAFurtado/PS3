@@ -51,20 +51,17 @@ class Simulation:
 
         for state in self.geo.states_on_process:
             self.m_men[state] = pd.read_csv(
-                "input/mortality/mortality_men_%s.csv" % state,
-                sep=";",
+                "input/Demografia/2_Mortality/mortality_men_%s.csv" % state,
                 header=0,
                 decimal=".",
             ).groupby("age")
             self.m_women[state] = pd.read_csv(
-                "input/mortality/mortality_women_%s.csv" % state,
-                sep=";",
+                "input/Demografia/2_Mortality/mortality_women_%s.csv" % state,
                 header=0,
                 decimal=".",
             ).groupby("age")
             self.f[state] = pd.read_csv(
-                "input/fertility/fertility_%s.csv" % state,
-                sep=";",
+                "input/Demografia/1_Fertility/fertility_%s.csv" % state,
                 header=0,
                 decimal=".",
             ).groupby("age")

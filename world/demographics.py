@@ -19,10 +19,24 @@ def check_demographics(sim, birthdays, year, mortality_men, mortality_women, fer
     random_numbers = sim.seed_np.random(size=len(birthdays))
     for i, (age, agents) in enumerate(birthdays.items()):
         age = age + 1
-        prob_mort_m = mortality_men.get_group(age)[str(year)].iloc[0]
-        prob_mort_f = mortality_women.get_group(age)[str(year)].iloc[0]
+        try:
+            prob_mort_m = mortality_men.get_group(age)[str(year)].iloc[0]
+            prob_mort_f = mortality_women.get_group(age)[str(year)].iloc[0]
+        except KeyError:
+            try:
+                # New data only contains probability at 0, 1, 5, 10 and from onwards.
+                rounded_age = ((age + 4) // 5) * 5
+                prob_mort_m = mortality_men.get_group(rounded_age)[str(year)].iloc[0]
+                prob_mort_f = mortality_women.get_group(rounded_age)[str(year)].iloc[0]
+            except KeyError:
+                # New data also only goes up to 90
+                prob_mort_m = mortality_men.get_group(90)[str(year)].iloc[0]
+                prob_mort_f = mortality_women.get_group(90)[str(year)].iloc[0]
         if 14 < age < 50:
-            p_pregnancy = fertility.get_group(age)[str(year)].iloc[0]
+            try:
+                p_pregnancy = fertility.get_group(age)[str(year)].iloc[0]
+            except KeyError:
+                p_pregnancy = fertility.get_group(rounded_age)[str(year)].iloc[0]
         for agent in agents:
             agent.age += 1
             if 7 < age < 18:
