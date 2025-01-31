@@ -131,7 +131,6 @@ class MarriageData:
         # Probabilities in INPUT table have been adapted to allow marriage only of those 21 or older
         return self.data[agent.gender.lower()].get(agent.age, 0)
 
-
 pop_estimates = PopulationEstimates('input/Demografia/4_Pop_Estimatives_Munic/Pop_Total_Munic_TCU_2001_2024.csv')
 marriage_data = MarriageData()
 
