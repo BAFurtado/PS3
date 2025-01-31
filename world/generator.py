@@ -52,7 +52,7 @@ sectors = {'Agriculture': AgricultureFirm,
            }
 
 # Necessary input Data
-prop_urban = pd.read_csv("input/prop_urban_2000_2010.csv", sep=";")
+prop_urban = pd.read_csv("input/Demografia/3_Percent_Urban/Munic_Percent_Urban_2000_2010_2022.csv")
 # Percentage of firms by input output sector:
 # SOURCE: Data read from RAIS, 2010, converting CNAE code to ISIS 12.
 # Deleted firms for sectors/municipalities below 3 firms

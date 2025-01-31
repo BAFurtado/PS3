@@ -99,13 +99,13 @@ def load_pops(mun_codes, params, year):
 
 class PopulationEstimates:
     def __init__(self, fname):
-        df = pd.read_csv(fname).set_index('mun_code')
+        df = pd.read_csv(fname, dtype={'mun_code': int}).set_index('mun_code')
 
         # Compute linear models to impute missing data. Not always accurate unfortunately,
         # because not all population trends are linear
         self.linear_models = {}
         for mun_code, pops in df.iterrows():
-            x = pops.index.values.astype('int')
+            x = pops.index.values.astype(int)
             y = pops.values
             self.linear_models[mun_code] = sm.OLS(y, x).fit()
         self.data = df.to_dict()
@@ -132,7 +132,7 @@ class MarriageData:
         return self.data[agent.gender.lower()].get(agent.age, 0)
 
 
-pop_estimates = PopulationEstimates('input/estimativas_pop.csv')
+pop_estimates = PopulationEstimates('input/Demografia/4_Pop_Estimatives_Munic/Pop_Total_Munic_TCU_2001_2024.csv')
 marriage_data = MarriageData()
 
 

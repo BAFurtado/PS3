@@ -1,0 +1,29 @@
+LEIA-ME
+=======
+
+Contato: raphaelvillela@outlook.com | 21 98604-3871
+
+Bem-vindo à pasta "Demografia".
+
+A pasta contém arquivos do tipo ".csv" para o "Policy Space 3".
+
+Dentro da pasta existem 5 pastas.
+
+1. "Fertility". Contém arquivos para todas as 27 UFs da TEF por idade quinquenal das mulheres (de 10 a 50 anos) de 2000 a 2070.
+
+2. "Mortality". Contém arquivos para todas as 27 UFs por idade quinquenal (de 0 a 90+ anos) de homens e mulheres de 2000 a 2070.
+
+3. "Percent_Urban". Contém dois aqruivos .csv "Munic....csv" e "UF....csv"
+Um para as UF e outro para os municípios. Considera os dados dos Censos de 2000, 2010 e 2022.
+A coluna COD corresponde ao código da UF (2 dígitos), ou do Município (7 dígitos), em cada arquivo, respectivamente.
+
+4. "Pop_Estimatives_Munic". Contém um arquvo único do tipo .csv com a população total de cada município brasileiro enviadas ao TCU.
+Considera os anos de 2001 a 2024. 
+OBS. Futuramente pretendo incluir a série 1992-1999 à base de dados.
+
+5. "Pop_Proj_2000_2070". Contém duas pastas "Pop_Age_Sex_UF" e "Pop_Total_Sex_UF".
+
+"Pop_Age_Sex_UF" Contém a população projetada por idade simples (de 0 a 90+ anos) para cada UF para homens (Pop_Proj_Men_UF...csv), 
+mulheres (Pop_Proj_Women_UF...csv) e ambos os sexos (Pop_Proj_Both_Sex_UF...csv)
+
+"Pop_Total_Sex_UF" contém 3 arquivos .csv com os totais de população de homens, mulheres e ambos os sexos para as UFs entre 2000 e 2070. 
