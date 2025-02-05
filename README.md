@@ -112,7 +112,7 @@ We recommend using conda  and creating an environment that includes all librarie
 
 You do not need to inform the python version. Let the configuration of current libraries requirements decide.
 
-The line below set on `python 3.11` on August 18, 2023
+The line below set on `python 3.12` on February 4, 2025-
 
 `conda create -n ps3_2 -c conda-forge fiona geopandas shapely gdal pandas numba descartes scipy seaborn pyproj matplotlib 
 six cycler statsmodels joblib scikit-learn flask flask-wtf psutil pyarrow`

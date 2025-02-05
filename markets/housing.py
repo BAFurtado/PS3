@@ -147,7 +147,7 @@ class HousingMarket:
             return
 
         # Proceed to Sales market ###########################################################
-        vacancy = sim.stats.calculate_house_vacancy(sim.houses, False)
+        vacancy = sim.stats.vacancy_rate
 
         # For each family
         for quality_key in purchasing:

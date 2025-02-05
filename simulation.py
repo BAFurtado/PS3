@@ -29,7 +29,7 @@ class Simulation:
         self.funds = Funds(self)
         self.clock = clock.Clock(self.PARAMS["STARTING_DAY"])
         self.output = analysis.Output(self, output_path)
-        self.stats = analysis.Statistics()
+        self.stats = analysis.Statistics(params)
         self.logger = analysis.Logger(hex(id(self))[-5:])
         self._seed = (
             secrets.randbelow(2 ** 32)
@@ -327,7 +327,7 @@ class Simulation:
         # Construction firms
         # Probability depends (strongly) on market supply
         if self.PARAMS["OFFER_SIZE_ON_PRICE"]:
-            vacancy = self.stats.calculate_house_vacancy(self.houses, False)
+            vacancy = self.stats.vacancy_rate
         construction_firms = [f for f in self.firms.values() if f.sector == 'Construction']
         for firm in construction_firms:
             # See if firm can build a house

@@ -90,7 +90,7 @@ class RentalMarket:
         # In that case, the list of houses is any unoccupied houses. Not a sample list separated for the rental market
         # Check for no rental market test
         try:
-            vacancy = sim.stats.calculate_house_vacancy(sim.houses, False)
+            vacancy = sim.stats.vacancy_rate
         # When houses have not generated yet, at time 0
         except AttributeError:
             vacancy = 0

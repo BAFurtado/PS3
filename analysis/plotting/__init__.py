@@ -147,7 +147,7 @@ class Plotter:
                 dats_q3 = [self._prepare_data(os.path.join(temp_path, 'q3_stats.csv'),
                                               dats[0].columns).set_index('month')]
 
-        cols = ['pop', 'price_index', 'gdp_index', 'gdp_growth', 'unemployment', 'average_workers',
+        cols = ['pop', 'price_index', 'gdp_index', 'gdp_growth', 'unemployment', 'median_workers',
                 'families_median_wealth', 'families_wages_received',
                 'families_commuting', 'families_savings', 'families_helped', 'amount_subsidised',
                 'firms_profit', 'firms_median_stock', 'firms_avg_eco_eff','firms_median_wage_paid', 'gini_index',

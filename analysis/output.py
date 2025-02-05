@@ -4,7 +4,6 @@ from collections import defaultdict
 
 import conf
 
-
 AGENTS_PATH = 'StoragedAgents'
 if not os.path.exists(AGENTS_PATH):
     os.mkdir(AGENTS_PATH)
@@ -32,7 +31,7 @@ OUTPUT_DATA_SPEC = {
                     'gdp_index',
                     'gdp_growth',
                     'unemployment',
-                    'average_workers',
+                    'median_workers',
                     'families_median_wealth',
                     'families_wages_received',
                     'families_commuting',
@@ -59,6 +58,7 @@ OUTPUT_DATA_SPEC = {
                     'fpm',
                     'bank',
                     'ext_amount_sold',
+                    'affordability_median',
                     'emissions']
     },
     'families': {
@@ -158,27 +158,19 @@ class Output:
         n_active = len(active)
         pop = len(sim.agents)
         p_delinquent = len(bank.delinquent_loans()) / n_active if n_active else 0
+
+        firm_results = sim.stats.calculate_firms_metrics(sim.firms)
         price_index, inflation = sim.stats.update_price(sim.firms)
-        gdp_index, gdp_growth = sim.stats.sum_region_gdp(sim.firms, sim.regions)
-        unemployment = sim.stats.update_unemployment(sim.agents.values(), True,True)
-        average_workers = sim.stats.calculate_average_workers(sim.firms)
-        families_median_wealth = sim.stats.calculate_families_median_wealth(sim.families)
-        families_savings = sim.stats.calculate_families_savings(sim.families)
-        families_wages_received = sim.stats.calculate_families_wages_received(sim.families)
+        gdp_index, gdp_growth = sim.stats.calculate_gdp_and_eco_efficiency(sim.firms, sim.regions)
+        unemployment = sim.stats.update_unemployment(sim.agents.values(), True, True)
+
+        families_results = sim.stats.calculate_families_metrics(sim.families)
         commuting = sim.stats.update_commuting(sim.families.values())
-        firms_profit = sim.stats.calculate_firms_profit(sim.firms)
-        firms_avg_eco_efficiency = sim.stats.calculate_firms_eco_efficiency(sim.firms)
-        firms_median_stock = sim.stats.calculate_firms_median_stock(sim.firms)
-        firms_median_wages_paid = sim.stats.calculate_firms_median_wages_paid(sim.firms)
-        gini_index = sim.stats.calculate_GINI(sim.families)
-        average_utility = sim.stats.calculate_utility(sim.families)
-        pct_zero_consumption = sim.stats.zero_consumption(sim.families)
-        rent_default = sim.stats.calculate_rent_default(sim.families)
+
         average_qli = sim.stats.average_qli(sim.regions)
-        house_vacancy = sim.stats.calculate_house_vacancy(sim.houses)
-        house_price = sim.stats.calculate_house_price(sim.houses)
-        house_rent = sim.stats.calculate_rent_price(sim.houses)
-        affordable = sim.stats.calculate_affordable_rent(sim.families)
+
+        house_results = sim.stats.calculate_house_metrics(sim.houses)
+
         mun_applied_treasure = defaultdict(int)
         mun_applied_treasure['bank'] = bank_taxes
         families_helped = sim.funds.families_subsided
@@ -189,28 +181,36 @@ class Output:
             mun_applied_treasure[k] = sum(r.applied_treasure[k] for r in sim.regions.values())
         # External
         ext_amount_sold = sim.external.get_external_amount_sold()
-        emissions = sim.stats.calculate_emissions(sim.firms)
 
-        report = f"{sim.clock.days};{pop:d};" \
-                 f"{price_index:.3f};{gdp_index:.3f};{gdp_growth:.3f};{unemployment:.3f};" \
-                 f"{average_workers:.3f};" \
-                 f"{families_median_wealth:.3f};" \
-                 f"{families_wages_received:.3f};" \
+        report = f"{sim.clock.days};" \
+                 f"{pop:d};" \
+                 f"{price_index:.2f};{gdp_index:.2f};{gdp_growth:.2f};{unemployment:.2f};" \
+                 f"{firm_results['workers']:.2f};" \
+                 f"{families_results['median_wealth']:.2f};" \
+                 f"{families_results['median_wages']:.2f};" \
                  f"{commuting:.3f};" \
-                 f"{families_savings:.3f};" \
+                 f"{families_results['total_savings']:.2f};" \
                  f"{families_helped:.0f};" \
                  f"{amount_subsided:.3f};" \
-                 f"{firms_profit:.3f};" \
-                 f"{firms_median_stock:.2f};" \
-                 f"{firms_avg_eco_efficiency:.2f};" \
-                 f"{firms_median_wages_paid:.3f};" \
-                 f"{gini_index:.3f};{average_utility:.4f};" \
-                 f"{pct_zero_consumption:.4f};{rent_default:.4f};{inflation:.4f};{average_qli:.3f};" \
-                 f"{house_vacancy:.3f};{house_price:.4f};{house_rent:.4f};{affordable:.4f};{p_delinquent:.4f};" \
+                 f"{firm_results['aggregate_profits']:.2f};" \
+                 f"{firm_results['median_stock']:.2f};" \
+                 f"{firm_results['eco_efficiency']:.2f};" \
+                 f"{firm_results['median_wages']:.2f};" \
+                 f"{families_results['gini']:.3f};" \
+                 f"{families_results['avg_utility']:.2f};" \
+                 f"{families_results['zero_consumption_ratio']:.2f};" \
+                 f"{families_results['rent_default_ratio']:.4f};" \
+                 f"{inflation:.4f};{average_qli:.3f};" \
+                 f"{house_results['vacancy_rate']:.2f};" \
+                 f"{house_results['average_house_price']:.2f};" \
+                 f"{house_results['average_rent_price']:.2f};" \
+                 f"{families_results['affordability_ratio']:.2f};" \
+                 f"{p_delinquent:.4f};" \
                  f"{mun_applied_treasure['equally']:.4f};{mun_applied_treasure['locally']:.4f};" \
                  f"{mun_applied_treasure['fpm']:.4f};{mun_applied_treasure['bank']:.4f};" \
                  f"{ext_amount_sold:.2f};" \
-                 f"{emissions}\n"
+                 f"{families_results['median_affordability']:.2f};" \
+                 f"{firm_results['emissions']}\n"
 
         with open(self.stats_path, 'a') as f:
             f.write(report)
@@ -245,7 +245,7 @@ class Output:
             mun_families = families_by_mun[mun_id]
             GDP_mun_capita = sim.stats.update_GDP_capita(sim.firms, mun_id, mun_pop)
             commuting = sim.stats.update_commuting(mun_families)
-            mun_gini = sim.stats.calculate_regional_GINI(mun_families)
+            mun_gini = sim.stats.calculate_regional_gini(mun_families)
             mun_house_values = sim.stats.calculate_avg_regional_house_price(mun_families)
             mun_unemployment = sim.stats.update_unemployment(mun_agents)
             region.total_commute = commuting
