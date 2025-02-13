@@ -95,7 +95,8 @@ OUTPUT_DATA_SPEC = {
         'columns': ['month', 'firm_id', 'region_id', 'mun_id',
                     'long', 'lat', 'total_balance$', 'number_employees',
                     'stocks', 'amount_produced', 'price', 'amount_sold',
-                    'revenue', 'profit', 'wages_paid', 'sector']
+                    'revenue', 'profit', 'wages_paid', 'input_cost', 
+                    'emissions','eco_eff','innov_investment','sector']
     },
     'construction': {
         'avg': {
@@ -288,12 +289,13 @@ class Output:
 
     def save_firms_data(self, sim):
         with open(self.firms_path, 'a') as f:
-            [f.write('%s; %s; %s; %s; %.3f; %.3f; %.3f; %s; %.3f; %.3f; %.3f ; %.3f; %.3f; %.3f; %.3f; %.3f; %s \n' %
+            [f.write('%s; %s; %s; %s; %.3f; %.3f; %.3f; %s; %.3f; %.3f; %.3f ; %.3f; %.3f; %.3f; %.3f; %.3f;%.3f;%.3f;%.3f; %s \n' %
                      (sim.clock.days, firm.id, firm.region_id, firm.region_id[:7], firm.address.x,
                       firm.address.y, firm.total_balance, firm.num_employees,
                       firm.get_total_quantity(), firm.amount_produced, firm.inventory[0].price,
                       firm.amount_sold, firm.revenue, firm.profit,
-                      firm.wages_paid, firm.input_cost, firm.sector))
+                      firm.wages_paid, firm.input_cost, firm.last_emissions, firm.env_efficiency,
+                      firm.inno_inv, firm.sector))
              for firm in sim.firms.values()]
         [f.reset_amount_sold() for f in sim.firms.values()]
 

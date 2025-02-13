@@ -119,7 +119,7 @@ def plot_mun_hist(real,sim, text, full_region, urban_region):
 
 if __name__ == '__main__':
     # Simulated data
-    run = 'run__2024-12-19T15_57_43.169698' #PS3\output\PS3\output\
+    run = 'run__2024-12-26T13_44_54.191708' #PS3\output\PS3\output\
     regional_file = project_folder + f'/output/{run}/0/regional.csv'
     cols_spec = OUTPUT_DATA_SPEC['regional']['columns']
     s = read_model_output_regional_gdp(regional_file, cols_spec)
@@ -140,5 +140,5 @@ if __name__ == '__main__':
     # Plot
     for each in zip([d, s], ['real', 'simulated']):
         pass
-        #plot(each[0], each[1], full_r, urban_r)
+        plot(each[0], each[1], full_r, urban_r)
 

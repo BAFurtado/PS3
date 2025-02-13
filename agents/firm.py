@@ -90,6 +90,7 @@ class Firm:
         self.sector = sector
         self.no_emissions = False
         self.last_emissions = 0
+        self.inno_inv = 0
         try:
             self.emissions_base = emissions[(emissions.isic_12 == self.sector) &
                                             (emissions.mun_code == self.region_id[:7])
@@ -119,7 +120,7 @@ class Firm:
         return 1 - np.exp(-eco_lambda * eco_investment)
 
     def create_externalities(self,regions,tax_emission):
-        # TODO WE CAN USE THE OWN EVOLUTION OF EMISSIONS AS VALIDATION. WE INPUT ONLY 2010
+        
         """
         Based on empirical data, creates externalities according to money output produced by a given activity.
         Total emissions are multiplied by firm-level env efficiency.
@@ -163,9 +164,9 @@ class Firm:
         else:
             # Nothing happens
             pass
-        #TODO: Subsídio não deve sair direto do tesouro
         regions[self.region_id].collect_taxes(-paid_subsidies, "emissions")
         self.total_balance += paid_subsidies
+        self.inno_inv=eco_investment
 
     def decision_on_eco_efficiency(self,regional_market):
         """ 
@@ -178,12 +179,10 @@ class Firm:
         tax_cost = self.emission_taxes_paid
         input_cost = self.input_cost
 
-        # TODO: Implement other emission costs
         reputation_cost, intrinsic_cost = 0,0
         total_cost = tax_cost+reputation_cost+intrinsic_cost+input_cost
 
         # The next step assumes linearity in costs
-        # TODO: Define wether costs are linear or not: we can make any function over total_emission and have
         # expected_cost_reduction = cost(last_emissions)-cost((1-delta)*last_emissions)
         expected_cost_reduction = (1-params['ENVIRONMENTAL_EFFICIENCY_STEP']) * total_cost
 
@@ -498,11 +497,13 @@ class Firm:
         # guarantees that firms do not spend all revenue on salaries
         # Calculating wage base on a per-employee basis.
         if self.num_employees > 0:
-            return ((self.revenue - self.input_cost) / self.num_employees) * (
-                    1 - (unemployment * relevance_unemployment)
+            return ((self.revenue - self.input_cost) / self.num_employees) * (max(
+                    1 - (unemployment * relevance_unemployment), 0)
             )
         else:
-            return (self.revenue - self.input_cost) * (1 - (unemployment * relevance_unemployment))
+            return (self.revenue - self.input_cost) * (max(
+                    1 - (unemployment * relevance_unemployment), 0)
+            )
 
     def make_payment(self, regions, unemployment, alpha, tax_labor, relevance_unemployment):
         """ Pay employees based on revenue, relative employee qualification, labor taxes, and alpha param

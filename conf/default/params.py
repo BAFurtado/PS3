@@ -4,27 +4,27 @@ import datetime
 
 # FIRMS #########################################################
 # Production function, labour with decaying exponent, Alpha for K. [0, 1]
-PRODUCTIVITY_EXPONENT = .9
+PRODUCTIVITY_EXPONENT = .8
 # Order of magnitude correction of production. Production divided by parameter
-PRODUCTIVITY_MAGNITUDE_DIVISOR = 10
+PRODUCTIVITY_MAGNITUDE_DIVISOR = .25
 # GENERAL CALIBRATION PARAMETERS
 # Order of magnitude parameter of input into municipality investment
 MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.0000003
 # INTEREST. Choose either: 'nominal', 'real' or 'fixed'. Default 'real'
 INTEREST = "real"
 # By how much percentage to increase prices
-MARKUP = 0.05
+MARKUP = 0.1
 # Frequency firms change prices. Probability > than parameter
-STICKY_PRICES = .2
+STICKY_PRICES = .5
 # Price ruggedness a positive value (below 1) that multiplies the magnitude of price reduction
 # Reflects a reluctance of businesses to lower prices. Amount estimated for reduction multiplied by parameter
-PRICE_RUGGEDNESS = 0.1
+PRICE_RUGGEDNESS = 0.05
 # Number of firms consulted before consumption
-SIZE_MARKET = 6
+SIZE_MARKET = 4
 # Number of firms to buy from in the INTERMEDIATE market
 INTERMEDIATE_SIZE_MARKET = 3
 # Frequency firms enter the market
-LABOR_MARKET = 0.125  # 0.15
+LABOR_MARKET = 0.5#0.125  # 0.15
 # Percentage of employees firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
@@ -32,7 +32,7 @@ RELEVANCE_UNEMPLOYMENT_SALARIES = 2  # 0.17
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 20
 # Reduction size in case of eco innovation success: multiplies firm parameters
-ENVIRONMENTAL_EFFICIENCY_STEP = .9
+ENVIRONMENTAL_EFFICIENCY_STEP = .99
 # Innovation process probability: 1-exp(lambda*investment/wage_base)
 ECO_INVESTMENT_LAMBDA = 25
 # GOVERNMENT ####################################################################
@@ -129,7 +129,7 @@ TAX_ESTATE_TRANSACTION = 0.004
 TAX_FIRM = 0.15
 TAX_PROPERTY = 0.004
 # Taxes on emission are given by tax*total_emissions
-TAX_EMISSION = 100
+TAX_EMISSION = 0
 # Subsidies in (0,1) is the amount of investment paid by the gov(subsidies*tota_invested)
 # 0 is none, 1 is full
 ECO_INVESTMENT_SUBSIDIES = 0
@@ -156,7 +156,7 @@ REGIONAL_FREIGHT_COST = .3
 # RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation
 # Minimum value to run depends on the size of municipality 0,001 is recommended minimum
-PERCENTAGE_ACTUAL_POP = 0.005
+PERCENTAGE_ACTUAL_POP = 0.01
 
 # Write exactly like the list below
 PROCESSING_ACPS = ["BELO HORIZONTE"]

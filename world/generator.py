@@ -417,7 +417,7 @@ class Generator:
             }
         num_firms = sum(num_firms_by_sector.values())
         addresses = self.get_random_points_in_polygon(region, number_addresses=num_firms)
-        balances = self.seed_np.beta(1.5, 10, size=num_firms) * 10e6 #TODO: Maybe add a balance size parameter
+        balances = self.seed_np.beta(1.5, 10, size=num_firms) * 10e5 
 
         j = 0
         for key in num_firms_by_sector:

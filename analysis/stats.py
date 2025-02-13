@@ -46,7 +46,7 @@ class Statistics(object):
         results = {
             "median_wealth": np.median(firm_balances) if firm_balances.size > 0 else 0,
             "median_wages": np.median(firm_wages) if firm_wages.size > 0 else 0,
-            "eco_efficiency": np.median(firm_eco_eff) if firm_eco_eff.size > 0 else 0,
+            "eco_efficiency": np.mean(firm_eco_eff) if firm_eco_eff.size > 0 else 0,
             "emissions": np.median(firm_emissions) if firm_emissions.size > 0 else 0,
             "median_stock": np.median(firm_stocks) if firm_stocks.size > 0 else 0,
             "workers": np.median(firm_workers) if firm_workers.size > 0 else 0,
@@ -89,14 +89,14 @@ class Statistics(object):
 
         # Preallocate arrays for firm revenues and eco-efficiencies, mapped to region IDs
         firm_revenues = np.zeros(n_firms)
-        firm_eco_efficiencies = np.zeros(n_firms)
-        firm_region_ids = np.zeros(n_firms, dtype=int)
+        firm_eco_efficiencies = np.zeros(n_firms,dtype=np.float32)
+        firm_region_ids = np.zeros(n_firms, dtype='U13')
 
         # SINGLE loop through firms to populate arrays
         for i, firm in enumerate(firms.values()):
             firm_revenues[i] = firm.revenue
             firm_eco_efficiencies[i] = firm.env_efficiency
-            firm_region_ids[i] = firm.region_id
+            firm_region_ids[i] = str(firm.region_id)
 
         # Compute metrics for each region
         for region in regions.values():
