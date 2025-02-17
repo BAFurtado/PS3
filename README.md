@@ -224,7 +224,7 @@ python main.py make-plots /path/to/output
 In Windows, make sure to use double quotes " " and backward slashes as in:
 
 ```
-python main.py make_plots
+python main.py make-plots
 "..\run__2017-11-01T11_59_59.240250_bh"
 ```
 
