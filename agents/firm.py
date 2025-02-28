@@ -152,7 +152,7 @@ class Firm:
 
         params = regional_market.sim.PARAMS
         # Stochastic process to actually reduce firm-level parameter
-        p_success = self.probability_success(eco_investment, params['ECO_INVESTMENT_LAMBDA'])  #regional_market.
+        p_success = self.probability_success(eco_investment, params['ECO_INVESTMENT_LAMBDA'])  # regional_market.
         random_value = seed_np.rand()
         if p_success > random_value:
             # Innovation was successful
@@ -160,7 +160,7 @@ class Firm:
         else:
             # Nothing happens
             pass
-        regions[self.region_id].collect_taxes(-paid_subsidies, "emissions")
+        regions[self.region_id].collect_taxes(- paid_subsidies, "emissions")
         self.total_balance += paid_subsidies
         self.inno_inv = eco_investment
 

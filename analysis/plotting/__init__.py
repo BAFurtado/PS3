@@ -155,6 +155,7 @@ class Plotter:
                 'gini_index',
                 'average_utility', 'pct_zero_consumption', 'rent_default', 'inflation', 'average_qli', 'house_vacancy',
                 'house_price', 'house_rent', 'affordable', 'p_delinquent', 'equally', 'locally', 'fpm', 'bank',
+                'emissions_fund',
                 'ext_amount_sold']
         titles = ['Total population', 'Average goods and services prices\' level', 'GDP absolute value',
                   'GDP growth in monthly perc.',
@@ -174,6 +175,7 @@ class Plotter:
                   'Affordable rent (less than 30% permanent income)',
                   'Percentual of delinquent loans', 'Taxes invested equally', 'Taxes invested locally',
                   'Taxes invested via FPM', 'Taxes paid by the banks on top of interests',
+                  'Fund from taxes on emissions and subsidies on innovation efficiency',
                   'Total amount of intermediate goods sold by other metropolis',
                   ]
 
