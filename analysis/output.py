@@ -42,6 +42,8 @@ OUTPUT_DATA_SPEC = {
                     'firms_median_stock',
                     'firms_avg_eco_eff',
                     'firms_median_wage_paid',
+                    'firms_median_innovation_investment',
+                    'emissions',
                     'gini_index',
                     'average_utility',
                     'pct_zero_consumption',
@@ -58,8 +60,8 @@ OUTPUT_DATA_SPEC = {
                     'fpm',
                     'bank',
                     'ext_amount_sold',
-                    'affordability_median',
-                    'emissions']
+                    'affordability_median'
+                    ]
     },
     'families': {
         'avg': {
@@ -185,7 +187,10 @@ class Output:
 
         report = f"{sim.clock.days};" \
                  f"{pop:d};" \
-                 f"{price_index:.2f};{gdp_index:.2f};{gdp_growth:.2f};{unemployment:.2f};" \
+                 f"{price_index:.2f};" \
+                 f"{gdp_index:.2f};" \
+                 f"{gdp_growth:.2f};" \
+                 f"{unemployment:.2f};" \
                  f"{firm_results['workers']:.2f};" \
                  f"{families_results['median_wealth']:.2f};" \
                  f"{families_results['median_wages']:.2f};" \
@@ -197,21 +202,25 @@ class Output:
                  f"{firm_results['median_stock']:.2f};" \
                  f"{firm_results['eco_efficiency']:.2f};" \
                  f"{firm_results['median_wages']:.2f};" \
+                 f"{firm_results['innovation_investment']:.2f};" \
+                 f"{firm_results['emissions']:.2f};" \
                  f"{families_results['gini']:.3f};" \
                  f"{families_results['avg_utility']:.2f};" \
                  f"{families_results['zero_consumption_ratio']:.2f};" \
                  f"{families_results['rent_default_ratio']:.4f};" \
-                 f"{inflation:.4f};{average_qli:.3f};" \
+                 f"{inflation:.4f};" \
+                 f"{average_qli:.3f};" \
                  f"{house_results['vacancy_rate']:.2f};" \
                  f"{house_results['average_house_price']:.2f};" \
                  f"{house_results['average_rent_price']:.2f};" \
                  f"{families_results['affordability_ratio']:.2f};" \
                  f"{p_delinquent:.4f};" \
-                 f"{mun_applied_treasure['equally']:.4f};{mun_applied_treasure['locally']:.4f};" \
-                 f"{mun_applied_treasure['fpm']:.4f};{mun_applied_treasure['bank']:.4f};" \
+                 f"{mun_applied_treasure['equally']:.4f};" \
+                 f"{mun_applied_treasure['locally']:.4f};" \
+                 f"{mun_applied_treasure['fpm']:.4f};" \
+                 f"{mun_applied_treasure['bank']:.4f};" \
                  f"{ext_amount_sold:.2f};" \
-                 f"{families_results['median_affordability']:.2f};" \
-                 f"{firm_results['emissions']}\n"
+                 f"{families_results['median_affordability']:.2f}\n"
 
         with open(self.stats_path, 'a') as f:
             f.write(report)
@@ -289,7 +298,8 @@ class Output:
 
     def save_firms_data(self, sim):
         with open(self.firms_path, 'a') as f:
-            [f.write('%s; %s; %s; %s; %.3f; %.3f; %.3f; %s; %.3f; %.3f; %.3f ; %.3f; %.3f; %.3f; %.3f; %.3f;%.3f;%.3f;%.3f; %s \n' %
+            [f.write('%s; %s; %s; %s; %.3f; %.3f; %.3f; %s; %.3f; %.3f; %.3f ; %.3f; %.3f; %.3f; %.3f; '
+                     '%.3f;%.3f;%.3f;%.3f; %s \n' %
                      (sim.clock.days, firm.id, firm.region_id, firm.region_id[:7], firm.address.x,
                       firm.address.y, firm.total_balance, firm.num_employees,
                       firm.get_total_quantity(), firm.amount_produced, firm.inventory[0].price,

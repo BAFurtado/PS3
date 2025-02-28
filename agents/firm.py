@@ -115,7 +115,7 @@ class Firm:
         """ 
         Returns the probability of success given the amount invested per wages paid (I/W)
         """
-        return 1 - np.exp(-eco_lambda * eco_investment)
+        return 1 - np.exp(- eco_lambda * eco_investment)
 
     def create_externalities(self, regions, tax_emission):
         """
@@ -125,14 +125,14 @@ class Firm:
         # Environmental indicators (emissions, water, energy, waste) by sector
         # Procedure: Apply endogenous salary amount to external eco-efficiency to find estimated output indicator
         if not self.no_emissions:
-            emissions_this_month = self.env_efficiency * self.wages_paid * self.emissions_base
+            emissions_this_month = self.env_efficiency * self.wages_paid / self.emissions_base
             self.last_emissions = emissions_this_month
             self.env_indicators['emissions'] += emissions_this_month
             emission_tax = emissions_this_month * tax_emission
             if emission_tax >= 0:
                 self.emission_taxes_paid = emission_tax
                 self.total_balance -= emission_tax
-                regions[self.region_id].collect_taxes(self.taxes_paid, "emissions")
+                regions[self.region_id].collect_taxes(emission_tax, "emissions")
             else:
                 self.emission_taxes_paid = 0
 
@@ -162,7 +162,7 @@ class Firm:
             pass
         regions[self.region_id].collect_taxes(-paid_subsidies, "emissions")
         self.total_balance += paid_subsidies
-        self.inno_inv=eco_investment
+        self.inno_inv = eco_investment
 
     def decision_on_eco_efficiency(self, regional_market):
         """ 
@@ -179,7 +179,6 @@ class Firm:
         total_cost = tax_cost + reputation_cost + intrinsic_cost + input_cost
 
         # The next step assumes linearity in costs
-        # expected_cost_reduction = cost(last_emissions) - cost((1 - delta) * last_emissions)
         expected_cost_reduction = (1 - params['ENVIRONMENTAL_EFFICIENCY_STEP']) * total_cost
 
         # Profit maximization formula yields the formula below
