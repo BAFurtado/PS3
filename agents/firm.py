@@ -186,7 +186,8 @@ class Firm:
         # Profit maximization formula yields the formula below
         eco_lambda, subsidies = params['ECO_INVESTMENT_LAMBDA'], params['ECO_INVESTMENT_SUBSIDIES']
         assert self.wages_paid >= 0
-        inner_part_eco_investment = (eco_lambda * expected_cost_reduction) / ((1 - subsidies) * self.wages_paid)
+        inner_part_eco_investment = (eco_lambda * expected_cost_reduction) / ((1 - subsidies) * self.wages_paid) \
+            if self.wages_paid > 0 else 0
         if inner_part_eco_investment > 1:
             investment_per_wages_paid = (np.log(inner_part_eco_investment) *
                                          (self.wages_paid / eco_lambda))

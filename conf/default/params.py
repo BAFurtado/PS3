@@ -114,7 +114,6 @@ MAX_HOUSE_STOCK = 7
 # HOW LARGER IS CONSTRUCTION FIRMS PROFIT RELATIVE TO USUAL MARKUP (firms' productivity, given current prices)
 CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 8
 
-
 # POPULATION AND DEMOGRAPHY
 # Families run parameters (on average) for year 2000, or no information. 2010 uses APs average data
 MEMBERS_PER_FAMILY = 2.5
@@ -131,11 +130,12 @@ TAX_ESTATE_TRANSACTION = 0.004
 TAX_FIRM = 0.15
 TAX_PROPERTY = 0.004
 
+# EMISSIONS POLICIES ######################################################
 # Taxes on emission are given by tax * total_emissions
-TAX_EMISSION = 0
+TAX_EMISSION = .1
 # Subsidies in (0,1) is the amount of investment paid by the gov(subsidies * total_invested)
 # 0 is none, 1 is full
-ECO_INVESTMENT_SUBSIDIES = 0
+ECO_INVESTMENT_SUBSIDIES = 150
 
 # Consumption_equal: ratio of consumption tax distributed at state level (equal)
 # Fpm: ratio of 'labor' and 'firm' taxes distributed per the fpm ruling
