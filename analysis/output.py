@@ -99,7 +99,7 @@ OUTPUT_DATA_SPEC = {
                     'long', 'lat', 'total_balance$', 'number_employees',
                     'stocks', 'amount_produced', 'price', 'amount_sold',
                     'revenue', 'profit', 'wages_paid', 'input_cost', 
-                    'emissions','eco_eff','innov_investment','sector']
+                    'emissions', 'eco_eff', 'innov_investment', ' sector']
     },
     'construction': {
         'avg': {

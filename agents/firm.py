@@ -129,14 +129,10 @@ class Firm:
             self.last_emissions = emissions_this_month
             self.env_indicators['emissions'] += emissions_this_month
             emission_tax = emissions_this_month * tax_emission
-            if emission_tax <= self.total_balance and emission_tax < 0:
+            if emission_tax >= 0:
                 self.emission_taxes_paid = emission_tax
                 self.total_balance -= emission_tax
-                regions[self.region_id].collect_taxes(self.emission_taxes_paid, "emissions")
-            elif emission_tax > self.total_balance:
-                self.emission_taxes_paid = self.total_balance
-                self.total_balance = 0
-                regions[self.region_id].collect_taxes(self.emission_taxes_paid, "emissions")
+                regions[self.region_id].collect_taxes(emission_tax, "emissions")
             else:
                 self.emission_taxes_paid = 0
 
@@ -146,16 +142,16 @@ class Firm:
         """
         # Decide how much to invest based on expected cost and benefit analysis
         eco_investment, paid_subsidies = self.decision_on_eco_efficiency(regional_market)
+        if eco_investment < 0:
+            print('stop')
 
         # Check if firm has enough balance
-        if self.total_balance >= eco_investment:
-            self.total_balance -= eco_investment
-        elif self.total_balance > 0:
-            eco_investment = self.total_balance
-            self.total_balance = 0
+        if self.total_balance > 0:
+            if self.total_balance >= eco_investment:
+                self.total_balance -= eco_investment
         else:
-            eco_investment = 0
-            paid_subsidies = 0
+            # No money to invest
+            return
 
         params = regional_market.sim.PARAMS
         # Stochastic process to actually reduce firm-level parameter
@@ -182,23 +178,19 @@ class Firm:
         tax_cost = self.emission_taxes_paid
         input_cost = self.input_cost
 
-        reputation_cost, intrinsic_cost = 0, 0
-        total_cost = tax_cost + reputation_cost + intrinsic_cost + input_cost
+        total_cost = tax_cost + input_cost
 
         # The next step assumes linearity in costs
         expected_cost_reduction = (1 - params['ENVIRONMENTAL_EFFICIENCY_STEP']) * total_cost
 
         # Profit maximization formula yields the formula below
         eco_lambda, subsidies = params['ECO_INVESTMENT_LAMBDA'], params['ECO_INVESTMENT_SUBSIDIES']
-        if self.wages_paid > 0:
-            investment_per_wages_paid = (np.log(
-                eco_lambda * expected_cost_reduction /
-                ((1 - subsidies) * self.wages_paid)) *
+        assert self.wages_paid >= 0
+        inner_part_eco_investment = (eco_lambda * expected_cost_reduction) / ((1 - subsidies) * self.wages_paid)
+        if inner_part_eco_investment > 1:
+            investment_per_wages_paid = (np.log(inner_part_eco_investment) *
                                          (self.wages_paid / eco_lambda))
         else:
-            investment_per_wages_paid = 0
-
-        if investment_per_wages_paid < 0:
             investment_per_wages_paid = 0
         # TODO: Can the government enter deficit?
         paid_subsidies = subsidies * investment_per_wages_paid * self.wages_paid
