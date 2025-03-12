@@ -138,7 +138,7 @@ class Firm:
 
     def invest_eco_efficiency(self, regional_market, regions, seed_np):
         """
-        Reduce overall emissions per wage employed. 
+        Reduce overall emissioens per wage employed.
         """
         # Decide how much to invest based on expected cost and benefit analysis
         eco_investment, paid_subsidies = self.decision_on_eco_efficiency(regional_market)
@@ -190,7 +190,7 @@ class Firm:
             if self.wages_paid > 0 else 0
         if inner_part_eco_investment > 1:
             investment_per_wages_paid = (np.log(inner_part_eco_investment) *
-                                         (self.wages_paid / eco_lambda))
+                                         (1 / eco_lambda))
         else:
             investment_per_wages_paid = 0
         # TODO: Can the government enter deficit?
