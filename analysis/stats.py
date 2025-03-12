@@ -33,6 +33,7 @@ class Statistics(object):
         firm_stocks = np.zeros(n_firms)
         firm_workers = np.zeros(n_firms)
         firm_profits = np.zeros(n_firms)
+        firm_inno_inv = np.zeros(n_firms)
 
         for i, firm in enumerate(firms.values()):
             firm_balances[i] = firm.total_balance
@@ -42,6 +43,7 @@ class Statistics(object):
             firm_stocks[i] = firm.get_total_quantity()
             firm_workers[i] = firm.num_employees
             firm_profits[i] = firm.profit
+            firm_inno_inv[i] = firm.inno_inv
 
         results = {
             "median_wealth": np.median(firm_balances) if firm_balances.size > 0 else 0,
@@ -51,6 +53,7 @@ class Statistics(object):
             "median_stock": np.median(firm_stocks) if firm_stocks.size > 0 else 0,
             "workers": np.median(firm_workers) if firm_workers.size > 0 else 0,
             "aggregate_profits": np.sum(firm_profits) if firm_profits.size > 0 else 0,
+            "innovation_investment": np.median(firm_inno_inv) if firm_inno_inv.size > 0 else 0
         }
         logger.info(f"Firm stats - Median wealth: {results['median_wealth']:.2f}, "
                     f"Median wages: {results['median_wages']:.2f}, "
@@ -59,7 +62,7 @@ class Statistics(object):
                     f"Median stock: {results['median_stock']:.2f}, "
                     f"Median workers: {results['workers']:.2f}, "
                     f"Aggregate profits: {results['aggregate_profits']:.2f}"
-        )
+                    )
 
         return results
 
@@ -89,7 +92,7 @@ class Statistics(object):
 
         # Preallocate arrays for firm revenues and eco-efficiencies, mapped to region IDs
         firm_revenues = np.zeros(n_firms)
-        firm_eco_efficiencies = np.zeros(n_firms,dtype=np.float32)
+        firm_eco_efficiencies = np.zeros(n_firms, dtype=np.float32)
         firm_region_ids = np.zeros(n_firms, dtype='U13')
 
         # SINGLE loop through firms to populate arrays
@@ -157,7 +160,7 @@ class Statistics(object):
             dummy_gdp_capita = dummy_gdp
         return dummy_gdp_capita
 
-    def update_unemployment(self, agents, global_u=False,log=False):
+    def update_unemployment(self, agents, global_u=False, log=False):
         employable = [m for m in agents if 16 < m.age < 70]
         temp = len([m for m in employable if m.firm_id is None]) / len(employable) if employable else 0
         if log:

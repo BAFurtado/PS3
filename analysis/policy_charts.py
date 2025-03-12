@@ -3,7 +3,9 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-def create_grouped_boxplot(data, x_col, y_col, hue_col, title, xlabel, ylabel, figsize=(12, 6), palette="Set2", rotation=45):
+
+def create_grouped_boxplot(data, x_col, y_col, hue_col, title, xlabel, ylabel, figsize=(12, 6), palette="Set2",
+                           rotation=45):
     """
     Generates grouped boxplots to compare policy effects across urban agglomerations.
     
@@ -21,7 +23,7 @@ def create_grouped_boxplot(data, x_col, y_col, hue_col, title, xlabel, ylabel, f
     """
     plt.figure(figsize=figsize)
     sns.boxplot(data=data, x=x_col, y=y_col, hue=hue_col, palette=palette, width=0.7)
-    
+
     plt.xticks(rotation=rotation, ha='right', fontsize=10)
     plt.title(title, fontsize=14)
     plt.xlabel(xlabel, fontsize=12)
@@ -31,9 +33,10 @@ def create_grouped_boxplot(data, x_col, y_col, hue_col, title, xlabel, ylabel, f
     plt.tight_layout()
     plt.show()
 
+
 # Example Usage: Simulated Data
 np.random.seed(42)
-urban_areas = [f"Urban Area {i+1}" for i in range(27)]
+urban_areas = [f"Urban Area {i + 1}" for i in range(27)]
 policies = ["Taxation", "Subsidy", "Cap & Trade"]
 
 # Generate synthetic emissions per GDP for each region-policy combination
@@ -41,7 +44,7 @@ data = {
     "Urban Agglomeration": np.tile(np.repeat(urban_areas, 50), len(policies)),
     "Policy": np.repeat(policies, 50 * len(urban_areas)),
     "Emission per GDP": np.concatenate([
-        20-np.random.normal(loc, 2, 50) for loc in np.linspace(1.2, 2.0, len(urban_areas) * len(policies))
+        20 - np.random.normal(loc, 2, 50) for loc in np.linspace(1.2, 2.0, len(urban_areas) * len(policies))
     ])
 }
 
@@ -59,15 +62,17 @@ create_grouped_boxplot(
 )
 
 
-def create_faceted_boxplot(data, x_col, y_col, col_col, title, xlabel, ylabel, ncols=2, figsize=(14, 8), palette="muted", rotation=90):
+def create_faceted_boxplot(data, x_col, y_col, col_col, title, xlabel, ylabel, ncols=2, figsize=(14, 8),
+                           palette="muted", rotation=90):
     """
     Generates faceted boxplots, splitting policies into separate subplots.
     """
-    g = sns.catplot(data=data, x=x_col, y=y_col, col=col_col, kind="box", palette=palette, col_wrap=ncols, height=4, aspect=1.5)
-    
+    g = sns.catplot(data=data, x=x_col, y=y_col, col=col_col, kind="box", palette=palette, col_wrap=ncols, height=4,
+                    aspect=1.5)
+
     for ax in g.axes.flat:
         ax.set_xticklabels(ax.get_xticklabels(), rotation=rotation, ha='right', fontsize=7)
-    
+
     g.fig.suptitle(title, fontsize=16)
     g.set_axis_labels(xlabel, ylabel)
     g.tight_layout()
@@ -97,7 +102,7 @@ def create_heatmap(data, index_col, columns_col, values_col, title, figsize=(12,
     # Create the heatmap
     plt.figure(figsize=figsize)
     sns.heatmap(pivot_table, annot=True, fmt=".2f", cmap=cmap, linewidths=0.5, cbar_kws={'label': values_col})
-    
+
     plt.title(title, fontsize=14)
     plt.xlabel(columns_col, fontsize=12)
     plt.ylabel(index_col, fontsize=12)
@@ -105,6 +110,7 @@ def create_heatmap(data, index_col, columns_col, values_col, title, figsize=(12,
     plt.yticks(fontsize=10)
     plt.tight_layout()
     plt.show()
+
 
 # Call the function with df_policies
 create_heatmap(
@@ -115,8 +121,9 @@ create_heatmap(
     title="Heatmap: Emission per GDP by Policy and Urban Agglomeration"
 )
 
-def create_emissions_violinplot_by_sector(data, sector_col, policy_col, value_col, 
-                                          title, xlabel, ylabel, figsize=(16, 12), 
+
+def create_emissions_violinplot_by_sector(data, sector_col, policy_col, value_col,
+                                          title, xlabel, ylabel, figsize=(16, 12),
                                           palette="Set2", rotation=45, col_wrap=4):
     """
     Generates faceted violin plots (one panel per sector) to visualize the distribution 
@@ -149,24 +156,25 @@ def create_emissions_violinplot_by_sector(data, sector_col, policy_col, value_co
         aspect=1.2,
         sharey=True  # All subplots share the same y-axis scale.
     )
-    
+
     # Remove the "Sector=" prefix from facet titles by customizing the title format.
     g.set_titles("{col_name}")
-    
+
     # Adjust x-axis tick labels and add gridlines in each subplot.
     for ax in g.axes.flatten():
         ax.set_xticklabels(ax.get_xticklabels(), rotation=rotation, ha='right', fontsize=10)
         ax.grid(axis='y', linestyle='--', alpha=0.7)
-    
+
     # Set overall title and axis labels.
     g.fig.suptitle(title, fontsize=18)
     g.set_axis_labels(xlabel, ylabel)
-    
+
     # Adjust layout to prevent the title and labels from overlapping the subplots.
     g.fig.subplots_adjust(top=0.9, left=0.05, right=0.95, bottom=0.08)
-    
+
     plt.tight_layout()
     plt.show()
+
 
 # --- Example Usage ---
 
@@ -212,6 +220,7 @@ create_emissions_violinplot_by_sector(
 import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.lines import Line2D
+
 
 def make_plot_sectors_emission(data, name='figures/emission_policy_effects',
                                exclude_sectors=[]):
@@ -274,7 +283,7 @@ def make_plot_sectors_emission(data, name='figures/emission_policy_effects',
                       lw=0.7)
 
     # Draw a horizontal reference line at y = 0.
-    ax.hlines(y=0, xmin=-0.5, xmax=len(labels)-0.5, colors='black', lw=1, alpha=0.7)
+    ax.hlines(y=0, xmin=-0.5, xmax=len(labels) - 0.5, colors='black', lw=1, alpha=0.7)
 
     # Set x-ticks using the numeric positions and assign the sector labels.
     ax.set_xticks(range(len(labels)))
@@ -293,9 +302,10 @@ def make_plot_sectors_emission(data, name='figures/emission_policy_effects',
 
     plt.tight_layout()
     # Save the figure in EPS and PDF formats.
-    #plt.savefig(f'{name}.eps', dpi=1200, format='eps')
-    #plt.savefig(f'{name}.pdf', dpi=1200)
+    # plt.savefig(f'{name}.eps', dpi=1200, format='eps')
+    # plt.savefig(f'{name}.pdf', dpi=1200)
     plt.show()
+
 
 # --- Example Usage ---
 
@@ -304,6 +314,7 @@ def make_plot_sectors_emission(data, name='figures/emission_policy_effects',
 # For demonstration, here is a synthetic example:
 
 import numpy as np
+
 np.random.seed(42)
 sectors = [f"Sector {i}" for i in range(1, 13)]
 policies = ["Taxation", "Subsidies", "Combined Policy"]

@@ -25,7 +25,7 @@ initial_input_sectors = {'Agriculture': 0,
                          'Government': 0
                          }
 
-emissions = pd.read_csv('input/mediana_eco_emissoes_sector_mun_2010.csv', dtype={'mun_code': str})
+emissions = pd.read_csv('input/emissions_sector_average_years.csv')
 
 
 class Firm:
@@ -55,7 +55,7 @@ class Firm:
             prices=None,
             sector=None,
             env_indicators=None,
-            env_efficiency = 1
+            env_efficiency=1
     ):
         if env_indicators is None:
             self.env_indicators = {'emissions': 0}
@@ -92,9 +92,7 @@ class Firm:
         self.last_emissions = 0
         self.inno_inv = 0
         try:
-            self.emissions_base = emissions[(emissions.isic_12 == self.sector) &
-                                            (emissions.mun_code == self.region_id[:7])
-                                            ]['med_eco'].reset_index(drop=True)[0]
+            self.emissions_base = emissions[emissions.isic_12 == self.sector]['eco'].reset_index(drop=True)[0]
         except KeyError:
             self.no_emissions = True
 
@@ -111,23 +109,21 @@ class Firm:
                 )
                 self.product_index += 1
             self.prices = sum(p.price for p in self.inventory.values()) / len(self.inventory)
-    
-    # ECOLOGICAL PROCEDURES ##############################################################################################
+
+    # ECOLOGICAL PROCEDURES ###########################################################################################
     def probability_success(self, eco_investment, eco_lambda):
         """ 
         Returns the probability of success given the amount invested per wages paid (I/W)
         """
-        return 1 - np.exp(-eco_lambda * eco_investment)
+        return 1 - np.exp(- eco_lambda * eco_investment)
 
-    def create_externalities(self,regions,tax_emission):
-        
+    def create_externalities(self, regions, tax_emission):
         """
         Based on empirical data, creates externalities according to money output produced by a given activity.
         Total emissions are multiplied by firm-level env efficiency.
         """
-        # Environmental indicators (emissions, water, energy, waste) by municipality and sector
-        # Using median from 2010.
-        # Procedure: Apply endogenous salary amount to external ecoefficiency to find estimated output indicator
+        # Environmental indicators (emissions, water, energy, waste) by sector
+        # Procedure: Apply endogenous salary amount to external eco-efficiency to find estimated output indicator
         if not self.no_emissions:
             emissions_this_month = self.env_efficiency * self.wages_paid / self.emissions_base
             self.last_emissions = emissions_this_month
@@ -144,7 +140,7 @@ class Firm:
             else:
                 self.emission_taxes_paid = 0
 
-    def invest_eco_efficiency(self,regional_market,regions,seed_np):
+    def invest_eco_efficiency(self, regional_market, regions, seed_np):
         """
         Reduce overall emissions per wage employed. 
         """
@@ -163,52 +159,51 @@ class Firm:
 
         params = regional_market.sim.PARAMS
         # Stochastic process to actually reduce firm-level parameter
-        p_success = self.probability_success(eco_investment,params['ECO_INVESTMENT_LAMBDA']) #regional_market.
+        p_success = self.probability_success(eco_investment, params['ECO_INVESTMENT_LAMBDA'])  # regional_market.
         random_value = seed_np.rand()
-        if p_success>random_value:
+        if p_success > random_value:
             # Innovation was successful
             self.env_efficiency *= params['ENVIRONMENTAL_EFFICIENCY_STEP']
         else:
             # Nothing happens
             pass
-        regions[self.region_id].collect_taxes(-paid_subsidies, "emissions")
+        regions[self.region_id].collect_taxes(- paid_subsidies, "emissions")
         self.total_balance += paid_subsidies
-        self.inno_inv=eco_investment
+        self.inno_inv = eco_investment
 
-    def decision_on_eco_efficiency(self,regional_market):
+    def decision_on_eco_efficiency(self, regional_market):
         """ 
         Choose how much to invest based on expected emission cost (taxes, reputational costs and intrinsic cost)
         Also accounts for possible environmental policies
         """
         params = regional_market.sim.PARAMS
-        ## Calculate expected emission cost with adaptively expectations
+        # Calculate expected emission cost with adaptively expectations
         # Tax cost
         tax_cost = self.emission_taxes_paid
         input_cost = self.input_cost
 
-        reputation_cost, intrinsic_cost = 0,0
-        total_cost = tax_cost+reputation_cost+intrinsic_cost+input_cost
+        reputation_cost, intrinsic_cost = 0, 0
+        total_cost = tax_cost + reputation_cost + intrinsic_cost + input_cost
 
         # The next step assumes linearity in costs
-        # expected_cost_reduction = cost(last_emissions)-cost((1-delta)*last_emissions)
-        expected_cost_reduction = (1-params['ENVIRONMENTAL_EFFICIENCY_STEP']) * total_cost
+        expected_cost_reduction = (1 - params['ENVIRONMENTAL_EFFICIENCY_STEP']) * total_cost
 
         # Profit maximization formula yields the formula below
         eco_lambda, subsidies = params['ECO_INVESTMENT_LAMBDA'], params['ECO_INVESTMENT_SUBSIDIES']
-        if self.wages_paid>0:
+        if self.wages_paid > 0:
             investment_per_wages_paid = (np.log(
-                                            eco_lambda * expected_cost_reduction /
-                                            ((1 - subsidies) * self.wages_paid)) *
-                                            (self.wages_paid/eco_lambda))
+                eco_lambda * expected_cost_reduction /
+                ((1 - subsidies) * self.wages_paid)) *
+                                         (self.wages_paid / eco_lambda))
         else:
             investment_per_wages_paid = 0
-        
+
         if investment_per_wages_paid < 0:
             investment_per_wages_paid = 0
         # TODO: Can the government enter deficit?
-        paid_subsidies = subsidies*investment_per_wages_paid*self.wages_paid
+        paid_subsidies = subsidies * investment_per_wages_paid * self.wages_paid
         return investment_per_wages_paid, paid_subsidies
-    
+
     # PRODUCTION DEPARTMENT ###########################################################################################
     def choose_firm_per_sector(self, regional_market, firms, seed, market_size):
         """
@@ -271,7 +266,7 @@ class Firm:
             # The reduction factor is used to account for the firm having LESS MONEY than needed
             if money_local_inputs + money_external_inputs > 0:
                 reduction_factor = (min(self.total_balance, money_local_inputs + money_external_inputs) /
-                                       (money_local_inputs + money_external_inputs))
+                                    (money_local_inputs + money_external_inputs))
             else:
                 reduction_factor = 1
 
@@ -348,7 +343,7 @@ class Firm:
 
             # Buy inputs fills up input_inventory and external_input_inventory
             # Env efficiency reduces the amount of inputs needed, so the firms buys less
-            self.buy_inputs(self.env_efficiency*desired_quantity, regional_market, firms, seed,
+            self.buy_inputs(self.env_efficiency * desired_quantity, regional_market, firms, seed,
                             technical_matrix, external_technical_matrix)
             input_quantities_needed = self.env_efficiency * desired_quantity * (
                     technical_matrix.loc[:, self.sector] + external_technical_matrix.loc[:, self.sector])
@@ -476,9 +471,9 @@ class Firm:
     def calculate_profit(self):
         # Calculate profits considering last month wages paid and taxes on firm
         # (labor and consumption taxes are already deducted)
-        self.profit = (self.revenue 
-                       - self.wages_paid 
-                       - self.taxes_paid 
+        self.profit = (self.revenue
+                       - self.wages_paid
+                       - self.taxes_paid
                        - self.input_cost
                        - self.emission_taxes_paid)
 
@@ -669,7 +664,7 @@ class ConstructionFirm(Firm):
         # Productivity reduces the cost of construction and sets the size of profiting when selling
         if not self.productivity:
             self.productivity = seed_np.randint(100 - int(params['CONSTRUCTION_FIRM_MARKUP_MULTIPLIER'] *
-                                                params["MARKUP"] * 100), 101) / 100
+                                                          params["MARKUP"] * 100), 101) / 100
         building_cost = gross_cost * self.productivity
 
         # Choose region where construction is most profitable
@@ -785,7 +780,6 @@ class ConstructionFirm(Firm):
                 date += relativedelta.relativedelta(months=+1)
 
     def wage_base(self, unemployment, relevance_unemployment):
-        #TODO: Verify this statement
         self.revenue = self.cash_flow[self.present]
         # Using temporary planned income before money starts to flow in
         if self.revenue == 0 and self.monthly_planned_revenue:
