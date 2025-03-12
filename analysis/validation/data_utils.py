@@ -25,7 +25,7 @@ def find_firms_csv(root_dir):
     stats_files = []
     
     for dirpath, _, filenames in os.walk(root_dir):
-        if "stats.csv" in filenames:
+        if "firms.csv" in filenames:
             stats_files.append(os.path.join(dirpath, "firms.csv"))
     
     return stats_files
@@ -51,7 +51,7 @@ def read_inflation_data(file_path):
     #df_melted.to_csv("PS3/analysis/validation/real_world_data/inflation_data_cleaned.csv", index=False)
     return df_melted
 
-def read_macroeconomic_data(file_path):
+def read_macroeconomic_data(file_path=None):
     if file_path:
         fp = file_path
     else:
@@ -96,7 +96,7 @@ def read_many_sim_files(file_path_list,policy=None):
     data_frame_list = [read_simulation_data(file_path,policy) for file_path in file_path_list]
     return pd.concat(data_frame_list)
 
-def read_firms_simulation_data(file_path,policy=None,last_month=True):
+def read_firms_simulation_data(file_path,policy=None,last_month=True,consolidate=False,consolidate_regions=True):
     """
     Takes one firms.csv file and adjusts column names and format.
     """
@@ -108,18 +108,54 @@ def read_firms_simulation_data(file_path,policy=None,last_month=True):
         return None
     data = pd.read_csv(fp, encoding='utf-8', delimiter=';',header=None)
     data.columns = columns
-    data.drop(['mun_id', 'long', 'lat'],axis=1,inplace=True)
-    sim_month_last = data.iloc[-1, 0]
-    df_melted = data.melt(id_vars=['month', 'firm_id','region_id','sector',
-                                   ], 
-                         var_name="description", 
-                         value_name="value")
+    sim_month_last = data.iloc[-12, 0]
+    
+    if consolidate:
+        columns_to_average = ['eco_eff','price']  # Replace with actual column names
+        columns_to_sum = ['stocks', 'amount_produced','amount_sold','revenue',
+                          "profit","wages_paid","input_cost","emissions","innov_investment"] 
+
+        agg_dict = {col: 'mean' for col in columns_to_average}  # Average these columns
+        agg_dict.update({col: 'sum' for col in columns_to_sum}) # Sum these columns
+        
+        if consolidate_regions:
+            data.drop(['mun_id','firm_id', 'long', 'lat','region_id'],axis=1,inplace=True)
+           
+            data = data.groupby(['month','sector'], as_index=False).agg(agg_dict)
+            data['emission_per_gdp'] = data['emissions']/data['revenue']
+            df_melted = data.melt(id_vars=['month','sector',
+                                        ], 
+                                var_name="description", 
+                                value_name="value")
+            
+        else:
+            data.drop(['mun_id','firm_id', 'long', 'lat'],axis=1,inplace=True)
+            data = data.groupby(['month','sector', 'region_id'], as_index=False).agg(agg_dict)
+            data['emission_per_gdp'] = data['emissions']/data['revenue']
+            df_melted = data.melt(id_vars=['month','region_id','sector',
+                                        ], 
+                                var_name="description", 
+                                value_name="value")
+            
+    else:
+        data.drop(['mun_id', 'long', 'lat'],axis=1,inplace=True)
+        data['emission_per_gdp'] = data['emissions']/data['revenue']
+        df_melted = data.melt(id_vars=['month', 'firm_id','region_id','sector',
+                                    ], 
+                            var_name="description", 
+                            value_name="value")
     if policy:
         df_melted['Policy'] = policy
     if last_month:
-        df_melted = df_melted.loc[df_melted['month'] == sim_month_last]
+        df_melted = df_melted.loc[df_melted['month'] >= sim_month_last]
     #df_melted['source'] = "Simulated"
     return df_melted
+
+
+
+def read_many_firm_files(file_path_list,policy=None,consolidate=False):
+    data_frame_list = [read_firms_simulation_data(file_path,policy,consolidate=consolidate) for file_path in file_path_list]
+    return pd.concat(data_frame_list)
 
 if __name__ == "__main__":
    
@@ -128,13 +164,13 @@ if __name__ == "__main__":
                 "\\output\\both",
                 "\\output\\subsidies",
                 "\\output\\tax"]]
-    data_agg_pol = read_many_sim_files(agg_fp)
+    #data_agg_pol = read_many_sim_files(agg_fp)
     
     
     
 
     
-    baseline = read_firms_simulation_data(base_fp+"\\output\\baseline\\0\\firms.csv",policy="No Policy")
+    baseline = read_firms_simulation_data(base_fp+"\\output\\baseline\\0\\firms.csv",policy="No Policy",consolidate=True)
     mean_base = baseline.drop(['Policy','month','firm_id','region_id'],axis=1).groupby(['sector','description'],as_index=False).mean()
     tax = read_firms_simulation_data(base_fp+"\\output\\tax\\0\\firms.csv",policy="Carbon Tax")
     subsidies = read_firms_simulation_data(base_fp+"\\output\\subsidies\\0\\firms.csv",policy="Subsidies")

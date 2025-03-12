@@ -133,10 +133,14 @@ class Firm:
             self.last_emissions = emissions_this_month
             self.env_indicators['emissions'] += emissions_this_month
             emission_tax = emissions_this_month * tax_emission
-            if emission_tax >= 0:
+            if emission_tax <= self.total_balance and emission_tax < 0:
                 self.emission_taxes_paid = emission_tax
                 self.total_balance -= emission_tax
-                regions[self.region_id].collect_taxes(self.taxes_paid, "emissions")
+                regions[self.region_id].collect_taxes(self.emission_taxes_paid, "emissions")
+            elif emission_tax > self.total_balance:
+                self.emission_taxes_paid = self.total_balance
+                self.total_balance = 0
+                regions[self.region_id].collect_taxes(self.emission_taxes_paid, "emissions")
             else:
                 self.emission_taxes_paid = 0
 
@@ -150,9 +154,12 @@ class Firm:
         # Check if firm has enough balance
         if self.total_balance >= eco_investment:
             self.total_balance -= eco_investment
-        else:
+        elif self.total_balance > 0:
             eco_investment = self.total_balance
             self.total_balance = 0
+        else:
+            eco_investment = 0
+            paid_subsidies = 0
 
         params = regional_market.sim.PARAMS
         # Stochastic process to actually reduce firm-level parameter

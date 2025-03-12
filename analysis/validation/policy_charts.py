@@ -47,7 +47,7 @@ def create_faceted_boxplot(data, x_col, y_col, col_col, title, xlabel, ylabel, n
     g.tight_layout()
     plt.show()
 
-def create_heatmap(data, index_col, columns_col, values_col, title, figsize=(12, 8), cmap="coolwarm"):
+def create_heatmap(data, index_col, columns_col, values_col,title,filter_name="emissions", figsize=(12, 8), cmap="coolwarm"):
     """
     Generates a heatmap showing emissions per GDP across urban agglomerations and policies.
     Aggregates data using mean values before pivoting.
@@ -62,6 +62,7 @@ def create_heatmap(data, index_col, columns_col, values_col, title, figsize=(12,
     - cmap (str): Color map for visualization.
     """
     # Aggregate by mean to ensure unique values for pivot
+    data = data[data["description"].isin([filter_name])]
     aggregated_data = data.groupby([index_col, columns_col])[values_col].mean().reset_index()
 
     # Pivot the data
@@ -134,7 +135,7 @@ def create_emissions_violinplot_by_sector(data, sector_col, policy_col, value_co
     plt.show()
 
 def create_grouped_boxplot_by_sector(data, sector_col, policy_col, value_col,
-                                     title, xlabel, ylabel, filter_name="emissions",figsize=(16, 8), 
+                                     title, xlabel, ylabel,filter_name="emissions",figsize=(16, 8), 
                                      palette="Set2", rotation=45,normalize=False):
     """
     Creates a grouped boxplot of emission reductions per sector, ranking them 
