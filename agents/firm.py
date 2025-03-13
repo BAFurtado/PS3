@@ -117,7 +117,7 @@ class Firm:
         """
         return 1 - np.exp(- eco_lambda * eco_investment)
 
-    def create_externalities(self, regions, tax_emission):
+    def create_externalities(self, regions, tax_emission, emissions_param):
         """
         Based on empirical data, creates externalities according to money output produced by a given activity.
         Total emissions are multiplied by firm-level env efficiency.
@@ -125,7 +125,7 @@ class Firm:
         # Environmental indicators (emissions, water, energy, waste) by sector
         # Procedure: Apply endogenous salary amount to external eco-efficiency to find estimated output indicator
         if not self.no_emissions:
-            emissions_this_month = self.env_efficiency * self.wages_paid / self.emissions_base
+            emissions_this_month = self.env_efficiency * emissions_param * self.wages_paid / self.emissions_base
             self.last_emissions = emissions_this_month
             self.env_indicators['emissions'] += emissions_this_month
             emission_tax = emissions_this_month * tax_emission

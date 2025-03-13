@@ -36,6 +36,8 @@ HIRING_SAMPLE_SIZE = 20
 ENVIRONMENTAL_EFFICIENCY_STEP = .99
 # Innovation process probability: 1 - exp(lambda * investment / wage_base)
 ECO_INVESTMENT_LAMBDA = 25
+# Adjustment factor for emissions within firms
+EMISSIONS_PARAM = 4000
 
 # GOVERNMENT ####################################################################
 # ALTERNATIVE OF DISTRIBUTION OF TAXES COLLECTED. REPLICATING THE NOTION OF A COMMON POOL OF RESOURCES ################
