@@ -22,7 +22,7 @@ class FirmData:
             if year == 2000:
                 num_months = 12 * 10
             else:
-                num_months = 12 * 7
+                num_months = 12 * 11
             self.avg_monthly_deltas[mun_code] = delta/num_months
 
     def _load(self, fname):
