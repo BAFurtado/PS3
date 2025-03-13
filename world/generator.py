@@ -58,6 +58,7 @@ prop_urban = pd.read_csv("input/Demografia/3_Percent_Urban/Munic_Percent_Urban_2
 # Deleted firms for sectors/municipalities below 3 firms
 # Construction and Government are already 0 in final demand table
 perc_firms_sector = pd.read_csv('input/CONCURBs_SECTOR.csv', sep=';', decimal=',')
+house_qual_areap = pd.read_csv('input/dpp_2010_quali.csv', dtype={'areap': str})
 
 
 class Generator:
@@ -307,17 +308,25 @@ class Generator:
             )
         return addresses
 
-    def get_empirical_data(self, region, num_houses):
+    def get_empirical_qualities(self, region, num_houses):
+        quality_typologies = [.5, 1, 2, 3, 4, 5]
+        proportion = house_qual_areap.loc[house_qual_areap['areap'] == region.id,
+                     ['DPP0', 'DPP1', 'DPP2', 'DPP3', 'DPP4', 'DPP5']].values.ravel()
+        qualities = np.random.choice(quality_typologies, num_houses, p=proportion)
+        return qualities
+
+    def get_empirical_data(self, region, num_houses, qualities):
         avg_size = self.shapes.loc[self.shapes.id == region.id, "area_util"].to_list()[
             0
         ]
-        # Divide by 1000 so that fits the rest of the model. Prices of estates are roughtly x 1000 of real value
+        # Divide by 1000 so that fits the rest of the model. Prices of estates are roughly x 1000 of real value
         avg_price_m2 = (
                 self.shapes.loc[self.shapes.id == region.id, "precom2"].to_list()[0] / 1000
         )
         sizes = self.seed_np.lognormal(np.log(avg_size), 0.5, size=num_houses)
         sizes[sizes < 10] = 10
-        qualities = self.seed_np.lognormal(np.log(avg_price_m2), 0.5, size=num_houses)
+        # Replacing qualities for empirical AREAP data
+        # qualities = self.seed_np.lognormal(np.log(avg_price_m2), 0.5, size=num_houses)
         prices = np.multiply(np.multiply(sizes, qualities), region.index)
         return sizes, qualities, prices
 
@@ -342,14 +351,11 @@ class Generator:
                 )
             )
         # Use self.shapes and region.id to try to get empirical data on sizes, quality and prices
+        qualities = self.get_empirical_qualities(region, num_houses)
         try:
-            sizes, qualities, prices = self.get_empirical_data(region, num_houses)
+            sizes, qualities, prices = self.get_empirical_data(region, num_houses, qualities)
         except KeyError:
             sizes = self.seed_np.lognormal(np.log(70), 0.5, size=num_houses)
-            # Loose estimate of qualities in the universe
-            qualities = self.seed_np.choice(
-                [1, 2, 3, 4], p=self.sim.PARAMS["PERC_HOUSE_CATEGORIES"], size=num_houses
-            )
             prices = np.multiply(np.multiply(sizes, qualities), region.index)
         for i in range(num_houses):
             size = sizes[i]
@@ -403,7 +409,10 @@ class Generator:
 
     def create_firms(self, num_firms, region):
         acp = self.sim.geo.processing_acps[0]
-        p_firms_sector = perc_firms_sector[perc_firms_sector['concurb_name'] == acp].set_index('sector').drop('concurb_name', axis=1).to_dict()['participation']
+        p_firms_sector = \
+        perc_firms_sector[perc_firms_sector['concurb_name'] == acp].set_index('sector').drop('concurb_name',
+                                                                                             axis=1).to_dict()[
+            'participation']
         sector = dict()
 
         if num_firms == 1:
@@ -417,7 +426,7 @@ class Generator:
             }
         num_firms = sum(num_firms_by_sector.values())
         addresses = self.get_random_points_in_polygon(region, number_addresses=num_firms)
-        balances = self.seed_np.beta(1.5, 10, size=num_firms) * 10e6 #TODO: Maybe add a balance size parameter
+        balances = self.seed_np.beta(1.5, 10, size=num_firms) * 10e6
 
         j = 0
         for key in num_firms_by_sector:

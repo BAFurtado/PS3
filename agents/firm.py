@@ -111,12 +111,13 @@ class Firm:
                 self.product_index += 1
             self.prices = sum(p.price for p in self.inventory.values()) / len(self.inventory)
     
-    # ECOLOGICAL PROCEDURES ##############################################################################################
+    # ECOLOGICAL PROCEDURES #########################################################################################
     def probality_success(self,eco_investment,eco_lambda):
         """ 
         Returns the probability of success given the amount invested per wages paid (I/W)
         """
         return 1-np.exp(-eco_lambda*eco_investment)
+
     def create_externalities(self,regions,tax_emission):
         # TODO WE CAN USE THE OWN EVOLUTION OF EMISSIONS AS VALIDATION. WE INPUT ONLY 2010
         """
@@ -138,8 +139,7 @@ class Firm:
             else:
                 self.emission_taxes_paid = 0
 
-
-    def invest_eco_efficiency(self,regional_market,regions,seed_np):
+    def invest_eco_efficiency(self, regional_market, regions, seed_np):
         """
         Reduce overall emissions per wage employed. 
         """
