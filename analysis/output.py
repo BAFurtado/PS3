@@ -288,14 +288,10 @@ class Output:
             f.write('\n' + '\n'.join(reports))
 
     def save_data(self, sim):
-        # firms data is necessary for plots,
-        # so always save
-        self.save_firms_data(sim)
         self.save_banks_data(sim)
-
         for type in conf.RUN['SAVE_DATA']:
-            # Skip b/c they are saved anyways above
-            if type in ['firms', 'banks']: continue
+            if type in ['banks']:
+                continue
             save_fn = getattr(self, 'save_{}_data'.format(type))
             save_fn(sim)
 
