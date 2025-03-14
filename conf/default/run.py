@@ -38,14 +38,14 @@ PLOT_DPI = 300
 SAVE_AGENTS_DATA = 'MONTHLY'
 
 # What extra CSV data (i.e. not necessary plotting) to save
-# 'firms', 'banks', 'construction', 'regional' and 'stats' data are always saved,
+# 'stats' data are always saved,
 # "agents", "grave", "house", "family" are optional.
 
 # If you don't save "house" data for instance you can't generate housing plots.
-# Can include: ['agents', 'grave', 'house', 'family']
+# Can include: ['agents', 'grave', 'house', 'family', 'firms', 'regional', 'construction']
 # If None, set to empty list: []
 SAVE_DATA = []
-# SAVE_DATA = ['agents', 'house', 'family']
+# SAVE_DATA = ['agents', 'house', 'family', 'firms', 'regional', 'construction']
 
 # What data to average across all runs.
 # If plotting and not 'firms', 'banks', 'construction' or 'regional',

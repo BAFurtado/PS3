@@ -288,10 +288,7 @@ class Output:
             f.write('\n' + '\n'.join(reports))
 
     def save_data(self, sim):
-        self.save_banks_data(sim)
         for type in conf.RUN['SAVE_DATA']:
-            if type in ['banks']:
-                continue
             save_fn = getattr(self, 'save_{}_data'.format(type))
             save_fn(sim)
 

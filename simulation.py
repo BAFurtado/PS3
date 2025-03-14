@@ -399,7 +399,8 @@ class Simulation:
         self.output.save_stats_report(self, bank_taxes)
 
         # Getting regional GDP
-        self.output.save_regional_report(self)
+        if 'regional ' in conf.RUN['SAVE_DATA']:
+            self.output.save_regional_report(self)
 
         if conf.RUN["SAVE_AGENTS_DATA"] == "MONTHLY":
             self.output.save_data(self)
