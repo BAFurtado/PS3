@@ -138,7 +138,7 @@ class Firm:
 
     def invest_eco_efficiency(self, regional_market, regions, seed_np):
         """
-        Reduce overall emissioens per wage employed.
+        Reduce overall emissions per wage employed.
         """
         # Decide how much to invest based on expected cost and benefit analysis
         eco_investment, paid_subsidies = self.decision_on_eco_efficiency(regional_market)

@@ -34,9 +34,8 @@ class Region:
 
     def save_and_clear_treasure(self):
         for key in self.treasure.keys():
-            if key != 'emissions':
-                self.cumulative_treasure[key] += self.treasure[key]
-                self.treasure[key] = 0
+            self.cumulative_treasure[key] += self.treasure[key]
+            self.treasure[key] = 0
 
     def transfer_treasure(self):
         treasure = self.treasure.copy()
