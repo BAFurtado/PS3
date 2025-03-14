@@ -35,9 +35,9 @@ HIRING_SAMPLE_SIZE = 20
 # Reduction size in case of eco innovation success: multiplies firm parameters
 ENVIRONMENTAL_EFFICIENCY_STEP = .99
 # Innovation process probability: 1 - exp(lambda * investment / wage_base)
-ECO_INVESTMENT_LAMBDA = 25
+ECO_INVESTMENT_LAMBDA = 1
 # Adjustment factor for emissions within firms
-EMISSIONS_PARAM = 4000
+EMISSIONS_PARAM = 1000
 
 # GOVERNMENT ####################################################################
 # ALTERNATIVE OF DISTRIBUTION OF TAXES COLLECTED. REPLICATING THE NOTION OF A COMMON POOL OF RESOURCES ################
@@ -133,11 +133,11 @@ TAX_FIRM = 0.15
 TAX_PROPERTY = 0.004
 
 # EMISSIONS POLICIES ######################################################
-# Taxes on emission are given by tax * total_emissions
-TAX_EMISSION = .1
+# Taxes on emission are given by tax * total_emissions. Roughly R$ * tonCO2. .1 is about R$10
+TAX_EMISSION = .01
 # Subsidies in (0,1) is the amount of investment paid by the gov(subsidies * total_invested)
 # 0 is none, 1 is full
-ECO_INVESTMENT_SUBSIDIES = 150
+ECO_INVESTMENT_SUBSIDIES = .15
 
 # Consumption_equal: ratio of consumption tax distributed at state level (equal)
 # Fpm: ratio of 'labor' and 'firm' taxes distributed per the fpm ruling
