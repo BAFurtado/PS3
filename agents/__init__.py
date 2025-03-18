@@ -53,6 +53,7 @@ class Agent:
         self.family = family
         self.last_wage = None
         self.p_marriage = marriage_data.p_marriage(self)
+        self.head = False
 
     @property
     def address(self):
@@ -78,6 +79,9 @@ class Agent:
     @property
     def belongs_to_family(self):
         return self.family is not None
+
+    def set_head_family(self):
+        self.head = True
 
     @property
     def is_employed(self):
