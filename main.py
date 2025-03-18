@@ -26,6 +26,7 @@ from joblib import Parallel, delayed
 import conf
 import main_plotting
 from simulation import Simulation
+
 # from web import app
 
 matplotlib.pyplot.close('all')
@@ -124,7 +125,7 @@ def multiple_runs(overrides, runs, cpus, output_dir, fix_seeds=False):
 
     try:
         os.symlink(os.path.join('..', output_dir), latest_path)
-    except OSError: # Windows requires special permissions to symlink
+    except OSError:  # Windows requires special permissions to symlink
         pass
 
     logger.info('Finished.')
@@ -155,8 +156,8 @@ def main(ctx, runs, cpus, params, config):
         params = {}
     # params = json.loads(params) if params is not None else {}
     config = json.loads(config) if config is not None else {}
-    conf.PARAMS.update(params) # applied per-run
-    conf.RUN.update(config)    # applied globally
+    conf.PARAMS.update(params)  # applied per-run
+    conf.RUN.update(config)  # applied globally
 
     ctx.obj = {
         'output_dir': gen_output_dir(ctx.invoked_subcommand),

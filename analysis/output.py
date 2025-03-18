@@ -2,6 +2,8 @@ import json
 import os
 from collections import defaultdict
 
+import pandas as pd
+
 import conf
 
 AGENTS_PATH = 'StoragedAgents'
@@ -128,7 +130,8 @@ class Output:
 
     def __init__(self, sim, output_path):
         files = ['stats', 'regional', 'time', 'firms', 'banks',
-                 'houses', 'agents', 'families', 'grave', 'construction']
+                 'houses', 'agents', 'families', 'grave', 'construction',
+                 'head']
 
         self.sim = sim
         self.times = []
@@ -278,12 +281,12 @@ class Output:
     def save_data(self, sim):
         # firms data is necessary for plots,
         # so always save
-        self.save_firms_data(sim)
         self.save_banks_data(sim)
 
         for type in conf.RUN['SAVE_DATA']:
-            # Skip b/c they are saved anyways above
-            if type in ['firms', 'banks']: continue
+            # Skip b/c they are saved anyway above
+            if type in ['banks']:
+                continue
             save_fn = getattr(self, 'save_{}_data'.format(type))
             save_fn(sim)
 
@@ -360,6 +363,23 @@ class Output:
                                                           family.savings,
                                                           family.num_members))
              for family in sim.families.values()]
+
+    def prepare_dataframe(self, sim):
+        """Converts nested dictionary (class range → month → count) into a DataFrame."""
+        data = []
+        for class_range, months in sim.stats.head_rate.items():
+            for month, count in months.items():
+                data.append({"month": month, "class_range": class_range, "count": count})
+        df = pd.DataFrame(data)
+
+        # Ensure month sorting
+        df["month"] = pd.to_datetime(df["month"])
+        df = df.sort_values("month")
+        return df
+
+    def save_head_data(self, sim):
+        data = self.prepare_dataframe(sim)
+        data.to_csv(self.head_path, index=False)
 
     def save_banks_data(self, sim):
         bank = sim.central

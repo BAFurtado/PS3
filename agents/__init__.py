@@ -51,7 +51,7 @@ class Agent:
         self.firm_id = firm_id
         self.distance = distance
         self.family = family
-        self.last_wage = None
+        self.last_wage = 0
         self.p_marriage = marriage_data.p_marriage(self)
         self.head = False
 

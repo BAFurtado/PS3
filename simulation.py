@@ -398,6 +398,9 @@ class Simulation:
         # Getting regional GDP
         self.output.save_regional_report(self)
 
+        if conf.RUN["CALCULATE_HEAD_RATE"]:
+            self.stats.calculate_head_rate(self.families.values(), self.clock.days.strftime("%Y-%m-%d"))
+
         if conf.RUN["SAVE_AGENTS_DATA"] == "MONTHLY":
             self.output.save_data(self)
 

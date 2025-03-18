@@ -10,12 +10,6 @@ if conf.RUN['PRINT_STATISTICS_AND_RESULTS_DURING_PROCESS']:
 else:
     logger.setLevel(logging.ERROR)
 
-head_rate = dict()
-j = 15
-for i in range(13):
-    head_rate[f'{j + i}-{j + i + 4}'] = int
-    j += 4
-
 
 class Statistics(object):
     """
@@ -28,6 +22,19 @@ class Statistics(object):
         self.previous_month_price = 0
         self.global_unemployment_rate = .086
         self.vacancy_rate = params['HOUSE_VACANCY']
+        self.head_rate = defaultdict(lambda: defaultdict(int))
+        self.class_ranges = self._generate_class_ranges()
+
+    def _generate_class_ranges(self):
+        """Creates a dictionary mapping age to the correct class range."""
+        j = 15
+        age_to_class = {}
+        for i in range(13):
+            class_range = f"{j + i}-{j + i + 4}"
+            for age in range(j + i, j + i + 5):  # Map each age to the class range
+                age_to_class[age] = class_range
+            j += 4
+        return age_to_class
 
     def calculate_firms_metrics(self, firms):
         """Compute median firms values in one pass."""
@@ -172,10 +179,17 @@ class Statistics(object):
             self.global_unemployment_rate = temp
         return temp
 
-    def calculate_head_rate(self, families):
-        for f in families:
-            head_agent = 0
-            head_rate
+    def calculate_head_rate(self, families, current_month):
+        """Counts heads in each age group per month."""
+        for family in families:
+            head_agent = next((agent for agent in family.members.values() if agent.head), None)  # Find head
+            if head_agent:  # If there's a head, update the count
+                age_group = self.class_ranges.get(head_agent.age)
+                if age_group:  # Ensure age is within the defined ranges
+                    self.head_rate[age_group][current_month] += 1
+
+    def get_head_rate_final_results(self):
+        return self.head_rate
 
     def calculate_families_metrics(self, families):
         """Compute various family-level metrics efficiently."""

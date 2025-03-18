@@ -18,6 +18,7 @@ PRINT_FINAL_STATISTICS_ABOUT_AGENTS = False
 TIME_TO_BE_ELIMINATED = 0.2
 
 # Saving adjustments
+CALCULATE_HEAD_RATE = True
 # If you save_plots (in a multiple run), you need AVERAGE_DATA = ['stats'] below!
 SAVE_PLOTS_FIGURES = True
 
@@ -42,9 +43,10 @@ SAVE_AGENTS_DATA = 'MONTHLY'
 # "agents", "grave", "house", "family" are optional.
 
 # If you don't save "house" data for instance you can't generate housing plots.
-# Can include: ['agents', 'grave', 'house', 'family']
+# 'head' refers to the need to calculate head of family rates for household projections and monitoring
+# Can include: ['agents', 'grave', 'house', 'family', 'head']
 # If None, set to empty list: []
-SAVE_DATA = []
+SAVE_DATA = ['head']
 # SAVE_DATA = ['agents', 'house', 'family']
 
 # What data to average across all runs.
