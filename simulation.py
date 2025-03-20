@@ -370,8 +370,9 @@ class Simulation:
         # Tax transaction taxes (ITBI) when selling house
         # Property tax (IPTU) collected. One twelfth per month
         # self.central.calculate_monthly_mortgage_rate()
-        house_prices = [h.price for h in self.houses.values()]
-        house_price_quantiles = np.quantile(house_prices, q=np.cumsum(self.PARAMS["PERC_HOUSE_CATEGORIES"]).tolist())
+        house_price_quantiles = np.quantile(
+            [h.price for h in self.houses.values()], q=[0.25, 0.5, 0.75]
+        )
 
         self.housing.housing_market(self, house_price_quantiles)
         # (changed location) self.housing.process_monthly_rent(self)
