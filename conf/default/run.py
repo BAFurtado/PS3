@@ -17,8 +17,6 @@ PRINT_FINAL_STATISTICS_ABOUT_AGENTS = False
 # Inform numbers in percentage of the period
 TIME_TO_BE_ELIMINATED = 0.2
 
-# Saving adjustments
-CALCULATE_HEAD_RATE = True
 # If you save_plots (in a multiple run), you need AVERAGE_DATA = ['stats'] below!
 SAVE_PLOTS_FIGURES = True
 
@@ -48,6 +46,8 @@ SAVE_AGENTS_DATA = 'MONTHLY'
 # If None, set to empty list: []
 SAVE_DATA = ['head']
 # SAVE_DATA = ['agents', 'house', 'family']
+# iF 'head', remember to set calculate to TRUE
+CALCULATE_HEAD_RATE = True
 
 # What data to average across all runs.
 # If plotting and not 'firms', 'banks', 'construction' or 'regional',

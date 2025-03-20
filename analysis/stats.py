@@ -257,6 +257,8 @@ class Statistics(object):
             utility[i] = family.average_utility
             rent_default[i] = family.rent_default == 1 and family.is_renting
             num_members[i] = family.num_members
+            head_family = max(family.members.values(), key=lambda x: x.last_wage)
+            head_family.set_head_family()
             if family.is_renting:
                 has_rent_voucher[i] = family.rent_voucher
                 rent_ratio[i] = family.house.rent_data[0] / (permanent_income[i] if permanent_income[i] > 0 else 1)
