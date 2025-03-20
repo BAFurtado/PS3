@@ -91,9 +91,7 @@ class Firm:
         self.no_emissions = False
         self.last_emissions = 0
         try:
-            self.emissions_base = emissions[(emissions.isic_12 == self.sector) &
-                                            (emissions.mun_code == self.region_id[:7])
-                                            ]['med_eco'].reset_index(drop=True)[0]
+            self.emissions_base = emissions[emissions.isic_12 == self.sector]['eco'].reset_index(drop=True)[0]
         except KeyError:
             self.no_emissions = True
 
