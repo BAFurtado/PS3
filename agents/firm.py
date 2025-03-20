@@ -160,9 +160,9 @@ class Firm:
         else:
             # Nothing happens
             pass
-        #TODO: Subsídio não deve sair direto do tesouro
         regions[self.region_id].collect_taxes(-paid_subsidies, "emissions")
         self.total_balance += paid_subsidies
+        self.inno_inv = eco_investment
 
     def decision_on_eco_efficiency(self,regional_market):
         """ 
