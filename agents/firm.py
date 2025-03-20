@@ -110,16 +110,15 @@ class Firm:
                 )
                 self.product_index += 1
             self.prices = sum(p.price for p in self.inventory.values()) / len(self.inventory)
-    
-    # ECOLOGICAL PROCEDURES #########################################################################################
-    def probality_success(self,eco_investment,eco_lambda):
+
+    # ECOLOGICAL PROCEDURES ###########################################################################################
+    def probability_success(self, eco_investment, eco_lambda):
         """ 
         Returns the probability of success given the amount invested per wages paid (I/W)
         """
-        return 1-np.exp(-eco_lambda*eco_investment)
+        return 1 - np.exp(- eco_lambda * eco_investment)
 
-    def create_externalities(self,regions,tax_emission):
-        # TODO WE CAN USE THE OWN EVOLUTION OF EMISSIONS AS VALIDATION. WE INPUT ONLY 2010
+    def create_externalities(self, regions, tax_emission, emissions_param):
         """
         Based on empirical data, creates externalities according to money output produced by a given activity.
         Total emissions are multiplied by firm-level env efficiency.
@@ -139,7 +138,8 @@ class Firm:
             else:
                 self.emission_taxes_paid = 0
 
-    def invest_eco_efficiency(self, regional_market, regions, seed_np):
+
+    def invest_eco_efficiency(self,regional_market,regions,seed_np):
         """
         Reduce overall emissions per wage employed. 
         """
@@ -836,7 +836,6 @@ class GovernmentFirm(Firm):
     def consume(self, sim):
         # As long as we provide labor and total_balance, the other methods are OK to use methods from regular firm
         # Consumption: government own consumption is used as update index. Other sectors consume here.
-        # This consumption is an intermediate consumption measure 
         total_consumption = defaultdict(float)
 
         money_to_spend = self.total_balance

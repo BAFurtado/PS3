@@ -112,8 +112,6 @@ MAX_HOUSE_STOCK = 7
 # HOW LARGER IS CONSTRUCTION FIRMS PROFIT RELATIVE TO USUAL MARKUP (firms' productivity, given current prices)
 CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 8
 
-PERC_HOUSE_CATEGORIES = [0.4, 0.3, 0.2, 0.1]
-
 # POPULATION AND DEMOGRAPHY
 # Families run parameters (on average) for year 2000, or no information. 2010 uses APs average data
 MEMBERS_PER_FAMILY = 2.5
@@ -160,13 +158,13 @@ REGIONAL_FREIGHT_COST = .3
 PERCENTAGE_ACTUAL_POP = 0.005
 
 # Write exactly like the list below
-PROCESSING_ACPS = ["IPATINGA"]
+PROCESSING_ACPS = ["BELO HORIZONTE"]
 
 # Selecting the starting year to build the Agents, can be: 1991, 2000 or 2010
 STARTING_DAY = datetime.date(2010, 1, 1)
 
 # Maximum running time (restrained by official data) is 30 years,
-TOTAL_DAYS = (datetime.date(2012, 1, 1) - STARTING_DAY).days
+TOTAL_DAYS = (datetime.date(2030, 1, 1) - STARTING_DAY).days
 
 # Select the possible ACPs (Population Concentration Areas) from the list below.
 # Actually they are URBAN CONCENTRATION AREAS FROM IBGE, 2022

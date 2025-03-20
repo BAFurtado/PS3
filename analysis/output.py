@@ -44,6 +44,8 @@ OUTPUT_DATA_SPEC = {
                     'firms_median_stock',
                     'firms_avg_eco_eff',
                     'firms_median_wage_paid',
+                    'firms_median_innovation_investment',
+                    'emissions',
                     'gini_index',
                     'average_utility',
                     'pct_zero_consumption',
@@ -59,9 +61,10 @@ OUTPUT_DATA_SPEC = {
                     'locally',
                     'fpm',
                     'bank',
+                    'emissions_fund',
                     'ext_amount_sold',
-                    'affordability_median',
-                    'emissions']
+                    'affordability_median'
+                    ]
     },
     'families': {
         'avg': {
@@ -92,13 +95,13 @@ OUTPUT_DATA_SPEC = {
             'groupings': ['month', 'firm_id'],
             'columns': ['total_balance$', 'number_employees',
                         'stocks', 'amount_produced', 'price', 'amount_sold',
-                        'revenue', 'profit', 'wages_paid', 'input_cost']
+                        'revenue', 'profit', 'wages_paid']
         },
         'columns': ['month', 'firm_id', 'region_id', 'mun_id',
                     'long', 'lat', 'total_balance$', 'number_employees',
                     'stocks', 'amount_produced', 'price', 'amount_sold',
-                    'revenue', 'profit', 'wages_paid', 'input_cost', 'sector']
-
+                    'revenue', 'profit', 'wages_paid', 'input_cost',
+                    'emissions', 'eco_eff', 'innov_investment', ' sector']
     },
     'construction': {
         'avg': {
@@ -183,12 +186,16 @@ class Output:
         sim.funds.families_subsided, sim.funds.money_applied_policy = 0, 0
         for k in ['equally', 'locally', 'fpm']:
             mun_applied_treasure[k] = sum(r.applied_treasure[k] for r in sim.regions.values())
+        emissions_fund = sum(r.cumulative_treasure['emissions'] for r in sim.regions.values())
         # External
         ext_amount_sold = sim.external.get_external_amount_sold()
 
         report = f"{sim.clock.days};" \
                  f"{pop:d};" \
-                 f"{price_index:.2f};{gdp_index:.2f};{gdp_growth:.2f};{unemployment:.2f};" \
+                 f"{price_index:.2f};" \
+                 f"{gdp_index:.2f};" \
+                 f"{gdp_growth:.2f};" \
+                 f"{unemployment:.2f};" \
                  f"{firm_results['workers']:.2f};" \
                  f"{families_results['median_wealth']:.2f};" \
                  f"{families_results['median_wages']:.2f};" \
@@ -200,21 +207,26 @@ class Output:
                  f"{firm_results['median_stock']:.2f};" \
                  f"{firm_results['eco_efficiency']:.2f};" \
                  f"{firm_results['median_wages']:.2f};" \
+                 f"{firm_results['innovation_investment']:.2f};" \
+                 f"{firm_results['emissions']:.2f};" \
                  f"{families_results['gini']:.3f};" \
                  f"{families_results['avg_utility']:.2f};" \
                  f"{families_results['zero_consumption_ratio']:.2f};" \
                  f"{families_results['rent_default_ratio']:.4f};" \
-                 f"{inflation:.4f};{average_qli:.3f};" \
+                 f"{inflation:.4f};" \
+                 f"{average_qli:.3f};" \
                  f"{house_results['vacancy_rate']:.2f};" \
                  f"{house_results['average_house_price']:.2f};" \
                  f"{house_results['average_rent_price']:.2f};" \
                  f"{families_results['affordability_ratio']:.2f};" \
                  f"{p_delinquent:.4f};" \
-                 f"{mun_applied_treasure['equally']:.4f};{mun_applied_treasure['locally']:.4f};" \
-                 f"{mun_applied_treasure['fpm']:.4f};{mun_applied_treasure['bank']:.4f};" \
+                 f"{mun_applied_treasure['equally']:.4f};" \
+                 f"{mun_applied_treasure['locally']:.4f};" \
+                 f"{mun_applied_treasure['fpm']:.4f};" \
+                 f"{mun_applied_treasure['bank']:.4f};" \
+                 f"{emissions_fund:.4f};" \
                  f"{ext_amount_sold:.2f};" \
-                 f"{families_results['median_affordability']:.2f};" \
-                 f"{firm_results['emissions']}\n"
+                 f"{families_results['median_affordability']:.2f}\n"
 
         with open(self.stats_path, 'a') as f:
             f.write(report)
@@ -292,12 +304,14 @@ class Output:
 
     def save_firms_data(self, sim):
         with open(self.firms_path, 'a') as f:
-            [f.write('%s; %s; %s; %s; %.3f; %.3f; %.3f; %s; %.3f; %.3f; %.3f ; %.3f; %.3f; %.3f; %.3f; %.3f; %s \n' %
+            [f.write('%s; %s; %s; %s; %.3f; %.3f; %.3f; %s; %.3f; %.3f; %.3f ; %.3f; %.3f; %.3f; %.3f; '
+                     '%.3f;%.3f;%.3f;%.3f; %s \n' %
                      (sim.clock.days, firm.id, firm.region_id, firm.region_id[:7], firm.address.x,
                       firm.address.y, firm.total_balance, firm.num_employees,
                       firm.get_total_quantity(), firm.amount_produced, firm.inventory[0].price,
                       firm.amount_sold, firm.revenue, firm.profit,
-                      firm.wages_paid, firm.input_cost, firm.sector))
+                      firm.wages_paid, firm.input_cost, firm.last_emissions, firm.env_efficiency,
+                      firm.inno_inv, firm.sector))
              for firm in sim.firms.values()]
         [f.reset_amount_sold() for f in sim.firms.values()]
 

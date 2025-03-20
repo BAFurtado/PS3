@@ -410,8 +410,7 @@ class Generator:
     def create_firms(self, num_firms, region):
         acp = self.sim.geo.processing_acps[0]
         p_firms_sector = \
-        perc_firms_sector[perc_firms_sector['concurb_name'] == acp].set_index('sector').drop('concurb_name',
-                                                                                             axis=1).to_dict()[
+        perc_firms_sector[perc_firms_sector['concurb_name'] == acp].set_index('sector').drop('concurb_name',                                                                                         axis=1).to_dict()[
             'participation']
         sector = dict()
 
@@ -426,7 +425,7 @@ class Generator:
             }
         num_firms = sum(num_firms_by_sector.values())
         addresses = self.get_random_points_in_polygon(region, number_addresses=num_firms)
-        balances = self.seed_np.beta(1.5, 10, size=num_firms) * 10e6
+        balances = self.seed_np.beta(1.5, 10, size=num_firms) * 10e5
 
         j = 0
         for key in num_firms_by_sector:

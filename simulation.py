@@ -300,7 +300,7 @@ class Simulation:
                 tax_labor,
                 relevance_unemployment)
             # Firms update generated externalities, based on own sector and wages paid this month
-            firm.create_externalities(self.regions, tax_emission)
+            firm.create_externalities(self.regions, tax_emission, self.PARAMS['EMISSIONS_PARAM'])
             # Tax firms before profits: (revenue - salaries paid)
             firm.pay_taxes(self.regions, tax_firm)
             # Profits are after taxes
@@ -396,7 +396,8 @@ class Simulation:
         self.output.save_stats_report(self, bank_taxes)
 
         # Getting regional GDP
-        self.output.save_regional_report(self)
+        if 'regional ' in conf.RUN['SAVE_DATA']:
+            self.output.save_regional_report(self)
 
         if conf.RUN["CALCULATE_HEAD_RATE"]:
             self.stats.calculate_head_rate(self.families.values(), self.clock.days.strftime("%Y-%m-%d"))

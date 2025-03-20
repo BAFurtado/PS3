@@ -150,10 +150,13 @@ class Plotter:
         cols = ['pop', 'price_index', 'gdp_index', 'gdp_growth', 'unemployment', 'median_workers',
                 'families_median_wealth', 'families_wages_received',
                 'families_commuting', 'families_savings', 'families_helped', 'amount_subsidised',
-                'firms_profit', 'firms_median_stock', 'firms_avg_eco_eff','firms_median_wage_paid', 'gini_index',
+                'firms_profit', 'firms_median_stock', 'firms_avg_eco_eff', 'firms_median_wage_paid',
+                'firms_median_innovation_investment', 'emissions',
+                'gini_index',
                 'average_utility', 'pct_zero_consumption', 'rent_default', 'inflation', 'average_qli', 'house_vacancy',
                 'house_price', 'house_rent', 'affordable', 'p_delinquent', 'equally', 'locally', 'fpm', 'bank',
-                'ext_amount_sold', 'affordability_median', 'emissions']
+                'emissions_fund',
+                'ext_amount_sold']
         titles = ['Total population', 'Average goods and services prices\' level', 'GDP absolute value',
                   'GDP growth in monthly perc.',
                   'Unemployment',
@@ -163,16 +166,18 @@ class Plotter:
                   'Amount of $ implemented by policy',
                   'Firms\' profit', 'Firms\' median stock',
                   'Firms\' average eco efficiency',
-                  'Firms\' median wages paid', 'GINI index',
+                  'Firms\' median wages paid',
+                  'Firms\' median innovation investments',
+                  'Total amount of emissions by firms', 'GINI index',
                   'Average families\' utility', 'Percentual families zero consumption',
                   'Percentual default among renting families', 'Monthly goods and services inflation',
                   'Average QLI index value', 'House vacancies', 'House prices', 'House rent prices',
                   'Affordable rent (less than 30% permanent income)',
                   'Percentual of delinquent loans', 'Taxes invested equally', 'Taxes invested locally',
                   'Taxes invested via FPM', 'Taxes paid by the banks on top of interests',
+                  'Fund from taxes on emissions and subsidies on innovation efficiency',
                   'Total amount of intermediate goods sold by other metropolis',
-                  'Affordability median',
-                  'Total amount of emissions by firms']
+                  ]
 
         # General plotting
         dats = [d.set_index('month') for d in dats]

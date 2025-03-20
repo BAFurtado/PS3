@@ -76,6 +76,49 @@ class Statistics(object):
 
         return results
 
+    def calculate_firms_metrics(self, firms):
+        """Compute median firms values in one pass."""
+        n_firms = len(firms)
+        firm_balances = np.zeros(n_firms)
+        firm_wages = np.zeros(n_firms)
+        firm_eco_eff = np.zeros(n_firms)
+        firm_emissions = np.zeros(n_firms)
+        firm_stocks = np.zeros(n_firms)
+        firm_workers = np.zeros(n_firms)
+        firm_profits = np.zeros(n_firms)
+        firm_inno_inv = np.zeros(n_firms)
+
+        for i, firm in enumerate(firms.values()):
+            firm_balances[i] = firm.total_balance
+            firm_wages[i] = firm.wages_paid
+            firm_eco_eff[i] = firm.env_efficiency
+            firm_emissions[i] = firm.last_emissions
+            firm_stocks[i] = firm.get_total_quantity()
+            firm_workers[i] = firm.num_employees
+            firm_profits[i] = firm.profit
+            firm_inno_inv[i] = firm.inno_inv
+
+        results = {
+            "median_wealth": np.median(firm_balances) if firm_balances.size > 0 else 0,
+            "median_wages": np.median(firm_wages) if firm_wages.size > 0 else 0,
+            "eco_efficiency": np.mean(firm_eco_eff) if firm_eco_eff.size > 0 else 0,
+            "emissions": np.median(firm_emissions) if firm_emissions.size > 0 else 0,
+            "median_stock": np.median(firm_stocks) if firm_stocks.size > 0 else 0,
+            "workers": np.median(firm_workers) if firm_workers.size > 0 else 0,
+            "aggregate_profits": np.sum(firm_profits) if firm_profits.size > 0 else 0,
+            "innovation_investment": np.median(firm_inno_inv) if firm_inno_inv.size > 0 else 0
+        }
+        logger.info(f"Firm stats - Median wealth: {results['median_wealth']:.2f}, "
+                    f"Median wages: {results['median_wages']:.2f}, "
+                    f"Eco Efficiency: {results['eco_efficiency']:.2f}, "
+                    f"Emissions: {results['emissions']:.2f}, "
+                    f"Median stock: {results['median_stock']:.2f}, "
+                    f"Median workers: {results['workers']:.2f}, "
+                    f"Aggregate profits: {results['aggregate_profits']:.2f}"
+                    )
+
+        return results
+
     def update_price(self, firms, mid_simulation_calculus=False):
         """Compute average price and inflation"""
         prices = [item.price for firm in firms.values() for item in firm.inventory.values()
@@ -102,14 +145,14 @@ class Statistics(object):
 
         # Preallocate arrays for firm revenues and eco-efficiencies, mapped to region IDs
         firm_revenues = np.zeros(n_firms)
-        firm_eco_efficiencies = np.zeros(n_firms)
-        firm_region_ids = np.zeros(n_firms, dtype=int)
+        firm_eco_efficiencies = np.zeros(n_firms, dtype=np.float32)
+        firm_region_ids = np.zeros(n_firms, dtype='U13')
 
         # SINGLE loop through firms to populate arrays
         for i, firm in enumerate(firms.values()):
             firm_revenues[i] = firm.revenue
             firm_eco_efficiencies[i] = firm.env_efficiency
-            firm_region_ids[i] = firm.region_id
+            firm_region_ids[i] = str(firm.region_id)
 
         # Compute metrics for each region
         for region in regions.values():
@@ -170,7 +213,7 @@ class Statistics(object):
             dummy_gdp_capita = dummy_gdp
         return dummy_gdp_capita
 
-    def update_unemployment(self, agents, global_u=False,log=False):
+    def update_unemployment(self, agents, global_u=False, log=False):
         employable = [m for m in agents if 16 < m.age < 70]
         temp = len([m for m in employable if m.firm_id is None]) / len(employable) if employable else 0
         if log:
@@ -214,8 +257,6 @@ class Statistics(object):
             utility[i] = family.average_utility
             rent_default[i] = family.rent_default == 1 and family.is_renting
             num_members[i] = family.num_members
-            head_family = max(family.members.values(), key=lambda x: x.last_wage)
-            head_family.set_head_family()
             if family.is_renting:
                 has_rent_voucher[i] = family.rent_voucher
                 rent_ratio[i] = family.house.rent_data[0] / (permanent_income[i] if permanent_income[i] > 0 else 1)
@@ -223,6 +264,7 @@ class Statistics(object):
         # Compute metrics using NumPy
         total_renting = np.sum(renting)
         affordable = np.sum((renting & ~has_rent_voucher & (permanent_income > 0) & (rent_ratio < 0.3)))
+
 
         affordability_ratio = affordable / total_renting if total_renting > 0 else 0
         median_wealth = np.median(permanent_income)

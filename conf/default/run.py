@@ -39,7 +39,7 @@ PLOT_DPI = 300
 SAVE_AGENTS_DATA = 'MONTHLY'
 
 # What extra CSV data (i.e. not necessary plotting) to save
-# 'firms', 'banks', 'construction', 'regional' and 'stats' data are always saved,
+# 'stats' data are always saved,
 # "agents", "grave", "house", "family" are optional.
 
 # If you don't save "house" data for instance you can't generate housing plots.
