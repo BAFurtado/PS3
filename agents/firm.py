@@ -136,8 +136,7 @@ class Firm:
             else:
                 self.emission_taxes_paid = 0
 
-
-    def invest_eco_efficiency(self,regional_market,regions,seed_np):
+    def invest_eco_efficiency(self, regional_market, regions, seed_np):
         """
         Reduce overall emissions per wage employed. 
         """
@@ -151,10 +150,9 @@ class Firm:
             eco_investment = self.total_balance
             self.total_balance = 0
 
-
         params = regional_market.sim.PARAMS
         # Stochastic process to actually reduce firm-level parameter
-        p_success = self.probality_success(eco_investment,params['ECO_INVESTMENT_LAMBDA']) #regional_market.
+        p_success = self.probability_success(eco_investment,params['ECO_INVESTMENT_LAMBDA']) #regional_market.
         random_value = seed_np.rand()
         if p_success>random_value:
             # Inovation was successful
