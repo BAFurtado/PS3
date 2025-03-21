@@ -102,19 +102,20 @@ class Statistics(object):
             "median_wealth": np.median(firm_balances) if firm_balances.size > 0 else 0,
             "median_wages": np.median(firm_wages) if firm_wages.size > 0 else 0,
             "eco_efficiency": np.mean(firm_eco_eff) if firm_eco_eff.size > 0 else 0,
-            "emissions": np.median(firm_emissions) if firm_emissions.size > 0 else 0,
+            "emissions": np.sum(firm_emissions) if firm_emissions.size > 0 else 0,
             "median_stock": np.median(firm_stocks) if firm_stocks.size > 0 else 0,
             "workers": np.median(firm_workers) if firm_workers.size > 0 else 0,
             "aggregate_profits": np.sum(firm_profits) if firm_profits.size > 0 else 0,
-            "innovation_investment": np.median(firm_inno_inv) if firm_inno_inv.size > 0 else 0
+            "innovation_investment": np.mean(firm_inno_inv) if firm_inno_inv.size > 0 else 0
         }
         logger.info(f"Firm stats - Median wealth: {results['median_wealth']:.2f}, "
                     f"Median wages: {results['median_wages']:.2f}, "
-                    f"Eco Efficiency: {results['eco_efficiency']:.2f}, "
+                    f"Eco Efficiency: {results['eco_efficiency']:.3f}, "
                     f"Emissions: {results['emissions']:.2f}, "
                     f"Median stock: {results['median_stock']:.2f}, "
                     f"Median workers: {results['workers']:.2f}, "
-                    f"Aggregate profits: {results['aggregate_profits']:.2f}"
+                    f"Aggregate profits: {results['aggregate_profits']:.2f},"
+                    f"Mean investment: {results['innovation_investment']:.4f}"
                     )
 
         return results
@@ -282,7 +283,8 @@ class Statistics(object):
         n = sorted_income.size
         index = np.arange(1, n + 1)
         gini = (np.sum((2 * index - n - 1) * sorted_income) / (n * np.sum(sorted_income))) if n > 0 else 0
-
+        logger.info(f"Family stats - Zero consumption: {zero_consumption_ratio:.2f}, "
+                    f"Family stats - Median wealth: {median_wealth:.2f}, ")
         return {
             "affordability_ratio": affordability_ratio,
             "median_wealth": median_wealth,

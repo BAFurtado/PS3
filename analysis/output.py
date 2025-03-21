@@ -205,9 +205,9 @@ class Output:
                  f"{amount_subsided:.3f};" \
                  f"{firm_results['aggregate_profits']:.2f};" \
                  f"{firm_results['median_stock']:.2f};" \
-                 f"{firm_results['eco_efficiency']:.2f};" \
+                 f"{firm_results['eco_efficiency']:.4f};" \
                  f"{firm_results['median_wages']:.2f};" \
-                 f"{firm_results['innovation_investment']:.2f};" \
+                 f"{firm_results['innovation_investment']:.4f};" \
                  f"{firm_results['emissions']:.2f};" \
                  f"{families_results['gini']:.3f};" \
                  f"{families_results['avg_utility']:.2f};" \

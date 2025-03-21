@@ -138,7 +138,7 @@ class Firm:
 
     def invest_eco_efficiency(self, regional_market, regions, seed_np):
         """
-        Reduce overall emissions per wage employed. 
+        Reduce overall emissions per wage employed.
         """
         # Decide how much to invest based on expected cost and benefit analysis
         eco_investment, paid_subsidies = self.decision_on_eco_efficiency(regional_market)
@@ -192,13 +192,13 @@ class Firm:
                                      (self.wages_paid/eco_lambda))
         else:
             investment_per_wages_paid = 0
-        
+
         if investment_per_wages_paid < 0:
             investment_per_wages_paid = 0
         # TODO: Can the government enter deficit?
         paid_subsidies = subsidies*investment_per_wages_paid*self.wages_paid
         return investment_per_wages_paid, paid_subsidies
-    
+
     # PRODUCTION DEPARTMENT ###########################################################################################
     def choose_firm_per_sector(self, regional_market, firms, seed, market_size):
         """
@@ -338,7 +338,7 @@ class Firm:
 
             # Buy inputs fills up input_inventory and external_input_inventory
             # Env efficiency reduces the amount of inputs needed, so the firms buys less
-            self.buy_inputs(self.env_efficiency*desired_quantity, regional_market, firms, seed,
+            self.buy_inputs(self.env_efficiency * desired_quantity, regional_market, firms, seed,
                             technical_matrix, external_technical_matrix)
             input_quantities_needed = self.env_efficiency * desired_quantity * (
                     technical_matrix.loc[:, self.sector] + external_technical_matrix.loc[:, self.sector])
@@ -466,9 +466,9 @@ class Firm:
     def calculate_profit(self):
         # Calculate profits considering last month wages paid and taxes on firm
         # (labor and consumption taxes are already deducted)
-        self.profit = (self.revenue 
-                       - self.wages_paid 
-                       - self.taxes_paid 
+        self.profit = (self.revenue
+                       - self.wages_paid
+                       - self.taxes_paid
                        - self.input_cost
                        - self.emission_taxes_paid)
 
