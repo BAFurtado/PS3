@@ -257,11 +257,9 @@ class Firm:
                                          if chosen_firms_per_sector[sector]])
 
             # The reduction factor is used to account for the firm having LESS MONEY than needed
-            if money_local_inputs + money_external_inputs > 0:
-                reduction_factor = (min(self.total_balance, money_local_inputs + money_external_inputs) /
-                                    (money_local_inputs + money_external_inputs))
-            else:
-                reduction_factor = 1
+            reduction_factor = (min(self.total_balance, money_local_inputs + money_external_inputs) /
+                               (money_local_inputs + money_external_inputs)) if money_local_inputs + money_external_inputs > 0 else 1 
+
 
             # Withdraw all the necessary money. If no inputs are available, change is returned
             self.total_balance -= reduction_factor * (money_local_inputs + money_external_inputs)
@@ -386,7 +384,7 @@ class Firm:
                         ((self.total_quantity + productive_capacity) <= self.amount_sold) or self.total_quantity == 0
                 )
                 low_prices = p.price < avg_prices if avg_prices != 1 else True
-                if low_inventory:
+                if low_inventory and self.profit>=0:
                     self.increase_production = True
                 else:
                     self.increase_production = False  # Lengnick
@@ -471,7 +469,10 @@ class Firm:
                        - self.emission_taxes_paid)
 
     def pay_taxes(self, regions, tax_firm):
-        taxes = (self.revenue - self.wages_paid - self.input_cost) * tax_firm
+        taxes = (self.revenue 
+                    - self.wages_paid 
+                    - self.input_cost 
+                    - self.emission_taxes_paid) * tax_firm
         if taxes >= 0:
             # Revenue minus salaries paid in previous month may be negative.
             # In this case, no taxes are paid
@@ -833,7 +834,7 @@ class GovernmentFirm(Firm):
         # Consumption: government own consumption is used as update index. Other sectors consume here.
         total_consumption = defaultdict(float)
 
-        money_to_spend = self.total_balance
+        money_to_spend = self.total_balance/10
         self.total_balance -= money_to_spend
         for sector in sim.regional_market.final_demand.index:
             if sector == 'Government':
