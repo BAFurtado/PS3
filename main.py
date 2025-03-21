@@ -83,7 +83,7 @@ def multiple_runs(overrides, runs, cpus, output_dir, fix_seeds=False):
                 if seeds:
                     p['SEED'] = seeds[i]
                 jobs.append((delayed(single_run)(p, os.path.join(path, str(i)))))
-        Parallel(n_jobs=cpus)(jobs)
+        Parallel(n_jobs=cpus, prefer='processes', backend='multiprocessing', batch_size=1)(jobs)
 
     logger.info('Averaging run data...')
     results = []
