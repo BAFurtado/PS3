@@ -223,6 +223,7 @@ class Simulation:
         # Update firm products
         prod_exponent = self.PARAMS["PRODUCTIVITY_EXPONENT"]
         prod_magnitude_divisor = self.PARAMS["PRODUCTIVITY_MAGNITUDE_DIVISOR"]
+        [f.reset_amount_sold() for f in self.firms.values()]
         for firm in self.firms.values():
             firm.update_product_quantity(prod_exponent, prod_magnitude_divisor,
                                          self.regional_market,
@@ -399,8 +400,7 @@ class Simulation:
         self.output.save_stats_report(self, bank_taxes)
 
         # Getting regional GDP
-        if 'regional ' in conf.RUN['SAVE_DATA']:
-            self.output.save_regional_report(self)
+        self.output.save_regional_report(self)
 
         if conf.RUN["SAVE_AGENTS_DATA"] == "MONTHLY":
             self.output.save_data(self)
