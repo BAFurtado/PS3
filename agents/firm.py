@@ -6,6 +6,8 @@ from unicodedata import category
 import numpy as np
 import pandas as pd
 from dateutil import relativedelta
+from numba import vectorize, float64
+
 
 from .house import House
 from .product import Product
@@ -27,6 +29,9 @@ initial_input_sectors = {'Agriculture': 0,
 
 emissions = pd.read_csv('input/emissions_sector_average_years.csv')
 
+@vectorize
+def clip4(x, l, u):
+    return max(min(x, u), l)
 
 class Firm:
     """
@@ -142,16 +147,15 @@ class Firm:
         """
         # Decide how much to invest based on expected cost and benefit analysis
         eco_investment, paid_subsidies = self.decision_on_eco_efficiency(regional_market)
-        if eco_investment < 0:
-            print('stop')
-
+        
         # Check if firm has enough balance
-        if self.total_balance > 0:
-            if self.total_balance >= eco_investment:
-                self.total_balance -= eco_investment
-        else:
-            # No money to invest
-            return
+        if self.total_balance < eco_investment * self.wages_paid or eco_investment==0:
+            return  # No money to invest
+
+        self.total_balance -= eco_investment * self.wages_paid - paid_subsidies
+        regions[self.region_id].collect_taxes(-paid_subsidies, "emissions")
+        self.inno_inv = eco_investment
+
 
         params = regional_market.sim.PARAMS
         # Stochastic process to actually reduce firm-level parameter
@@ -163,9 +167,7 @@ class Firm:
         else:
             # Nothing happens
             pass
-        regions[self.region_id].collect_taxes(- paid_subsidies, "emissions")
-        self.total_balance += paid_subsidies
-        self.inno_inv = eco_investment
+        
 
     def decision_on_eco_efficiency(self, regional_market):
         """ 
@@ -205,10 +207,10 @@ class Firm:
         params = regional_market.sim.PARAMS
         chosen_firms = {}
         for sector in regional_market.technical_matrix.index:
-            market = seed.sample(
-                [f for f in firms.values() if (f.sector == sector) & (f.id != self.id)],
-                min(len([f for f in firms.values() if (f.sector == sector) & (f.id != self.id)]),
-                    int(params['SIZE_MARKET'])))
+            eligible_firms = [f for f in firms.values() if f.sector == sector and f.id != self.id]
+            market = list(np.random.choice(eligible_firms, 
+                              min(len(eligible_firms), int(params['SIZE_MARKET'])), 
+                              replace=False))
             market = [firm for firm in market if firm.get_total_quantity() > 0]
             if market:
                 # Choose firms with the cheapest average prices
@@ -225,6 +227,7 @@ class Firm:
         Buys inputs according to the technical coefficients.
         In fact, this is the intermediate consumer market (firms buying from firms)
         """
+       
         # Reset input cost
         self.input_cost = 0
         if self.total_balance > 0:
@@ -238,7 +241,7 @@ class Firm:
                                        (technical_matrix.loc[:, self.sector] +
                                         external_technical_matrix.loc[:, self.sector]))
             input_quantities_needed -= pd.Series(self.input_inventory)
-            input_quantities_needed = np.clip(input_quantities_needed, 0, None)
+            input_quantities_needed = clip4(input_quantities_needed,0,10e6)#np.clip(input_quantities_needed, 0, None)
             local_input_quantities_needed = np.multiply(input_ratio,
                                                         input_quantities_needed)
             external_input_quantities_needed = input_quantities_needed - local_input_quantities_needed
@@ -318,8 +321,6 @@ class Firm:
         """
         # """ Production equation = Labor * qualification ** alpha """
         quantity = 0
-        if self.sector == "Government":
-            pass
         if self.employees and self.inventory:
             # Call get_sum_qualification below: sum([employee.qualification ** parameters.PRODUCTIVITY_EXPONENT
             #                                   for employee in self.employees.values()])
@@ -341,7 +342,7 @@ class Firm:
             # The following process would be a traditional Leontief production function
             productive_constraint = np.divide(pd.Series(self.input_inventory),
                                               input_quantities_needed)
-            productive_constraint = np.clip(productive_constraint, 0, 1)
+            productive_constraint = clip4(productive_constraint, 0, 1)#np.clip(productive_constraint, 0, 1)
             # Check that we have enough inputs to produce desired quantity
             productive_constraint_numeric = max(min(productive_constraint), 0)
             input_used = productive_constraint_numeric * input_quantities_needed
@@ -384,7 +385,7 @@ class Firm:
                         ((self.total_quantity + productive_capacity) <= self.amount_sold) or self.total_quantity == 0
                 )
                 low_prices = p.price < avg_prices if avg_prices != 1 else True
-                if low_inventory and self.profit>=0:
+                if low_inventory:
                     self.increase_production = True
                 else:
                     self.increase_production = False  # Lengnick
@@ -528,7 +529,7 @@ class Firm:
                 labor_tax = total_salary_paid * tax_labor
                 regions[self.region_id].collect_taxes(labor_tax, "labor")
                 self.total_balance -= total_salary_paid
-                self.wages_paid = total_salary_paid
+                self.wages_paid = total_salary_paid * (1-tax_labor)
             else:
                 self.wages_paid = 0
 
