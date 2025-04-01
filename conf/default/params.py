@@ -4,9 +4,9 @@ import datetime
 
 # FIRMS #########################################################
 # Production function, labour with decaying exponent, Alpha for K. [0, 1]
-PRODUCTIVITY_EXPONENT = .8
+PRODUCTIVITY_EXPONENT = .9
 # Order of magnitude correction of production. Production divided by parameter
-PRODUCTIVITY_MAGNITUDE_DIVISOR = 5
+PRODUCTIVITY_MAGNITUDE_DIVISOR = 8.5 #3.2#1:2
 # GENERAL CALIBRATION PARAMETERS
 # Order of magnitude parameter of input into municipality investment
 MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.0000003
@@ -20,22 +20,22 @@ STICKY_PRICES = .5
 # Reflects a reluctance of businesses to lower prices. Amount estimated for reduction multiplied by parameter
 PRICE_RUGGEDNESS = 0.05
 # Number of firms consulted before consumption
-SIZE_MARKET = 4
+SIZE_MARKET = 12
 # Number of firms to buy from in the INTERMEDIATE market
 INTERMEDIATE_SIZE_MARKET = 3
 # Frequency firms enter the market
-LABOR_MARKET = 0.5  
+LABOR_MARKET = 0.5
 # Percentage of employees firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
-RELEVANCE_UNEMPLOYMENT_SALARIES = 3  # 0.17
+RELEVANCE_UNEMPLOYMENT_SALARIES = 3.5# 0.17
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 20
 
 # Reduction size in case of eco innovation success: multiplies firm parameters
 ENVIRONMENTAL_EFFICIENCY_STEP = .99
 # Innovation process probability: 1 - exp(lambda * investment / wage_base)
-ECO_INVESTMENT_LAMBDA = 25
+ECO_INVESTMENT_LAMBDA = 10
 # Adjustment factor for emissions within firms
 EMISSIONS_PARAM = 1000
 
@@ -134,7 +134,7 @@ TAX_PROPERTY = 0.004
 
 # EMISSIONS POLICIES ######################################################
 # Taxes on emission are given by tax * total_emissions. Roughly R$ * tonCO2. .1 is about R$10
-TAX_EMISSION = .01
+TAX_EMISSION = .005
 # Subsidies in (0,1) is the amount of investment paid by the gov(subsidies * total_invested)
 # 0 is none, 1 is full
 ECO_INVESTMENT_SUBSIDIES = .15
@@ -171,7 +171,7 @@ PROCESSING_ACPS = ["BELO HORIZONTE"]
 STARTING_DAY = datetime.date(2010, 1, 1)
 
 # Maximum running time (restrained by official data) is 30 years,
-TOTAL_DAYS = (datetime.date(2023, 1, 1) - STARTING_DAY).days
+TOTAL_DAYS = (datetime.date(2020, 1, 1) - STARTING_DAY).days
 
 # Select the possible ACPs (Population Concentration Areas) from the list below.
 # Actually they are URBAN CONCENTRATION AREAS FROM IBGE, 2022

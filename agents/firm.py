@@ -385,7 +385,7 @@ class Firm:
                         ((self.total_quantity + productive_capacity) <= self.amount_sold) or self.total_quantity == 0
                 )
                 low_prices = p.price < avg_prices if avg_prices != 1 else True
-                if low_inventory:
+                if low_inventory and self.profit>0:
                     self.increase_production = True
                 else:
                     self.increase_production = False  # Lengnick
@@ -494,11 +494,11 @@ class Firm:
         # guarantees that firms do not spend all revenue on salaries
         # Calculating wage base on a per-employee basis.
         if self.num_employees > 0:
-            return ((self.revenue - self.input_cost) / self.num_employees) * (max(
+            return ((self.revenue - self.input_cost - self.emission_taxes_paid) / self.num_employees) * (max(
                     1 - (unemployment * relevance_unemployment), 0)
             )
         else:
-            return (self.revenue - self.input_cost) * (max(
+            return (self.revenue - self.input_cost- self.emission_taxes_paid) * (max(
                     1 - (unemployment * relevance_unemployment), 0)
             )
 
