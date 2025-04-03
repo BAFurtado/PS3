@@ -494,7 +494,9 @@ class Firm:
         # guarantees that firms do not spend all revenue on salaries
         # Calculating wage base on a per-employee basis.
         if self.num_employees > 0:
-            return ((self.revenue - self.input_cost - self.emission_taxes_paid) / self.num_employees) * (max(
+            return ((self.revenue 
+                     - self.input_cost
+                     - self.emission_taxes_paid) / self.num_employees) * (max(
                     1 - (unemployment * relevance_unemployment), 0)
             )
         else:
