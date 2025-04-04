@@ -20,9 +20,9 @@ STICKY_PRICES = .2
 # Reflects a reluctance of businesses to lower prices. Amount estimated for reduction multiplied by parameter
 PRICE_RUGGEDNESS = 0.1
 # Number of firms consulted before consumption
-SIZE_MARKET = 6
+SIZE_MARKET = 12
 # Number of firms to buy from in the INTERMEDIATE market
-INTERMEDIATE_SIZE_MARKET = 3
+INTERMEDIATE_SIZE_MARKET = 5
 # Frequency firms enter the market
 LABOR_MARKET = 0.125  # 0.15
 # Percentage of employees firms hired by distance
@@ -32,9 +32,9 @@ RELEVANCE_UNEMPLOYMENT_SALARIES = 2  # 0.17
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 20
 # Reduction size in case of eco innovation success: multiplies firm parameters
-ENVIRONMENTAL_EFFICIENCY_STEP = .9
+ENVIRONMENTAL_EFFICIENCY_STEP = .99
 # Innovation process probability: 1-exp(lambda*investment/wage_base)
-ECO_INVESTMENT_LAMBDA = 25
+ECO_INVESTMENT_LAMBDA = 10
 # Adjustment factor for emissions within firms
 EMISSIONS_PARAM = 1000
 # GOVERNMENT ####################################################################
@@ -100,7 +100,7 @@ INITIAL_RENTAL_PRICE = 0.003
 # LICENSES ARE URBANIZED LOTS AVAILABLE FOR CONSTRUCTION PER NEIGHBORHOOD PER MONTH.
 # Percentage of NEW licenses created monthly by region (neighborhood). Set to 0 for no licenses.
 # .5 is plenty of supply!
-PERC_SUPPLY_SIZE_N_LICENSES_PER_REGION = 0.5
+PERC_SUPPLY_SIZE_N_LICENSES_PER_REGION = 2
 # PERCENT_CONSTRUCTION_FIRMS = 0.07 This has been deprecated with the introduction of sectors
 # Months that construction firm will divide its income into monthly revenue installments.
 # Although prices are accounted for at once.
@@ -157,7 +157,7 @@ REGIONAL_FREIGHT_COST = .3
 # RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation
 # Minimum value to run depends on the size of municipality 0,001 is recommended minimum
-PERCENTAGE_ACTUAL_POP = 0.005
+PERCENTAGE_ACTUAL_POP = 0.01
 
 # Write exactly like the list below
 PROCESSING_ACPS = ["BELO HORIZONTE"]
@@ -166,7 +166,7 @@ PROCESSING_ACPS = ["BELO HORIZONTE"]
 STARTING_DAY = datetime.date(2010, 1, 1)
 
 # Maximum running time (restrained by official data) is 30 years,
-TOTAL_DAYS = (datetime.date(2030, 1, 1) - STARTING_DAY).days
+TOTAL_DAYS = (datetime.date(2040, 1, 1) - STARTING_DAY).days
 
 # Select the possible ACPs (Population Concentration Areas) from the list below.
 # Actually they are URBAN CONCENTRATION AREAS FROM IBGE, 2022
