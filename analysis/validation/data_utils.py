@@ -108,21 +108,25 @@ def read_firms_simulation_data(file_path,policy=None,last_month=True,consolidate
         return None
     data = pd.read_csv(fp, encoding='utf-8', delimiter=';',header=None)
     data.columns = columns
-    sim_month_last = data.iloc[-12, 0]
+    sim_month_last = data.iloc[-24, 0]
     
     if consolidate:
-        columns_to_average = ['eco_eff','price']  # Replace with actual column names
+        columns_to_average = ['eco_eff','price',"innov_investment"]  # Replace with actual column names
         columns_to_sum = ['stocks', 'amount_produced','amount_sold','revenue',
-                          "profit","wages_paid","input_cost","emissions","innov_investment"] 
+                          "profit","wages_paid","input_cost","emissions"] 
 
         agg_dict = {col: 'mean' for col in columns_to_average}  # Average these columns
         agg_dict.update({col: 'sum' for col in columns_to_sum}) # Sum these columns
         
         if consolidate_regions:
+            #data['sector'] = data[' sector']
             data.drop(['mun_id','firm_id', 'long', 'lat','region_id'],axis=1,inplace=True)
            
-            data = data.groupby(['month','sector'], as_index=False).agg(agg_dict)
-            data['emission_per_gdp'] = data['emissions']/data['revenue']
+            data = data.groupby(['month','sector',], as_index=False).agg(agg_dict)
+            data['emission_per_gdp'] = 1000*data['emissions']/data['revenue']
+            data['innov_per_gdp'] = 100*data['innov_investment']*data['wages_paid']/data['revenue']
+            data['gdp_share'] = 100*data['revenue']/sum(data['revenue'])
+            data['wage_share'] = 100*data['wages_paid']/sum(data['wages_paid'])
             df_melted = data.melt(id_vars=['month','sector',
                                         ], 
                                 var_name="description", 
@@ -138,15 +142,16 @@ def read_firms_simulation_data(file_path,policy=None,last_month=True,consolidate
                                 value_name="value")
             
     else:
-        data.drop(['mun_id', 'long', 'lat'],axis=1,inplace=True)
+        #data.drop(['mun_id', 'long', 'lat'],axis=1,inplace=True)
         data['emission_per_gdp'] = data['emissions']/data['revenue']
-        df_melted = data.melt(id_vars=['month', 'firm_id','region_id','sector',
+        df_melted = data.melt(id_vars=['month', 'firm_id','region_id','sector','mun_id', 'long', 'lat'
                                     ], 
                             var_name="description", 
                             value_name="value")
     if policy:
         df_melted['Policy'] = policy
     if last_month:
+        #sim_month_last = '2019-01-01'#data.iloc[-24, 0]
         df_melted = df_melted.loc[df_melted['month'] >= sim_month_last]
     #df_melted['source'] = "Simulated"
     return df_melted
