@@ -16,7 +16,9 @@
         "PRINT_FINAL_STATISTICS_ABOUT_AGENTS": false,
         "PRINT_STATISTICS_AND_RESULTS_DURING_PROCESS": true,
         "SAVE_AGENTS_DATA": "MONTHLY",
-        "SAVE_DATA": [],
+        "SAVE_DATA": [
+            "firms"
+        ],
         "SAVE_PLOTS_FIGURES": true,
         "SAVE_SPATIAL_PLOTS": false,
         "SAVE_TRANSIT_DATA": false,
@@ -29,8 +31,9 @@
         "CAPPED_TOP_VALUE": 1.3,
         "CONSTRUCTION_ACC_CASH_FLOW": 24,
         "CONSTRUCTION_FIRM_MARKUP_MULTIPLIER": 8,
-        "ECO_INVESTMENT_LAMBDA": 25,
+        "ECO_INVESTMENT_LAMBDA": 10,
         "ECO_INVESTMENT_SUBSIDIES": 0.0,
+        "EMISSIONS_PARAM": 1,
         "ENVIRONMENTAL_EFFICIENCY_STEP": 0.99,
         "FPM_DISTRIBUTION": true,
         "HIRING_SAMPLE_SIZE": 20,
@@ -77,13 +80,13 @@
         "PROCESSING_ACPS": [
             "BELO HORIZONTE"
         ],
-        "PRODUCTIVITY_EXPONENT": 0.8,
-        "PRODUCTIVITY_MAGNITUDE_DIVISOR": 0.15,
+        "PRODUCTIVITY_EXPONENT": 0.9,
+        "PRODUCTIVITY_MAGNITUDE_DIVISOR": 8.25,
         "PUBLIC_TRANSIT_COST": 0.05,
         "REGIONAL_FREIGHT_COST": 0.3,
-        "RELEVANCE_UNEMPLOYMENT_SALARIES": 2,
+        "RELEVANCE_UNEMPLOYMENT_SALARIES": 3,
         "SIMPLIFY_POP_EVOLUTION": true,
-        "SIZE_MARKET": 4,
+        "SIZE_MARKET": 15,
         "STARTING_DAY": "2010-01-01",
         "STICKY_PRICES": 0.5,
         "TAXES_STRUCTURE": {
@@ -97,7 +100,7 @@
         "TAX_LABOR": 0.15,
         "TAX_ON_ORIGIN": true,
         "TAX_PROPERTY": 0.004,
-        "TOTAL_DAYS": 4383,
+        "TOTAL_DAYS": 3652,
         "WAGE_TO_CAR_OWNERSHIP_QUANTILES": [
             0.1174,
             0.1429,
