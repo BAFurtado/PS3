@@ -144,7 +144,8 @@ def create_grouped_boxplot(data, x_col, y_col, hue_col, title, xlabel, ylabel, f
 
 
 
-def create_grouped_boxplot(data, x_col, y_col, hue_col, title, xlabel, ylabel, figsize=(10, 6), palette="Set2", rotation=45, y_padding=0.2):
+def create_grouped_boxplot(data, x_col, y_col, hue_col, title, xlabel, ylabel, figsize=(10, 6), palette="Set2", 
+                           rotation=45, y_padding=0.2,normalize=True):
     """
     Generates grouped boxplots comparing simulated and real economic indicators.
     Includes extra padding on the y-axis for better readability.
@@ -163,6 +164,8 @@ def create_grouped_boxplot(data, x_col, y_col, hue_col, title, xlabel, ylabel, f
     - y_padding (float): Extra percentage of padding on the y-axis.
     """
     plt.figure(figsize=figsize)
+    if normalize:
+        data[y_col] = data.groupby(x_col)[y_col].transform(lambda x: (x - x.mean()) / x.std())
     ax = sns.boxplot(data=data, x=x_col, y=y_col, hue=hue_col, palette=palette, width=0.6)
 
     # Get current y-axis limits

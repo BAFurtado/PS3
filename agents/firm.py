@@ -385,7 +385,7 @@ class Firm:
                         ((self.total_quantity + productive_capacity) <= self.amount_sold) or self.total_quantity == 0
                 )
                 low_prices = p.price < avg_prices if avg_prices != 1 else True
-                if low_inventory and self.profit>0:
+                if low_inventory:
                     self.increase_production = True
                 else:
                     self.increase_production = False  # Lengnick
@@ -534,6 +534,8 @@ class Firm:
                 self.wages_paid = total_salary_paid * (1-tax_labor)
             else:
                 self.wages_paid = 0
+                for employee in self.employees.values():
+                    employee.last_wage = 0
 
     # Human resources department #################
     def add_employee(self, employee):
@@ -777,18 +779,20 @@ class ConstructionFirm(Firm):
                 date += relativedelta.relativedelta(months=+1)
 
     def wage_base(self, unemployment, relevance_unemployment):
-        self.revenue = self.cash_flow[self.present]
+        #TODO: All revenue added before (from intermediate and final consumption) is being ovelooked
+        self.revenue += self.cash_flow[self.present]
         # Using temporary planned income before money starts to flow in
-        if self.revenue == 0 and self.monthly_planned_revenue:
+        if self.cash_flow[self.present] == 0 and self.monthly_planned_revenue:
             # Adding the last planned house income
-            self.revenue = self.monthly_planned_revenue[-1]
+            self.revenue += self.monthly_planned_revenue[-1]
         # Observing global economic performance has the added advantage of not spending all revenue on salaries
         if self.num_employees > 0:
-            return (self.revenue / self.num_employees) * (
-                    1 - (unemployment * relevance_unemployment)
-            )
+            return ((self.revenue 
+                     - self.input_cost
+                     - self.emission_taxes_paid) / self.num_employees)  * max(
+                    1 - (unemployment * relevance_unemployment), 0)
         else:
-            return self.revenue * (1 - (unemployment * relevance_unemployment))
+            return (self.revenue-self.input_cost-self.emission_taxes_paid) * (1 - (unemployment * relevance_unemployment))
 
     @property
     def n_houses_sold(self):

@@ -208,8 +208,6 @@ class Statistics(object):
         total_savings = np.sum(savings)
         rent_default_ratio = np.sum(rent_default) / total_renting if total_renting > 0 else 0
         zero_consumption_ratio = np.sum(utility == 0) / n_families if n_families > 0 else 0
-        if zero_consumption_ratio > 0.3:
-            pass
         avg_utility = np.average(utility[num_members > 0])
 
         # GINI calculation

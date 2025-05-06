@@ -212,7 +212,11 @@ class Family:
         # If we grabbed more than planned
         if money > consumption + rent + loan:
             # Deposit money above that of expenses
-            self.savings += (money - consumption)
+            if consumption > 0:
+                self.savings += (money - consumption)
+            else:
+                self.savings += money
+                consumption = 0
         return consumption
 
     def consume(self, regional_market, seed, central, regions, params, year, month, if_origin,
@@ -240,6 +244,7 @@ class Family:
                     continue
                 # Choose the firm to buy from
                 sector_firms = firms_by_sector[sector]
+                
                 if not sector_firms:
                     continue
                 if len(sector_firms) <= int(params['SIZE_MARKET']):
@@ -265,7 +270,6 @@ class Family:
                     # Update monthly family utility
                     self.average_utility += money_this_sector - change
                     total_consumption[sector] += money_this_sector - change
-        pass
         return total_consumption
 
     @property
