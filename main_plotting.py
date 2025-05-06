@@ -24,7 +24,7 @@ def conf_to_str(conf, delimiter='\n'):
 def average_run_data(path, avg='mean', n_runs=1):
     """Average the run data for a specified output path"""
     output_path = os.path.join(path, 'avg')
-    os.makedirs(output_path)
+    os.makedirs(output_path, exist_ok=True)
 
     # group by filename
     file_groups = defaultdict(list)
