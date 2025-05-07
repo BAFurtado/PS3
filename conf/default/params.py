@@ -64,6 +64,8 @@ POLICY_QUANTILE = 0.2
 # Change of policy for collecting consumption tax at:
 # firms' municipalities origin (True) or destiny (consumers' municipality)
 TAX_ON_ORIGIN = True
+# BNDES test with and without TRANSPORT investments. Variation in time_travel implemented in labor market decisions
+BNDES_TRANSPORT = True
 # LOANS ##############################################################################
 # Maximum age of borrower at the end of the contract
 MAX_LOAN_AGE = 70
