@@ -64,8 +64,10 @@ POLICY_QUANTILE = 0.2
 # Change of policy for collecting consumption tax at:
 # firms' municipalities origin (True) or destiny (consumers' municipality)
 TAX_ON_ORIGIN = True
-# BNDES test with and without TRANSPORT investments. Variation in time_travel implemented in labor market decisions
-BNDES_TRANSPORT = True
+# BNDES test with (True) and without (False) TRANSPORT investments.
+# Variation in time_travel implemented in labor market decisions
+READ_TRANSPORT_MATRIX = True
+TRANSPORT_POLICY = True
 # LOANS ##############################################################################
 # Maximum age of borrower at the end of the contract
 MAX_LOAN_AGE = 70
@@ -167,7 +169,7 @@ REGIONAL_FREIGHT_COST = .3
 PERCENTAGE_ACTUAL_POP = 0.01
 
 # Write exactly like the list below
-PROCESSING_ACPS = ["BELO HORIZONTE"]
+PROCESSING_ACPS = ["BRASILIA"]
 
 # Selecting the starting year to build the Agents, can be: 1991, 2000 or 2010
 STARTING_DAY = datetime.date(2010, 1, 1)
