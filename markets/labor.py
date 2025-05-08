@@ -25,6 +25,8 @@ class LaborMarket:
         if self.sim.od_matrix is not None:
             mode_col = 'TempoRedeNec' if self.sim.PARAMS['TRANSPORT_POLICY'] else 'TempoRedeBase'
             self.commute_time = self.build_commute_time_cache(mode_col)
+        else:
+            self.commute_time = None
 
     def build_commute_time_cache(self, mode_col):
         return self.sim.od_matrix.set_index(['code_weighting_orig', 'code_weighting_dest'])[mode_col].to_dict()
@@ -109,7 +111,7 @@ class LaborMarket:
                 transit_cost = params['PRIVATE_TRANSIT_COST'] if c.has_car else params['PUBLIC_TRANSIT_COST']
                 if self.sim.od_matrix is not None:
                     score = wage - (self.commute_time.get((c.family.house.region_id,
-                                                           firm.region_id))
+                                                           firm.region_id), 1)
                                     * transit_cost)
                 else:
                     score = wage - (c.family.house.distance_to_firm(firm)
