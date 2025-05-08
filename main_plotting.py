@@ -10,6 +10,16 @@ from analysis import report
 from analysis.output import OUTPUT_DATA_SPEC
 from analysis.plotting import Plotter, MissingDataError
 
+DATA_TO_PLOT_KEY = {
+    'stats': 'general',
+    'regional': 'regional_stats',
+    'families': 'families',
+    'firms': 'firms',
+    'houses': 'houses',
+    'banks': 'banks',
+    'construction': 'construction'
+}
+
 
 def conf_to_str(conf, delimiter='\n'):
     """Represent a configuration dict as a string"""
@@ -95,9 +105,13 @@ def plot(input_paths, output_path, params, logger, avg=None, sim=None, only=None
                 if avg is not None:
                     logger.warn('You may need to add "{}" to AVERAGE_DATA.'.format(k))
 
-        if sim is not None and conf.RUN['PLOT_REGIONAL']:
+        if 'regional_stats' in keys:
             logger.info('Plotting regional...')
-            plotter.plot_regional_stats()
+            try:
+                plotter.plot_regional_stats()
+            except MissingDataError:
+                logger.warn(
+                    'Missing regional data. Check if "regional" is in AVERAGE_DATA')
 
     # Checking whether to plot or not
     if conf.RUN['SAVE_SPATIAL_PLOTS'] and sim is not None:
@@ -116,12 +130,18 @@ def plot_runs_with_avg(run_data, logger, only=None):
 
     # plot
     only = ['general'] + only if only is not None else ['general']
+    avg_data = conf.RUN.get('AVERAGE_DATA', ['stats'])
+    only_keys = []
+    for key in avg_data:
+        plot_key = DATA_TO_PLOT_KEY.get(key)
+        if plot_key:
+            only_keys.append(plot_key)
     plot(input_paths=labels_paths,
          output_path=output_path,
          params={},
          logger=logger,
          avg=(run_data['avg_type'], run_data['avg']),
-         only=only)
+         only=only_keys)
 
 
 def plot_results(output_dir, logger):
@@ -139,9 +159,17 @@ def plot_results(output_dir, logger):
 
     # plot averages
     if len(avgs) > 1:
-        output_path = os.path.join(output_dir, 'plots')
-        plot(input_paths=avgs,
-             output_path=output_path,
-             params={},
-             logger=logger,
-             only=['general'])
+        if avgs:
+            output_path = os.path.join(output_dir, 'plots')
+            avg_data = conf.RUN.get('AVERAGE_DATA', ['stats'])
+            only_keys = []
+            for key in avg_data:
+                plot_key = DATA_TO_PLOT_KEY.get(key)
+                if plot_key:
+                    only_keys.append(plot_key)
+
+            plot(input_paths=avgs,
+                 output_path=output_path,
+                 params={},
+                 logger=logger,
+                 only=only_keys)
