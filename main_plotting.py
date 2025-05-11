@@ -113,6 +113,13 @@ def plot(input_paths, output_path, params, logger, avg=None, sim=None, only=None
                 logger.warn(
                     'Missing regional data. Check if "regional" is in AVERAGE_DATA')
 
+        if len(input_paths) > 1 and avg and 'regional_stats' in keys:
+            logger.info('Plotting regional aggregate...')
+            try:
+                plotter.plot_regional_aggregate()
+            except MissingDataError:
+                logger.warn('Missing aggregate regional data for general comparison.')
+
     # Checking whether to plot or not
     if conf.RUN['SAVE_SPATIAL_PLOTS'] and sim is not None:
         logger.info('Plotting spatial...')
@@ -122,26 +129,25 @@ def plot(input_paths, output_path, params, logger, avg=None, sim=None, only=None
 def plot_runs_with_avg(run_data, logger, only=None):
     """Plot results of simulations sharing a configuration,
     with their average results"""
-    # individual runs
     labels_paths = list(enumerate(run_data['runs']))
-
-    # output to the run directory + /plots
     output_path = os.path.join(run_data['path'], 'plots')
 
-    # plot
-    only = ['general'] + only if only is not None else ['general']
+    # If no explicit `only` provided, build from config
+    if not only:
+        only = []
     avg_data = conf.RUN.get('AVERAGE_DATA', ['stats'])
-    only_keys = []
+
     for key in avg_data:
         plot_key = DATA_TO_PLOT_KEY.get(key)
         if plot_key:
-            only_keys.append(plot_key)
+            only.append(plot_key)
+
     plot(input_paths=labels_paths,
          output_path=output_path,
          params={},
          logger=logger,
-         avg=(run_data['avg_type'], run_data['avg']),
-         only=only_keys)
+         avg=(run_data['avg_type'], avg_data),
+         only=only)
 
 
 def plot_results(output_dir, logger):
@@ -150,17 +156,15 @@ def plot_results(output_dir, logger):
     results = json.load(open(os.path.join(output_dir, 'meta.json'), 'r'))
     avgs = []
     for r in results:
-        if not conf.RUN.get('SKIP_PARAM_GROUP_PLOTS'):
-            plot_runs_with_avg(r, logger=logger, only=conf.RUN.get('AVERAGE_DATA'))
-
         # group averages, with labels, to plot together
         label = conf_to_str(r['overrides'], delimiter='\n')
         avgs.append((label, r['avg']))
 
     # plot averages
     if len(avgs) > 1:
-        if avgs:
+        if avgs:  # even if there's only one config
             output_path = os.path.join(output_dir, 'plots')
+
             avg_data = conf.RUN.get('AVERAGE_DATA', ['stats'])
             only_keys = []
             for key in avg_data:
@@ -168,8 +172,19 @@ def plot_results(output_dir, logger):
                 if plot_key:
                     only_keys.append(plot_key)
 
+            # Use the first avg folder for Q1/Q3 reference
+            # Plot general statistics
             plot(input_paths=avgs,
                  output_path=output_path,
                  params={},
                  logger=logger,
-                 only=only_keys)
+                 avg=('mean', avg_data),
+                 only=['general'])  # Only stats.csv stuff
+
+            avg_paths = [r['avg'] for r in results]  # List of avg folders for each config
+            plot(input_paths=avgs,
+                 output_path=output_path,
+                 params={},
+                 logger=logger,
+                 avg=('mean', avg_paths),  # Pass list of paths
+                 only=['regional_stats'])

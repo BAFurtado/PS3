@@ -263,7 +263,7 @@ class Family:
                         # Choose the closest firm
                         if commute_time:
                             chosen_firm = min(market, key=lambda firm: commute_time.get((self.house.region_id,
-                                                                                         firm.region_id), 1))
+                                                                                         firm.region_id), .1))
                         else:
                             chosen_firm = min(market, key=lambda firm: self.house.distance_to_firm(firm))
 

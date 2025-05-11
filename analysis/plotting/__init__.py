@@ -110,6 +110,26 @@ class Plotter:
             dats = [avg_dat] + list(dats)
         return labels, dats
 
+    def _load_multiple_regional(self):
+        spec = OUTPUT_DATA_SPEC['regional']
+        labels, dats = self._prepare_datas('regional.csv', spec['columns'])
+
+        if self.avg:
+            avg_type, avg_paths = self.avg  # avg_paths is now a list
+            cols = spec['avg']['columns']
+            cols = spec['columns'] if cols == 'ALL' else spec['avg']['groupings'] + cols
+
+            # Load avg data from each configuration's avg folder
+            avg_dats = []
+            for avg_path in avg_paths:
+                avg_dat = self._prepare_data(os.path.join(avg_path, 'regional.csv'), cols)
+                avg_dats.append(avg_dat)
+
+            labels = [avg_type] * len(avg_dats) + list(labels)
+            dats = avg_dats + list(dats)
+
+        return labels, dats
+
     def _load_single_run(self, key, fname):
         """Some plots can only plot one run at a time.
         Use average if available, otherwise default to first run data."""
@@ -256,38 +276,80 @@ class Plotter:
             self.save_fig(fig, 'families_{}'.format(name))
 
     def plot_regional_stats(self):
-        dat = self._load_single_run('regional', 'regional.csv')
-        # TODO: adjust percentual time off not working for regional plots, neither distributions
-        # Time to be eliminated (adjustment of the model)
-        # if conf.RUN['TIME_TO_BE_ELIMINATED'] > 0:
-        #     dat = dat.loc[len(dat['month']) * conf.RUN['TIME_TO_BE_ELIMINATED']:, :]
+        """Plot regional statistics for multiple configurations."""
+        labels, dats = self._load_multiple_regional()
+        # Prepare Q1 and Q3 data if available
+        q1_list, q3_list = [], []
+        if self.avg and conf.RUN.get('SAVE_PLOTS_FIGURES'):
+            for path in self.run_paths:
+                try:
+                    q1_path = os.path.join(path, 'q1_regional.csv')
+                    q3_path = os.path.join(path, 'q3_regional.csv')
+                    q1 = pd.read_csv(q1_path, sep=';', decimal='.', header=None)
+                    q3 = pd.read_csv(q3_path, sep=';', decimal='.', header=None)
+                    q1.columns = dats[0].columns
+                    q3.columns = dats[0].columns
+                    q1_list.append(q1.set_index('month'))
+                    q3_list.append(q3.set_index('month'))
+                except FileNotFoundError:
+                    pass
 
-        # commuting
-        title = 'Evolution of commute by region, monthly'
-        dat_to_plot = dat.pivot(index='month', columns='mun_id', values='commuting')
-        names_mun = [mun_codes[v] for v in list(dat_to_plot.columns.values)]
-        dats_to_plot = [dat_to_plot[c] for c in dat_to_plot.columns.values]
-        fig = self.make_plot(dats_to_plot, title, labels=names_mun, y_label='Regional commute')
-        self.save_fig(fig, 'regional_evolution_of_commute')
+        # Columns to plot from regional_stats.csv
+        cols_titles = {
+            'commuting': 'Commuting',
+            'gdp_region': 'GDP',
+            'regional_gini': 'GINI',
+            'regional_house_values': 'House Values',
+            'gdp_percapita': 'GDP Per Capita',
+            'regional_unemployment': 'Unemployment',
+            'qli_index': 'QLI Index',
+            'pop': 'Population',
+            'treasure': 'Total Taxes',
+            'licenses': 'Land Licenses'
+        }
 
-        cols = ['gdp_region', 'regional_gini', 'regional_house_values',
+        # Plot each regional statistic
+        for col, title_text in cols_titles.items():
+            datas = [d.set_index('month')[col] for d in dats]
+            q1s = [q1[col] for q1 in q1_list] if q1_list else None
+            q3s = [q3[col] for q3 in q3_list] if q3_list else None
+
+            title = f'Comparison of {title_text} by Region'
+            fig = self.make_plot(datas, title, labels, y_label=title_text, q1=q1s, q3=q3s)
+            self.save_fig(fig, f'regional_comparison_{col}')
+
+    def plot_regional_aggregate(self):
+        dats_q1, dats_q3 = None, None
+        labels, dats = self._load_multiple_regional()
+
+        if self.avg:
+            temp_path = self.avg[1]
+            try:
+                q1_data = self._prepare_data(os.path.join(temp_path, 'q1_regional.csv'), dats[0].columns).set_index(
+                    'month')
+                q3_data = self._prepare_data(os.path.join(temp_path, 'q3_regional.csv'), dats[0].columns).set_index(
+                    'month')
+                dats_q1 = [q1_data]
+                dats_q3 = [q3_data]
+            except FileNotFoundError:
+                dats_q1, dats_q3 = None, None
+
+        cols = ['commuting', 'gdp_region', 'regional_gini', 'regional_house_values',
                 'gdp_percapita', 'regional_unemployment', 'qli_index', 'pop',
                 'treasure', 'licenses']
-        titles = ['GDP', 'GINI', 'House values', 'per capita GDP', 'Unemployment', 'QLI index', 'Population',
-                  'Total Taxes', 'Land licenses']
-        for col, title in zip(cols, titles):
-            title = 'Evolution of {} by region, monthly'.format(title)
-            dat_to_plot = dat.pivot(index='month', columns='mun_id', values=col).astype(float)
-            dats_to_plot = [dat_to_plot[c] for c in dat_to_plot.columns.values]
-            fig = self.make_plot(dats_to_plot, title, labels=names_mun, y_label='Regional {}'.format(title))
-            self.save_fig(fig, 'regional_{}'.format(title))
+        titles = ['Commute', 'GDP', 'GINI', 'House values', 'Per capita GDP',
+                  'Unemployment', 'QLI index', 'Population', 'Total Taxes', 'Land licenses']
 
-        taxes = ['equally', 'locally', 'fpm']
-        taxes_labels = ['Taxes distributed Equally', 'Taxes distributed Locally', 'FPM invested']
-        for i in taxes:
-            dats_to_plot = [dat.groupby(by=['month']).sum()[i]]
-            fig = self.make_plot(dats_to_plot, 'Evolution of Taxes', labels=taxes_labels, y_label='Total Taxes')
-        self.save_fig(fig, 'TAXES')
+        dats = [d.set_index('month') for d in dats]
+
+        for col, title in zip(cols, titles):
+            if dats_q1:
+                fig = self.make_plot([d[col] for d in dats], title, labels,
+                                     q1=[d[col] for d in dats_q1],
+                                     q3=[d[col] for d in dats_q3])
+            else:
+                fig = self.make_plot([d[col] for d in dats], title, labels)
+            self.save_fig(fig, f'regional_aggregate_{col}')
 
     def plot_firms(self):
         dat = self._load_single_run('firms', 'firms.csv')

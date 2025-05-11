@@ -111,7 +111,7 @@ class LaborMarket:
                 transit_cost = params['PRIVATE_TRANSIT_COST'] if c.has_car else params['PUBLIC_TRANSIT_COST']
                 if self.sim.od_matrix is not None:
                     score = wage - (self.commute_time.get((c.family.house.region_id,
-                                                           firm.region_id), 1)
+                                                           firm.region_id), .1)
                                     * transit_cost)
                 else:
                     score = wage - (c.family.house.distance_to_firm(firm)
