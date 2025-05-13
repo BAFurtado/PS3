@@ -42,10 +42,10 @@ SAVE_AGENTS_DATA = 'MONTHLY'
 # "agents", "grave", "house", "family" are optional.
 
 # If you don't save "house" data for instance you can't generate housing plots.
-# Can include: ['agents', 'grave', 'houses', 'families', 'firms', 'regional', 'construction']
+# Can include: ['agents', 'grave', 'house', 'family', 'firms', 'regional', 'construction']
 # If None, set to empty list: []
 SAVE_DATA = ['banks']
-# SAVE_DATA = ['agents', 'houses', 'families', 'firms', 'regional', 'construction']
+# SAVE_DATA = ['agents', 'house', 'family', 'firms', 'regional', 'construction']
 
 # What data to average across all runs.
 # If plotting and not 'firms', 'banks', 'construction' or 'regional',
@@ -53,7 +53,7 @@ SAVE_DATA = ['banks']
 # Notice that they are grouped by MONTH and MUNICIPALITY and some values may not make sense
 # Options: ['families', 'houses', 'agents]
 # You need to INCLUDE STATS to generate SPATIAL PLOTS. 'stats' also refer to general averaged plots
-AVERAGE_DATA = ['stats', 'regional']
+AVERAGE_DATA = ['stats']
 # 'median' or 'mean'
 AVERAGE_TYPE = 'mean'
 
