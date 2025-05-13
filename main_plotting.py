@@ -137,11 +137,11 @@ def plot_results(output_dir, logger):
         label = conf_to_str(r['overrides'], delimiter='\n')
         avgs.append((label, r['avg']))
 
-    # plot averages
+    # plot averages across parameter values
     if len(avgs) > 1:
         output_path = os.path.join(output_dir, 'plots')
         plot(input_paths=avgs,
              output_path=output_path,
              params={},
              logger=logger,
-             only=['general'])
+             only=['general', 'regional_stats'])
