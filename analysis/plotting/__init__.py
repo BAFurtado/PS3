@@ -57,16 +57,14 @@ class Plotter:
             color = colors[i] if colors else None
             label = labels[i]
 
-            # Plot main line
             ax.plot(idx, data.values, label=label, color=color)
 
-            # Fill between for bounds
-            if q1 and q3 and len(q1) > i and len(q3) > i:
+            if q1 and q3 and len(q1) > i and len(q3) > i and q1[i] is not None and q3[i] is not None:
                 q1_vals = q1[i].reindex(idx).values
                 q3_vals = q3[i].reindex(idx).values
                 ax.fill_between(idx, q1_vals, q3_vals, alpha=0.2, color=color)
 
-        ax.legend(loc='best', ncol=3, fancybox=True, shadow=False, framealpha=.25)
+        ax.legend(loc='upper left', ncol=2, fancybox=True, shadow=False, framealpha=.25)
         ax.set_title(title)
         ax.set_xlabel('Time')
         if y_label:
@@ -288,6 +286,8 @@ class Plotter:
         titles = ['Commute', 'GDP', 'GINI', 'House values', 'per capita GDP',
                   'Unemployment', 'QLI index', 'Population', 'Total Taxes', 'Land licenses']
 
+        import matplotlib.cm as cm
+        import numpy as np
         base_cmap = cm.get_cmap('tab20', 40)
 
         for col, title in zip(cols, titles):
@@ -308,17 +308,20 @@ class Plotter:
                     dats_to_plot.append(df[c])
                     label = f"{labels[i]} - {mun_codes.get(c, c)}"
                     region_labels.append(label)
-                    if q1_df is not None and q3_df is not None:
+                    if q1_df is not None and q3_df is not None and c in q1_df.columns and c in q3_df.columns:
                         q1_to_plot.append(q1_df[c])
                         q3_to_plot.append(q3_df[c])
+                    else:
+                        q1_to_plot.append(None)
+                        q3_to_plot.append(None)
                     colors.append(base_cmap(color_index % base_cmap.N))
                     color_index += 1
+
             fig = self.make_plot(dats_to_plot, title, labels=region_labels,
                                  y_label='Regional {}'.format(col),
-                                 q1=q1_to_plot if q1_to_plot else None,
-                                 q3=q3_to_plot if q3_to_plot else None,
+                                 q1=q1_to_plot,
+                                 q3=q3_to_plot,
                                  colors=colors)
-
             self.save_fig(fig, 'regional_{}'.format(col))
 
     def plot_firms(self):
