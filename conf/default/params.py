@@ -100,7 +100,7 @@ NEIGHBORHOOD_EFFECT = 2
 
 # RENTAL #######################
 INITIAL_RENTAL_SHARE = 0.25
-INITIAL_RENTAL_PRICE = 0.003
+INITIAL_RENTAL_PRICE = 0.002
 
 # CONSTRUCTION #################################################################################
 # LICENSES ARE URBANIZED LOTS AVAILABLE FOR CONSTRUCTION PER NEIGHBORHOOD PER MONTH.
@@ -169,7 +169,7 @@ REGIONAL_FREIGHT_COST = .3
 PERCENTAGE_ACTUAL_POP = 0.005
 
 # Write exactly like the list below
-PROCESSING_ACPS = ["BRASILIA"]
+PROCESSING_ACPS = ["IPATINGA"]
 
 # Selecting the starting year to build the Agents, can be: 1991, 2000 or 2010
 STARTING_DAY = datetime.date(2010, 1, 1)
