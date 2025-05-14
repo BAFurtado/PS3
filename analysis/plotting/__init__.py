@@ -302,7 +302,8 @@ class Plotter:
             self.save_fig(fig, '{}'.format(col))
 
         title = 'Median of number of employees by firm, by month'
-        firms_stats = dat.groupby(['month', 'firm_id'], as_index=False).median()
+        numeric_cols = dat.select_dtypes(include='number').columns
+        firms_stats = dat.groupby(['month', 'firm_id'], as_index=False)[numeric_cols].median()
         dat_to_plot = firms_stats.pivot(index='month', columns='firm_id', values='number_employees').astype(float)
         dats_to_plot = [dat_to_plot[c] for c in dat_to_plot.columns.values]
         labels = ['Firm {}'.format(i) for i, _ in enumerate(dat_to_plot.columns.values)]
