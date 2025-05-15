@@ -1,10 +1,13 @@
 import numpy as np
+import geopandas as gpd
 import pandas as pd
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 import seaborn as sns
-
+import os
+from data_utils import *
+from validation_charts import *
 def create_grouped_boxplot(data, x_col, y_col, hue_col, title, xlabel, ylabel, figsize=(12, 6), palette="Set2", rotation=45):
     """
     Generates grouped boxplots to compare policy effects across urban agglomerations.
@@ -47,7 +50,7 @@ def create_faceted_boxplot(data, x_col, y_col, col_col, title, xlabel, ylabel, n
     g.tight_layout()
     plt.show()
 
-def create_heatmap(data, index_col, columns_col, values_col,title,filter_name="emissions", figsize=(12, 8), cmap="coolwarm"):
+def create_heatmap(data, index_col, columns_col, values_col,title,filter_name="emissions", figsize=(12, 8), cmap="coolwarm",agg='mean'):
     """
     Generates a heatmap showing emissions per GDP across urban agglomerations and policies.
     Aggregates data using mean values before pivoting.
@@ -63,14 +66,25 @@ def create_heatmap(data, index_col, columns_col, values_col,title,filter_name="e
     """
     # Aggregate by mean to ensure unique values for pivot
     data = data[data["description"].isin([filter_name])]
-    aggregated_data = data.groupby([index_col, columns_col])[values_col].mean().reset_index()
+    #data = data[data["Date"]>='2019-01-01']
+    if agg == 'mean':
+        aggregated_data = data.groupby([index_col, columns_col])[values_col].mean().reset_index()
+    else:
+        aggregated_data = data.groupby([index_col, columns_col])[values_col].sum().reset_index()
+    
 
     # Pivot the data
     pivot_table = aggregated_data.pivot(index=index_col, columns=columns_col, values=values_col)
-
+    pivot_table.columns = ['Both', 'Carbon Tax','No Policy','Subsidies']
+    hue_order = ['No Policy', 'Carbon Tax','Subsidies','Both']
+    print(pivot_table.columns)
+    pivot_table = pivot_table[hue_order]
     # Create the heatmap
     plt.figure(figsize=figsize)
-    sns.heatmap(pivot_table, annot=True, fmt=".2f", cmap=cmap, linewidths=0.5, cbar_kws={'label': values_col})
+    sns.heatmap(pivot_table, 
+                annot=True, 
+                fmt=".2f",
+                cmap=cmap, linewidths=0.5, cbar_kws={'label': values_col})
     
     plt.title(title, fontsize=14)
     plt.xlabel(columns_col, fontsize=12)
@@ -278,7 +292,7 @@ def make_plot_sectors_emission(data, name='figures/emission_policy_effects',
     #plt.savefig(f'{name}.pdf', dpi=1200)
     plt.show()
 
-def plot_variable_distribution(df, variable, bins=30,initial_month="2020-01-01"):
+def plot_variable_distribution(df, variable, bins=30,initial_month="2020-01-01",save_path='dist_emission.png'):
     """
     Plots a histogram of the selected variable's distribution across different policies.
 
@@ -301,14 +315,28 @@ def plot_variable_distribution(df, variable, bins=30,initial_month="2020-01-01")
         return
 
     # Plot histogram
-    plt.figure(figsize=(10, 6))
+    r = 1.5
+    plt.figure(figsize=(10/r, 8/r))
+    
     sns.histplot(data=df_filtered, 
-                 x="value", hue="Policy", bins=bins, kde=True, element="step", common_norm=False,legend=True)
-
+                 x="value",
+                 hue="Policy", 
+                 stat="density",
+                 bins=bins, kde=True, element="step", common_norm=False,legend=True,alpha=0.1)
+    sns.set_style({'axes.facecolor':'white', 'grid.color': '.8'})
+    sns.despine(offset=10, trim=True);
+    for n,policy in enumerate(df_filtered["Policy"].unique()):
+        plt.axvline(x=df_filtered.loc[df_filtered["Policy"] == policy,"value"].median(),
+                    linestyle='--',color=sns.color_palette("tab10")[n],label=policy)
     # Labels and title
-    plt.xlabel(f"{variable.capitalize()} Value")
+    plt.xlabel("Value")#f"{variable.capitalize()} 
     plt.ylabel("Frequency")
-    plt.title(f"Distribution of {variable} Across Policies")
+    #plt.title(f"Distribution of {variable} Across Policies")
+    save_path = save_path+'.pdf'
+    plt.savefig(save_path, format='pdf', bbox_inches='tight')
+    print(f"Figure saved to {save_path}")
+
+
     
     # Show legend and plot
     #plt.legend(title="Policy", loc="best",)
@@ -392,40 +420,240 @@ def plot_dual_variable_distribution(df, x_variable, y_variable, initial_month="2
     # Show plot
     plt.show()
 
+
+def plot_firms_on_income_map(subdivisions_gdf,
+    firms_df,
+    lat_col='lat',
+    lon_col='long',
+    description_col='description',
+    value_col='value',
+    region_col='region_id',  # or whatever uniquely identifies regions
+    efficiency_var='eco_eff',
+    income_var='wages_paid',
+    policy=None
+):
+    # Pivot to wide format
+    filtered_df = firms_df[firms_df[description_col].isin([efficiency_var, income_var])].copy()
+    #Correct the region id 
+    filtered_df[region_col] = filtered_df[region_col][:7]
+    if policy is not None:
+        filtered_df = filtered_df[filtered_df["Policy"] == policy]
+    subdivisions_gdf[region_col] = subdivisions_gdf['CD_GEOCMU']
+    pivot_df = filtered_df.pivot_table(
+        index=['lat', 'long'],
+        columns=description_col,
+        values=value_col
+    ).reset_index()
+
+    # Create GeoDataFrame for firms
+    firms_gdf = gpd.GeoDataFrame(
+        pivot_df,
+        geometry=gpd.points_from_xy(pivot_df[lon_col], pivot_df[lat_col]),
+        crs='EPSG:4326'
+    )
+    firms_gdf = firms_gdf.to_crs(subdivisions_gdf.crs)
+
+    # Spatial join to attach region info to each firm
+    joined = gpd.sjoin(firms_gdf, subdivisions_gdf[[region_col, 'geometry']], how='inner', predicate='within')
+
+    # Compute mean income per region for the background map
+    income_by_region = joined.groupby(region_col)[income_var].mean().reset_index()
+    subdivisions_gdf = subdivisions_gdf.merge(income_by_region, on=region_col, how='left')
+
+    # Plot
+    fig, ax = plt.subplots(figsize=(10, 10))
+    subdivisions_gdf.plot(column=income_var, ax=ax, legend=True, cmap='Blues', alpha=0.6, edgecolor='gray')
+
+    joined.plot(ax=ax, column=efficiency_var, cmap='RdYlGn', markersize=5, legend=True, alpha=0.8)
+
+    ax.set_title('Firm Eco-efficiency over Income Map: {}'.format(policy))
+    ax.axis('off')
+    plt.tight_layout()
+    plt.show()
+
+def plot_kde_contours(
+    firms_df,
+    subdivisions_gdf,
+    lat_col='lat',
+    lon_col='long',
+    description_col='description',
+    value_col='value',
+    efficiency_var='eco_eff',
+    region_col='region_id',
+    projection='EPSG:3857',
+    policy=None,
+    save_path='kde_eco_efficiency'
+):
+    
+    # Filter and pivot to get eco-efficiency   
+    filtered_df = firms_df[firms_df[description_col] == efficiency_var].copy()
+    #Correct the region id 
+    filtered_df[region_col] = filtered_df[region_col].apply(lambda x: str(x)[:7])
+    if policy is not None:
+        filtered_df = filtered_df[filtered_df["Policy"] == policy]
+    pivot_df = filtered_df.pivot_table(
+        index=['lat', 'long'],
+        values=value_col,
+        aggfunc='mean'
+    ).reset_index().rename(columns={value_col: efficiency_var})
+
+    # Convert firm points to GeoDataFrame
+    firm_gdf = gpd.GeoDataFrame(
+        pivot_df,
+        geometry=gpd.points_from_xy(pivot_df[lon_col], pivot_df[lat_col]),
+        crs='EPSG:4326'
+    ).to_crs(projection)
+
+    # Reproject subdivisions
+    subdivisions_gdf = subdivisions_gdf.to_crs(projection)
+    subdivisions_gdf[region_col] = subdivisions_gdf['CD_GEOCMU']
+
+    # Spatial join to identify intersecting regions
+    joined = gpd.sjoin(firm_gdf, subdivisions_gdf[[region_col, 'geometry']], how='inner', predicate='within')
+
+    # Filter subdivisions to only those seen in firms
+    relevant_regions = joined[region_col].unique()
+    filtered_subdivisions = subdivisions_gdf[subdivisions_gdf[region_col].isin(relevant_regions)]
+
+    # Plot setup (optimized for A4 one-column width: ~3.5 inches)
+    fig_width = 3.5  # inches
+    dpi = 300
+    fig, ax = plt.subplots(figsize=(fig_width, fig_width), dpi=dpi)
+
+    # Plot the filtered subdivisions
+    filtered_subdivisions.plot(ax=ax, color='white', edgecolor='gray', linewidth=0.5, alpha=0.3)
+
+    # KDE plot with weights
+    sns.kdeplot(
+        x=joined.geometry.x,
+        y=joined.geometry.y,
+        weights=joined[efficiency_var],
+        cmap="RdYlGn",
+        fill=True,
+        levels=15,
+        alpha=0.6,
+        ax=ax
+    )
+
+    ax.set_title('Eco-Efficiency KDE: {}'.format(policy), fontsize=14)  # Set the title with the policy, fontsize=10)
+    ax.axis('off')
+    plt.tight_layout()
+
+    # Save to SVG
+    save_path = save_path+'_{}.svg'.format(policy)
+    fig.savefig(save_path, format='svg', bbox_inches='tight')
+    plt.close(fig)
+
+    print(f"Figure saved to: {save_path}")
+
+def plot_bivariate_choropleth(
+    subdivisions_gdf,
+    firms_df,
+    lat_col='lat',
+    lon_col='long',
+    description_col='description',
+    value_col='value',
+    efficiency_var='eco_eff',
+    income_var='wages_paid',
+    region_col='region_id',
+    n_quantiles=3,
+    policy=None
+            ):
+   
+
+    # Pivot firm data
+    filtered_df = firms_df[firms_df[description_col].isin([efficiency_var, income_var])].copy()
+    #Correct the region id 
+    filtered_df[region_col] = filtered_df[region_col][:7]
+    if policy is not None:
+        filtered_df = filtered_df[filtered_df["Policy"] == policy]
+    subdivisions_gdf[region_col] = subdivisions_gdf['CD_GEOCMU']
+    pivot_df = filtered_df.pivot_table(
+        index=['lat', 'long'],
+        columns=description_col,
+        values=value_col
+    ).reset_index()
+
+    # Create GeoDataFrame
+    gdf = gpd.GeoDataFrame(
+        pivot_df,
+        geometry=gpd.points_from_xy(pivot_df[lon_col], pivot_df[lat_col]),
+        crs='EPSG:4326'
+    ).to_crs(subdivisions_gdf.crs)
+
+    # Spatial join
+    joined = gpd.sjoin(gdf, subdivisions_gdf[[region_col, 'geometry']], how='inner', predicate='within')
+
+    # Aggregate
+    summary = joined.groupby(region_col).agg({
+        efficiency_var: 'mean',
+        income_var: 'mean'
+    }).reset_index()
+
+    # Merge into subdivisions
+    merged = subdivisions_gdf.merge(summary, on=region_col, how='inner')
+
+    # Quantile binning
+    merged['eff_bin'] = pd.qcut(merged[efficiency_var], n_quantiles, labels=False)
+    merged['inc_bin'] = pd.qcut(merged[income_var], n_quantiles, labels=False)
+
+    # Create bivariate class
+    merged['bi_class'] = merged['inc_bin'].astype(str) + '-' + merged['eff_bin'].astype(str)
+
+    # Define a simple 3x3 bivariate color palette (from ColorBrewer-like schemes)
+    bivariate_colors = {
+        '0-0': '#e8e8e8', '0-1': '#ace4e4', '0-2': '#5ac8c8',
+        '1-0': '#dfb0d6', '1-1': '#a5add3', '1-2': '#5698b9',
+        '2-0': '#be64ac', '2-1': '#8c62aa', '2-2': '#3b4994',
+    }
+    merged['color'] = merged['bi_class'].map(bivariate_colors)
+
+    # Plot
+    fig, ax = plt.subplots(figsize=(10, 10))
+    merged.plot(color=merged['color'], ax=ax, edgecolor='white', linewidth=0.5)
+
+    ax.set_title('Bivariate Choropleth: Income vs Eco-efficiency')
+    ax.axis('off')
+
+    # Optional: draw legend manually
+    import matplotlib.patches as mpatches
+    from matplotlib.colors import to_rgba
+
+    legend_elements = [
+        mpatches.Patch(color=v, label=k) for k, v in bivariate_colors.items()
+    ]
+    ax.legend(handles=legend_elements, title='[Income]-[Efficiency]', loc='lower left', fontsize=8)
+
+    plt.tight_layout()
+    plt.show()
+
 if __name__ == "__main__":
 # Generate the plot.
-    make_plot_sectors_emission(df_emission,
-                            name='figures/emission_policy_effects',
-                            exclude_sectors=[])  # You can list sectors to exclude if needed.
-    # Generate the faceted violin plot with shared y-axis and clean facet titles.
-    create_emissions_violinplot_by_sector(
-        data=df_emissions,
-        sector_col="Sector",
-        policy_col="Policy",
-        value_col="EmissionsReduction",
-        title="Firms' Emissions Reduction Distributions by Policy and Sector (12 Sectors)",
-        xlabel="Policy",
-        ylabel="Emissions Reduction (%)",
-        figsize=(16, 12),
-        palette="Set2",
-        rotation=45,
-        col_wrap=4
-    )
-    # Generate the grouped boxplot
-    create_grouped_boxplot(
-        data=df_policies,
-        x_col="Urban Agglomeration",
-        y_col="Emission per GDP",
-        hue_col="Policy",
-        title="Grouped Boxplot: Policy Effects on Emissions per GDP",
-        xlabel="Urban Agglomeration",
-        ylabel="Emission per GDP"
-    )
-    # Call the function with df_policies
-    create_heatmap(
-        data=df_policies,
-        index_col="Urban Agglomeration",
-        columns_col="Policy",
-        values_col="Emission per GDP",
-        title="Heatmap: Emission per GDP by Policy and Urban Agglomeration"
-    )
+    project_folder = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    gdf = gpd.read_file(project_folder +'/input/shapes/mun_ACPS_ibge_2014_latlong_wgs1984_fixed.shp')
+    gdf.crs 
+    base_fp = "C:\\Users\\gusta\\Desktop\\Pulmonar\\Projeto_IPEA\\PS3\\analysis\\validation\\simulated_data"
+    
+    lista_no_policy = find_firms_csv(base_fp+"\\baseline")[0:3]
+    lista_tax = find_firms_csv(base_fp+"\\tax")[0:3]
+    lista_subsidies = find_firms_csv(base_fp+"\\subsidies")[0:3]
+    lista_both = find_firms_csv(base_fp+"\\both")[0:3]
+
+    no_policy = read_many_firm_files(lista_no_policy, policy="No policy",consolidate=False)
+    tax = read_many_firm_files(lista_tax, policy="Carbon Tax",consolidate=False)
+    subsidies = read_many_firm_files(lista_subsidies, policy="Subsidies",consolidate=False)
+    both = read_many_firm_files(lista_both, policy="Both",consolidate=False)
+
+    data_firm = pd.concat([no_policy, tax, subsidies, both], ignore_index=True)
+
+    #plot_firms_on_income_map(gdf, data_firm, policy="No policy")
+    #plot_firms_on_income_map(gdf, data_firm, policy="Subsidies")
+    #plot_firms_on_income_map(gdf, data_firm, policy="Carbon Tax")
+    #plot_firms_on_income_map(gdf, data_firm, policy="Both")
+    #plot_bivariate_choropleth(gdf, data_firm)
+    plot_kde_contours(data_firm, gdf, policy="No policy")
+    plot_kde_contours(data_firm, gdf, policy="Subsidies")
+    plot_kde_contours(data_firm, gdf, policy="Carbon Tax")
+    plot_kde_contours(data_firm, gdf, policy="Both")
+
+    pass
