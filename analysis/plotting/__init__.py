@@ -1,8 +1,9 @@
 import os
 
 import matplotlib.pyplot as plt
-import pandas as pd
 import matplotlib.cm as cm
+import pandas as pd
+from matplotlib.patches import Patch
 import conf
 from . import geo
 from ..output import OUTPUT_DATA_SPEC
@@ -57,14 +58,31 @@ class Plotter:
             color = colors[i] if colors else None
             label = labels[i]
 
-            ax.plot(idx, data.values, label=label, color=color)
+            # Plot the line (automatically gets legend entry)
+            line = ax.plot(idx, data.values, label=label, color=color)[0]
 
-            if q1 and q3 and len(q1) > i and len(q3) > i and q1[i] is not None and q3[i] is not None:
-                q1_vals = q1[i].reindex(idx).values
-                q3_vals = q3[i].reindex(idx).values
-                ax.fill_between(idx, q1_vals, q3_vals, alpha=0.2, color=color)
+            # Shaded area (adds its own legend only for first appearance)
+            if q1 and q3 and len(q1) > i and len(q3) > i:
+                q1_series = q1[i]
+                q3_series = q3[i]
+                if q1_series is not None and q3_series is not None:
+                    try:
+                        aligned = pd.DataFrame({
+                            'data': data,
+                            'q1': q1_series.reindex(data.index),
+                            'q3': q3_series.reindex(data.index)
+                        }).dropna()
 
-        ax.legend(loc='upper left', ncol=2, fancybox=True, shadow=False, framealpha=.25)
+                        # Only add shaded legend once per label
+                        ax.fill_between(pd.to_datetime(aligned.index),
+                                        aligned['q1'], aligned['q3'],
+                                        alpha=0.2, facecolor=line.get_color(), edgecolor=line.get_color(),
+                                        label=label)
+                    except Exception as e:
+                        print(f"fill_between failed for {label}: {e}")
+
+        ax.legend(loc='upper left', ncol=2, framealpha=0.3)
+
         ax.set_title(title)
         ax.set_xlabel('Time')
         if y_label:
@@ -135,6 +153,8 @@ class Plotter:
                 # This is the case that we have comparisons, such as sensitivity
                 _, dats_q1 = self._load_multiple_runs('stats', 'q1_stats.csv')
                 _, dats_q3 = self._load_multiple_runs('stats', 'q3_stats.csv')
+                dats_q1 = [d.set_index('month') for d in dats_q1]
+                dats_q3 = [d.set_index('month') for d in dats_q3]
             except ValueError:
                 if self.avg:
                     # This is for single run
@@ -288,8 +308,6 @@ class Plotter:
         titles = ['Commute', 'GDP', 'GINI', 'House values', 'per capita GDP',
                   'Unemployment', 'QLI index', 'Population', 'Total Taxes', 'Land licenses']
 
-        import matplotlib.cm as cm
-        import numpy as np
         base_cmap = cm.get_cmap('tab20', 40)
 
         for col, title in zip(cols, titles):
