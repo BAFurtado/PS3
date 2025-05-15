@@ -22,6 +22,14 @@ class LaborMarket:
         self.gov_employees = self.process_gov_employees_year()
         self.available_postings = list()
         self.candidates = list()
+        if self.sim.od_matrix is not None:
+            mode_col = 'TempoRedeNec' if self.sim.PARAMS['TRANSPORT_POLICY'] else 'TempoRedeBase'
+            self.commute_time = self.build_commute_time_cache(mode_col)
+        else:
+            self.commute_time = None
+
+    def build_commute_time_cache(self, mode_col):
+        return self.sim.od_matrix.set_index(['code_weighting_orig', 'code_weighting_dest'])[mode_col].to_dict()
 
     def process_gov_employees_year(self):
         employees = pd.read_csv('input/qtde_vinc_gov_rais.csv')
@@ -95,12 +103,19 @@ class LaborMarket:
         done_cands = set()
         # This organizes a number of offers of candidates per firm, according to their own location
         # and "size" of a firm, giving by its more recent revenue level
+
         for firm, wage in lst_firms:
             sampled_candidates = self.seed.sample(candidates,
                                                   min(len(candidates), int(params['HIRING_SAMPLE_SIZE'])))
             for c in sampled_candidates:
                 transit_cost = params['PRIVATE_TRANSIT_COST'] if c.has_car else params['PUBLIC_TRANSIT_COST']
-                score = wage - (c.family.house.distance_to_firm(firm) * transit_cost)
+                if self.sim.od_matrix is not None:
+                    score = wage - (self.commute_time.get((c.family.house.region_id,
+                                                           firm.region_id), .1)
+                                    * transit_cost)
+                else:
+                    score = wage - (c.family.house.distance_to_firm(firm)
+                                    * transit_cost)
                 if flag:
                     offers.append((firm, c, c.qualification + score))
                 else:
@@ -113,7 +128,6 @@ class LaborMarket:
                 self.apply_assign(candidate, firm)
                 done_firms.add(firm)
                 done_cands.add(candidate)
-                
 
         # If this run was for qualification, another run for distance has to go through
         if flag:

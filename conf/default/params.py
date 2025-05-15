@@ -64,6 +64,10 @@ POLICY_QUANTILE = 0.2
 # Change of policy for collecting consumption tax at:
 # firms' municipalities origin (True) or destiny (consumers' municipality)
 TAX_ON_ORIGIN = True
+# BNDES test with (True) and without (False) TRANSPORT investments.
+# Variation in time_travel implemented in labor market decisions
+READ_TRANSPORT_MATRIX = True
+TRANSPORT_POLICY = True
 # LOANS ##############################################################################
 # Maximum age of borrower at the end of the contract
 MAX_LOAN_AGE = 70
@@ -96,7 +100,7 @@ NEIGHBORHOOD_EFFECT = 2
 
 # RENTAL #######################
 INITIAL_RENTAL_SHARE = 0.25
-INITIAL_RENTAL_PRICE = 0.003
+INITIAL_RENTAL_PRICE = 0.002
 
 # CONSTRUCTION #################################################################################
 # LICENSES ARE URBANIZED LOTS AVAILABLE FOR CONSTRUCTION PER NEIGHBORHOOD PER MONTH.
@@ -165,13 +169,13 @@ REGIONAL_FREIGHT_COST = .3
 PERCENTAGE_ACTUAL_POP = 0.01
 
 # Write exactly like the list below
-PROCESSING_ACPS = ["BELO HORIZONTE"]
+PROCESSING_ACPS = ["BRASILIA"]
 
 # Selecting the starting year to build the Agents, can be: 1991, 2000 or 2010
 STARTING_DAY = datetime.date(2010, 1, 1)
 
 # Maximum running time (restrained by official data) is 30 years,
-TOTAL_DAYS = (datetime.date(2020, 1, 1) - STARTING_DAY).days
+TOTAL_DAYS = (datetime.date(2012, 1, 1) - STARTING_DAY).days
 
 # Select the possible ACPs (Population Concentration Areas) from the list below.
 # Actually they are URBAN CONCENTRATION AREAS FROM IBGE, 2022

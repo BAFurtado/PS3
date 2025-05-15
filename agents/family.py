@@ -225,6 +225,7 @@ class Family:
         Family general consumption depends on its permanent income, based on members wages, working life expectancy
         and real estate and savings interest
         """
+        commute_time = regional_market.sim.labor_market.commute_time
         total_consumption = defaultdict(float)
         # Decision on how much money to consume or save
         money_to_spend = self.decision_on_consumption(central, central.interest, year, month)
@@ -260,7 +261,11 @@ class Family:
                         chosen_firm = min(market, key=lambda firm: firm.prices)
                     else:
                         # Choose the closest firm
-                        chosen_firm = min(market, key=lambda firm: self.house.distance_to_firm(firm))
+                        if commute_time:
+                            chosen_firm = min(market, key=lambda firm: commute_time.get((self.house.region_id,
+                                                                                         firm.region_id), .1))
+                        else:
+                            chosen_firm = min(market, key=lambda firm: self.house.distance_to_firm(firm))
 
                     # Buy from chosen company
                     change = chosen_firm.sale(money_this_sector, regions, params['TAX_CONSUMPTION'],

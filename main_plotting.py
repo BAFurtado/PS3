@@ -127,21 +127,34 @@ def plot_runs_with_avg(run_data, logger, only=None):
 def plot_results(output_dir, logger):
     """Plot results of multiple simulations"""
     logger.info('Plotting results...')
-    results = json.load(open(os.path.join(output_dir, 'meta.json'), 'r'))
+
+    meta_path = os.path.join(output_dir, 'meta.json')
+    if not os.path.exists(meta_path):
+        logger.error(f"Missing meta.json at {meta_path}. You need to run simulations first.")
+        return
+
+    with open(meta_path, 'r') as f:
+        results = json.load(f)
+
     avgs = []
     for r in results:
-        if not conf.RUN.get('SKIP_PARAM_GROUP_PLOTS'):
-            plot_runs_with_avg(r, logger=logger, only=conf.RUN.get('AVERAGE_DATA'))
+        # If avg folder doesn't exist, skip this run
+        avg_path = r.get('avg')
+        if not avg_path or not os.path.exists(avg_path):
+            logger.warning(f"Skipping {r.get('name', 'unknown')} due to missing avg folder")
+            continue
 
-        # group averages, with labels, to plot together
         label = conf_to_str(r['overrides'], delimiter='\n')
-        avgs.append((label, r['avg']))
+        avgs.append((label, avg_path))
 
-    # plot averages
-    if len(avgs) > 1:
-        output_path = os.path.join(output_dir, 'plots')
-        plot(input_paths=avgs,
-             output_path=output_path,
-             params={},
-             logger=logger,
-             only=['general'])
+    if not avgs:
+        logger.error("No avg folders found. Cannot generate plots.")
+        return
+
+    output_path = os.path.join(output_dir, 'plots')
+    plot(input_paths=avgs,
+         output_path=output_path,
+         params={},
+         logger=logger,
+         only=['general', 'regional_stats'])
+

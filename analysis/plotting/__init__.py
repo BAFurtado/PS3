@@ -1,8 +1,9 @@
 import os
 
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import pandas as pd
-
+from matplotlib.patches import Patch
 import conf
 from . import geo
 from ..output import OUTPUT_DATA_SPEC
@@ -45,31 +46,46 @@ class Plotter:
             # reset figure
             plt.close('all')
 
-    def make_plot(self, datas, title, labels, y_label=None, q1=None, q3=None):
+    def make_plot(self, datas, title, labels, y_label=None, q1=None, q3=None, colors=None):
         """Create plot based on input data"""
-        # Annotate title with percentage of actual population used
         p_pop = self.params.get('PERCENTAGE_ACTUAL_POP', conf.PARAMS['PERCENTAGE_ACTUAL_POP'])
         title = '{}\nAgents : {}% of Population'.format(title, p_pop * 100)
 
-        if isinstance(labels, tuple):
-            special_labels = list(labels)
-        else:
-            special_labels = labels.copy()
         fig, ax = plt.subplots()
-        if q1 and isinstance(q1[0], pd.Series):
-            for i in range(len(q1)):
-                idx = pd.to_datetime(datas[i].index)
-                ax.plot(idx, datas[i], label=special_labels[i])
-                ax.fill_between(idx, q1[i], q3[i], alpha=0.2, label='lower-upper $2\\sigma$ bounds')
-        else:
-            for d in datas:
-                d.plot(ax=ax)
 
-        # Create the plot
-        ax.legend(loc='best', ncol=3, fancybox=True, shadow=False, framealpha=.25)
+        for i, data in enumerate(datas):
+            idx = pd.to_datetime(data.index)
+            color = colors[i] if colors else None
+            label = labels[i]
+
+            # Plot the line (automatically gets legend entry)
+            line = ax.plot(idx, data.values, label=label, color=color)[0]
+
+            # Shaded area (adds its own legend only for first appearance)
+            if q1 and q3 and len(q1) > i and len(q3) > i:
+                q1_series = q1[i]
+                q3_series = q3[i]
+                if q1_series is not None and q3_series is not None:
+                    try:
+                        aligned = pd.DataFrame({
+                            'data': data,
+                            'q1': q1_series.reindex(data.index),
+                            'q3': q3_series.reindex(data.index)
+                        }).dropna()
+
+                        # Only add shaded legend once per label
+                        ax.fill_between(pd.to_datetime(aligned.index),
+                                        aligned['q1'], aligned['q3'],
+                                        alpha=0.2, facecolor=line.get_color(), edgecolor=line.get_color(),
+                                        label=label)
+                    except Exception as e:
+                        print(f"fill_between failed for {label}: {e}")
+
+        ax.legend(loc='upper left', ncol=2, framealpha=0.3)
+
         ax.set_title(title)
         ax.set_xlabel('Time')
-        if y_label is not None:
+        if y_label:
             ax.set_ylabel(y_label)
         fig.set_size_inches(15, 10)
         return fig
@@ -92,6 +108,8 @@ class Plotter:
         paths = [(label, self._prepare_data(path, columns))
                  for label, path in paths
                  if os.path.exists(path)]
+        if not paths:
+            raise MissingDataError(f"No files found for {fname}")
         labels, dats = zip(*paths)
         return labels, dats
 
@@ -135,6 +153,8 @@ class Plotter:
                 # This is the case that we have comparisons, such as sensitivity
                 _, dats_q1 = self._load_multiple_runs('stats', 'q1_stats.csv')
                 _, dats_q3 = self._load_multiple_runs('stats', 'q3_stats.csv')
+                dats_q1 = [d.set_index('month') for d in dats_q1]
+                dats_q3 = [d.set_index('month') for d in dats_q3]
             except ValueError:
                 if self.avg:
                     # This is for single run
@@ -217,7 +237,8 @@ class Plotter:
                 'name': 'time_on_market'
             }
         }
-        df = dat.groupby(['month', 'mun_id'], as_index=False).mean()
+        numeric_cols = dat.select_dtypes(include='number').columns
+        df = dat.groupby(['month', 'mun_id'], as_index=False)[numeric_cols].mean()
         for k, d in to_plot.items():
             title = d['title']
             name = d['name']
@@ -245,7 +266,8 @@ class Plotter:
             }
         }
 
-        df = dat.groupby(['month', 'mun_id'], as_index=False).mean()
+        numeric_cols = dat.select_dtypes(include='number').columns
+        df = dat.groupby(['month', 'mun_id'], as_index=False)[numeric_cols].mean()
         for k, d in to_plot.items():
             title = d['title']
             name = d['name']
@@ -256,38 +278,71 @@ class Plotter:
             self.save_fig(fig, 'families_{}'.format(name))
 
     def plot_regional_stats(self):
-        dat = self._load_single_run('regional', 'regional.csv')
-        # TODO: adjust percentual time off not working for regional plots, neither distributions
-        # Time to be eliminated (adjustment of the model)
-        # if conf.RUN['TIME_TO_BE_ELIMINATED'] > 0:
-        #     dat = dat.loc[len(dat['month']) * conf.RUN['TIME_TO_BE_ELIMINATED']:, :]
+        try:
+            labels, dats = self._load_multiple_runs('regional', 'regional.csv')
+        except MissingDataError:
+            return  # Skip plotting if regional data is missing
 
-        # commuting
-        title = 'Evolution of commute by region, monthly'
-        dat_to_plot = dat.pivot(index='month', columns='mun_id', values='commuting')
-        names_mun = [mun_codes[v] for v in list(dat_to_plot.columns.values)]
-        dats_to_plot = [dat_to_plot[c] for c in dat_to_plot.columns.values]
-        fig = self.make_plot(dats_to_plot, title, labels=names_mun, y_label='Regional commute')
-        self.save_fig(fig, 'regional_evolution_of_commute')
+        dats_q1, dats_q3 = None, None
+        if self.avg:
+            try:
+                _, dats_q1 = self._load_multiple_runs('regional', 'q1_regional.csv')
+                _, dats_q3 = self._load_multiple_runs('regional', 'q3_regional.csv')
+            except MissingDataError:
+                temp_path = self.avg[1] if self.avg else self.output_path.replace('plots', 'avg')
+                dats_q1 = []
+                dats_q3 = []
+                for label, path in zip(self.labels, self.run_paths):
+                    avg_path = path if label == self.avg[0] else path
+                    q1_file = os.path.join(avg_path, 'q1_regional.csv')
+                    q3_file = os.path.join(avg_path, 'q3_regional.csv')
+                    if os.path.exists(q1_file) and os.path.exists(q3_file):
+                        df_q1 = self._prepare_data(q1_file, dats[0].columns).set_index('month')
+                        df_q3 = self._prepare_data(q3_file, dats[0].columns).set_index('month')
+                        dats_q1.append(df_q1)
+                        dats_q3.append(df_q3)
 
-        cols = ['gdp_region', 'regional_gini', 'regional_house_values',
+        cols = ['commuting', 'gdp_region', 'regional_gini', 'regional_house_values',
                 'gdp_percapita', 'regional_unemployment', 'qli_index', 'pop',
                 'treasure', 'licenses']
-        titles = ['GDP', 'GINI', 'House values', 'per capita GDP', 'Unemployment', 'QLI index', 'Population',
-                  'Total Taxes', 'Land licenses']
+        titles = ['Commute', 'GDP', 'GINI', 'House values', 'per capita GDP',
+                  'Unemployment', 'QLI index', 'Population', 'Total Taxes', 'Land licenses']
+
+        base_cmap = cm.get_cmap('tab20', 40)
+
         for col, title in zip(cols, titles):
             title = 'Evolution of {} by region, monthly'.format(title)
-            dat_to_plot = dat.pivot(index='month', columns='mun_id', values=col).astype(float)
-            dats_to_plot = [dat_to_plot[c] for c in dat_to_plot.columns.values]
-            fig = self.make_plot(dats_to_plot, title, labels=names_mun, y_label='Regional {}'.format(title))
-            self.save_fig(fig, 'regional_{}'.format(title))
+            dats_to_plot, q1_to_plot, q3_to_plot = [], [], []
+            region_labels = []
+            colors = []
+            color_index = 0
 
-        taxes = ['equally', 'locally', 'fpm']
-        taxes_labels = ['Taxes distributed Equally', 'Taxes distributed Locally', 'FPM invested']
-        for i in taxes:
-            dats_to_plot = [dat.groupby(by=['month']).sum()[i]]
-            fig = self.make_plot(dats_to_plot, 'Evolution of Taxes', labels=taxes_labels, y_label='Total Taxes')
-        self.save_fig(fig, 'TAXES')
+            for i, d in enumerate(dats):
+                df = d.pivot(index='month', columns='mun_id', values=col).astype(float)
+                q1_df, q3_df = None, None
+                if dats_q1 and dats_q3:
+                    q1_df = dats_q1[i].pivot(index='month', columns='mun_id', values=col)
+                    q3_df = dats_q3[i].pivot(index='month', columns='mun_id', values=col)
+
+                for c in df.columns:
+                    dats_to_plot.append(df[c])
+                    label = f"{labels[i]} - {mun_codes.get(c, c)}"
+                    region_labels.append(label)
+                    if q1_df is not None and q3_df is not None and c in q1_df.columns and c in q3_df.columns:
+                        q1_to_plot.append(q1_df[c])
+                        q3_to_plot.append(q3_df[c])
+                    else:
+                        q1_to_plot.append(None)
+                        q3_to_plot.append(None)
+                    colors.append(base_cmap(color_index % base_cmap.N))
+                    color_index += 1
+
+            fig = self.make_plot(dats_to_plot, title, labels=region_labels,
+                                 y_label='Regional {}'.format(col),
+                                 q1=q1_to_plot,
+                                 q3=q3_to_plot,
+                                 colors=colors)
+            self.save_fig(fig, 'regional_{}'.format(col))
 
     def plot_firms(self):
         dat = self._load_single_run('firms', 'firms.csv')

@@ -68,6 +68,14 @@ class Simulation:
                 header=0,
                 decimal=".",
             ).groupby("age")
+        if self.PARAMS['READ_TRANSPORT_MATRIX']:
+            # Implement loop when other RMs ODs become available
+            state = 'DF'
+            try:
+                self.od_matrix = pd.read_parquet('input/bndes/travel_times_areapond_%s.parquet' % state)
+            except FileNotFoundError:
+                self.od_matrix = None
+                print(f'No matriz OD found for this METRO {state} region!')
         self.labor_market = markets.LaborMarket(self, self.seed, self.seed_np)
         self.housing = markets.HousingMarket()
         self.pops, self.total_pop = population.load_pops(
