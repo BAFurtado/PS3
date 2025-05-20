@@ -6,6 +6,7 @@ import numpy as np
 
 from markets.housing import HousingMarket
 from .geography import STATES_CODES, state_string
+from mcmv_funds import MCMV
 
 
 class Funds:
@@ -19,20 +20,25 @@ class Funds:
             self.fpm = {
                 state: pd.read_csv('input/fpm/%s.csv' % state, sep=',', header=0, decimal='.', encoding='latin1')
                 for state in self.sim.geo.states_on_process}
-        if sim.PARAMS['POLICY_COEFFICIENT']:
+        if sim.PARAMS['POLICIES'] != 'no_policy':
             # Gather the money by municipality. Later gather the families and act upon policy!
             self.policy_money = defaultdict(float)
             self.policy_families = defaultdict(list)
             self.temporary_houses = defaultdict(list)
+        if sim.PARAMS['POLICY_MCMV']:
+            # Collect money from exogenous funding
+            self.mcmv = MCMV(sim)
 
-    def update_policy_families(self):
+    def update_policy_families(self, quantile=0):
+        if not quantile:
+            quantile = self.sim.PARAMS['POLICY_QUANTILE']
         # Entering the list this month
         incomes = [f.get_permanent_income() for f in self.sim.families.values()]
-        quantile = np.quantile(incomes, self.sim.PARAMS['POLICY_QUANTILE'])
+        quantiles = np.quantile(incomes, quantile)
         for region in self.sim.regions.values():
             # Unemployed, Default on rent from the region
             self.sim.regions[region.id].registry[self.sim.clock.days] += [f for f in self.sim.families.values()
-                                                                          if f.get_permanent_income() < quantile
+                                                                          if f.get_permanent_income() < quantiles
                                                                           and f.house.region_id == region.id]
         if self.sim.clock.days < self.sim.PARAMS['STARTING_DAY'] + datetime.timedelta(360):
             return
@@ -52,18 +58,27 @@ class Funds:
         if self.sim.PARAMS['POLICIES'] not in ['buy', 'rent', 'wage']:
             # Baseline scenario. Do nothing!
             return
-        # Reset indicator every month to reflect subside in a given month, mun_popsnot cumulatively
-        self.families_subsided = 0
-        self.update_policy_families()
         # Implement policies only after first year of simulation run
         if self.sim.clock.days < self.sim.PARAMS['STARTING_DAY'] + datetime.timedelta(360):
             return
-        if self.sim.PARAMS['POLICIES'] == 'buy':
-            self.buy_houses_give_to_families()
-        elif self.sim.PARAMS['POLICIES'] == 'rent':
-            self.pay_families_rent()
+        # Reset indicator every month to reflect subside in a given month, mun_pops not cumulatively
+        self.families_subsided = 0
+
+        if self.sim.PARAMS['POLICY_MCMV']:
+            self.sim.PARAMS['POLICY_COEFFICIENT'] = 0
+            for modalidade in ['FAR', 'Entidades', 'oferta_publica']:
+                self.policy_money = self.mcmv.update_policy_money(self.clock.year, modalidade)
+                quantile = self.sim.PARAMS['INCOME_MODALIDADES'][modalidade]
+                self.update_policy_families(quantile)
+                self.buy_houses_give_to_families()
         else:
-            self.distribute_funds_to_families()
+            self.update_policy_families()
+            if self.sim.PARAMS['POLICIES'] == 'buy':
+                self.buy_houses_give_to_families()
+            elif self.sim.PARAMS['POLICIES'] == 'rent':
+                self.pay_families_rent()
+            else:
+                self.distribute_funds_to_families()
         # Resetting lists for next month
         self.policy_families = defaultdict(list)
         self.temporary_houses = defaultdict(list)

@@ -56,6 +56,12 @@ POLICY_COEFFICIENT = 0.2
 # Policies alternatives may include: 'buy', 'rent' or 'wage' or 'no_policy'. For no policy set to empty strings ''
 # POLICY_COEFFICIENT needs to be > 0.
 POLICIES = "no_policy"
+POLICY_MCMV = True
+INCOME_MODALIDADES = {'FAR': .1,
+                      'Entidades': .2,
+                      'Rural': .15,
+                      'oferta_publica': .2
+                      }
 POLICY_DAYS = 360
 # Size of the poorest families to be helped
 POLICY_QUANTILE = 0.2
