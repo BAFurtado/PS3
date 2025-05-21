@@ -311,7 +311,7 @@ class Generator:
     def get_empirical_qualities(self, region, num_houses):
         quality_typologies = [.5, 1, 2, 3, 4, 5]
         proportion = house_qual_areap.loc[house_qual_areap['areap'] == region.id,
-                     ['DPP0', 'DPP1', 'DPP2', 'DPP3', 'DPP4', 'DPP5']].values.ravel()
+        ['DPP0', 'DPP1', 'DPP2', 'DPP3', 'DPP4', 'DPP5']].values.ravel()
         qualities = np.random.choice(quality_typologies, num_houses, p=proportion)
         return qualities
 
@@ -319,10 +319,10 @@ class Generator:
         avg_size = self.shapes.loc[self.shapes.id == region.id, "area_util"].to_list()[
             0
         ]
-        # Divide by 1000 so that fits the rest of the model. Prices of estates are roughly x 1000 of real value
-        avg_price_m2 = (
-                self.shapes.loc[self.shapes.id == region.id, "precom2"].to_list()[0] / 1000
-        )
+        # # Divide by 1000 so that fits the rest of the model. Prices of estates are roughly x 1000 of real value
+        # avg_price_m2 = (
+        #         self.shapes.loc[self.shapes.id == region.id, "precom2"].to_list()[0] / 1000
+        # )
         sizes = self.seed_np.lognormal(np.log(avg_size), 0.5, size=num_houses)
         sizes[sizes < 10] = 10
         # Replacing qualities for empirical AREAP data
@@ -411,8 +411,9 @@ class Generator:
     def create_firms(self, num_firms, region):
         acp = self.sim.geo.processing_acps[0]
         p_firms_sector = \
-        perc_firms_sector[perc_firms_sector['concurb_name'] == acp].set_index('sector').drop('concurb_name',                                                                                         axis=1).to_dict()[
-            'participation']
+            perc_firms_sector[perc_firms_sector['concurb_name'] == acp].set_index('sector').drop('concurb_name',
+                                                                                                 axis=1).to_dict()[
+                'participation']
         sector = dict()
 
         if num_firms == 1:

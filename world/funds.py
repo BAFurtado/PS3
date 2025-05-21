@@ -52,10 +52,14 @@ class Funds:
             self.policy_families[mun] = [f for f in self.policy_families[mun]
                                          if f.id in self.sim.families.keys() and f.house.region_id[:7] == mun]
             self.policy_families[mun] = list(set(f for f in self.policy_families[mun]))
-            self.policy_families[mun] = sorted(self.policy_families[mun], key=lambda f: f.get_permanent_income())
+            # Total focus. Lower income served first.
+            if self.sim.PARAMS['TOTAL_TARGETING_POLICY']:
+                self.policy_families[mun] = sorted(self.policy_families[mun], key=lambda f: f.get_permanent_income())
 
     def apply_policies(self):
-        if (self.sim.PARAMS['POLICIES'] not in ['buy', 'rent', 'wage']) | (self.sim.PARAMS['POLICY_MCMV'] is False):
+        if ((self.sim.PARAMS['POLICIES'] not in ['buy', 'rent', 'wage'])
+                & (self.sim.PARAMS['POLICY_MCMV'] is False)
+                & (self.sim.PARAMS['POLICY_MELHORIAS'] is False)):
             # Baseline scenario. Do nothing!
             return
         # Implement policies only after first year of simulation run
@@ -73,10 +77,18 @@ class Funds:
                 self.buy_houses_give_to_families()
             # RURAL
             self.policy_money = self.mcmv.update_policy_money(self.sim.clock.year, 'Rural')
-            quantile = self.sim.PARAMS['INCOME_MODALIDADES'][modalidade]
+            quantile = self.sim.PARAMS['INCOME_MODALIDADES']['Rural']
             self.update_policy_families(quantile)
             for mun in self.policy_families.keys():
                 self.policy_families[mun] = [f for f in self.policy_families[mun] if f.house.rural]
+            self.buy_houses_give_to_families()
+        elif self.sim.PARAMS['POLICY_MELHORIAS']:
+            self.policy_money = self.mcmv.update_policy_money(self.sim.clock.year, 'melhorias')
+            quantile = self.sim.PARAMS['INCOME_MODALIDADES']['melhorias']
+            self.update_policy_families(quantile)
+            for mun in self.policy_families.keys():
+                self.policy_families[mun] = [f for f in self.policy_families[mun] if f.house.quality == .5]
+            self.apply_house_upgrade()
         else:
             self.update_policy_families()
             if self.sim.PARAMS['POLICIES'] == 'buy':
@@ -89,18 +101,38 @@ class Funds:
         self.policy_families = defaultdict(list)
         self.temporary_houses = defaultdict(list)
 
+    def apply_house_upgrade(self):
+        # STRICTLY FROM .5 TO 1
+        for mun in self.policy_families.keys():
+            self.policy_families[mun] = [f for f in self.policy_families[mun] if
+                                         (f.house.family_id == f.id) &
+                                         (f.house.quality == .5)]
+            for family in self.policy_families[mun]:
+                if self.policy_money[mun] > 0:
+                    upgrade_cost = family.house.price * self.sim.PARAMS['UPGRADE_COST']
+                    if self.policy_money[mun] > upgrade_cost:
+                        family.house.quality = 1
+                        self.policy_money[mun] -= upgrade_cost
+                        self.money_applied_policy += upgrade_cost
+                        self.families_subsided += 1
+                else:
+                    break
+
     def pay_families_rent(self):
         for mun in self.policy_money.keys():
             self.policy_families[mun] = [f for f in self.policy_families[mun] if not f.owned_houses]
             for family in self.policy_families[mun]:
                 if family.house.rent_data:
-                    if self.policy_money[mun] > 0 and family.house.rent_data[0] * 24 < self.policy_money[mun]:
-                        if not family.rent_voucher:
-                            # Paying rent for a given number of months, independent of rent value.
-                            family.rent_voucher = 24
-                            self.policy_money[mun] -= family.house.rent_data[0] * 24
-                            self.money_applied_policy += family.house.rent_data[0] * 24
-                            self.families_subsided += 1
+                    if self.policy_money[mun] > 0:
+                        if family.house.rent_data[0] * 24 < self.policy_money[mun]:
+                            if not family.rent_voucher:
+                                # Paying rent for a given number of months, independent of rent value.
+                                family.rent_voucher = 24
+                                self.policy_money[mun] -= family.house.rent_data[0] * 24
+                                self.money_applied_policy += family.house.rent_data[0] * 24
+                                self.families_subsided += 1
+                    else:
+                        break
 
     def distribute_funds_to_families(self):
         for mun in self.policy_money.keys():

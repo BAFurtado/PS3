@@ -57,11 +57,15 @@ POLICY_COEFFICIENT = 0.2
 # POLICY_COEFFICIENT needs to be > 0.
 POLICIES = "no_policy"
 POLICY_MCMV = True
+TOTAL_TARGETING_POLICY = False
 INCOME_MODALIDADES = {'FAR': .1,
                       'Entidades': .2,
                       'Rural': .15,
-                      'oferta_publica': .2
+                      'oferta_publica': .2,
+                      'melhorias': .2
                       }
+POLICY_MELHORIAS = True
+UPGRADE_COST = .2
 POLICY_DAYS = 360
 # Size of the poorest families to be helped
 POLICY_QUANTILE = 0.2
