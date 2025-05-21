@@ -55,7 +55,7 @@ class Funds:
             self.policy_families[mun] = sorted(self.policy_families[mun], key=lambda f: f.get_permanent_income())
 
     def apply_policies(self):
-        if self.sim.PARAMS['POLICIES'] not in ['buy', 'rent', 'wage']:
+        if (self.sim.PARAMS['POLICIES'] not in ['buy', 'rent', 'wage']) | (self.sim.PARAMS['POLICY_MCMV'] is False):
             # Baseline scenario. Do nothing!
             return
         # Implement policies only after first year of simulation run
@@ -67,10 +67,16 @@ class Funds:
         if self.sim.PARAMS['POLICY_MCMV']:
             self.sim.PARAMS['POLICY_COEFFICIENT'] = 0
             for modalidade in ['FAR', 'Entidades', 'oferta_publica']:
-                self.policy_money = self.mcmv.update_policy_money(self.clock.year, modalidade)
+                self.policy_money = self.mcmv.update_policy_money(self.sim.clock.year, modalidade)
                 quantile = self.sim.PARAMS['INCOME_MODALIDADES'][modalidade]
                 self.update_policy_families(quantile)
                 self.buy_houses_give_to_families()
+            # RURAL
+            self.policy_money = self.mcmv.update_policy_money(self.sim.clock.year, 'Rural')
+            quantile = self.sim.PARAMS['INCOME_MODALIDADES'][modalidade]
+            self.update_policy_families(quantile)
+            for mun in self.policy_families.keys():
+                self.policy_families[mun] = [f for f in self.policy_families[mun] if f.house.rural]
         else:
             self.update_policy_families()
             if self.sim.PARAMS['POLICIES'] == 'buy':

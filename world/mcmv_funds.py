@@ -24,7 +24,7 @@ class MCMV:
                 (df['year'] == year),
                 'val_desembolsado'
             ].squeeze()
-            self.policy_money[mun] += value / 1000
+            self.policy_money[mun] += value / 1000 * self.sim.PARAMS['PERCENTAGE_ACTUAL_POP']
         return self.policy_money
 
 

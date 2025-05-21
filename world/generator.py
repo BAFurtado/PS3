@@ -363,7 +363,8 @@ class Generator:
             quality = qualities[i]
             price = prices[i]
             house_id = self.gen_id()
-            h = House(house_id, addresses[i], size, price, region.id, quality)
+            rural_flag = i >= (num_houses - rural)
+            h = House(house_id, addresses[i], size, price, region.id, quality, rural=rural_flag)
             neighborhood[house_id] = h
         return neighborhood
 

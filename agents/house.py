@@ -12,7 +12,8 @@ class House:
     They may have changing owners and changing occupancy."""
     Owner = Owner
 
-    def __init__(self, _id, address, size, price, region_id, quality, family_id=None, owner_id=None,
+    def __init__(self, _id, address, size, price, region_id, quality,
+                 rural=False, family_id=None, owner_id=None,
                  owner_type=Owner.FAMILY):
         self.id = _id
         self.address = address
@@ -20,6 +21,7 @@ class House:
         self.price = price
         self.region_id = region_id
         self.quality = quality
+        self.rural = rural
         # Owner may be the occupant or the house may be vacant or rented
         self.family_id = family_id
         self.owner_id = owner_id
