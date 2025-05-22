@@ -180,7 +180,7 @@ class Central:
     def request_loan(self, family, house, amount):
         # Bank endogenous criteria
         # Can't loan more than on hand
-        # Retuns SUCCESS in Loan, adds loan and returns authorized value.
+        # Returns SUCCESS in Loan, adds loan and returns authorized value.
         if amount > self.balance:
             return False, None
 

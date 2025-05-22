@@ -75,7 +75,7 @@ class Simulation:
         # PORT. Taxa média de juros das operações de crédito com recursos direcionados - Pessoas físicas -
         # Financiamento imobiliário com taxas de mercado. BC series 433. 25497. 4390.
         # Values before 2011-03-01 when the series began are set at the value of 2011-03-01. After, mean.
-        interest = pd.read_csv(f"input/interest_{self.PARAMS['INTEREST']}.csv", sep=";")
+        interest = pd.read_csv(f"input/interest_{self.PARAMS['INTEREST']}.csv")
         interest.date = pd.to_datetime(interest.date)
         self.interest = interest.set_index("date")
 
