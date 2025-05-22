@@ -76,7 +76,11 @@ class Central:
         self.i_sbpe = 0
         self.i_fgts = 0
         self._outstanding_loans = 0
-        self.funding = pd.read_csv('input/planhab_funds/fgts_sbpe.csv')
+        funding_data = pd.read_csv('input/planhab_funds/fgts_sbpe.csv')
+        # Divide exogenous value by 1000 to be compatible with R$ values within the model
+        self.funding = (funding_data.set_index(['ano', 'cod_ibge'])[['recursos_sbpe', 'recursos_fgts']]
+                        .div(1000)
+                        .to_dict(orient='index'))
         self.tax_firm = conf.PARAMS['TAX_FIRM']
         self.loan_to_income = conf.PARAMS['LOAN_PAYMENT_TO_PERMANENT_INCOME']
 
@@ -180,12 +184,17 @@ class Central:
             return min(amounts), max(amounts), mean
         return 0, 0, 0
 
-    def request_loan(self, family, house, amount):
+    def request_loan(self, family, house, amount, ano):
         # Bank endogenous criteria
         # Can't loan more than on hand
         # Returns SUCCESS in Loan, adds loan and returns authorized value.
-        if amount > self.balance:
-            return False, None
+
+        if family.loan_rate == 'market':
+            if amount > self.balance:
+                return False, None
+        else:
+            if amount > self.funding[family.loan_rate].get(ano, {}).get(house.region_id[:7], 0):
+                return False, None
 
         # If they have outstanding loans, don't lend
         if self.loans[family.id]:
@@ -196,7 +205,7 @@ class Central:
             return False, None
 
         # Get info considering family
-        max_amount, max_months = self.max_loan(family)
+        max_amount, max_months = self.max_loan(family, flag=family.loan_rate)
         amount = min(amount, max_amount)
         # Criteria related to consumer. Check payments fit last months' paycheck
         monthly_payment = self._max_monthly_payment(family)
@@ -206,8 +215,20 @@ class Central:
 
         # Add loan balance
         # Create a new loan for the family
-        self.loans[family.id].append(Loan(amount, self.mortgage_rate, max_months, house))
-        self.balance -= amount
+        rate = {
+            'market': self.mortgage_rate,
+            'sbpe': self.i_sbpe,
+            'fgts': self.i_fgts
+        }.get(family.loan_rate, self.mortgage_rate)
+
+        # Create and register loan
+        self.loans[family.id].append(Loan(amount, rate, max_months, house))
+
+        # Deduct from appropriate balance
+        if family.loan_rate == 'market':
+            self.balance -= amount
+        else:
+            self.funding[family.loan_rate][ano][house.region_id[:7]] -= amount
         self._outstanding_loans += amount
         return True, amount
 

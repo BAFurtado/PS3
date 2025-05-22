@@ -203,7 +203,7 @@ class HousingMarket:
                 if (loan_amount / price) > sim.PARAMS['MAX_LOAN_TO_VALUE']:
                     return
                 # Attempt to actually get the loan from the bank
-                success = sim.central.request_loan(family, house, loan_amount)
+                success = sim.central.request_loan(family, house, loan_amount, sim.clock.year)
                 if not success:
                     # Just one shot at getting a loan
                     return
