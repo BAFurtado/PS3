@@ -201,9 +201,9 @@ class Simulation:
 
     def monthly(self):
         # Set interest rates
-        i = self.interest[self.interest.index.date == self.clock.days]["interest"].iloc[0]
-        m = self.interest[self.interest.index.date == self.clock.days]["mortgage"].iloc[0]
-        self.central.set_interest(i, m)
+        values = self.interest[
+            self.interest.index.date == self.clock.days][['interest', 'mortgage', 'sbpe', 'fgts']].iloc[0]
+        self.central.set_interest(*values)
 
         current_unemployment = self.stats.global_unemployment_rate
 

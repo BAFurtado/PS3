@@ -73,6 +73,8 @@ class Central:
         self.wallet = defaultdict(list)
         self.taxes = 0
         self.mortgage_rate = 0
+        self.sbpe = 0
+        self.fgts = 0
         self._outstanding_loans = 0
         self.tax_firm = conf.PARAMS['TAX_FIRM']
         self.loan_to_income = conf.PARAMS['LOAN_PAYMENT_TO_PERMANENT_INCOME']
@@ -80,8 +82,8 @@ class Central:
         # Track remaining loan balances
         self.loans = defaultdict(list)
 
-    def set_interest(self, interest, mortgage):
-        self.interest, self.mortgage_rate = interest, mortgage
+    def set_interest(self, interest, mortgage, sbpe, fgts):
+        self.interest, self.mortgage_rate, self.sbpe, self.fgts = interest, mortgage, sbpe, fgts
 
     def pay_interest(self, client, y, m):
         """ Updates interest to the client
