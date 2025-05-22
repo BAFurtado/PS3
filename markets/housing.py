@@ -4,6 +4,7 @@ Definitions on ownership and actual living residence is made.
 """
 from collections import defaultdict
 
+import numpy as np
 from numpy import median
 
 from .rentmarket import RentalMarket, collect_rent
@@ -79,8 +80,21 @@ class HousingMarket:
             return
 
         # Families check the bank for potential credit
-        for f in looking:
-            f.savings_with_loan = f.savings + f.bank_savings + sim.central.max_loan(f)[0]
+        # Check families that have access to subsidised rates
+        # First FGTS, then SBPE, then MARKET
+        incomes = np.array([f.get_permanent_income() for f in looking])
+        fgts_quantiles_value = np.quantile(incomes, sim.PARAMS['INCOME_MODALIDADES']['fgts'])
+        sbpe_quantiles_value = np.quantile(incomes, sim.PARAMS['INCOME_MODALIDADES']['sbpe'])
+
+        for f, income in zip(looking, incomes):
+            if income < fgts_quantiles_value:
+                f.savings_with_loan = f.savings + f.bank_savings + sim.central.max_loan(f, flag='fgts')[0]
+                f.loan_rate = 'fgts'
+            elif income < sbpe_quantiles_value:
+                f.savings_with_loan = f.savings + f.bank_savings + sim.central.max_loan(f, flag='sbpe')[0]
+                f.loan_rate = 'sbpe'
+            else:
+                f.savings_with_loan = f.savings + f.bank_savings + sim.central.max_loan(f)[0]
 
         # Family with the largest savings
         family_maximum_purchasing_power = max(looking, key=lambda fam: fam.savings_with_loan)

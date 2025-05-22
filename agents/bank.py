@@ -8,7 +8,7 @@ from collections import defaultdict
 
 import numpy as np
 import numpy_financial as npf
-
+import pandas as pd
 import conf
 
 
@@ -73,9 +73,10 @@ class Central:
         self.wallet = defaultdict(list)
         self.taxes = 0
         self.mortgage_rate = 0
-        self.sbpe = 0
-        self.fgts = 0
+        self.i_sbpe = 0
+        self.i_fgts = 0
         self._outstanding_loans = 0
+        self.funding = pd.read_csv('input/planhab_funds/fgts_sbpe.csv')
         self.tax_firm = conf.PARAMS['TAX_FIRM']
         self.loan_to_income = conf.PARAMS['LOAN_PAYMENT_TO_PERMANENT_INCOME']
 
@@ -83,7 +84,7 @@ class Central:
         self.loans = defaultdict(list)
 
     def set_interest(self, interest, mortgage, sbpe, fgts):
-        self.interest, self.mortgage_rate, self.sbpe, self.fgts = interest, mortgage, sbpe, fgts
+        self.interest, self.mortgage_rate, self.i_sbpe, self.i_fgts = interest, mortgage, sbpe, fgts
 
     def pay_interest(self, client, y, m):
         """ Updates interest to the client
@@ -214,14 +215,19 @@ class Central:
         # Max % of income on loan repayments
         return family.get_permanent_income() * self.loan_to_income
 
-    def max_loan(self, family):
+    def max_loan(self, family, flag='market'):
         """Estimate maximum loan for family"""
         income = self._max_monthly_payment(family)
         max_years = conf.PARAMS['MAX_LOAN_AGE'] - max([m.age for m in family.members.values()])
         # Longest possible mortgage period is limited to 30 years (360 months).
         max_months = min(max_years * 12, 360)
         max_total = income * max_months
-        max_principal = max_total / (1 + self.mortgage_rate)
+        rate = {
+            'market': self.mortgage_rate,
+            'sbpe': self.i_sbpe,
+            'fgts': self.i_fgts
+        }.get(flag, self.mortgage_rate)
+        max_principal = max_total / (1 + rate)
         return min(max_principal, self.balance), max_months
 
     def collect_loan_payments(self, sim):

@@ -36,6 +36,7 @@ class Family:
         self.owned_houses = list()
         self.members = {}
         self.relatives = set()
+        self.loan_rate = 'market'
         # Refers to the house the family is living on currently
         self.house = house
         self.rent_default = 0

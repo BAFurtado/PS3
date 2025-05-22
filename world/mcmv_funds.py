@@ -5,7 +5,6 @@ from collections import defaultdict
 class MCMV:
     def __init__(self, sim):
         self.sim = sim
-        self.fgts = pd.read_csv('input/planhab_funds/fgts.csv')
         self.modalidades = pd.read_csv('input/planhab_funds/construcao.csv')
         self.select_regions()
         self.policy_money = defaultdict(float)

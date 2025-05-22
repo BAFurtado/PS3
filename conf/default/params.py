@@ -58,11 +58,14 @@ POLICY_COEFFICIENT = 0.2
 POLICIES = "no_policy"
 POLICY_MCMV = True
 TOTAL_TARGETING_POLICY = False
+# Quantiles for families to be included in the different programs
 INCOME_MODALIDADES = {'FAR': .1,
                       'Entidades': .2,
                       'Rural': .15,
                       'oferta_publica': .2,
-                      'melhorias': .2
+                      'melhorias': .2,
+                      'fgts': .6,
+                      'sbpe': .8
                       }
 POLICY_MELHORIAS = True
 UPGRADE_COST = .2
