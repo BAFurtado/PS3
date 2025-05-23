@@ -268,7 +268,6 @@ class Statistics(object):
         total_renting = np.sum(renting)
         affordable = np.sum((renting & ~has_rent_voucher & (permanent_income > 0) & (rent_ratio < 0.3)))
 
-
         affordability_ratio = affordable / total_renting if total_renting > 0 else 0
         median_wealth = np.median(permanent_income)
         median_affordability = np.median(rent_ratio[renting]) if total_renting > 0 else 0

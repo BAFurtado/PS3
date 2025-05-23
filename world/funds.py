@@ -6,7 +6,7 @@ import numpy as np
 
 from markets.housing import HousingMarket
 from .geography import STATES_CODES, state_string
-from mcmv_funds import MCMV
+from .mcmv_funds import MCMV
 
 
 class Funds:

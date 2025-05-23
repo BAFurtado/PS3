@@ -88,7 +88,9 @@ def load_pops(mun_codes, params, year):
     for pop in pops.values():
         pop['code'] = pop['code'].astype(np.int64).astype(str)
 
-    total_pop = sum(round(pop.iloc[:, pop.columns != 'code'].sum(axis=1).sum(0) * params['PERCENTAGE_ACTUAL_POP']) for pop in pops.values())
+    total_pop = sum(
+        round(pop.iloc[:, pop.columns != 'code'].sum(axis=1).sum(0) * params['PERCENTAGE_ACTUAL_POP']) for pop in
+        pops.values())
     if params['SIMPLIFY_POP_EVOLUTION']:
         pops = simplify_pops(pops, params)
     else:
@@ -131,6 +133,7 @@ class MarriageData:
         # Probabilities in INPUT table have been adapted to allow marriage only of those 21 or older
         return self.data[agent.gender.lower()].get(agent.age, 0)
 
+
 pop_estimates = PopulationEstimates('input/Demografia/4_Pop_Estimatives_Munic/Pop_Total_Munic_TCU_2001_2024.csv')
 marriage_data = MarriageData()
 
@@ -143,18 +146,22 @@ def immigration(sim):
     for mun_code, pop in sim.mun_pops.items():
         estimated_pop = pop_estimates.estimate_for_year(mun_code, year)
         estimated_pop *= sim.PARAMS['PERCENTAGE_ACTUAL_POP']
+        # Correction of population by total number of people
         n_immigration = max(estimated_pop - pop, 0)
-        n_immigration *= 1/12
+        n_immigration *= 1 / 12
         n_migrants = math.ceil(n_immigration)
         if not n_migrants:
             continue
 
-        # Create new agents
-        new_agents = sim.generator.create_random_agents(n_migrants)
-
-        # Create new families
-        n_families = math.ceil(len(new_agents)/sim.PARAMS['MEMBERS_PER_FAMILY'])
-        new_families = sim.generator.create_families(n_families)
+        # Get exogenous rate of growth, heads of households and ages
+        # People demand is a list of lists containing class_range (age) and count of households
+        people_demand = sim.heads.exogenous_new_households()
+        new_agents, new_families = dict(), dict()
+        for each in people_demand:
+            # Create new agents [returns dictionaries]
+            new_agents.update(sim.generator.create_random_agents(n_migrants, each))
+            # Create new families
+            new_families.update(sim.generator.create_families(each[1]))
 
         # Assign agents to families
         sim.generator.allocate_to_family(new_agents, new_families)
@@ -183,6 +190,23 @@ def immigration(sim):
         for a in agents:
             sim.agents[a.id] = a
             sim.update_pop(None, a.region_id)
+
+
+class HouseholdsHeads:
+    def __init__(self, sim):
+        self.sim = sim
+        self.head = pd.read_csv('input/Demografia/head_exogenous_example.csv')
+        self.head['month'] = pd.to_datetime(self.head['month'])
+        self.head['count'] = self.head['count'] * self.sim.PARAMS['PERCENTAGE_ACTUAL_POP']
+        self.head['count'] = self.head['count'].round().astype(int)
+        self.head = self.head.set_index('month')
+
+    def exogenous_new_households(self):
+        # Formation of new households will be exogenous.
+        # Compare head_rate existing with exogenous and build the difference
+        # Returns a list of lists
+        date = self.sim.clock.days
+        return self.head[['class_range', 'count']].loc[date].values.tolist()
 
 
 def marriage(sim):

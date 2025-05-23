@@ -67,6 +67,7 @@ class Simulation:
             ).groupby("age")
         self.labor_market = markets.LaborMarket(self, self.seed, self.seed_np)
         self.housing = markets.HousingMarket()
+        self.heads = population.HouseholdsHeads(self)
         self.pops, self.total_pop = population.load_pops(
             self.geo.mun_codes, self.PARAMS, self.geo.year
         )

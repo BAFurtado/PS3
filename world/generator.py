@@ -234,11 +234,21 @@ class Generator:
                     agents[agent_id] = a
         return agents
 
-    def create_random_agents(self, n_agents):
+    def create_random_agents(self, n_agents, people_demand=None):
         """Create random agents by sampling the existing
         agent population and creating clones of the sampled agents"""
         new_agents = {}
-        sample = self.seed.sample(list(self.sim.agents.values()), n_agents)
+        sample = []
+        if people_demand:
+            age_limites = int(people_demand[0][:2]), int(people_demand[0][-2:])
+            n_households = people_demand[1]
+            filtered_agents = [
+                agent for agent in self.sim.agents.values()
+                if age_limites[0] <= agent.age <= age_limites[1]
+            ]
+            sample.append(self.seed.sample(filtered_agents, n_households))
+            n_agents -= len(sample)
+        sample.append(self.seed.sample(list(self.sim.agents.values()), n_agents))
         moneys = self.seed_np.lognormal(3, 0.5, size=len(sample))
         for i, a in enumerate(sample):
             agent_id = self.gen_id()
