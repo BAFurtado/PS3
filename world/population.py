@@ -156,12 +156,15 @@ def immigration(sim):
         # Get exogenous rate of growth, heads of households and ages
         # People demand is a list of lists containing class_range (age) and count of households
         people_demand = sim.heads.exogenous_new_households()
+
         new_agents, new_families = dict(), dict()
         for each in people_demand:
             # Create new agents [returns dictionaries]
             new_agents.update(sim.generator.create_random_agents(n_migrants, each))
             # Create new families
-            new_families.update(sim.generator.create_families(each[1]))
+            # Find out how number of households in the model are diverging from exogenous expectations
+            n_families = max(sim.stats.head_rate[each[1]][sim.clock.month] - each[1], 0)
+            new_families.update(sim.generator.create_families(n_families))
 
         # Assign agents to families
         sim.generator.allocate_to_family(new_agents, new_families)
@@ -205,7 +208,7 @@ class HouseholdsHeads:
         # Formation of new households will be exogenous.
         # Compare head_rate existing with exogenous and build the difference
         # Returns a list of lists
-        date = self.sim.clock.days
+        date = self.sim.clock.days.strftime("%Y-%m-%d")
         return self.head[['class_range', 'count']].loc[date].values.tolist()
 
 

@@ -46,8 +46,6 @@ SAVE_AGENTS_DATA = 'MONTHLY'
 # If None, set to empty list: []
 SAVE_DATA = ['head']
 # SAVE_DATA = ['agents', 'house', 'family']
-# iF 'head', remember to set calculate to TRUE
-CALCULATE_HEAD_RATE = True
 
 # What data to average across all runs.
 # If plotting and not 'firms', 'banks', 'construction' or 'regional',
