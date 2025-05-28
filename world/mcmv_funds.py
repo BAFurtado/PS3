@@ -10,20 +10,26 @@ class MCMV:
         self.policy_money = defaultdict(float)
 
     def select_regions(self):
-        muns = (mun[:7] for mun in self.sim.regions.values())
+        # TODO: The data base only has 6 digit mun code. Check if that is ok
+        muns = [int(str(mun)[:6]) for mun in self.sim.geo.mun_codes]
         self.modalidades = self.modalidades[self.modalidades['cod_ibge'].isin(muns)]
 
     def update_policy_money(self, year, modalidade):
         df = self.modalidades
         self.policy_money = defaultdict(float)
+
         for mun in df['cod_ibge'].unique():
             value = df.loc[
                 (df['txt_modalidade'] == modalidade) &
-                (df['cod_ibge'] == mun) &
-                (df['year'] == year),
+                (df['cod_ibge'] == int(mun)) &
+                (df['ano'] == int(year)),
                 'val_desembolsado'
-            ].squeeze()
-            self.policy_money[mun] += value / 1000 * self.sim.PARAMS['PERCENTAGE_ACTUAL_POP']
+            ]
+            if value.empty:
+                value = 0
+            else:
+                value = float(value.iloc[0])
+            self.policy_money[str(mun)] += value / 1000 * self.sim.PARAMS['PERCENTAGE_ACTUAL_POP']
         return self.policy_money
 
 

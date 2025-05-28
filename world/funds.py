@@ -27,6 +27,9 @@ class Funds:
             self.temporary_houses = defaultdict(list)
         if sim.PARAMS['POLICY_MCMV']:
             # Collect money from exogenous funding
+            self.policy_money = defaultdict(float)
+            self.policy_families = defaultdict(list)
+            self.temporary_houses = defaultdict(list)
             self.mcmv = MCMV(sim)
 
     def update_policy_families(self, quantile=0):
@@ -46,11 +49,11 @@ class Funds:
         for region in self.sim.regions.values():
             for keys in region.registry:
                 if keys > self.sim.clock.days - datetime.timedelta(self.sim.PARAMS['POLICY_DAYS']):
-                    self.policy_families[region.id[:7]] += region.registry[keys]
+                    self.policy_families[region.id[:6]] += region.registry[keys]
         for mun in self.policy_families.keys():
             # Make sure families on the list are still valid families, residing at the municipality
             self.policy_families[mun] = [f for f in self.policy_families[mun]
-                                         if f.id in self.sim.families.keys() and f.house.region_id[:7] == mun]
+                                         if f.id in self.sim.families.keys() and f.house.region_id[:6] == mun]
             self.policy_families[mun] = list(set(f for f in self.policy_families[mun]))
             # Total focus. Lower income served first.
             if self.sim.PARAMS['TOTAL_TARGETING_POLICY']:
@@ -69,7 +72,7 @@ class Funds:
         self.families_subsided = 0
 
         if self.sim.PARAMS['POLICY_MCMV']:
-            self.sim.PARAMS['POLICY_COEFFICIENT'] = 0
+            self.sim.PARAMS['POLICY_COEFFICIENT'] = 0.001
             for modalidade in ['FAR', 'Entidades', 'oferta_publica']:
                 self.policy_money = self.mcmv.update_policy_money(self.sim.clock.year, modalidade)
                 quantile = self.sim.PARAMS['INCOME_MODALIDADES'][modalidade]
@@ -152,18 +155,17 @@ class Funds:
             for firm in self.sim.firms.values():
                 if firm.sector == 'Construction':
                     # Get the list of the houses for sale within the municipality
-                    self.temporary_houses[mun] += [h for h in firm.houses_for_sale if h.region_id[:7] == mun]
+                    self.temporary_houses[mun] += [h for h in firm.houses_for_sale if h.region_id[:6] == mun]
             # Sort houses and families by cheapest, poorest.
             # Considering # houses is limited, help as many as possible earlier.
             # Although families in sucession gets better and better houses. Then nothing.
             self.temporary_houses[mun] = sorted(self.temporary_houses[mun], key=lambda h: h.price)
             # Exclude families who own any house. Exclusively for renters
             self.policy_families[mun] = [f for f in self.policy_families[mun] if not f.owned_houses]
-            if self.policy_families[mun]:
+            if len(self.policy_families[mun]) > 0:
                 for house in self.temporary_houses[mun]:
                     # While money is good.
-                    if self.policy_money[mun] > 0 and self.policy_families[mun] \
-                            and house.price < self.policy_money[mun]:
+                    if self.policy_money[mun] > 0 and house.price < self.policy_money[mun]:
                         # Getting poorest family first, given permanent income
                         family = self.policy_families[mun].pop(0)
                         # Transaction taxes help reduce the price of the bulk buying by the municipality
@@ -284,7 +286,8 @@ class Funds:
             self.mun_gov_firms[mun_code] = gov_firms_here
 
         if self.sim.PARAMS['POLICIES'] not in ['buy', 'rent', 'wage']:
-            self.sim.PARAMS['POLICY_COEFFICIENT'] = 0
+            #TODO: Fix this way of preventing policy (may break if we run without buy rent ot wage)
+            self.sim.PARAMS['POLICY_COEFFICIENT'] = 0.001
         # Collect and UPDATE pop_t-1 and pop_t
         regions = self.sim.regions
         pop_t_minus_1, pop_t = {}, {}

@@ -188,12 +188,15 @@ class Central:
         # Bank endogenous criteria
         # Can't loan more than on hand
         # Returns SUCCESS in Loan, adds loan and returns authorized value.
-
         if family.loan_rate == 'market':
             if amount > self.balance:
                 return False, None
         else:
-            if amount > self.funding[family.loan_rate].get(ano, {}).get(house.region_id[:7], 0):
+            loan_type = "recursos_"+family.loan_rate
+            region = int(house.region_id[:6])
+            print(self.funding[(ano, region)])
+            if amount > self.funding[(ano, region)][loan_type]:
+
                 return False, None
 
         # If they have outstanding loans, don't lend
@@ -228,7 +231,8 @@ class Central:
         if family.loan_rate == 'market':
             self.balance -= amount
         else:
-            self.funding[family.loan_rate][ano][house.region_id[:7]] -= amount
+            loan_type = 'recursos_'+family.loan_rate
+            self.funding[(ano, int(house.region_id[:6]))][loan_type] -= amount
         self._outstanding_loans += amount
         return True, amount
 

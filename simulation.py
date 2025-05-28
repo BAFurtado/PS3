@@ -26,11 +26,11 @@ class Simulation:
         self.PARAMS = params
         self.geo = Geography(params, self.PARAMS["STARTING_DAY"].year)
         self.regional_market = RegionalMarket(self)
-        self.funds = Funds(self)
         self.clock = clock.Clock(self.PARAMS["STARTING_DAY"])
         self.output = analysis.Output(self, output_path)
         self.stats = analysis.Statistics(params)
         self.logger = analysis.Logger(hex(id(self))[-5:])
+        self.funds = Funds(self)
         self._seed = (
             secrets.randbelow(2 ** 32)
             if conf.RUN["KEEP_RANDOM_SEED"]

@@ -246,9 +246,9 @@ class Generator:
                 agent for agent in self.sim.agents.values()
                 if age_limites[0] <= agent.age <= age_limites[1]
             ]
-            sample.append(self.seed.sample(filtered_agents, n_households))
+            sample = self.seed.sample(filtered_agents, n_households)
             n_agents -= len(sample)
-        sample.append(self.seed.sample(list(self.sim.agents.values()), n_agents))
+        sample += self.seed.sample(list(self.sim.agents.values()), max(1, n_agents))
         moneys = self.seed_np.lognormal(3, 0.5, size=len(sample))
         for i, a in enumerate(sample):
             agent_id = self.gen_id()
@@ -347,13 +347,14 @@ class Generator:
             addresses = list()
         neighborhood = {}
         probability_urban = self.prob_urban(region)
+        urban_addresses = 0
         if probability_urban:
             urban_addresses = int(num_houses * probability_urban)
             urban_region = self.urban[region.id[:7]]
             addresses = self.get_random_points_in_polygon(
                 urban_region, number_addresses=urban_addresses
             )
-        rural = int(num_houses * (1 - probability_urban))
+        rural = num_houses - urban_addresses
         if rural:
             addresses.append(
                 self.get_random_points_in_polygon(

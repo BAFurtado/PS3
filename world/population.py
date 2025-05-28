@@ -163,7 +163,7 @@ def immigration(sim):
             new_agents.update(sim.generator.create_random_agents(n_migrants, each))
             # Create new families
             # Find out how number of households in the model are diverging from exogenous expectations
-            n_families = max(sim.stats.head_rate[each[1]][sim.clock.month] - each[1], 0)
+            n_families = max(sim.stats.head_rate[each[1]][sim.clock.months] - each[1], 1)
             new_families.update(sim.generator.create_families(n_families))
 
         # Assign agents to families
