@@ -100,7 +100,7 @@ class LaborMarket:
                                                   min(len(candidates), int(params['HIRING_SAMPLE_SIZE'])))
             for c in sampled_candidates:
                 transit_cost = params['PRIVATE_TRANSIT_COST'] if c.has_car else params['PUBLIC_TRANSIT_COST']
-                score = wage - (c.family.house.distance_to_firm(firm) * transit_cost) if c.family else 0
+                score = wage - (c.family.house.distance_to_firm(firm) * transit_cost)
                 if flag:
                     offers.append((firm, c, c.qualification + score))
                 else:

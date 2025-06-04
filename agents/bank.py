@@ -194,9 +194,8 @@ class Central:
         else:
             loan_type = "recursos_"+family.loan_rate
             region = int(house.region_id[:6])
-            print(self.funding[(ano, region)])
+            # print(self.funding[(ano, region)])
             if amount > self.funding[(ano, region)][loan_type]:
-
                 return False, None
 
         # If they have outstanding loans, don't lend

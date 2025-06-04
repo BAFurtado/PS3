@@ -9,7 +9,7 @@ PRODUCTIVITY_EXPONENT = .9
 PRODUCTIVITY_MAGNITUDE_DIVISOR = 10
 # GENERAL CALIBRATION PARAMETERS
 # Order of magnitude parameter of input into municipality investment
-MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.0000003
+MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.000001
 # INTEREST. Choose either: 'nominal', 'real' or 'fixed'. Default 'real'
 INTEREST = "real"
 # By how much percentage to increase prices
@@ -20,13 +20,13 @@ STICKY_PRICES = .2
 # Reflects a reluctance of businesses to lower prices. Amount estimated for reduction multiplied by parameter
 PRICE_RUGGEDNESS = 0.1
 # Number of firms consulted before consumption
-SIZE_MARKET = 12
+SIZE_MARKET = 5
 # Number of firms to buy from in the INTERMEDIATE market
 INTERMEDIATE_SIZE_MARKET = 5
 # Frequency firms enter the market
 LABOR_MARKET = 0.125  # 0.15
 # Percentage of employees firms hired by distance
-PCT_DISTANCE_HIRING = 0.2
+PCT_DISTANCE_HIRING = 0.3
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
 RELEVANCE_UNEMPLOYMENT_SALARIES = 2  # 0.17
 # Candidate sample size for the labor market
@@ -52,7 +52,7 @@ FPM_DISTRIBUTION = True
 # POLICIES #######################################################################
 # POVERTY POLICIES. If POLICY_COEFFICIENT=0, do nothing.
 # Size of the budget designated to the policy
-POLICY_COEFFICIENT = 0.2
+POLICY_COEFFICIENT = 0
 # Policies alternatives may include: 'buy', 'rent' or 'wage' or 'no_policy'. For no policy set to empty strings ''
 # POLICY_COEFFICIENT needs to be > 0.
 POLICIES = "no_policy"
@@ -113,7 +113,7 @@ INITIAL_RENTAL_PRICE = 0.003
 # LICENSES ARE URBANIZED LOTS AVAILABLE FOR CONSTRUCTION PER NEIGHBORHOOD PER MONTH.
 # Percentage of NEW licenses created monthly by region (neighborhood). Set to 0 for no licenses.
 # .5 is plenty of supply!
-PERC_SUPPLY_SIZE_N_LICENSES_PER_REGION = .5
+PERC_SUPPLY_SIZE_N_LICENSES_PER_REGION = 1
 # PERCENT_CONSTRUCTION_FIRMS = 0.07 This has been deprecated with the introduction of sectors
 # Months that construction firm will divide its income into monthly revenue installments.
 # Although prices are accounted for at once.
@@ -123,7 +123,7 @@ LOT_COST = 0.15
 # Initial percentage of vacant houses
 HOUSE_VACANCY = 0.1
 # MAX_NUMBER OF HOUSES IN STOCK
-MAX_HOUSE_STOCK = 7
+MAX_HOUSE_STOCK = 12
 # HOW LARGER IS CONSTRUCTION FIRMS PROFIT RELATIVE TO USUAL MARKUP (firms' productivity, given current prices)
 CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 8
 
@@ -142,7 +142,7 @@ TAX_LABOR = 0.15
 TAX_ESTATE_TRANSACTION = 0.004
 TAX_FIRM = 0.15
 TAX_PROPERTY = 0.004
-# Taxes on emission are given by tax*total_emissions
+# Taxes on emission are given by tax * total_emissions
 TAX_EMISSION = 100
 # Subsidies in (0,1) is the amount of investment paid by the gov(subsidies*tota_invested)
 # 0 is none, 1 is full
@@ -170,7 +170,7 @@ REGIONAL_FREIGHT_COST = .3
 # RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation
 # Minimum value to run depends on the size of municipality 0,001 is recommended minimum
-PERCENTAGE_ACTUAL_POP = 0.001
+PERCENTAGE_ACTUAL_POP = 0.01
 
 # Write exactly like the list below
 PROCESSING_ACPS = ["BRASILIA"]
@@ -179,7 +179,7 @@ PROCESSING_ACPS = ["BRASILIA"]
 STARTING_DAY = datetime.date(2010, 1, 1)
 
 # Maximum running time (restrained by official data) is 30 years,
-TOTAL_DAYS = (datetime.date(2015, 1, 1) - STARTING_DAY).days
+TOTAL_DAYS = (datetime.date(2020, 1, 1) - STARTING_DAY).days
 
 # Select the possible ACPs (Population Concentration Areas) from the list below.
 # Actually they are URBAN CONCENTRATION AREAS FROM IBGE, 2022
