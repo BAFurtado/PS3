@@ -111,9 +111,8 @@ INITIAL_RENTAL_PRICE = 0.003
 
 # CONSTRUCTION #################################################################################
 # LICENSES ARE URBANIZED LOTS AVAILABLE FOR CONSTRUCTION PER NEIGHBORHOOD PER MONTH.
-# Percentage of NEW licenses created monthly by region (neighborhood). Set to 0 for no licenses.
-# .5 is plenty of supply!
-PERC_SUPPLY_SIZE_N_LICENSES_PER_REGION = 1
+# Expected number of NEW licenses created monthly by region (neighborhood). Set to 0 for no licenses.
+EXPECTED_LICENSES_PER_REGION = 3
 # PERCENT_CONSTRUCTION_FIRMS = 0.07 This has been deprecated with the introduction of sectors
 # Months that construction firm will divide its income into monthly revenue installments.
 # Although prices are accounted for at once.
