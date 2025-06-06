@@ -6,29 +6,29 @@ import datetime
 # Production function, labour with decaying exponent, Alpha for K. [0, 1]
 PRODUCTIVITY_EXPONENT = .9
 # Order of magnitude correction of production. Production divided by parameter
-PRODUCTIVITY_MAGNITUDE_DIVISOR = 8.25 #3.2#1:2
+PRODUCTIVITY_MAGNITUDE_DIVISOR = 10
 # GENERAL CALIBRATION PARAMETERS
 # Order of magnitude parameter of input into municipality investment
-MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.0000003
+MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.000001
 # INTEREST. Choose either: 'nominal', 'real' or 'fixed'. Default 'real'
 INTEREST = "real"
 # By how much percentage to increase prices
-MARKUP = 0.1
+MARKUP = 0.05
 # Frequency firms change prices. Probability > than parameter
-STICKY_PRICES = .5
+STICKY_PRICES = .2
 # Price ruggedness a positive value (below 1) that multiplies the magnitude of price reduction
 # Reflects a reluctance of businesses to lower prices. Amount estimated for reduction multiplied by parameter
-PRICE_RUGGEDNESS = 0.05
+PRICE_RUGGEDNESS = 0.1
 # Number of firms consulted before consumption
-SIZE_MARKET = 15
+SIZE_MARKET = 5
 # Number of firms to buy from in the INTERMEDIATE market
-INTERMEDIATE_SIZE_MARKET = 3
+INTERMEDIATE_SIZE_MARKET = 5
 # Frequency firms enter the market
-LABOR_MARKET = 0.5
+LABOR_MARKET = 0.125
 # Percentage of employees firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
-RELEVANCE_UNEMPLOYMENT_SALARIES = 3.5# 0.17
+RELEVANCE_UNEMPLOYMENT_SALARIES = 2
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 20
 
@@ -37,7 +37,7 @@ ENVIRONMENTAL_EFFICIENCY_STEP = .99
 # Innovation process probability: 1 - exp(lambda * investment / wage_base)
 ECO_INVESTMENT_LAMBDA = 10
 # Adjustment factor for emissions within firms
-EMISSIONS_PARAM = 1
+EMISSIONS_PARAM = 1000
 
 # GOVERNMENT ####################################################################
 # ALTERNATIVE OF DISTRIBUTION OF TAXES COLLECTED. REPLICATING THE NOTION OF A COMMON POOL OF RESOURCES ################
@@ -175,7 +175,7 @@ PROCESSING_ACPS = ["BRASILIA"]
 STARTING_DAY = datetime.date(2010, 1, 1)
 
 # Maximum running time (restrained by official data) is 30 years,
-TOTAL_DAYS = (datetime.date(2012, 1, 1) - STARTING_DAY).days
+TOTAL_DAYS = (datetime.date(2020, 3, 1) - STARTING_DAY).days
 
 # Select the possible ACPs (Population Concentration Areas) from the list below.
 # Actually they are URBAN CONCENTRATION AREAS FROM IBGE, 2022
