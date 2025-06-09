@@ -72,7 +72,7 @@ class Funds:
         self.families_subsided = 0
 
         if self.sim.PARAMS['POLICY_MCMV']:
-            self.sim.PARAMS['POLICY_COEFFICIENT'] = 0.001
+            self.sim.PARAMS['POLICY_COEFFICIENT'] = 0
             for modalidade in ['FAR', 'Entidades', 'oferta_publica']:
                 self.policy_money = self.mcmv.update_policy_money(self.sim.clock.year, modalidade)
                 quantile = self.sim.PARAMS['INCOME_MODALIDADES'][modalidade]

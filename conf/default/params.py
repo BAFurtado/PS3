@@ -4,29 +4,29 @@ import datetime
 
 # FIRMS #########################################################
 # Production function, labour with decaying exponent, Alpha for K. [0, 1]
-PRODUCTIVITY_EXPONENT = .9
+PRODUCTIVITY_EXPONENT = .8
 # Order of magnitude correction of production. Production divided by parameter
 PRODUCTIVITY_MAGNITUDE_DIVISOR = 10
 # GENERAL CALIBRATION PARAMETERS
 # Order of magnitude parameter of input into municipality investment
-MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.000001
+MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.00001
 # INTEREST. Choose either: 'nominal', 'real' or 'fixed'. Default 'real'
 INTEREST = "real"
 # By how much percentage to increase prices
-MARKUP = 0.05
+MARKUP = 0.07
 # Frequency firms change prices. Probability > than parameter
 STICKY_PRICES = .2
 # Price ruggedness a positive value (below 1) that multiplies the magnitude of price reduction
 # Reflects a reluctance of businesses to lower prices. Amount estimated for reduction multiplied by parameter
 PRICE_RUGGEDNESS = 0.1
 # Number of firms consulted before consumption
-SIZE_MARKET = 5
+SIZE_MARKET = 10
 # Number of firms to buy from in the INTERMEDIATE market
 INTERMEDIATE_SIZE_MARKET = 5
 # Frequency firms enter the market
 LABOR_MARKET = 0.125  # 0.15
 # Percentage of employees firms hired by distance
-PCT_DISTANCE_HIRING = 0.3
+PCT_DISTANCE_HIRING = 0.35
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
 RELEVANCE_UNEMPLOYMENT_SALARIES = 2  # 0.17
 # Candidate sample size for the labor market
@@ -94,7 +94,7 @@ CAPPED_TOP_VALUE = 1.3
 CAPPED_LOW_VALUE = 0.7
 # Influence of vacancy size on house prices
 # It can be True or 1 or if construction companies consider vacancy strongly it might be 2 [1 - (vacancy * VALUE)]
-OFFER_SIZE_ON_PRICE = 1
+OFFER_SIZE_ON_PRICE = 2
 # TOO LONG ON THE MARKET:
 # value=(1 - MAX_OFFER_DISCOUNT) * e ** (ON_MARKET_DECAY_FACTOR * MONTHS ON MARKET) + MAX_OFFER_DISCOUNT
 # AS SUCH (-.02) DECAY OF 1% FIRST MONTH, 10% FIRST YEAR. SET TO 0 TO ELIMINATE EFFECT
@@ -107,7 +107,7 @@ NEIGHBORHOOD_EFFECT = 2
 
 # RENTAL #######################
 INITIAL_RENTAL_SHARE = 0.25
-INITIAL_RENTAL_PRICE = 0.003
+INITIAL_RENTAL_PRICE = 0.0025
 
 # CONSTRUCTION #################################################################################
 # LICENSES ARE URBANIZED LOTS AVAILABLE FOR CONSTRUCTION PER NEIGHBORHOOD PER MONTH.
@@ -178,7 +178,7 @@ PROCESSING_ACPS = ["BRASILIA"]
 STARTING_DAY = datetime.date(2010, 1, 1)
 
 # Maximum running time (restrained by official data) is 30 years,
-TOTAL_DAYS = (datetime.date(2020, 1, 1) - STARTING_DAY).days
+TOTAL_DAYS = (datetime.date(2025, 1, 1) - STARTING_DAY).days
 
 # Select the possible ACPs (Population Concentration Areas) from the list below.
 # Actually they are URBAN CONCENTRATION AREAS FROM IBGE, 2022
