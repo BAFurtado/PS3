@@ -147,9 +147,11 @@ ECO_INVESTMENT_SUBSIDIES = .15
 # Fpm: ratio of 'labor' and 'firm' taxes distributed per the fpm ruling
 TAXES_STRUCTURE = {"consumption_equal": 0.1875, "fpm": 0.235}
 
-# Parameters used in a Cobb-Douglas function to help matching firms--candidates
+# TRANSPORT ######################################################################################
+# Cobb-Douglas parameters for matching utility:
 # log(U) = α log_qualification + β log_commuting + γ log_wages
 # GAMMA is 1 - alpha - beta
+# Emphasizes qualification and wages (0.4) equally, with lesser weight (0.2) on commuting time.
 CB_QUALIFICATION = .4
 CB_COMMUTING = .2
 
@@ -165,6 +167,8 @@ WAGE_TO_CAR_OWNERSHIP_QUANTILES = [
     0.7779,
     0.9135,
 ]
+# PUBLIC_TRANSIT_COST and PRIVATE_TRANSIT_COST reflect perceived commuting penalties,
+# with higher values indicating greater sensitivity to distance when evaluating job offers.
 PRIVATE_TRANSIT_COST = .25
 PUBLIC_TRANSIT_COST = .05
 REGIONAL_FREIGHT_COST = .3
