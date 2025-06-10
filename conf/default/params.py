@@ -4,16 +4,16 @@ import datetime
 
 # FIRMS #########################################################
 # Production function, labour with decaying exponent, Alpha for K. [0, 1]
-PRODUCTIVITY_EXPONENT = .8
+PRODUCTIVITY_EXPONENT = .94
 # Order of magnitude correction of production. Production divided by parameter
-PRODUCTIVITY_MAGNITUDE_DIVISOR = 10
+PRODUCTIVITY_MAGNITUDE_DIVISOR = 7.8
 # GENERAL CALIBRATION PARAMETERS
 # Order of magnitude parameter of input into municipality investment
 MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.00001
 # INTEREST. Choose either: 'nominal', 'real' or 'fixed'. Default 'real'
 INTEREST = "real"
 # By how much percentage to increase prices
-MARKUP = 0.07
+MARKUP = 0.08
 # Frequency firms change prices. Probability < than parameter
 STICKY_PRICES = .8
 # Price ruggedness a positive value (below 1) that multiplies the magnitude of price reduction
@@ -24,7 +24,7 @@ SIZE_MARKET = 10
 # Number of firms to buy from in the INTERMEDIATE market
 INTERMEDIATE_SIZE_MARKET = 5
 # Frequency firms enter the market
-LABOR_MARKET = 0.125  # 0.15
+LABOR_MARKET = 0.42  # 0.15
 # Percentage of employees firms hired by distance
 
 PCT_DISTANCE_HIRING = 0.35
@@ -108,7 +108,7 @@ NEIGHBORHOOD_EFFECT = 2
 
 # RENTAL #######################
 INITIAL_RENTAL_SHARE = 0.25
-INITIAL_RENTAL_PRICE = 0.0025
+INITIAL_RENTAL_PRICE = 0.002
 
 # CONSTRUCTION #################################################################################
 # LICENSES ARE URBANIZED LOTS AVAILABLE FOR CONSTRUCTION PER NEIGHBORHOOD PER MONTH.

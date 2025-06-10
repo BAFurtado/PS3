@@ -114,7 +114,7 @@ class Firm:
         """ 
         Returns the probability of success given the amount invested per wages paid (I/W)
         """
-        return 1 - np.exp(- eco_lambda * eco_investment)
+        return 1 - np.exp(np.clip(- eco_lambda * eco_investment, -700, 700))
 
     def create_externalities(self, regions, tax_emission, emissions_param):
         """
