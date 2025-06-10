@@ -14,8 +14,8 @@ MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.00001
 INTEREST = "real"
 # By how much percentage to increase prices
 MARKUP = 0.07
-# Frequency firms change prices. Probability > than parameter
-STICKY_PRICES = .2
+# Frequency firms change prices. Probability < than parameter
+STICKY_PRICES = .8
 # Price ruggedness a positive value (below 1) that multiplies the magnitude of price reduction
 # Reflects a reluctance of businesses to lower prices. Amount estimated for reduction multiplied by parameter
 PRICE_RUGGEDNESS = 0.1
@@ -26,6 +26,7 @@ INTERMEDIATE_SIZE_MARKET = 5
 # Frequency firms enter the market
 LABOR_MARKET = 0.125  # 0.15
 # Percentage of employees firms hired by distance
+
 PCT_DISTANCE_HIRING = 0.35
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
 RELEVANCE_UNEMPLOYMENT_SALARIES = 2  # 0.17

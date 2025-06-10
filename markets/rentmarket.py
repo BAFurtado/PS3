@@ -5,7 +5,7 @@ def collect_rent(houses, sim):
         if house.rent_data:
             rent = house.rent_data[0]
             tenant = sim.families[house.family_id]
-            landfamily = sim.families[house.owner_id]
+            land_family = sim.families[house.owner_id]
 
             # Collect taxes on transaction
             taxes = rent * sim.PARAMS['TAX_LABOR']
@@ -27,7 +27,7 @@ def collect_rent(houses, sim):
                 if tenant.savings > difference:
                     # Withdraw difference from savings
                     tenant.savings -= difference
-                    # And add to payemnt made
+                    # And add to payment made
                     payment += difference
                 # If money still not enough, try deposits in the bank
                 if payment < rent:
@@ -41,14 +41,14 @@ def collect_rent(houses, sim):
                             payment += cash
 
             tenant.rent_default = 1 if payment == 0 else 0
-            # Deposit change, if any. If payment is not enough in the end, landfamily gets the loss
+            # Deposit change, if any. If payment is not enough in the end, land_family gets the loss
             # and does not receive payment.
             if payment > rent:
                 tenant.update_balance(round(payment - rent, 2))
 
-            # Deposit money on landfamily. Taxes are due only when below payment made. Otherwise, no rent id owed.
+            # Deposit money on land_family. Taxes are due only when below payment made. Otherwise, no rent id owed.
             if payment > taxes:
-                landfamily.update_balance(round(payment - taxes, 2))
+                land_family.update_balance(round(payment - taxes, 2))
 
 
 class RentalMarket:

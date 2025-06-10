@@ -266,14 +266,16 @@ class Statistics(object):
 
         # Compute metrics using NumPy
         total_renting = np.sum(renting)
+        total_voucher = np.sum(has_rent_voucher)
         affordable = np.sum((renting & ~has_rent_voucher & (permanent_income > 0) & (rent_ratio < 0.3)))
 
-        affordability_ratio = affordable / total_renting if total_renting > 0 else 0
+        affordability_ratio = (affordable + total_voucher) / total_renting if total_renting > 0 else 0
         median_wealth = np.median(permanent_income)
         median_affordability = np.median(rent_ratio[renting]) if total_renting > 0 else 0
         median_wages = np.median(wages)
         total_savings = np.sum(savings)
-        rent_default_ratio = np.sum(rent_default) / total_renting if total_renting > 0 else 0
+        rent_default_ratio = np.sum(rent_default) / (total_renting - total_voucher) \
+            if total_renting > total_voucher else 0
         zero_consumption_ratio = np.sum(utility == 0) / n_families if n_families > 0 else 0
         avg_utility = np.average(utility[num_members > 0])
 
