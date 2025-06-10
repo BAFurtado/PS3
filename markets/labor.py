@@ -1,7 +1,8 @@
-import pandas as pd
-from collections import defaultdict
+import itertools
 from math import ceil
-from itertools import chain
+
+import numpy as np
+import pandas as pd
 
 
 class LaborMarket:
@@ -25,8 +26,19 @@ class LaborMarket:
         if self.sim.od_matrix is not None:
             mode_col = 'TempoRedeNec' if self.sim.PARAMS['TRANSPORT_POLICY'] else 'TempoRedeBase'
             self.commute_time = self.build_commute_time_cache(mode_col)
+            self.max_dist = None
         else:
             self.commute_time = None
+            self.max_dist = self.compute_max_distance()
+
+    def compute_max_distance(self):
+        centroids = [r.addresses.centroid for r in self.sim.regions.values()]
+        max_dist = 0
+        for c1, c2 in itertools.combinations(centroids, 2):
+            dist = c1.distance(c2)
+            if dist > max_dist:
+                max_dist = dist
+        return max_dist
 
     def build_commute_time_cache(self, mode_col):
         return self.sim.od_matrix.set_index(['code_weighting_orig', 'code_weighting_dest'])[mode_col].to_dict()
@@ -92,8 +104,56 @@ class LaborMarket:
         self.available_postings = []
         self.candidates = []
 
+    def compute_scores_cobb_douglas_vectorized(self,
+                                               candidates, firm, wage,
+                                               qual_min, qual_max, dist_min, dist_max, wage_min, wage_max,
+                                               alpha, beta
+                                               ):
+        """
+        candidates: lista de candidatos
+        firm: firma
+        wage: salário da firma
+        od_matrix: dicionário de deslocamentos
+        *_min, *_max: limites inferiores e superiores para normalização
+        alpha, beta: parâmetros Cobb-Douglas
+        """
+
+        gamma = 1.0 - alpha - beta
+
+        # Lista de atributos dos candidatos
+        quals = np.array([c.qualification for c in candidates])
+        # Normalização
+        q_norm = (quals - qual_min) / (qual_max - qual_min + 1e-6)
+
+        # Distâncias ou tempos de deslocamento
+        if self.sim.od_matrix is not None:
+            commutes = np.array([
+                self.sim.od_matrix.get((c.family.house.region_id, firm.region_id), dist_max)
+                for c in candidates
+            ])
+        else:
+            commutes = np.array([
+                c.family.house.distance_to_firm(firm)
+                for c in candidates
+            ])
+        # Quanto menor a distância, melhor
+        t_norm = 1.0 - (commutes - dist_min) / (dist_max - dist_min + 1e-6)
+
+        # Salário é fixo por firma
+        w_norm = (wage - wage_min) / (wage_max - wage_min + 1e-6)
+        w_norm = np.full_like(q_norm, w_norm)
+
+        # Evita log(0) e normaliza dentro do intervalo (0.001, 1.0)
+        q_norm = np.clip(q_norm, 1e-3, 1.0)
+        t_norm = np.clip(t_norm, 1e-3, 1.0)
+        w_norm = np.clip(w_norm, 1e-3, 1.0)
+
+        # Cálculo vetorizado do log-score Cobb-Douglas
+        scores = alpha * np.log(q_norm) + beta * np.log(t_norm) + gamma * np.log(w_norm)
+
+        return scores
+
     def matching_firm_offers(self, lst_firms, params, cand_looking=None, flag=None):
-        n_hired = 0
         if cand_looking:
             candidates = cand_looking
         else:
@@ -101,25 +161,29 @@ class LaborMarket:
         offers = []
         done_firms = set()
         done_cands = set()
+        alpha = self.sim.PARAMS['CB_QUALIFICATION']
+        beta = self.sim.PARAMS['CB_COMMUTING']
         # This organizes a number of offers of candidates per firm, according to their own location
         # and "size" of a firm, giving by its more recent revenue level
+        # Min, Max for score attributes normalization
+        qual_min, qual_max = min(c.qualification for c in candidates), max(c.qualification for c in candidates)
+        if self.sim.od_matrix is not None:
+            dist_min, dist_max = min(self.commute_time.values()), max(self.commute_time.values())
+        else:
+            dist_min, dist_max = 0, self.max_dist
+        wages = [w for _, w in lst_firms]
+        wage_min, wage_max = min(wages), max(wages)
 
         for firm, wage in lst_firms:
             sampled_candidates = self.seed.sample(candidates,
                                                   min(len(candidates), int(params['HIRING_SAMPLE_SIZE'])))
-            for c in sampled_candidates:
-                transit_cost = params['PRIVATE_TRANSIT_COST'] if c.has_car else params['PUBLIC_TRANSIT_COST']
-                if self.sim.od_matrix is not None:
-                    score = wage - (self.commute_time.get((c.family.house.region_id,
-                                                           firm.region_id), .1)
-                                    * transit_cost)
-                else:
-                    score = wage - (c.family.house.distance_to_firm(firm)
-                                    * transit_cost)
-                if flag:
-                    offers.append((firm, c, c.qualification + score))
-                else:
-                    offers.append((firm, c, score))
+            scores = self.compute_scores_cobb_douglas_vectorized(
+                sampled_candidates, firm, wage,
+                qual_min, qual_max, dist_min, dist_max, wage_min, wage_max,
+                alpha=alpha, beta=beta
+            )
+            for c, s in zip(sampled_candidates, scores):
+                offers.append((firm, c, s))
 
         # Then, the criteria is used to order all candidates
         offers = sorted(offers, key=lambda o: o[2], reverse=True)
@@ -134,6 +198,7 @@ class LaborMarket:
             # Now it is time for the matching for firms favoring proximity
             cand_still_looking = [c for c in self.candidates if c not in done_cands]
             return cand_still_looking
+        return None
 
     @staticmethod
     def apply_assign(chosen, firm):

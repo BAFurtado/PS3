@@ -147,6 +147,12 @@ ECO_INVESTMENT_SUBSIDIES = .15
 # Fpm: ratio of 'labor' and 'firm' taxes distributed per the fpm ruling
 TAXES_STRUCTURE = {"consumption_equal": 0.1875, "fpm": 0.235}
 
+# Parameters used in a Cobb-Douglas function to help matching firms--candidates
+# log(U) = α log_qualification + β log_commuting + γ log_wages
+# GAMMA is 1 - alpha - beta
+CB_QUALIFICATION = .4
+CB_COMMUTING = .2
+
 WAGE_TO_CAR_OWNERSHIP_QUANTILES = [
     0.1174,
     0.1429,
@@ -175,7 +181,7 @@ PROCESSING_ACPS = ["BRASILIA"]
 STARTING_DAY = datetime.date(2010, 1, 1)
 
 # Maximum running time (restrained by official data) is 30 years,
-TOTAL_DAYS = (datetime.date(2020, 3, 1) - STARTING_DAY).days
+TOTAL_DAYS = (datetime.date(2025, 3, 1) - STARTING_DAY).days
 
 # Select the possible ACPs (Population Concentration Areas) from the list below.
 # Actually they are URBAN CONCENTRATION AREAS FROM IBGE, 2022
