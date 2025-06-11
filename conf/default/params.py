@@ -13,16 +13,16 @@ MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.00001
 # INTEREST. Choose either: 'nominal', 'real' or 'fixed'. Default 'real'
 INTEREST = "real"
 # By how much percentage to increase prices
-MARKUP = 0.08
+MARKUP = 0.07
 # Frequency firms change prices. Probability < than parameter
 STICKY_PRICES = .8
 # Price ruggedness a positive value (below 1) that multiplies the magnitude of price reduction
 # Reflects a reluctance of businesses to lower prices. Amount estimated for reduction multiplied by parameter
 PRICE_RUGGEDNESS = 0.1
 # Number of firms consulted before consumption
-SIZE_MARKET = 10
+SIZE_MARKET = 15
 # Number of firms to buy from in the INTERMEDIATE market
-INTERMEDIATE_SIZE_MARKET = 5
+INTERMEDIATE_SIZE_MARKET = 15
 # Frequency firms enter the market
 LABOR_MARKET = 0.42  # 0.15
 # Percentage of employees firms hired by distance
