@@ -24,8 +24,8 @@ SIZE_MARKET = 5
 # Number of firms to buy from in the INTERMEDIATE market
 INTERMEDIATE_SIZE_MARKET = 5
 # Frequency firms enter the market
-LABOR_MARKET = 0.125
-# Percentage of employees firms hired by distance
+LABOR_MARKET = 0.4
+# Percentage of employees' firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
 RELEVANCE_UNEMPLOYMENT_SALARIES = 2
@@ -181,14 +181,14 @@ PERCENTAGE_ACTUAL_POP = 0.01
 # Write exactly like the list below
 PROCESSING_ACPS = ["BRASILIA"]
 
-# Selecting the starting year to build the Agents, can be: 1991, 2000 or 2010
+# Selecting the starting year to build the Agents can be: 1991, 2000 or 2010
 STARTING_DAY = datetime.date(2010, 1, 1)
 
-# Maximum running time (restrained by official data) is 30 years,
+# The Maximum running time (restrained by official data) is 30 years,
 TOTAL_DAYS = (datetime.date(2025, 3, 1) - STARTING_DAY).days
 
 # Select the possible ACPs (Population Concentration Areas) from the list below.
-# Actually they are URBAN CONCENTRATION AREAS FROM IBGE, 2022
+# Actually, they are URBAN CONCENTRATION AREAS FROM IBGE, 2022
 
 """
 ABAETETUBA
