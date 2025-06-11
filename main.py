@@ -40,6 +40,12 @@ def single_run(params, path):
     """Run a simulation once for given parameters"""
     if conf.RUN['PRINT_STATISTICS_AND_RESULTS_DURING_PROCESS']:
         logging.basicConfig(level=logging.INFO)
+    os.makedirs(path, exist_ok=True)
+    with open(os.path.join(path, 'conf.json'), 'w') as f:
+        json.dump({
+            'RUN': conf.RUN,
+            'PARAMS': params
+        }, f, indent=4, default=str)
     sim = Simulation(params, path)
     sim.initialize()
     sim.run()
@@ -50,15 +56,15 @@ def single_run(params, path):
                            params=params, logger=logger, sim=sim)
 
 
-def multiple_runs(overrides, runs, cpus, output_dir, fix_seeds=False):
+def multiple_runs(overrides, runs, cpus, output_dir, fix_seeds=None):
     """Run multiple configurations, each `runs` times"""
     # overrides is a list of dictionaries with parameter name and value
     logger.info('Running simulation {} times'.format(len(overrides) * runs))
 
-    if fix_seeds:
-        seeds = [secrets.randbelow(2 ** 32) for _ in range(runs)]
-    else:
-        seeds = []
+    # if fix_seeds:
+    #     seeds = [secrets.randbelow(2 ** 32) for _ in range(runs)]
+    # else:
+    #     seeds = []
 
     # calculate output paths and params with overrides
     paths = [os.path.join(output_dir, main_plotting.conf_to_str(o, delimiter=';'))
@@ -74,39 +80,42 @@ def multiple_runs(overrides, runs, cpus, output_dir, fix_seeds=False):
         # run serially if cpus==1, easier debugging
         for p, path in zip(params, paths):
             for i in range(runs):
-                if seeds:
-                    p['SEED'] = seeds[i]
+                p = copy.deepcopy(p)
+                if fix_seeds:
+                    p['SEED'] = fix_seeds[i]
                 single_run(p, os.path.join(path, str(i)))
     else:
         jobs = []
         for p, path in zip(params, paths):
             for i in range(runs):
-                if seeds:
-                    p['SEED'] = seeds[i]
+                p = copy.deepcopy(p)
+                if fix_seeds:
+                    p['SEED'] = fix_seeds[i]
                 jobs.append((delayed(single_run)(p, os.path.join(path, str(i)))))
         Parallel(n_jobs=cpus, prefer='processes', backend='multiprocessing', batch_size=1)(jobs)
 
     logger.info('Averaging run data...')
     results = []
-    for path, params, o in zip(paths, params, overrides):
-        # save configurations
-        with open(os.path.join(path, 'conf.json'), 'w') as f:
-            json.dump({
-                'RUN': conf.RUN,
-                'PARAMS': params
-            }, f,
-                indent=4,
-                default=str)
+    for path, base_params, o in zip(paths, params, overrides):
+        per_run_confs = []
+        run_dirs = [d for d in glob(f"{path}/*") if os.path.isdir(d)]
+        run_dirs.sort(key=lambda d: int(os.path.basename(d)))  # ensure order is 0,1,...
 
-        # average run data and then plot
-        runs = [p for p in glob('{}/*'.format(path)) if os.path.isdir(p)]
-        avg_path = main_plotting.average_run_data(path, avg=conf.RUN['AVERAGE_TYPE'], n_runs=len(runs))
+        for run_path in run_dirs:
+            conf_path = os.path.join(run_path, 'conf.json')
+            if os.path.exists(conf_path):
+                with open(conf_path, 'r') as f:
+                    run_conf = json.load(f)
+                    per_run_confs.append(run_conf['PARAMS'])
+            else:
+                per_run_confs.append(base_params)
 
-        # return result data, e.g. paths for plotting
+        avg_path = main_plotting.average_run_data(path, avg=conf.RUN['AVERAGE_TYPE'], n_runs=len(run_dirs))
+
         results.append({
             'path': path,
-            'runs': runs,
-            'params': params,
+            'runs': run_dirs,
+            'params': per_run_confs,
             'overrides': o,
             'avg': avg_path,
             'avg_type': conf.RUN['AVERAGE_TYPE']
@@ -232,12 +241,17 @@ def sensitivity(ctx, params):
             ctx.obj['output_dir'] = ctx.obj['output_dir'].replace('sensitivity', '_'.join(k for k in keys))
             confs = permutations_dicts.copy()
         # Fix the same seed for each run
-        conf.RUN['KEEP_RANDOM_SEED'] = True
+        #conf.RUN['KEEP_RANDOM_SEED'] = True
         # conf.RUN['FORCE_NEW_POPULATION'] = False # Ideally this is True, but it slows things down a lot
         conf.RUN['SKIP_PARAM_GROUP_PLOTS'] = True
 
-        logger.info('Sensitivity run over {} for values: {}, {} run(s) each'.format(p_name, p_vals, ctx.obj['runs']))
-        multiple_runs(confs, ctx.obj['runs'], ctx.obj['cpus'], ctx.obj['output_dir'])
+        logger.info('Sensitivity run over {} for values: {}, {} run(s) each'.format(p_name,
+                                                                                    p_vals, ctx.obj['runs']))
+        if conf.RUN.get('KEEP_RANDOM_SEED', False):
+            fixed_seeds = [secrets.randbelow(2 ** 32) for _ in range(ctx.obj['runs'])]
+        else:
+            fixed_seeds = []
+        multiple_runs(confs, ctx.obj['runs'], ctx.obj['cpus'], ctx.obj['output_dir'], fix_seeds=fixed_seeds)
 
 
 @main.command()

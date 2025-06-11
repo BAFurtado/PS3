@@ -4,9 +4,9 @@ import datetime
 
 # FIRMS #########################################################
 # Production function, labour with decaying exponent, Alpha for K. [0, 1]
-PRODUCTIVITY_EXPONENT = .94
+PRODUCTIVITY_EXPONENT = .8
 # Order of magnitude correction of production. Production divided by parameter
-PRODUCTIVITY_MAGNITUDE_DIVISOR = 7.8
+PRODUCTIVITY_MAGNITUDE_DIVISOR = 12
 # GENERAL CALIBRATION PARAMETERS
 # Order of magnitude parameter of input into municipality investment
 MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.00001
@@ -24,20 +24,21 @@ SIZE_MARKET = 15
 # Number of firms to buy from in the INTERMEDIATE market
 INTERMEDIATE_SIZE_MARKET = 15
 # Frequency firms enter the market
-LABOR_MARKET = 0.42  # 0.15
-# Percentage of employees firms hired by distance
-
-PCT_DISTANCE_HIRING = 0.35
+LABOR_MARKET = 0.4
+# Percentage of employees' firms hired by distance
+PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
-RELEVANCE_UNEMPLOYMENT_SALARIES = 2  # 0.17
+RELEVANCE_UNEMPLOYMENT_SALARIES = 2
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 20
+
 # Reduction size in case of eco innovation success: multiplies firm parameters
 ENVIRONMENTAL_EFFICIENCY_STEP = .99
-# Innovation process probability: 1-exp(lambda*investment/wage_base)
+# Innovation process probability: 1 - exp(lambda * investment / wage_base)
 ECO_INVESTMENT_LAMBDA = 10
 # Adjustment factor for emissions within firms
 EMISSIONS_PARAM = 1000
+
 # GOVERNMENT ####################################################################
 # ALTERNATIVE OF DISTRIBUTION OF TAXES COLLECTED. REPLICATING THE NOTION OF A COMMON POOL OF RESOURCES ################
 # Alternative0 is True, municipalities are just normal as INPUT
@@ -72,10 +73,14 @@ POLICY_MELHORIAS = True
 UPGRADE_COST = .2
 POLICY_DAYS = 360
 # Size of the poorest families to be helped
-POLICY_QUANTILE = 0.25
+POLICY_QUANTILE = 0.2
 # Change of policy for collecting consumption tax at:
 # firms' municipalities origin (True) or destiny (consumers' municipality)
 TAX_ON_ORIGIN = True
+# BNDES test with (True) and without (False) TRANSPORT investments.
+# Variation in time_travel implemented in labor market decisions
+READ_TRANSPORT_MATRIX = True
+TRANSPORT_POLICY = True
 # LOANS ##############################################################################
 # Maximum age of borrower at the end of the contract
 MAX_LOAN_AGE = 70
@@ -142,14 +147,25 @@ TAX_LABOR = 0.15
 TAX_ESTATE_TRANSACTION = 0.004
 TAX_FIRM = 0.15
 TAX_PROPERTY = 0.004
-# Taxes on emission are given by tax * total_emissions
-TAX_EMISSION = 100
-# Subsidies in (0,1) is the amount of investment paid by the gov(subsidies*tota_invested)
+
+# EMISSIONS POLICIES ######################################################
+# Taxes on emission are given by tax * total_emissions. Roughly R$ * tonCO2. .1 is about R$10
+TAX_EMISSION = .005
+# Subsidies in (0,1) is the amount of investment paid by the gov(subsidies * total_invested)
 # 0 is none, 1 is full
-ECO_INVESTMENT_SUBSIDIES = 0
+ECO_INVESTMENT_SUBSIDIES = .15
+
 # Consumption_equal: ratio of consumption tax distributed at state level (equal)
 # Fpm: ratio of 'labor' and 'firm' taxes distributed per the fpm ruling
 TAXES_STRUCTURE = {"consumption_equal": 0.1875, "fpm": 0.235}
+
+# TRANSPORT ######################################################################################
+# Cobb-Douglas parameters for matching utility:
+# log(U) = α log_qualification + β log_commuting + γ log_wages
+# GAMMA is 1 - alpha - beta
+# Emphasizes qualification and wages (0.4) equally, with lesser weight (0.2) on commuting time.
+CB_QUALIFICATION = .4
+CB_COMMUTING = .2
 
 WAGE_TO_CAR_OWNERSHIP_QUANTILES = [
     0.1174,
@@ -163,6 +179,8 @@ WAGE_TO_CAR_OWNERSHIP_QUANTILES = [
     0.7779,
     0.9135,
 ]
+# PUBLIC_TRANSIT_COST and PRIVATE_TRANSIT_COST reflect perceived commuting penalties,
+# with higher values indicating greater sensitivity to distance when evaluating job offers.
 PRIVATE_TRANSIT_COST = .25
 PUBLIC_TRANSIT_COST = .05
 REGIONAL_FREIGHT_COST = .3
@@ -170,19 +188,19 @@ REGIONAL_FREIGHT_COST = .3
 # RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation
 # Minimum value to run depends on the size of municipality 0,001 is recommended minimum
-PERCENTAGE_ACTUAL_POP = 0.01
+PERCENTAGE_ACTUAL_POP = 0.005
 
 # Write exactly like the list below
 PROCESSING_ACPS = ["BRASILIA"]
 
-# Selecting the starting year to build the Agents, can be: 1991, 2000 or 2010
+# Selecting the starting year to build the Agents can be: 1991, 2000 or 2010
 STARTING_DAY = datetime.date(2010, 1, 1)
 
-# Maximum running time (restrained by official data) is 30 years,
-TOTAL_DAYS = (datetime.date(2025, 1, 1) - STARTING_DAY).days
+# The Maximum running time (restrained by official data) is 30 years,
+TOTAL_DAYS = (datetime.date(2012, 1, 1) - STARTING_DAY).days
 
 # Select the possible ACPs (Population Concentration Areas) from the list below.
-# Actually they are URBAN CONCENTRATION AREAS FROM IBGE, 2022
+# Actually, they are URBAN CONCENTRATION AREAS FROM IBGE, 2022
 
 """
 ABAETETUBA
