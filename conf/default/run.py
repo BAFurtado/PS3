@@ -3,7 +3,7 @@
 
 
 # OUTPUT_PATH = 'output'
-OUTPUT_PATH = r'\\storage6\usuarios\# MODELO DINAMICO DE SIMULACAO #\planhab'
+OUTPUT_PATH = r'output'
 
 KEEP_RANDOM_SEED = True
 
@@ -15,8 +15,9 @@ PRINT_STATISTICS_AND_RESULTS_DURING_PROCESS = True
 PRINT_FINAL_STATISTICS_ABOUT_AGENTS = False
 
 # Inform numbers in percentage of the period
-TIME_TO_BE_ELIMINATED = 0
+TIME_TO_BE_ELIMINATED = 0.2
 
+# Saving adjustments
 # If you save_plots (in a multiple run), you need AVERAGE_DATA = ['stats'] below!
 SAVE_PLOTS_FIGURES = True
 

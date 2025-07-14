@@ -114,7 +114,7 @@ class Firm:
         """ 
         Returns the probability of success given the amount invested per wages paid (I/W)
         """
-        return 1 - np.exp(- eco_lambda * eco_investment)
+        return 1 - np.exp(np.clip(- eco_lambda * eco_investment, -700, 700))
 
     def create_externalities(self, regions, tax_emission, emissions_param):
         """
@@ -376,7 +376,7 @@ class Firm:
         """ Update prices based on inventory and average prices
             Save signal for the labor market """
         # Sticky prices (KLENOW, MALIN, 2010)
-        if seed_np.rand() > sticky_prices:
+        if seed_np.rand() < sticky_prices:
             for p in self.inventory.values():
                 self.get_total_quantity()
                 # if the firm has sold this month more than available in stocks, prices rise
@@ -492,7 +492,9 @@ class Firm:
     def wage_base(self, unemployment, relevance_unemployment):
         # Observing global economic performance to set salaries,
         # guarantees that firms do not spend all revenue on salaries
+        # guarantees that firms do not distribute all money when unemployment is 0
         # Calculating wage base on a per-employee basis.
+        unemployment = .04 if unemployment == 0 else unemployment
         if self.num_employees > 0:
             return ((self.revenue - self.input_cost) / self.num_employees) * (
                     1 - (unemployment * relevance_unemployment)
