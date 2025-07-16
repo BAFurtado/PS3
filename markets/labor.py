@@ -44,10 +44,10 @@ class LaborMarket:
         return self.sim.od_matrix.set_index(['code_weighting_orig', 'code_weighting_dest'])[mode_col].to_dict()
 
     def process_gov_employees_year(self):
-        employees = pd.read_csv('input/qtde_vinc_gov_rais.csv')
+        employees = pd.read_csv('input/qtde_vinc_gov_rais_stable_from_2020_onwards.csv')
         geo_codes_6_digit = [int(str(_)[:6]) for _ in self.sim.geo.mun_codes]
         # Just municipalities in this run
-        return employees[employees['codemun'].isin(geo_codes_6_digit)]  #self.sim.geo.mun_codes)]
+        return employees[employees['codemun'].isin(geo_codes_6_digit)]
 
     def add_post(self, firm):
         self.available_postings.append(firm)

@@ -76,17 +76,18 @@ class MarriageData:
 
 
 pop_estimates = pd.read_csv('input/Demografia/4_Pop_Estimatives_Munic'
-                            '/pop_total_munic_estimates_cedeplar_2000_2050.csv').set_index('mun_code')
+                            '/pop_total_munic_estimates_cedeplar_2000_2050.csv',
+                            dtype={'year': str, 'mun_code': str}).set_index('mun_code')
 marriage_data = MarriageData()
 
 
 def immigration(sim):
     """Adjust population for immigration"""
-    year = sim.clock.year
+    year = str(sim.clock.year)
 
     # Create new agents for immigration
     for mun_code, pop in sim.mun_pops.items():
-        estimated_pop = pop_estimates.at[mun_code, year]
+        estimated_pop = pop_estimates.at[str(mun_code), year]
         estimated_pop *= sim.PARAMS['PERCENTAGE_ACTUAL_POP']
         # Correction of population by total number of people
         n_immigration = max(estimated_pop - pop, 0)
