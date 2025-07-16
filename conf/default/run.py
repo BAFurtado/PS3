@@ -45,7 +45,7 @@ SAVE_AGENTS_DATA = 'MONTHLY'
 # 'head' refers to the need to calculate head of family rates for household projections and monitoring
 # Can include: ['agents', 'grave', 'house', 'family', 'head']
 # If None, set to empty list: []
-SAVE_DATA = ['head']
+SAVE_DATA = []
 # SAVE_DATA = ['agents', 'house', 'family']
 
 # What data to average across all runs.
