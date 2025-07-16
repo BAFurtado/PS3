@@ -135,10 +135,7 @@ CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 8
 # POPULATION AND DEMOGRAPHY
 # Families run parameters (on average) for year 2000, or no information. 2010 uses APs average data
 MEMBERS_PER_FAMILY = 2.5
-# Definition to simplify population by group age groups(TRUE) or including all ages (FALSE)
-SIMPLIFY_POP_EVOLUTION = True
-# Defines the superior limit of age groups, the first value is always ZERO and is omitted from the list.
-LIST_NEW_AGE_GROUPS = [6, 12, 17, 25, 35, 45, 65, 100]
+
 MARRIAGE_CHECK_PROBABILITY = 0.03
 
 # TAXES ##################################################################

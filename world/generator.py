@@ -194,16 +194,8 @@ class Generator:
     def create_agents(self, region):
         agents = {}
         pops = self.sim.pops
-        pop_cols = list(list(pops.values())[0].columns)
-        if not self.sim.PARAMS["SIMPLIFY_POP_EVOLUTION"]:
-            list_of_possible_ages = pop_cols[1:]
-        else:
-            list_of_possible_ages = [0] + pop_cols[1:]
-
-        loop_age_control = list(list_of_possible_ages)
-        loop_age_control.pop(0)
-
-        for age in loop_age_control:
+        cols = list(range(101))
+        for age in cols:
             for gender in ["male", "female"]:
                 code = region.id
                 pop = pop_age_data(
@@ -213,19 +205,7 @@ class Generator:
                 qualification = self.qual(code)
                 moneys = self.seed_np.lognormal(3, 0.5, size=pop)
                 months = self.seed_np.randint(1, 13, size=pop)
-                ages = self.seed_np.randint(
-                    list_of_possible_ages[
-                        (
-                                list_of_possible_ages.index(
-                                    age,
-                                )
-                                - 1
-                        )
-                    ]
-                    + 1,
-                    age,
-                    size=pop,
-                )
+                ages = [age] * pop
                 for i in range(pop):
                     agent_id = self.gen_id()
                     a = Agent(
