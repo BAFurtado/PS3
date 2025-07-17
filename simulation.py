@@ -123,14 +123,15 @@ class Simulation:
                 agents, houses, families, firms, regions = pickle.load(f)
 
         # Count populations for each municipality and region
+        self.reg_pops = defaultdict(int)
+        self.mun_pops = defaultdict(int)
+
+        # Initialize populations directly
         for agent in agents.values():
             r_id = agent.region_id
             mun_code = r_id[:7]
-            if r_id not in self.reg_pops:
-                self.reg_pops[r_id] = 0
-            if mun_code not in self.mun_pops:
-                self.mun_pops[mun_code] = 0
-            self.update_pop(None, r_id)
+            self.reg_pops[r_id] += 1
+            self.mun_pops[mun_code] += 1
         return regions, agents, houses, families, firms, self.generator.central
 
     def run(self):
