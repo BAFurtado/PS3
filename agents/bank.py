@@ -230,9 +230,7 @@ class Central:
             self.balance -= amount
         else:
             loan_type = 'recursos_'+family.loan_rate
-            print(self.funding[(ano, int(house.region_id[:6]))][loan_type])
             self.funding[(ano, int(house.region_id[:6]))][loan_type] -= amount
-            print(self.funding[(ano, int(house.region_id[:6]))][loan_type])
         self._outstanding_loans += amount
         return True, amount
 
