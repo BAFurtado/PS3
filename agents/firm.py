@@ -202,23 +202,39 @@ class Firm:
     # PRODUCTION DEPARTMENT ###########################################################################################
     def choose_firm_per_sector(self, regional_market, firms, seed, market_size):
         """
-        Choose local firms to buy inputs from
+        Choose local firms to buy inputs from, optimizing firm selection per sector.
         """
         params = regional_market.sim.PARAMS
+        size_market = int(params['SIZE_MARKET'])
         chosen_firms = {}
+
+        # Pre-group firms by sector, excluding self
+        sector_firm_map = {}
+        for firm in firms.values():
+            if firm.id != self.id:
+                sector_firm_map.setdefault(firm.sector, []).append(firm)
+
         for sector in regional_market.technical_matrix.index:
-            market = seed.sample(
-                [f for f in firms.values() if (f.sector == sector) & (f.id != self.id)],
-                min(len([f for f in firms.values() if (f.sector == sector) & (f.id != self.id)]),
-                    int(params['SIZE_MARKET'])))
-            market = [firm for firm in market if firm.get_total_quantity() > 0]
-            if market:
-                # Choose firms with the cheapest average prices
-                market.sort(key=lambda firm: firm.prices)
-                # Choose the THREE cheapest firms, when available
-                chosen_firms[sector] = market[:min(len(market), int(market_size))]
-            else:
+            eligible_firms = sector_firm_map.get(sector, [])
+
+            if not eligible_firms:
                 chosen_firms[sector] = None
+                continue
+
+            # Filter only those with positive quantity
+            available_firms = [f for f in eligible_firms if f.get_total_quantity() > 0]
+
+            if not available_firms:
+                chosen_firms[sector] = None
+                continue
+
+            # Sample up to size_market firms
+            sampled_firms = seed.sample(available_firms, min(len(available_firms), size_market))
+
+            # Sort by price and take top `market_size` firms
+            sampled_firms.sort(key=lambda f: f.prices)
+            chosen_firms[sector] = sampled_firms[:min(len(sampled_firms), int(market_size))]
+
         return chosen_firms
 
     def buy_inputs(self, desired_quantity, regional_market, firms, seed,
@@ -361,8 +377,7 @@ class Firm:
 
     def get_total_quantity(self):
         # Simplifying for JUST ONE PRODUCT. More products will need rearranging it
-        self.total_quantity = self.inventory[0].quantity
-        return self.total_quantity
+        return self.inventory[0].quantity
 
     # Commercial department
     def decision_on_prices_production(
