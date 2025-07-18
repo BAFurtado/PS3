@@ -76,10 +76,9 @@ class Central:
         self.i_sbpe = 0
         self.i_fgts = 0
         self._outstanding_loans = 0
-        funding_data = pd.read_csv('input/planhab_funds/fgts_sbpe.csv')
+        funding_data = pd.read_csv('input/planhab_funds/fgts_sbpe_pct.csv',sep=';',decimal=',')
         # Divide exogenous value by 1000 to be compatible with R$ values within the model
-        self.funding = (funding_data.set_index(['ano', 'cod_ibge'])[['recursos_sbpe', 'recursos_fgts']]
-                        .div(1000)
+        self.funding = (funding_data.set_index(['ano', 'cod_ibge'])[['recursos_sbpe', 'recursos_fgts']]#.div(1000)
                         .to_dict(orient='index'))
         self.tax_firm = conf.PARAMS['TAX_FIRM']
         self.loan_to_income = conf.PARAMS['LOAN_PAYMENT_TO_PERMANENT_INCOME']
@@ -184,7 +183,7 @@ class Central:
             return min(amounts), max(amounts), mean
         return 0, 0, 0
 
-    def request_loan(self, family, house, amount, ano):
+    def request_loan(self, family, house, amount, ano, last_gdp):
         # Bank endogenous criteria
         # Can't loan more than on hand
         # Returns SUCCESS in Loan, adds loan and returns authorized value.
@@ -231,7 +230,9 @@ class Central:
             self.balance -= amount
         else:
             loan_type = 'recursos_'+family.loan_rate
+            print(self.funding[(ano, int(house.region_id[:6]))][loan_type])
             self.funding[(ano, int(house.region_id[:6]))][loan_type] -= amount
+            print(self.funding[(ano, int(house.region_id[:6]))][loan_type])
         self._outstanding_loans += amount
         return True, amount
 

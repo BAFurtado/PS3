@@ -201,6 +201,10 @@ class Simulation:
             actual = self.labor_market.num_candidates
         self.labor_market.reset()
 
+        for i, family in enumerate( self.families.values()):
+            head_family = max(family.members.values(), key=lambda x: x.last_wage)
+            head_family.set_head_family()
+
         # Update initial pop
         for region in self.regions.values():
             region.pop = self.reg_pops[region.id]

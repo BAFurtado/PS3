@@ -72,7 +72,7 @@ class Funds:
         self.families_subsided = 0
 
         if self.sim.PARAMS['POLICY_MCMV']:
-            self.sim.PARAMS['POLICY_COEFFICIENT'] = 0
+            self.sim.PARAMS['POLICY_COEFFICIENT'] = 0.001
             for modalidade in ['FAR', 'Entidades', 'oferta_publica']:
                 self.policy_money = self.mcmv.update_policy_money(self.sim.clock.year, modalidade)
                 quantile = self.sim.PARAMS['INCOME_MODALIDADES'][modalidade]
@@ -286,7 +286,7 @@ class Funds:
             self.mun_gov_firms[mun_code] = gov_firms_here
 
         if self.sim.PARAMS['POLICIES'] not in ['buy', 'rent', 'wage']:
-            self.sim.PARAMS['POLICY_COEFFICIENT'] = 0.0
+            self.sim.PARAMS['POLICY_COEFFICIENT'] = 0.001
         # Collect and UPDATE pop_t-1 and pop_t
         regions = self.sim.regions
         pop_t_minus_1, pop_t = {}, {}

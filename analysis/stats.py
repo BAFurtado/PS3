@@ -21,6 +21,7 @@ class Statistics(object):
     def __init__(self, params):
         self.previous_month_price = 0
         self.global_unemployment_rate = .086
+        self.last_gdp = defaultdict(float)
         self.vacancy_rate = params['HOUSE_VACANCY']
         self.head_rate = defaultdict(lambda: defaultdict(int))
         self.class_ranges = self._generate_class_ranges()
@@ -141,7 +142,8 @@ class Statistics(object):
         """Calculate GDP and Eco-Efficiency for all regions using NumPy arrays for maximum efficiency."""
 
         total_gdp = 0
-        previous_total_gdp = sum(region.gdp for region in regions.values())  # Store previous GDP
+        previous_total_gdp = sum(self.last_gdp.values()) # Retrieve previous GDP
+        self.last_gdp.clear()
         n_firms = len(firms)
 
         # Preallocate arrays for firm revenues and eco-efficiencies, mapped to region IDs
@@ -161,11 +163,13 @@ class Statistics(object):
 
             region.gdp = np.sum(firm_revenues[mask]) if np.any(mask) else 0
             region.avg_eco_eff = np.mean(firm_eco_efficiencies[mask]) if np.any(mask) else 0
+            self.last_gdp[int(region.id[:6])] += region.gdp
             total_gdp += region.gdp
 
         # Compute GDP growth
         gdp_growth = ((total_gdp - previous_total_gdp) / total_gdp) * 100 if total_gdp != 0 else 1
         logger.info(f'GDP index variation: {gdp_growth:.2f}%')
+        # self.last_gdp = total_gdp # Update GDP
 
         return total_gdp, gdp_growth
 

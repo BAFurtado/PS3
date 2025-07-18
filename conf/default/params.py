@@ -54,11 +54,12 @@ FPM_DISTRIBUTION = True
 # POLICIES #######################################################################
 # POVERTY POLICIES. If POLICY_COEFFICIENT=0, do nothing.
 # Size of the budget designated to the policy
-POLICY_COEFFICIENT = 0
+POLICY_COEFFICIENT = 0.01
 # Policies alternatives may include: 'buy', 'rent' or 'wage' or 'no_policy'. For no policy set to empty strings ''
 # POLICY_COEFFICIENT needs to be > 0.
 POLICIES = "no_policy"
 POLICY_MCMV = True
+POLICY_MCMV_PERCENTAGE = 0.01
 TOTAL_TARGETING_POLICY = False
 # Quantiles for families to be included in the different programs
 INCOME_MODALIDADES = {'FAR': .1,
@@ -185,7 +186,7 @@ REGIONAL_FREIGHT_COST = .3
 # RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation
 # Minimum value to run depends on the size of municipality 0,001 is recommended minimum
-PERCENTAGE_ACTUAL_POP = 0.01
+PERCENTAGE_ACTUAL_POP = 0.001
 
 # Write exactly like the list below
 PROCESSING_ACPS = ["BRASILIA"]
