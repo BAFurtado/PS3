@@ -42,8 +42,8 @@ class Simulation:
         # Generate the external supplier
         self.avg_prices = 1
         self.external = External(self, self.PARAMS["TAXES_STRUCTURE"]["consumption_equal"])
-        self.mun_pops = dict()
-        self.reg_pops = dict()
+        self.mun_pops = defaultdict(int)
+        self.reg_pops = defaultdict(int)
         self.grave = list()
         self.mun_to_regions = defaultdict(set)
         # Read necessary files
@@ -121,10 +121,6 @@ class Simulation:
             self.logger.logger.info("Loading existing agents")
             with open(save_file, "rb") as f:
                 agents, houses, families, firms, regions = pickle.load(f)
-
-        # Count populations for each municipality and region
-        self.reg_pops = defaultdict(int)
-        self.mun_pops = defaultdict(int)
 
         # Initialize populations directly
         for agent in agents.values():

@@ -240,8 +240,11 @@ class Family:
             # Consumes from each product the chosen firm offers
             # Here each sector to buy from are in the rows, and the buying column refer to HouseholdConsumption
             # Construction and Government are 0 in the table. Specific construction market apply
+            size_market = int(params['SIZE_MARKET'])
+            tax_consumption = int(params['SIZE_MARKET'])
+            household_demand = regional_market.final_demand['HouseholdConsumption']
             for sector in regional_market.final_demand.index:
-                money_this_sector = money_to_spend * regional_market.final_demand['HouseholdConsumption'][sector]
+                money_this_sector = money_to_spend * household_demand[sector]
                 # Some sectors have 0 value, such as Government, Mining, and Construction (explicit markets are used)
                 if money_this_sector == 0:
                     continue
@@ -249,29 +252,29 @@ class Family:
                 sector_firms = firms_by_sector[sector]
                 if not sector_firms:
                     continue
-                if len(sector_firms) <= int(params['SIZE_MARKET']):
+                if len(sector_firms) <= size_market:
                     market = seed.sample(sector_firms, len(sector_firms))
                 else:
-                    market = seed.sample(sector_firms, int(params['SIZE_MARKET']))
-                if market:
-                    # Choose between cheapest or closest
-                    firm_strategy = seed.choice(['Price', 'Distance'])
+                    market = seed.sample(sector_firms, size_market)
 
-                    if firm_strategy == 'Price':
-                        # Choose firm with the cheapest average prices
-                        chosen_firm = min(market, key=lambda firm: firm.prices)
-                    else:
-                        # Choose the closest firm
-                        chosen_firm = min(market, key=lambda firm: self.house.distance_to_firm(firm))
+                # Choose between cheapest or closest
+                firm_strategy = seed.choice(['Price', 'Distance'])
 
-                    # Buy from chosen company
-                    change = chosen_firm.sale(money_this_sector, regions, params['TAX_CONSUMPTION'],
-                                              self.region_id, if_origin)
-                    self.savings += change
+                if firm_strategy == 'Price':
+                    # Choose firm with the cheapest average prices
+                    chosen_firm = min(market, key=lambda firm: firm.prices)
+                else:
+                    # Choose the closest firm
+                    chosen_firm = min(market, key=lambda firm: self.house.distance_to_firm(firm))
 
-                    # Update monthly family utility
-                    self.average_utility += money_this_sector - change
-                    total_consumption[sector] += money_this_sector - change
+                # Buy from chosen company
+                change = chosen_firm.sale(money_this_sector, regions, tax_consumption,
+                                          self.region_id, if_origin)
+                self.savings += change
+
+                # Update monthly family utility
+                self.average_utility += money_this_sector - change
+                total_consumption[sector] += money_this_sector - change
         pass
         return total_consumption
 
