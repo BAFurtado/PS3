@@ -1,7 +1,5 @@
 # THE ROOT OUTPUT DATA LOCATION #######################################################################################
 # Change your output directory as necessary
-
-
 # OUTPUT_PATH = 'output'
 OUTPUT_PATH = r'output'
 
@@ -23,7 +21,7 @@ SAVE_PLOTS_FIGURES = True
 
 # If plots should be generated separately for each simulation run or just aggregated
 # When PLOT_EACH_RUN is True, DATA for banks, construction, firms, regional, stats are also SAVED
-#                       ***be aware of theirs sizes***
+#                       ***be aware of their sizes***
 PLOT_EACH_RUN = False
 # Spatial plots only works when PLOT_EACH_RUN is True
 SAVE_SPATIAL_PLOTS = False

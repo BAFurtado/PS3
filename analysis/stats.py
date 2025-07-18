@@ -230,7 +230,8 @@ class Statistics(object):
     def calculate_head_rate(self, families, current_month):
         """Counts heads in each age group per month."""
         for family in families:
-            head_agent = next((agent for agent in family.members.values() if agent.head), None)  # Find head
+            head_agent = next((agent for agent in family.members.values() if agent.head),
+                              max(family.members.values(), key=lambda a: a.age, default=None))  # Find head, or oldest
             if head_agent:  # If there's a head, update the count
                 age_group = self.class_ranges.get(head_agent.age)
                 if age_group:  # Ensure age is within the defined ranges
