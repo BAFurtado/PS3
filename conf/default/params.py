@@ -62,9 +62,10 @@ POLICY_MCMV = True
 POLICY_MCMV_PERCENTAGE = 0.01
 TOTAL_TARGETING_POLICY = False
 # Quantiles for families to be included in the different programs
-INCOME_MODALIDADES = {'FAR': .1,
-                      'Entidades': .2,
-                      'Rural': .15,
+INCOME_MODALIDADES = {'far': .1,
+                      'fnhis': .1,
+                      'entidades': .2,
+                      'rural': .15,
                       'oferta_publica': .2,
                       'melhorias': .2,
                       'fgts': .6,

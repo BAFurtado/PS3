@@ -6,7 +6,7 @@ import conf
 class MCMV:
     def __init__(self, sim):
         self.sim = sim
-        self.modalidades = pd.read_csv('input/planhab_funds/construcao.csv',sep=';',decimal=',')
+        self.modalidades = pd.read_csv('input/planhab_funds/construcao.csv')
         self.select_regions()
         self.policy_money = defaultdict(float)
 
