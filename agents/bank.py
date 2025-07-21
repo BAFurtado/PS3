@@ -76,9 +76,9 @@ class Central:
         self.i_sbpe = 0
         self.i_fgts = 0
         self._outstanding_loans = 0
-        funding_data = pd.read_csv('input/planhab_funds/fgts_sbpe_pct.csv',sep=';',decimal=',')
+        funding_data = pd.read_csv('input/planhab_funds/fgts_sbpe_pct.csv')
         # Divide exogenous value by 1000 to be compatible with R$ values within the model
-        self.funding = (funding_data.set_index(['ano', 'cod_ibge'])[['recursos_sbpe', 'recursos_fgts']]#.div(1000)
+        self.funding = (funding_data.set_index(['ano', 'cod_ibge'])[['recursos_sbpe', 'recursos_fgts']]
                         .to_dict(orient='index'))
         self.tax_firm = conf.PARAMS['TAX_FIRM']
         self.loan_to_income = conf.PARAMS['LOAN_PAYMENT_TO_PERMANENT_INCOME']
