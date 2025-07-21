@@ -387,7 +387,7 @@ class Output:
 
         # Ensure month sorting
         df["month"] = pd.to_datetime(df["month"])
-        df = df.sort_values("month")
+        df = df.sort_values("month", format='mixed')
         return df
 
     def save_head_data(self, sim):
