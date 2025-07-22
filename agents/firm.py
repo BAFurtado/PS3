@@ -74,10 +74,10 @@ class Firm:
         self.inventory = {}
         self.input_inventory, self.external_input_inventory = (copy.deepcopy(initial_input_sectors),
                                                                copy.deepcopy(initial_input_sectors))
-        self.total_quantity = total_quantity
         # Amount monthly sold by the firm
         self.amount_sold = amount_sold
         self.product_index = product_index
+        self.create_product()
         # Cumulative amount produced by the firm
         self.amount_produced = amount_produced
         self.wages_paid = wages_paid
@@ -108,6 +108,24 @@ class Firm:
                 )
                 self.product_index += 1
             self.prices = sum(p.price for p in self.inventory.values()) / len(self.inventory)
+
+
+    # These getters assume just one Product per firm
+    @property
+    def total_quantity(self):
+        return self.inventory[0].quantity
+
+    @property
+    def prices(self):
+        return self.inventory[0].price
+
+    @total_quantity.setter
+    def total_quantity(self, value):
+        self.inventory[0].quantity = value
+
+    @prices.setter
+    def prices(self, value):
+        return self.inventory[0].price
 
     # ECOLOGICAL PROCEDURES ###########################################################################################
     def probability_success(self, eco_investment, eco_lambda):
@@ -222,7 +240,7 @@ class Firm:
                 continue
 
             # Filter only those with positive quantity
-            available_firms = [f for f in eligible_firms if f.get_total_quantity() > 0]
+            available_firms = [f for f in eligible_firms if f.total_quantity > 0]
 
             if not available_firms:
                 chosen_firms[sector] = None
@@ -273,8 +291,8 @@ class Firm:
             # External buying of inputs includes an ADDITIONAL FREIGHT COST!
             money_external_inputs = sum([external_input_quantities_needed[sector] * chosen_firms_per_sector[
                 sector][0].prices * freight_cost
-                                         for sector in sectors
-                                         if chosen_firms_per_sector[sector]])
+                                        for sector in sectors
+                                        if chosen_firms_per_sector[sector]])
 
             # The reduction factor is used to account for the firm having LESS MONEY than needed
             if money_local_inputs + money_external_inputs > 0:
@@ -371,13 +389,9 @@ class Firm:
             quantity = productive_constraint_numeric * desired_quantity
             for sector in regional_market.technical_matrix.index:
                 self.input_inventory[sector] -= input_used[sector]
-            self.inventory[0].quantity += quantity
+            self.total_quantity += quantity
             self.amount_produced += quantity
         return quantity
-
-    def get_total_quantity(self):
-        # Simplifying for JUST ONE PRODUCT. More products will need rearranging it
-        return self.inventory[0].quantity
 
     # Commercial department
     def decision_on_prices_production(
@@ -396,7 +410,6 @@ class Firm:
         # Sticky prices (KLENOW, MALIN, 2010)
         if seed_np.rand() < sticky_prices:
             for p in self.inventory.values():
-                self.get_total_quantity()
                 # if the firm has sold this month more than available in stocks, prices rise
                 # Dawid 2018 p.26 Firm observes excess or shortage inventory and relative price considering other firms
                 # Considering inventory to last one month only
@@ -742,8 +755,8 @@ class ConstructionFirm(Firm):
         # Finished, expend inputs
         # Remember: if inventory of products is expanded for more than 1, this needs adapting
         building_info = self.building[min_cost_idx]
-        paid = min(building_info["cost"], self.inventory[0].quantity)
-        self.inventory[0].quantity -= paid
+        paid = min(building_info["cost"], self.total_quantity)
+        self.total_quantity -= paid
 
         # Choose random place in region
         region = regions[building_info["region"]]
@@ -870,7 +883,7 @@ class GovernmentFirm(Firm):
             sector_firms = [f for f in sim.firms.values() if f.sector == sector]
             market = sim.seed.sample(sector_firms,
                                      min(len(sector_firms), int(sim.PARAMS['SIZE_MARKET'])))
-            market = [firm for firm in market if firm.get_total_quantity() > 0]
+            market = [firm for firm in market if firm.total_quantity > 0]
             if market:
                 chosen_firm = min(market, key=lambda firm: firm.prices)
                 # Buy from chosen company

@@ -307,7 +307,7 @@ class Output:
                      '%.3f;%.3f;%.3f;%.3f; %s \n' %
                      (sim.clock.days, firm.id, firm.region_id, firm.region_id[:7], firm.address.x,
                       firm.address.y, firm.total_balance, firm.num_employees,
-                      firm.get_total_quantity(), firm.amount_produced, firm.inventory[0].price,
+                      firm.total_quantity, firm.amount_produced, firm.prices,
                       firm.amount_sold, firm.revenue, firm.profit,
                       firm.wages_paid, firm.input_cost, firm.last_emissions, firm.env_efficiency,
                       firm.inno_inv, firm.sector))

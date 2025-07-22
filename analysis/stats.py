@@ -53,7 +53,7 @@ class Statistics(object):
             firm_wages[i] = firm.wages_paid
             firm_eco_eff[i] = firm.env_efficiency
             firm_emissions[i] = firm.last_emissions
-            firm_stocks[i] = firm.get_total_quantity()
+            firm_stocks[i] = firm.total_quantity
             firm_workers[i] = firm.num_employees
             firm_profits[i] = firm.profit
 
@@ -94,7 +94,7 @@ class Statistics(object):
             firm_wages[i] = firm.wages_paid
             firm_eco_eff[i] = firm.env_efficiency
             firm_emissions[i] = firm.last_emissions
-            firm_stocks[i] = firm.get_total_quantity()
+            firm_stocks[i] = firm.total_quantity
             firm_workers[i] = firm.num_employees
             firm_profits[i] = firm.profit
             firm_inno_inv[i] = firm.inno_inv

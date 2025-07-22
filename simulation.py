@@ -181,10 +181,6 @@ class Simulation:
         for mun_code, regions in self.mun_to_regions.items():
             self.mun_to_regions[mun_code] = list(regions)
 
-        # Beginning of simulation, generate a product
-        for firm in self.firms.values():
-            firm.create_product()
-
         # First jobs allocated
         # Create an existing job market
         self.labor_market.look_for_jobs(self.agents)
