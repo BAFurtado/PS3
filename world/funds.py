@@ -73,14 +73,14 @@ class Funds:
 
         if self.sim.PARAMS['POLICY_MCMV']:
             self.sim.PARAMS['POLICY_COEFFICIENT'] = 0.001
-            for modalidade in ['FAR', 'Entidades', 'oferta_publica']:
+            for modalidade in ['far', 'entidades', 'oferta_publica', 'fnhis']:
                 self.policy_money = self.mcmv.update_policy_money(self.sim.clock.year, modalidade)
                 quantile = self.sim.PARAMS['INCOME_MODALIDADES'][modalidade]
                 self.update_policy_families(quantile)
                 self.buy_houses_give_to_families()
             # RURAL
             self.policy_money = self.mcmv.update_policy_money(self.sim.clock.year, 'Rural')
-            quantile = self.sim.PARAMS['INCOME_MODALIDADES']['Rural']
+            quantile = self.sim.PARAMS['INCOME_MODALIDADES']['rural']
             self.update_policy_families(quantile)
             for mun in self.policy_families.keys():
                 self.policy_families[mun] = [f for f in self.policy_families[mun] if f.house.rural]

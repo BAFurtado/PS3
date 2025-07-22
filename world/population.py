@@ -84,11 +84,11 @@ marriage_data = MarriageData()
 def immigration(sim):
     """Adjust population for immigration"""
     year = str(sim.clock.year)
-
+    pop_pct = sim.PARAMS['PERCENTAGE_ACTUAL_POP']
     # Create new agents for immigration
     for mun_code, pop in sim.mun_pops.items():
         estimated_pop = pop_estimates.at[str(mun_code), year]
-        estimated_pop *= sim.PARAMS['PERCENTAGE_ACTUAL_POP']
+        estimated_pop *= pop_pct
         # Correction of population by total number of people
         n_immigration = max(estimated_pop - pop, 0)
         n_immigration *= 1 / 12
