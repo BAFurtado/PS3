@@ -79,7 +79,7 @@ class Funds:
                 self.update_policy_families(quantile)
                 self.buy_houses_give_to_families()
             # RURAL
-            self.policy_money = self.mcmv.update_policy_money(self.sim.clock.year, 'Rural')
+            self.policy_money = self.mcmv.update_policy_money(self.sim.clock.year, 'rural')
             quantile = self.sim.PARAMS['INCOME_MODALIDADES']['rural']
             self.update_policy_families(quantile)
             for mun in self.policy_families.keys():
