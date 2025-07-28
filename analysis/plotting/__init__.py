@@ -217,7 +217,7 @@ class Plotter:
                 'name': 'time_on_market'
             }
         }
-        df = dat.groupby(['month', 'mun_id'], as_index=False).mean()
+        df = dat.groupby(['month', 'mun_id'])[list(to_plot.keys())].mean().reset_index()
         for k, d in to_plot.items():
             title = d['title']
             name = d['name']

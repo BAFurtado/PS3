@@ -115,7 +115,8 @@ def immigration(sim):
             new_families = max(1, int(n_migrants / sim.PARAMS['MEMBERS_PER_FAMILY']))
             new_families = sim.generator.create_families(new_families)
         # Assign agents to families
-        sim.generator.allocate_to_family(new_agents, new_families)
+        if new_agents:
+            sim.generator.allocate_to_family(new_agents, new_families)
 
         # Keep track of new agents & families
         families = []
