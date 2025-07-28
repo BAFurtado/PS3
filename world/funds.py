@@ -20,16 +20,12 @@ class Funds:
             self.fpm = {
                 state: pd.read_csv('input/fpm/%s.csv' % state, sep=',', header=0, decimal='.', encoding='latin1')
                 for state in self.sim.geo.states_on_process}
-        if sim.PARAMS['POLICIES'] != 'no_policy':
-            # Gather the money by municipality. Later gather the families and act upon policy!
+        if self.needs_policy_funding():
             self.policy_money = defaultdict(float)
             self.policy_families = defaultdict(list)
             self.temporary_houses = defaultdict(list)
         if sim.PARAMS['POLICY_MCMV']:
             # Collect money from exogenous funding
-            self.policy_money = defaultdict(float)
-            self.policy_families = defaultdict(list)
-            self.temporary_houses = defaultdict(list)
             self.mcmv = MCMV(sim)
 
     def needs_policy_funding(self):
