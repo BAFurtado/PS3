@@ -95,20 +95,25 @@ def immigration(sim):
         n_migrants = math.ceil(n_immigration)
         if not n_migrants:
             continue
+        if sim.PARAMS['EXOGENOUS_HEAD_RATE']:
+            # Get exogenous rate of growth, heads of households and ages
+            # People demand is a list of lists containing class_range (age) and count of households
+            people_demand = sim.heads.exogenous_new_households()
 
-        # Get exogenous rate of growth, heads of households and ages
-        # People demand is a list of lists containing class_range (age) and count of households
-        people_demand = sim.heads.exogenous_new_households()
-
-        new_agents, new_families = dict(), dict()
-        for each in people_demand:
-            # Create new agents [returns dictionaries]
-            new_agents.update(sim.generator.create_random_agents(n_migrants, each))
-            # Create new families
-            # Find out how number of households in the model are diverging from exogenous expectations
-            n_families = max(sim.stats.head_rate[each[1]][sim.clock.months] - each[1], 1)
-            new_families.update(sim.generator.create_families(n_families))
-
+            new_agents, new_families = dict(), dict()
+            for each in people_demand:
+                # Create new agents [returns dictionaries]
+                new_agents.update(sim.generator.create_random_agents(n_migrants, each))
+                # Create new families
+                # Find out how number of households in the model are diverging from exogenous expectations
+                n_families = max(sim.stats.head_rate[each[1]][sim.clock.months] - each[1], 1)
+                new_families.update(sim.generator.create_families(n_families))
+        else:
+            # Follow exogenous number of people
+            # TODO. Update members per family with new data to come
+            new_agents = sim.generator.create_random_agents(n_migrants)
+            new_families = int(n_migrants / sim.PARAMS['MEMBERS_PER_FAMILY'])
+            new_families = sim.generator.create_families(new_families)
         # Assign agents to families
         sim.generator.allocate_to_family(new_agents, new_families)
 

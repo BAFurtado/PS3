@@ -54,7 +54,7 @@ FPM_DISTRIBUTION = True
 # POLICIES #######################################################################
 # POVERTY POLICIES. If POLICY_COEFFICIENT=0, do nothing.
 # Size of the budget designated to the policy
-POLICY_COEFFICIENT = 0.01
+POLICY_COEFFICIENT = 0
 # Policies alternatives may include: 'buy', 'rent' or 'wage' or 'no_policy'. For no policy set to empty strings ''
 # POLICY_COEFFICIENT needs to be > 0.
 POLICIES = "no_policy"
@@ -136,8 +136,8 @@ CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 8
 
 # POPULATION AND DEMOGRAPHY
 # Families run parameters (on average) for year 2000, or no information. 2010 uses APs average data
+EXOGENOUS_HEAD_RATE = False
 MEMBERS_PER_FAMILY = 2.5
-
 MARRIAGE_CHECK_PROBABILITY = 0.03
 
 # TAXES ##################################################################
