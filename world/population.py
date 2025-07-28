@@ -112,7 +112,7 @@ def immigration(sim):
             # Follow exogenous number of people
             # TODO. Update members per family with new data to come
             new_agents = sim.generator.create_random_agents(n_migrants)
-            new_families = int(n_migrants / sim.PARAMS['MEMBERS_PER_FAMILY'])
+            new_families = max(1, int(n_migrants / sim.PARAMS['MEMBERS_PER_FAMILY']))
             new_families = sim.generator.create_families(new_families)
         # Assign agents to families
         sim.generator.allocate_to_family(new_agents, new_families)
