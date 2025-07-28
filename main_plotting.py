@@ -85,7 +85,7 @@ def plot(input_paths, output_path, params, logger, avg=None, sim=None, only=None
     if only is not None:
         keys = [k for k in keys if k in only]
 
-    if conf.RUN['SAVE_PLOTS_FIGURES'] and conf.RUN['SAVE_AGENTS_DATA'] is not None:
+    if conf.RUN['SAVE_PLOTS_FIGURES']:
         for k in keys:
             try:
                 logger.info('Plotting {}...'.format(k))
