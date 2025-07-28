@@ -22,12 +22,12 @@ SAVE_PLOTS_FIGURES = True
 # If plots should be generated separately for each simulation run or just aggregated
 # When PLOT_EACH_RUN is True, DATA for banks, construction, firms, regional, stats are also SAVED
 #                       ***be aware of their sizes***
-PLOT_EACH_RUN = False
+PLOT_EACH_RUN = True
 # Spatial plots only works when PLOT_EACH_RUN is True
 SAVE_SPATIAL_PLOTS = False
 # 'png' or 'eps'
 PLOT_FORMAT = 'png'
-PLOT_REGIONAL = False
+PLOT_REGIONAL = True
 
 # Plot DPI. Lower ones will plot faster
 PLOT_DPI = 200
@@ -43,7 +43,7 @@ SAVE_AGENTS_DATA = 'MONTHLY'
 # 'head' refers to the need to calculate head of family rates for household projections and monitoring
 # Can include: ['agents', 'grave', 'house', 'family', 'head']
 # If None, set to empty list: []
-SAVE_DATA = ['head']
+SAVE_DATA = []
 # SAVE_DATA = ['agents', 'house', 'family']
 
 # What data to average across all runs.
@@ -52,7 +52,8 @@ SAVE_DATA = ['head']
 # Notice that they are grouped by MONTH and MUNICIPALITY and some values may not make sense
 # Options: ['families', 'houses', 'agents]
 # You need to INCLUDE STATS to generate SPATIAL PLOTS. 'stats' also refer to general averaged plots
-AVERAGE_DATA = ['stats']
+# YOU MAY INCLUDE 'regional'
+AVERAGE_DATA = ['stats', 'regional']
 # 'median' or 'mean'
 AVERAGE_TYPE = 'mean'
 

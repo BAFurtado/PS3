@@ -95,7 +95,7 @@ def plot(input_paths, output_path, params, logger, avg=None, sim=None, only=None
                 if avg is not None:
                     logger.warn('You may need to add "{}" to AVERAGE_DATA.'.format(k))
 
-        if sim is not None and conf.RUN['PLOT_REGIONAL']:
+        if conf.RUN['PLOT_REGIONAL']:
             logger.info('Plotting regional...')
             plotter.plot_regional_stats()
 
@@ -144,4 +144,4 @@ def plot_results(output_dir, logger):
              output_path=output_path,
              params={},
              logger=logger,
-             only=['general'])
+             only=conf.RUN.get('AVERAGE_DATA', ['general']))
