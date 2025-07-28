@@ -62,11 +62,8 @@ POLICY_MCMV = True
 POLICY_MCMV_PERCENTAGE = 0.01
 TOTAL_TARGETING_POLICY = False
 # Quantiles for families to be included in the different programs
-INCOME_MODALIDADES = {'far': .1,
-                      'fnhis': .1,
-                      'entidades': .2,
+INCOME_MODALIDADES = {'faixa1': .1,
                       'rural': .15,
-                      'oferta_publica': .2,
                       'melhorias': .2,
                       'fgts': .6,
                       'sbpe': .8
@@ -190,7 +187,7 @@ REGIONAL_FREIGHT_COST = .3
 PERCENTAGE_ACTUAL_POP = 0.001
 
 # Write exactly like the list below
-PROCESSING_ACPS = ["BRASILIA"]
+PROCESSING_ACPS = ["IPATINGA"]
 
 # Selecting the starting year to build the Agents can be: 1991, 2000 or 2010
 STARTING_DAY = datetime.date(2010, 1, 1)

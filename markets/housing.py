@@ -73,10 +73,10 @@ class HousingMarket:
         # Update funding
         for r in regions:
             for loan_type in ['recursos_fgts', 'recursos_sbpe',]:
-                sim.central.funding[(sim.clock.year, r)][loan_type] = max(0,
-                                                                          self.policy_percentages[(sim.clock.year, r)][loan_type]
-                                                                          * sim.stats.last_gdp[r])
-
+                sim.central.funding[(sim.clock.year,
+                                     r)][loan_type] = max(0,
+                                                          self.policy_percentages[(sim.clock.year, r)][loan_type]
+                                                          * sim.stats.last_gdp[r])
 
         # Update prices of all houses in the simulation and status 'on_market' or not
         self.update_for_sale(sim)

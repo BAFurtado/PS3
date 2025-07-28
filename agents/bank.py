@@ -77,7 +77,7 @@ class Central:
         self.i_fgts = 0
         self._outstanding_loans = 0
         # IBGE codes got only 6 digits
-        funding_data = pd.read_csv('input/planhab_funds/fgts_sbpe_pct.csv')
+        funding_data = pd.read_csv('input/planhab_funds/fgts_sbpe_pct_interpolated.csv')
         self.funding = (funding_data.set_index(['ano', 'cod_ibge'])[['recursos_sbpe', 'recursos_fgts']]
                         .to_dict(orient='index'))
         self.tax_firm = conf.PARAMS['TAX_FIRM']

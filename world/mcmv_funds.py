@@ -30,10 +30,10 @@ class MCMV:
             if value.empty and year >=2020:
                 value = conf.PARAMS['POLICY_MCMV_PERCENTAGE'] 
             elif value.empty:
-                value = 0#TODO: Should we use the regional average?
+                value = 0  #  TODO: Should we use the regional average?
             else:
                 value = float(value.iloc[0])
-            self.policy_money[str(mun)] += value * self.sim.stats.last_gdp[mun] #value / 1000 * self.sim.PARAMS['PERCENTAGE_ACTUAL_POP']
+            self.policy_money[str(mun)] += value * self.sim.stats.last_gdp[mun]
         return self.policy_money
 
 
