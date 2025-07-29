@@ -333,7 +333,7 @@ def make_plots(params):
     main_plotting.plot_results(output_dir, logger)
     if len(params) > 1:
         results = json.load(open(os.path.join(output_dir, 'meta.json'), 'r'))
-        keys = ['general', 'firms', 'construction', 'houses', 'families', 'banks', 'regional_stats']
+        keys = ['general', 'firms', 'construction', 'houses', 'families', 'banks', 'regional']
         for res in results:
             for i in range(len(res['runs'])):
                 main_plotting.plot(input_paths=[('run', res['runs'][i])],
