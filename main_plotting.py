@@ -97,7 +97,7 @@ def plot(input_paths, output_path, params, logger, avg=None, sim=None, only=None
 
         if conf.RUN['PLOT_REGIONAL']:
             logger.info('Plotting regional...')
-            plotter.plot_regional_stats()
+            plotter.plot_regional()
 
     # Checking whether to plot or not
     if conf.RUN['SAVE_SPATIAL_PLOTS'] and sim is not None:
