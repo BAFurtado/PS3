@@ -255,7 +255,7 @@ class Plotter:
             fig = self.make_plot(dats_to_plot, title, labels=names_mun, y_label='Median {}'.format(name))
             self.save_fig(fig, 'families_{}'.format(name))
 
-    def plot_regional_stats(self):
+    def plot_regional(self):
         import warnings
 
         # Load averaged data (with or without confidence bands)
