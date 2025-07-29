@@ -129,19 +129,30 @@ def plot_results(output_dir, logger):
     logger.info('Plotting results...')
     results = json.load(open(os.path.join(output_dir, 'meta.json'), 'r'))
     avgs = []
+
     for r in results:
-        if not conf.RUN.get('SKIP_PARAM_GROUP_PLOTS'):
-            plot_runs_with_avg(r, logger=logger, only=conf.RUN.get('AVERAGE_DATA'))
-
-        # group averages, with labels, to plot together
+        avg_path = r.get('avg')
         label = conf_to_str(r['overrides'], delimiter='\n')
-        avgs.append((label, r['avg']))
 
-    # plot averages
+        if not avg_path or not os.path.exists(avg_path):
+            logger.warn(f'Skipping plot for config:\n{label}\nReason: avg folder not found: {avg_path}')
+            continue
+
+        if not conf.RUN.get('SKIP_PARAM_GROUP_PLOTS'):
+            try:
+                plot_runs_with_avg(r, logger=logger, only=conf.RUN.get('AVERAGE_DATA'))
+            except (FileNotFoundError, Exception) as e:
+                logger.warn(f'Failed to plot run with avg for {label}:\n{e}')
+
+        avgs.append((label, avg_path))
+
+    # Final comparison plot (only if there are multiple averages)
     if len(avgs) > 1:
-        output_path = os.path.join(output_dir, 'plots')
-        plot(input_paths=avgs,
-             output_path=output_path,
-             params={},
-             logger=logger,
-             only=conf.RUN.get('AVERAGE_DATA', ['general']))
+        try:
+            plot(input_paths=avgs,
+                 output_path=os.path.join(output_dir, 'plots'),
+                 params={},
+                 logger=logger,
+                 only=conf.RUN.get('AVERAGE_DATA', ['general']))
+        except Exception as e:
+            logger.warn(f'Failed to plot final averaged results: {e}')
