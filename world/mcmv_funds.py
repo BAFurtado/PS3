@@ -27,10 +27,10 @@ class MCMV:
                 (df['ano'] == int(year)),
                 'val_desembolsado'
             ]
-            if value.empty and year >=2020:
+            if value.empty and year >= 2020:
                 value = conf.PARAMS['POLICY_MCMV_PERCENTAGE'] 
             elif value.empty:
-                value = 0  #  TODO: Should we use the regional average?
+                value = 0  # TODO: Should we use the regional average?
             else:
                 value = float(value.iloc[0])
             self.policy_money[str(mun)] += value * self.sim.stats.last_gdp[mun]

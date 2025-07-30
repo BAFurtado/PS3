@@ -241,9 +241,8 @@ def sensitivity(ctx, params):
             ctx.obj['output_dir'] = ctx.obj['output_dir'].replace('sensitivity', '_'.join(k for k in keys))
             confs = permutations_dicts.copy()
         # Fix the same seed for each run
-        #conf.RUN['KEEP_RANDOM_SEED'] = True
+        # conf.RUN['KEEP_RANDOM_SEED'] = True
         # conf.RUN['FORCE_NEW_POPULATION'] = False # Ideally this is True, but it slows things down a lot
-        conf.RUN['SKIP_PARAM_GROUP_PLOTS'] = True
 
         logger.info('Sensitivity run over {} for values: {}, {} run(s) each'.format(p_name,
                                                                                     p_vals, ctx.obj['runs']))

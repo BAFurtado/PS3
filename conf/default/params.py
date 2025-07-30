@@ -63,7 +63,7 @@ POLICY_MCMV_PERCENTAGE = 0.01
 TOTAL_TARGETING_POLICY = False
 # Quantiles for families to be included in the different programs
 INCOME_MODALIDADES = {'faixa1': .1,
-                      'rural': .15,
+                      'rural': .1,
                       'melhorias': .2,
                       'fgts': .6,
                       'sbpe': .8
@@ -117,7 +117,7 @@ INITIAL_RENTAL_PRICE = 0.002
 # CONSTRUCTION #################################################################################
 # LICENSES ARE URBANIZED LOTS AVAILABLE FOR CONSTRUCTION PER NEIGHBORHOOD PER MONTH.
 # Expected number of NEW licenses created monthly by region (neighborhood). Set to 0 for no licenses.
-EXPECTED_LICENSES_PER_REGION = 3
+EXPECTED_LICENSES_PER_REGION = 2
 # PERCENT_CONSTRUCTION_FIRMS = 0.07 This has been deprecated with the introduction of sectors
 # Months that construction firm will divide its income into monthly revenue installments.
 # Although prices are accounted for at once.
@@ -129,7 +129,7 @@ HOUSE_VACANCY = 0.1
 # MAX_NUMBER OF HOUSES IN STOCK
 MAX_HOUSE_STOCK = 12
 # HOW LARGER IS CONSTRUCTION FIRMS PROFIT RELATIVE TO USUAL MARKUP (firms' productivity, given current prices)
-CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 8
+CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 10
 
 # POPULATION AND DEMOGRAPHY
 # Families run parameters (on average) for year 2000, or no information. 2010 uses APs average data
@@ -187,13 +187,13 @@ REGIONAL_FREIGHT_COST = .3
 PERCENTAGE_ACTUAL_POP = 0.01
 
 # Write exactly like the list below
-PROCESSING_ACPS = ["IPATINGA"]
+PROCESSING_ACPS = ["BRASILIA"]
 
 # Selecting the starting year to build the Agents can be: 1991, 2000 or 2010
 STARTING_DAY = datetime.date(2010, 1, 1)
 
 # The Maximum running time (restrained by official data) is 30 years,
-TOTAL_DAYS = (datetime.date(2014, 1, 1) - STARTING_DAY).days
+TOTAL_DAYS = (datetime.date(2025, 1, 1) - STARTING_DAY).days
 
 # Select the possible ACPs (Population Concentration Areas) from the list below.
 # Actually, they are URBAN CONCENTRATION AREAS FROM IBGE, 2022

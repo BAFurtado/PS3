@@ -138,11 +138,10 @@ def plot_results(output_dir, logger):
             logger.warn(f'Skipping plot for config:\n{label}\nReason: avg folder not found: {avg_path}')
             continue
 
-        if not conf.RUN.get('SKIP_PARAM_GROUP_PLOTS'):
-            try:
-                plot_runs_with_avg(r, logger=logger, only=conf.RUN.get('AVERAGE_DATA'))
-            except (FileNotFoundError, Exception) as e:
-                logger.warn(f'Failed to plot run with avg for {label}:\n{e}')
+        try:
+            plot_runs_with_avg(r, logger=logger, only=conf.RUN.get('AVERAGE_DATA'))
+        except (FileNotFoundError, Exception) as e:
+            logger.warn(f'Failed to plot run with avg for {label}:\n{e}')
 
         avgs.append((label, avg_path))
 
@@ -153,6 +152,6 @@ def plot_results(output_dir, logger):
                  output_path=os.path.join(output_dir, 'plots'),
                  params={},
                  logger=logger,
-                 only=conf.RUN.get('AVERAGE_DATA', ['general']))
+                 only=['general'] + conf.RUN.get('AVERAGE_DATA', []))
         except Exception as e:
             logger.warn(f'Failed to plot final averaged results: {e}')
