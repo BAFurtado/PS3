@@ -67,7 +67,7 @@ def multiple_runs(overrides, runs, cpus, output_dir, fix_seeds=None):
     #     seeds = []
 
     # calculate output paths and params with overrides
-    paths = [os.path.join(output_dir, main_plotting.conf_to_str(o, delimiter=';'))
+    paths = [os.path.join(output_dir, main_plotting.conf_to_str(o))
              for o in overrides]
     params = []
     for o in overrides:

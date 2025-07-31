@@ -11,7 +11,7 @@ from analysis.output import OUTPUT_DATA_SPEC
 from analysis.plotting import Plotter, MissingDataError
 
 
-def conf_to_str(conf, delimiter='\n'):
+def conf_to_str(conf, delimiter='__'):
     """Represent a configuration dict as a string"""
     parts = []
     for k, v in sorted(conf.items()):
