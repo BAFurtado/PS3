@@ -87,6 +87,9 @@ class Simulation:
         interest = pd.read_csv(f"input/interest_{self.PARAMS['INTEREST']}.csv")
         interest.date = pd.to_datetime(interest.date)
         self.interest = interest.set_index("date")
+        housing_interest = pd.read_csv(f"input\planhab_funds\interest_housing_{self.PARAMS['HOUSING_INTEREST']}.csv")
+        housing_interest.date = pd.to_datetime(housing_interest.date)
+        self.housing_interest = housing_interest.set_index("date")
 
     def update_pop(self, old_region_id, new_region_id):
         if old_region_id and new_region_id:
@@ -207,8 +210,10 @@ class Simulation:
 
     def monthly(self):
         # Set interest rates
-        values = self.interest[
-            self.interest.index.date == self.clock.days][['interest', 'mortgage', 'sbpe', 'fgts']].iloc[0]
+        interests = self.interest[
+            self.interest.index.date == self.clock.days][['interest', 'mortgage', ]].iloc[0]
+        housing_interests = self.housing_interest[self.housing_interest.index.date == self.clock.days][['sbpe', 'fgts']].iloc[0]
+        values = [interests['interest'] , interests['mortgage'], housing_interests['sbpe'], housing_interests['fgts']]  
         self.central.set_interest(*values)
 
         current_unemployment = self.stats.global_unemployment_rate

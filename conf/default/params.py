@@ -6,7 +6,7 @@ import datetime
 # Production function, labour with decaying exponent, Alpha for K. [0, 1]
 PRODUCTIVITY_EXPONENT = .8
 # Order of magnitude correction of production. Production divided by parameter
-PRODUCTIVITY_MAGNITUDE_DIVISOR = 12
+PRODUCTIVITY_MAGNITUDE_DIVISOR = .095
 # GENERAL CALIBRATION PARAMETERS
 # Order of magnitude parameter of input into municipality investment
 MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.00001
@@ -61,6 +61,10 @@ POLICIES = "no_policy"
 POLICY_MCMV = True
 POLICY_MCMV_PERCENTAGE = 0.01
 TOTAL_TARGETING_POLICY = False
+
+# HOUSING_POLICY can be ('baseline', )
+HOUSING_POLICY = 'baseline'
+HOUSING_INTEREST = 'baseline'
 # Quantiles for families to be included in the different programs
 INCOME_MODALIDADES = {'faixa1': .1,
                       'rural': .1,
@@ -184,16 +188,16 @@ REGIONAL_FREIGHT_COST = .3
 # RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation
 # Minimum value to run depends on the size of municipality 0,001 is recommended minimum
-PERCENTAGE_ACTUAL_POP = 0.001
+PERCENTAGE_ACTUAL_POP = 0.01
 
 # Write exactly like the list below
-PROCESSING_ACPS = ["IPATINGA"]
+PROCESSING_ACPS = ["BRASILIA"]
 
 # Selecting the starting year to build the Agents can be: 1991, 2000 or 2010
 STARTING_DAY = datetime.date(2010, 1, 1)
 
 # The Maximum running time (restrained by official data) is 30 years,
-TOTAL_DAYS = (datetime.date(2012, 1, 1) - STARTING_DAY).days
+TOTAL_DAYS = (datetime.date(2040, 1, 1) - STARTING_DAY).days
 
 # Select the possible ACPs (Population Concentration Areas) from the list below.
 # Actually, they are URBAN CONCENTRATION AREAS FROM IBGE, 2022

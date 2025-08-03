@@ -242,7 +242,7 @@ class Family:
         # Here each sector to buy from are in the rows, and the buying column refer to HouseholdConsumption
         # Construction and Government are 0 in the table. Specific construction market apply
         size_market = int(params['SIZE_MARKET'])
-        tax_consumption = int(params['SIZE_MARKET'])
+        tax_consumption = int(params['TAX_CONSUMPTION'])
         household_demand = regional_market.final_demand['HouseholdConsumption']
         sectors = regional_market.final_demand.index
         for sector in sectors:
