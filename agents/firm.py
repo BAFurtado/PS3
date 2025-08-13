@@ -147,7 +147,7 @@ class Firm:
             self.last_emissions = emissions_this_month
             self.env_indicators['emissions'] += emissions_this_month
             emission_tax = emissions_this_month * tax_emission
-            if emission_tax >= 0:
+            if emission_tax > 0:
                 self.emission_taxes_paid = emission_tax
                 self.total_balance -= emission_tax
                 regions[self.region_id].collect_taxes(self.taxes_paid, "emissions")
