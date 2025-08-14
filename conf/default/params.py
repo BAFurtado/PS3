@@ -6,7 +6,7 @@ import datetime
 # Production function, labour with decaying exponent, Alpha for K. [0, 1]
 PRODUCTIVITY_EXPONENT = .8
 # Order of magnitude correction of production. Production divided by parameter
-PRODUCTIVITY_MAGNITUDE_DIVISOR = .095
+PRODUCTIVITY_MAGNITUDE_DIVISOR = .2
 # GENERAL CALIBRATION PARAMETERS
 # Order of magnitude parameter of input into municipality investment
 MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.00001
@@ -15,7 +15,7 @@ INTEREST = "real"
 # By how much percentage to increase prices
 MARKUP = 0.07
 # Frequency firms change prices. Probability < than parameter
-STICKY_PRICES = .8
+STICKY_PRICES = .9
 # Price ruggedness a positive value (below 1) that multiplies the magnitude of price reduction
 # Reflects a reluctance of businesses to lower prices. Amount estimated for reduction multiplied by parameter
 PRICE_RUGGEDNESS = 0.1
@@ -24,16 +24,16 @@ SIZE_MARKET = 15
 # Number of firms to buy from in the INTERMEDIATE market
 INTERMEDIATE_SIZE_MARKET = 15
 # Frequency firms enter the market
-LABOR_MARKET = 0.4
+LABOR_MARKET = 0.3
 # Percentage of employees' firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
-RELEVANCE_UNEMPLOYMENT_SALARIES = 2
+RELEVANCE_UNEMPLOYMENT_SALARIES = 4
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 20
 
 # Reduction size in case of eco innovation success: multiplies firm parameters
-ENVIRONMENTAL_EFFICIENCY_STEP = .99
+ENVIRONMENTAL_EFFICIENCY_STEP = 1
 # Innovation process probability: 1 - exp(lambda * investment / wage_base)
 ECO_INVESTMENT_LAMBDA = 10
 # Adjustment factor for emissions within firms
@@ -150,10 +150,10 @@ TAX_PROPERTY = 0.004
 
 # EMISSIONS POLICIES ######################################################
 # Taxes on emission are given by tax * total_emissions. Roughly R$ * tonCO2. .1 is about R$10
-TAX_EMISSION = .005
+TAX_EMISSION = 0
 # Subsidies in (0,1) is the amount of investment paid by the gov(subsidies * total_invested)
 # 0 is none, 1 is full
-ECO_INVESTMENT_SUBSIDIES = .15
+ECO_INVESTMENT_SUBSIDIES = 0
 
 # Consumption_equal: ratio of consumption tax distributed at state level (equal)
 # Fpm: ratio of 'labor' and 'firm' taxes distributed per the fpm ruling
@@ -188,7 +188,7 @@ REGIONAL_FREIGHT_COST = .3
 # RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation
 # Minimum value to run depends on the size of municipality 0,001 is recommended minimum
-PERCENTAGE_ACTUAL_POP = 0.01
+PERCENTAGE_ACTUAL_POP = 0.0001
 
 # Write exactly like the list below
 PROCESSING_ACPS = ["BRASILIA"]
