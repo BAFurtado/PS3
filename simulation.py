@@ -87,7 +87,7 @@ class Simulation:
         interest = pd.read_csv(f"input/interest_{self.PARAMS['INTEREST']}.csv")
         interest.date = pd.to_datetime(interest.date)
         self.interest = interest.set_index("date")
-        housing_interest = pd.read_csv(f"input\planhab_funds\interest_housing_{self.PARAMS['HOUSING_INTEREST']}.csv")
+        housing_interest = pd.read_csv(f"input/planhab_funds/interest_housing_{self.PARAMS['HOUSING_INTEREST']}.csv")
         housing_interest.date = pd.to_datetime(housing_interest.date)
         self.housing_interest = housing_interest.set_index("date")
 

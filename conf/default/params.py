@@ -188,10 +188,10 @@ REGIONAL_FREIGHT_COST = .3
 # RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation
 # Minimum value to run depends on the size of municipality 0,001 is recommended minimum
-PERCENTAGE_ACTUAL_POP = 0.0001
+PERCENTAGE_ACTUAL_POP = 0.001
 
 # Write exactly like the list below
-PROCESSING_ACPS = ["BRASILIA"]
+PROCESSING_ACPS = ["IPATINGA"]
 
 # Selecting the starting year to build the Agents can be: 1991, 2000 or 2010
 STARTING_DAY = datetime.date(2010, 1, 1)

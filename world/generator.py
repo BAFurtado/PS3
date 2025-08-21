@@ -129,7 +129,7 @@ class Generator:
                     )
                 except KeyError:
                     num_families = int(
-                        num_agents / self.sim.PARAMS["MEMBERS_PER_FAMILY"]
+                        num_agents / self.sim.geo.avg_num_people[int(region_id[:7])][str(self.sim.geo.year)]
                     )
             else:
                 num_families = int(num_agents / self.sim.PARAMS["MEMBERS_PER_FAMILY"])

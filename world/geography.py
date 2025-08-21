@@ -4,6 +4,8 @@ import pandas as pd
 ACP_CODES = pd.read_csv('input/CONCURBs_BR.csv')
 ACPS_MUN_CODES = pd.read_csv('input/CONCURBs_MUN_CODES.csv', sep=';', header=0, decimal=',')
 STATES_CODES = pd.read_csv('input/STATES_ID_NUM.csv', sep=';', header=0, decimal=',')
+AVG_NUM_PEOPLE_FAMILY = (pd.read_csv('input/Demografia/4_Pop_Estimatives_Munic/media_moradores_mun_2010_2040.csv')
+                         .set_index('COD_MUN'))
 
 
 def state_string(state, states_codes):
@@ -26,6 +28,7 @@ class Geography:
     """Manages which ACPs/states/municipalities are used for the simulation"""
     def __init__(self, params, year):
         self.year = year
+        self.avg_num_people = {}
         # Processing the chosen ACPs
         self.processing_acps_codes, self.processing_acps, self.states_on_process = \
             process_acps(params['PROCESSING_ACPS'])
@@ -46,7 +49,8 @@ class Geography:
         if len(self.processing_acps) > 1:
             list_acps_temp = self.processing_acps[1:]
             for acp_dat in list_acps_temp:
-                ACPs_on_process = pd.concat([ACPs_on_process, ACPS_MUN_CODES.loc[ACPS_MUN_CODES['ACPs'] == acp_dat]],
+                ACPs_on_process = pd.concat([ACPs_on_process,
+                                             ACPS_MUN_CODES.loc[ACPS_MUN_CODES['ACPs'] == acp_dat]],
                                             axis=0)
 
         self.list_of_acps = [i for i in ACPs_on_process['ACPs'].unique()]
@@ -59,3 +63,4 @@ class Geography:
         for mun in self.mun_codes:
             self.LIST_NAMES_MUN = pd.concat([self.LIST_NAMES_MUN, mun_list.loc[mun_list['cod_mun'] == int(mun)]],
                                             axis=0)
+            self.avg_num_people[mun] = AVG_NUM_PEOPLE_FAMILY.loc[mun, :]
