@@ -85,64 +85,70 @@ def immigration(sim):
     """Adjust population for immigration"""
     year = str(sim.clock.year)
     pop_pct = sim.PARAMS['PERCENTAGE_ACTUAL_POP']
-    # Create new agents for immigration
+
     for mun_code, pop in sim.mun_pops.items():
         estimated_pop = pop_estimates.at[str(mun_code), year]
         estimated_pop *= pop_pct
         # Correction of population by total number of people
-        n_immigration = max(estimated_pop - pop, 0)
-        n_immigration *= 1 / 12
-        n_migrants = math.ceil(n_immigration)
-        if not n_migrants:
-            continue
-        if sim.PARAMS['EXOGENOUS_HEAD_RATE']:
-            # Get exogenous rate of growth, heads of households and ages
-            # People demand is a list of lists containing class_range (age) and count of households
-            people_demand = sim.heads.exogenous_new_households()
-
-            new_agents, new_families = dict(), dict()
-            for each in people_demand:
-                # Create new agents [returns dictionaries]
-                new_agents.update(sim.generator.create_random_agents(n_migrants, each))
-                # Create new families
-                # Find out how number of households in the model are diverging from exogenous expectations
-                n_families = max(sim.stats.head_rate[each[1]][sim.clock.months] - each[1], 1)
-                new_families.update(sim.generator.create_families(n_families))
-        else:
-            # Follow exogenous number of people
-            # TODO. Update members per family with new data to come
-            new_agents = sim.generator.create_random_agents(n_migrants)
-            new_families = max(1, int(n_migrants /
-                                      sim.geo.avg_num_people[mun_code][str(sim.geo.year)]))
-            new_families = sim.generator.create_families(new_families)
-        # Assign agents to families
-        if new_agents:
-            sim.generator.allocate_to_family(new_agents, new_families)
-
-        # Keep track of new agents & families
-        families = []
-        for f in new_families.values():
-            # Not all families might get members, skip those
-            if not f.members:
+        if estimated_pop > pop:
+            # Create new agents for immigration
+            n_immigration = max(estimated_pop - pop, 0)
+            n_immigration *= 1 / 12
+            n_migrants = math.ceil(n_immigration)
+            if not n_migrants:
                 continue
-            f.savings = sum(m.grab_money() for m in f.members.values())
-            families.append(f)
+            if sim.PARAMS['EXOGENOUS_HEAD_RATE']:
+                # Get exogenous rate of growth, heads of households and ages
+                # People demand is a list of lists containing class_range (age) and count of households
+                people_demand = sim.heads.exogenous_new_households()
 
-        # Some might have tried to buy houses but failed, pass them directly to the rental market
-        homeless = [f for f in families if f.house is None]
-        sim.housing.rental.rental_market(homeless, sim)
+                new_agents, new_families = dict(), dict()
+                for each in people_demand:
+                    # Create new agents [returns dictionaries]
+                    new_agents.update(sim.generator.create_random_agents(n_migrants, each))
+                    # Create new families
+                    # Find out how number of households in the model are diverging from exogenous expectations
+                    n_families = max(sim.stats.head_rate[each[1]][sim.clock.months] - each[1], 1)
+                    new_families.update(sim.generator.create_families(n_families))
+            else:
+                # Follow exogenous number of people
+                new_agents = sim.generator.create_random_agents(n_migrants)
+                new_families = max(1, int(n_migrants /
+                                          sim.geo.avg_num_people[mun_code][str(sim.geo.year)]))
+                new_families = sim.generator.create_families(new_families)
+            # Assign agents to families
+            if new_agents:
+                sim.generator.allocate_to_family(new_agents, new_families)
 
-        # Only keep families that have houses
-        families = [f for f in families if f.house is not None]
-        for f in families:
-            sim.families[f.id] = f
+            # Keep track of new agents & families
+            families = []
+            for f in new_families.values():
+                # Not all families might get members, skip those
+                if not f.members:
+                    continue
+                f.savings = sum(m.grab_money() for m in f.members.values())
+                families.append(f)
 
-        agents = [a for a in new_agents.values() if a.family in families]
+            # Some might have tried to buy houses but failed, pass them directly to the rental market
+            homeless = [f for f in families if f.house is None]
+            sim.housing.rental.rental_market(homeless, sim)
 
-        # Has to come after we allocate households so that we know where the agents live
-        for a in agents:
-            sim.agents[a.id] = a
-            sim.update_pop(None, a.region_id)
+            # Only keep families that have houses
+            families = [f for f in families if f.house is not None]
+            for f in families:
+                sim.families[f.id] = f
+
+            agents = [a for a in new_agents.values() if a.family in families]
+
+            # Has to come after we allocate households so that we know where the agents live
+            for a in agents:
+                sim.agents[a.id] = a
+                sim.update_pop(None, a.region_id)
+
+        elif pop > estimated_pop:
+            # Delete families
+            # TODO. Create function to delete families
+            pass
 
 
 class HouseholdsHeads:
