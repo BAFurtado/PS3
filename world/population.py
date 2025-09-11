@@ -148,11 +148,11 @@ def immigration(sim):
             # Delete families
             on_the_roof = pop - int(estimated_pop)
             # Select agents to be removed
-            # agents_to_remove = list(sim.seed_np.choice(list(sim.agents.values()), replace=False, size=on_the_roof))
-            # print(f'AGENTS emigrating....{len(agents_to_remove)}')
-            # while agents_to_remove:
-            #     terminal = agents_to_remove.pop()
-            #     sim.demographics.die(sim, terminal)
+            agents_to_remove = list(sim.seed_np.choice(list(sim.agents.values()), replace=False, size=on_the_roof))
+            print(f'AGENTS emigrating....{len(agents_to_remove)}')
+            while agents_to_remove:
+                terminal = agents_to_remove.pop()
+                sim.demographics.die(sim, terminal)
 
 
 class HouseholdsHeads:
@@ -231,13 +231,12 @@ def marriage(sim):
                     a.family.owned_houses.append(house)
                     house.owner_id = a.family.id
 
-                old_r_id = b.region_id
-                id = b.family.id
+                _id = b.family.id
                 b.family.house.empty()
 
                 # Move out of existing rental
                 for house in sim.houses.values():
-                    if house.family_id == id:
+                    if house.family_id == _id:
                         house.family_id = None
                         house.rent_data = None
 
@@ -247,10 +246,10 @@ def marriage(sim):
 
                 savings = b.family.grab_savings(sim.central, sim.clock.year, sim.clock.months)
                 a.family.update_balance(savings)
-                if id in sim.central.loans:
-                    loans = sim.central.loans.pop(id)
+                if _id in sim.central.loans:
+                    loans = sim.central.loans.pop(_id)
                     sim.central.loans[a.family.id] = loans
 
-                del sim.families[id]
-                unassigned_houses = [h for h in sim.houses.values() if h.owner_id == id]
+                del sim.families[_id]
+                unassigned_houses = [h for h in sim.houses.values() if h.owner_id == _id]
                 assert len(unassigned_houses) == 0

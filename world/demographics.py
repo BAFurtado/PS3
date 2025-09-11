@@ -81,12 +81,14 @@ def die(sim, agent):
     """An agent dies"""
     sim.grave.append(agent)
     old_region_id = agent.family.region_id
+    if agent.is_employed:
+        sim.firms[agent.firm_id].obit(agent)
     # This makes the house vacant if all members of a given family have passed
     if agent.family.num_members == 1:
         # Save houses of empty family
-        id = agent.family.id
-        inheritance = [h for h in sim.houses.values() if h.owner_id == id]
-        to_empty = [h for h in sim.houses.values() if h.family_id == id]
+        _id = agent.family.id
+        inheritance = [h for h in sim.houses.values() if h.owner_id == _id]
+        to_empty = [h for h in sim.houses.values() if h.family_id == _id]
         for each in to_empty:
             each.family_id = None
             each.rent_data = None
@@ -95,14 +97,14 @@ def die(sim, agent):
             h.owner_id = None
             agent.family.owned_houses.remove(h)
 
-        # Eliminate families with no members
-        id = agent.family.id
-        del sim.families[id]
-        unassigned_houses = [h for h in sim.houses.values() if h.owner_id == id]
-        assert len(unassigned_houses) == 0
-
         savings = agent.family.grab_savings(sim.central, sim.clock.year, sim.clock.months)
         relatives = [sim.families[i] for i in agent.family.relatives if i in sim.families]
+
+        # Eliminate families with no members
+        agent.family.remove_agent(agent)
+        del sim.families[_id]
+        unassigned_houses = [h for h in sim.houses.values() if h.owner_id == _id]
+        assert len(unassigned_houses) == 0
 
         # Redistribute houses, debt, and savings of empty family
         if relatives:
@@ -142,9 +144,6 @@ def die(sim, agent):
                 del sim.central.loans[id]
     else:
         agent.family.remove_agent(agent)
-
-    if agent.is_employed:
-        sim.firms[agent.firm_id].obit(agent)
 
     sim.update_pop(old_region_id, None)
     a_id = agent.id
