@@ -2,7 +2,6 @@ import math
 
 import numpy as np
 import pandas as pd
-import statsmodels.api as sm
 
 
 def pop_age_data(pop, code, age, percent_pop):
@@ -114,7 +113,7 @@ def immigration(sim):
                 # Follow exogenous number of people
                 new_agents = sim.generator.create_random_agents(n_migrants)
                 new_families = max(1, int(n_migrants /
-                                          sim.geo.avg_num_people[mun_code][str(sim.geo.year)]))
+                                          sim.geo.avg_num_people[int(mun_code)][str(sim.geo.year)]))
                 new_families = sim.generator.create_families(new_families)
             # Assign agents to families
             if new_agents:
@@ -147,8 +146,13 @@ def immigration(sim):
 
         elif pop > estimated_pop:
             # Delete families
-            # TODO. Create function to delete families
-            pass
+            on_the_roof = pop - int(estimated_pop)
+            # Select agents to be removed
+            # agents_to_remove = list(sim.seed_np.choice(list(sim.agents.values()), replace=False, size=on_the_roof))
+            # print(f'AGENTS emigrating....{len(agents_to_remove)}')
+            # while agents_to_remove:
+            #     terminal = agents_to_remove.pop()
+            #     sim.demographics.die(sim, terminal)
 
 
 class HouseholdsHeads:

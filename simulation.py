@@ -44,6 +44,7 @@ class Simulation:
         self.external = External(self, self.PARAMS["TAXES_STRUCTURE"]["consumption_equal"])
         self.mun_pops = defaultdict(int)
         self.reg_pops = defaultdict(int)
+        self.demographics = demographics
         self.grave = list()
         self.mun_to_regions = defaultdict(set)
         # Read necessary files
