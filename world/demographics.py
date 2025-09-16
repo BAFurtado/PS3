@@ -131,8 +131,8 @@ def die(sim, agent):
                 f.update_balance(savings_per_relative)
 
             # Distribute debt
-            if id in sim.central.loans:
-                loans = sim.central.loans.pop(id)
+            if _id in sim.central.loans:
+                loans = sim.central.loans.pop(_id)
                 sim.central.loans[debtor.id] = loans
 
         else:
@@ -140,8 +140,8 @@ def die(sim, agent):
             sim.generator.randomly_assign_houses(inheritance, sim.families.values())
 
             # Delete debt
-            if id in sim.central.loans:
-                del sim.central.loans[id]
+            if _id in sim.central.loans:
+                del sim.central.loans[_id]
     else:
         agent.family.remove_agent(agent)
 

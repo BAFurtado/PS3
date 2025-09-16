@@ -149,7 +149,6 @@ def immigration(sim):
             on_the_roof = pop - int(estimated_pop)
             # Select agents to be removed
             agents_to_remove = list(sim.seed_np.choice(list(sim.agents.values()), replace=False, size=on_the_roof))
-            print(f'AGENTS emigrating....{len(agents_to_remove)}')
             while agents_to_remove:
                 terminal = agents_to_remove.pop()
                 sim.demographics.die(sim, terminal)
