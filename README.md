@@ -1,11 +1,11 @@
-# New model. PolicySpace3--regional input-output matrices, environmental externalities
+## PolicySpace3--regional input-output matrices, environmental externalities, exogenous demographic projections
+### Applications: PlanHab scenarios, Emissions analysis, Transport matrices, causality
 
-## Todo
-1. Fix labels plots (name instead of code)
-2. Use RAIS data to validate model (qualification, numbers, wages)
+### Lates publications
+1. Modelling environmental policy impacts on firms' carbon emissions): https://surfdrive.surf.nl/files/index.php/s/eTUN9yCbwrkGfrJ 
+2. A provocation on Agent-Based Models as causal inference tools): https://surfdrive.surf.nl/files/index.php/s/AUt2TsUOIVb51Zx
 
-
-### Enhancements and Improvements in PolicySpace2--Changes made in this version
+### Changes and enhancements compared to PolicySpace2
 1. Addresses chosen with spatial join (instead of individually). Enhancement: faster run
 2. Fixed bug construction firm planning house
 3. Introduced new parameter to control for availability of lot space supply for construction
