@@ -1,0 +1,15 @@
+Inadequação.
+fonte: https://repositorio.ipea.gov.br/server/api/core/bitstreams/6316feb7-5b21-43fd-8eec-3e35bccd3953/content
+proporção de inadequações edilícias por município (inadequações do município x/ total de inadequações do Brasil como um todo). E multiplicamos para cada município os recursos necessários por essa proporção para serem investidos ao longo de 15 anos 2015--2040
+ 273.637.788.738,46 em valores de 2024
+
+pib ibge 2024 março/25 11.744.700.000.000
+https://biblioteca.ibge.gov.br/index.php/biblioteca-catalogo?view=detalhes&id=72121
+
+273637788738,46÷11744700000000
+273 bilhões dividido por 11,7 trilhões = 0,023298832 = 0,24% do pib de um ano. 
+Dividido ao longo de 15 anos = 0,001553255
+
+0,000129438 DO pib investido no Brasil ao mes ao ano. 
+
+esse valor multiplicado pela razão de cada município

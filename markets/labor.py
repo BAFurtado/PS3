@@ -158,6 +158,13 @@ class LaborMarket:
             candidates = cand_looking
         else:
             candidates = self.candidates
+
+        # # 2. Create a NEW, filtered list from the source.
+        # #    This is the crucial fix. We are not modifying the original.
+        # candidates = [
+        #     cand for cand in source_candidates
+        #     if cand.family is not None
+        # ]
         offers = []
         done_firms = set()
         done_cands = set()
