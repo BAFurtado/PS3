@@ -8,10 +8,43 @@ sys.path.append('PS3')
 import pandas as pd
 from validation_charts import *
 from policy_charts import *
-from output import OUTPUT_DATA_SPEC
+# from output import OUTPUT_DATA_SPEC
 import seaborn as sns
 
 
+def transform_annual_to_monthly(annual_df, avg_cols, rate_cols):
+    """ Transforms an annual DataFrame into a monthly DataFrame using two rules: 1. Average: Divides the annual value by 12. 2. Rate Proportion: Calculates the monthly rate by taking the 12th root.
+
+    Args:
+        annual_df (pd.DataFrame): DataFrame with an annual index (e.g., year).
+        avg_cols (list): A list of column names to transform by averaging.
+        rate_cols (list): A list of column names to transform by rate proportion.
+
+    Returns:
+        pd.DataFrame: A new DataFrame with monthly data, a 'month' column in 'YYYY-MM-DD' format, and a standard integer index.
+    """
+
+    monthly_df = annual_df.loc[annual_df.index.repeat(12)].copy()
+
+    num_years = len(annual_df)
+    months_list = list(range(1, 13)) * num_years
+    monthly_df['month'] = months_list
+
+    monthly_df = monthly_df.reset_index()
+
+    monthly_df['month'] = pd.to_datetime(
+        monthly_df['ano'].astype(str) + '-' + monthly_df['month'].astype(str) + '-01').dt.strftime('%Y-%m-%d')
+
+    monthly_df = monthly_df.drop(columns=['ano','index'])
+
+    if avg_cols:
+        monthly_df[avg_cols] = monthly_df[avg_cols] / 12
+
+    if rate_cols:
+        monthly_df[rate_cols] = (1+monthly_df[rate_cols]) ** (1 / 12) -1
+    cols = list(monthly_df.columns)
+    cols.insert(0, cols.pop(cols.index('month')))
+    return monthly_df[cols]
 def find_stats_csv(root_dir):
     stats_files = []
 
@@ -50,7 +83,7 @@ def read_inflation_data(file_path):
 
     # Display the cleaned DataFrame
     print(df_melted.head())
-    #df_melted.to_csv("PS3/analysis/validation/real_world_data/inflation_data_cleaned.csv", index=False)
+    # df_melted.to_csv("PS3/analysis/validation/real_world_data/inflation_data_cleaned.csv", index=False)
     return df_melted
 
 
@@ -71,7 +104,7 @@ def read_macroeconomic_data(file_path=None):
     df_melted.loc[df_melted['description'] == 'inflation', 'value'] = df_melted.loc[df_melted[
                                                                                         'description'] == 'inflation', 'value'] / 100
     df_melted['source'] = "Real"
-    #for var in ["Inflation",'GDP',"Income","Unemployment"]:
+    # for var in ["Inflation",'GDP',"Income","Unemployment"]:
     #    values = df_melted.loc[df_melted['Description'] == var,'Value']
     #    values = (values-np.min(values))/(np.max(values)-np.min(values))
     #    df_melted.loc[df_melted['Description'] == var,'Value'] = values
@@ -117,29 +150,29 @@ def read_firms_simulation_data(file_path, policy=None, last_month=True, consolid
     data = pd.read_csv(fp, encoding='utf-8', delimiter=';', header=None)
     data.columns = columns
     sim_month_last = data.iloc[-24, 0]
-    
+
     if consolidate:
-        columns_to_average = ['eco_eff','price',"innov_investment"]  # Replace with actual column names
-        columns_to_sum = ['stocks', 'amount_produced','amount_sold','revenue',
-                          "profit","wages_paid","input_cost","emissions"]
+        columns_to_average = ['eco_eff', 'price', "innov_investment"]  # Replace with actual column names
+        columns_to_sum = ['stocks', 'amount_produced', 'amount_sold', 'revenue',
+                          "profit", "wages_paid", "input_cost", "emissions"]
 
         agg_dict = {col: 'mean' for col in columns_to_average}  # Average these columns
         agg_dict.update({col: 'sum' for col in columns_to_sum})  # Sum these columns
 
         if consolidate_regions:
-            #data['sector'] = data[' sector']
-            data.drop(['mun_id','firm_id', 'long', 'lat','region_id'],axis=1,inplace=True)
+            # data['sector'] = data[' sector']
+            data.drop(['mun_id', 'firm_id', 'long', 'lat', 'region_id'], axis=1, inplace=True)
 
-            data = data.groupby(['month','sector',], as_index=False).agg(agg_dict)
-            data['emission_per_gdp'] = 1000*data['emissions']/data['revenue']
-            data['innov_per_gdp'] = 100*data['innov_investment']*data['wages_paid']/data['revenue']
-            data['gdp_share'] = 100*data['revenue']/sum(data['revenue'])
-            data['wage_share'] = 100*data['wages_paid']/sum(data['wages_paid'])
-            df_melted = data.melt(id_vars=['month','sector',
-                                        ], 
-                                var_name="description", 
-                                value_name="value")
-            
+            data = data.groupby(['month', 'sector', ], as_index=False).agg(agg_dict)
+            data['emission_per_gdp'] = 1000 * data['emissions'] / data['revenue']
+            data['innov_per_gdp'] = 100 * data['innov_investment'] * data['wages_paid'] / data['revenue']
+            data['gdp_share'] = 100 * data['revenue'] / sum(data['revenue'])
+            data['wage_share'] = 100 * data['wages_paid'] / sum(data['wages_paid'])
+            df_melted = data.melt(id_vars=['month', 'sector',
+                                           ],
+                                  var_name="description",
+                                  value_name="value")
+
         else:
             data.drop(['mun_id', 'firm_id', 'long', 'lat'], axis=1, inplace=True)
             data = data.groupby(['month', 'sector', 'region_id'], as_index=False).agg(agg_dict)
@@ -150,18 +183,18 @@ def read_firms_simulation_data(file_path, policy=None, last_month=True, consolid
                                   value_name="value")
 
     else:
-        #data.drop(['mun_id', 'long', 'lat'],axis=1,inplace=True)
-        data['emission_per_gdp'] = data['emissions']/data['revenue']
-        df_melted = data.melt(id_vars=['month', 'firm_id','region_id','sector','mun_id', 'long', 'lat'
-                                    ], 
-                            var_name="description", 
-                            value_name="value")
+        # data.drop(['mun_id', 'long', 'lat'],axis=1,inplace=True)
+        data['emission_per_gdp'] = data['emissions'] / data['revenue']
+        df_melted = data.melt(id_vars=['month', 'firm_id', 'region_id', 'sector', 'mun_id', 'long', 'lat'
+                                       ],
+                              var_name="description",
+                              value_name="value")
     if policy:
         df_melted['Policy'] = policy
     if last_month:
-        #sim_month_last = '2019-01-01'#data.iloc[-24, 0]
+        # sim_month_last = '2019-01-01'#data.iloc[-24, 0]
         df_melted = df_melted.loc[df_melted['month'] >= sim_month_last]
-    #df_melted['source'] = "Simulated"
+    # df_melted['source'] = "Simulated"
     return df_melted
 
 
@@ -172,65 +205,14 @@ def read_many_firm_files(file_path_list, policy=None, consolidate=False):
 
 
 if __name__ == "__main__":
-    base_fp = "C:\\Users\\gusta\\Desktop\\Pulmonar\\Projeto_IPEA\\PS3"
-    agg_fp = [base_fp + _ for _ in ["\\output\\baseline",
-                                    "\\output\\both",
-                                    "\\output\\subsidies",
-                                    "\\output\\tax"]]
-    #data_agg_pol = read_many_sim_files(agg_fp)
-
-    baseline = read_firms_simulation_data(base_fp + "\\output\\baseline\\0\\firms.csv", policy="No Policy",
-                                          consolidate=True)
-    mean_base = baseline.drop(['Policy', 'month', 'firm_id', 'region_id'], axis=1).groupby(['sector', 'description'],
-                                                                                           as_index=False).mean()
-    tax = read_firms_simulation_data(base_fp + "\\output\\tax\\0\\firms.csv", policy="Carbon Tax")
-    subsidies = read_firms_simulation_data(base_fp + "\\output\\subsidies\\0\\firms.csv", policy="Subsidies")
-    #data_policies_firms_2 = read_firms_simulation_data("C:\\Users\\gusta\\Downloads\\firms.csv",policy="Carbon Tax")
-    dat_pol = pd.concat([tax, subsidies, baseline], ignore_index=True)
-    #dat_pol = dat_pol.loc[dat_pol['description']#.isin(['emissions','pop'])]
-    dat_pol = dat_pol.loc[dat_pol['value'] > 0]
-    dat_pol = dat_pol.merge(mean_base, how='left', left_on=['sector', 'description'],
-                            right_on=['sector', 'description'],
-                            suffixes=('', '_mean'))
-    dat_pol = dat_pol.loc[dat_pol['month'] >= '2018-01-01']
-    dat_pol = dat_pol.loc[dat_pol['sector'] != ' OtherServices ']
-    print(dat_pol['description'].unique())
-
-    create_heatmap(
-        data=dat_pol.loc[dat_pol['description'].isin(['emissions'])],
-        index_col="sector",
-        columns_col="Policy",
-        values_col="value",
-        title="Heatmap: Emission by Policy and Sector"
-    )
-
-    create_emissions_violinplot_by_sector(data=dat_pol,
-                                          sector_col="sector",
-                                          policy_col="Policy",
-                                          value_col="value",
-                                          filter_name="emissions",
-                                          title="Firms' Emissions Reduction Distributions by Policy and Sector (12 Sectors)",
-                                          xlabel="",
-                                          ylabel="Emissions Reduction (%)",
-                                          figsize=(16, 12),
-                                          palette="Set2",
-                                          rotation=45,
-                                          col_wrap=4,
-                                          normalize=False)
-
-    create_grouped_boxplot_by_sector(data=dat_pol,
-                                     sector_col="sector",
-                                     policy_col="Policy",
-                                     value_col="value",
-                                     filter_name="emissions",
-                                     title="Firms' Emissions Distributions by Policy and Sector (12 Sectors)",
-                                     xlabel="",
-                                     ylabel="Emissions (Co2 tons)",
-                                     figsize=(16, 12),
-                                     palette="Set2",
-                                     rotation=45,
-                                     normalize=False
-                                     )
-
-    #make_plot_sectors_emission(data=dat_pol, name='figures/emission_policy_effects', exclude_sectors=[])
-pass
+    os.chdir('C:\\Users\\B04903452123\\Documents\\Projects\\PS3_planhab_pvt')
+    paths = ['input/interest_baixa.csv',
+             'input/interest_media.csv',
+             'input/interest_alta.csv']
+    for path in paths:
+        df = pd.read_csv(path)
+        monthly = transform_annual_to_monthly(df,
+                                    ['pib_precos_correntes', 'rec_liq_pib', 'desp_primaria_pib',
+                                     'pessoal_pib', 'prev_pib', 'discricionaria_pib'],
+                                    ['tx_divida', 'interest', 'divida', 'mortgage'])
+        monthly.to_csv(path+'_new',index=False)
