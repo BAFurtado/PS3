@@ -412,16 +412,16 @@ class Simulation:
         # Getting regional GDP
         self.output.save_regional_report(self)
 
-        if conf.RUN["SAVE_AGENTS_DATA"] == "MONTHLY":
+        if conf.RUN["SAVE_DATA_PERIODICITY"] == "MONTHLY":
             self.output.save_data(self)
 
         if conf.RUN["PRINT_STATISTICS_AND_RESULTS_DURING_PROCESS"]:
             self.logger.info(self.clock.days)
 
     def quarterly(self):
-        if conf.RUN["SAVE_AGENTS_DATA"] == "QUARTERLY":
+        if conf.RUN["SAVE_DATA_PERIDICITY"] == "QUARTERLY":
             self.output.save_data(self)
 
     def yearly(self):
-        if conf.RUN["SAVE_AGENTS_DATA"] == "ANNUALLY":
+        if conf.RUN["SAVE_DATA_PERIDICITY"] == "ANNUALLY":
             self.output.save_data(self)

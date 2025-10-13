@@ -33,7 +33,7 @@ PLOT_REGIONAL = True
 PLOT_DPI = 200
 
 # Save Agents data 'MONTHLY' or 'QUARTERLY', 'ANNUALLY', or None
-SAVE_AGENTS_DATA = 'MONTHLY'
+SAVE_DATA_PERIDICITY = 'MONTHLY'
 
 # What extra CSV data (i.e. not necessary plotting) to save
 # 'stats' data are always saved,
@@ -41,9 +41,9 @@ SAVE_AGENTS_DATA = 'MONTHLY'
 
 # If you don't save "house" data for instance you can't generate housing plots.
 # 'head' refers to the need to calculate head of family rates for household projections and monitoring
-# Can include: ['agents', 'grave', 'house', 'family', 'head']
+# Can include: ['agents', 'grave', 'house', 'family', 'head', 'neighbourhood']
 # If None, set to empty list: []
-SAVE_DATA = []
+SAVE_DATA = ['neighbourhood']
 # SAVE_DATA = ['agents', 'house', 'family']
 
 # What data to average across all runs.
