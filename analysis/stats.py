@@ -293,9 +293,13 @@ class Statistics(object):
             avg_utility = np.average(vals)
 
         # GINI calculation
-        sorted_income = np.sort(permanent_income + 1e-7)  # Avoid division by zero
+        x = np.array(permanent_income)
+        x = x - np.min(x) + 1e-6  # shift to ensure all positive
+
+        sorted_income = np.sort(x)
         n = sorted_income.size
         index = np.arange(1, n + 1)
+
         gini = (np.sum((2 * index - n - 1) * sorted_income) / (n * np.sum(sorted_income))) if n > 0 else 0
         logger.info(f"Family stats - Zero consumption: {zero_consumption_ratio:.2f}, "
                     f"Family stats - Median wealth: {median_wealth:.2f}, ")
@@ -319,7 +323,7 @@ class Statistics(object):
         for i, family in enumerate(families):
             permanent_income[i] = family.get_permanent_income()
         # GINI calculation
-        sorted_income = np.sort(permanent_income + np.min(permanent_income) + 1e-7)  # Avoid division by zero
+        sorted_income = np.sort(permanent_income - np.min(permanent_income) + 1e-7)  # Avoid division by zero
         n = sorted_income.size
         index = np.arange(1, n + 1)
         gini = (np.sum((2 * index - n - 1) * sorted_income) / (n * np.sum(sorted_income))) if n > 0 else 0
