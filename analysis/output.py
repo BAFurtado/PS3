@@ -293,13 +293,18 @@ class Output:
             f.write('\n' + '\n'.join(reports))
 
     def save_neighbourhood_data(self, sim):
-        neighbourhood_gini = 0
+        neighbourhood_families = dict()
+        neighbourhood_gini = dict()
+        for family in sim.families.values():
+            neighbourhood_families[family.region_id].append(family)
+        for neigh in neighbourhood_families.keys():
+            neighbourhood_gini[neigh] = sim.stats.calculate_gini(neighbourhood_families[neigh].values())
         with open(self.neigh_path, 'a') as f:
-            [f.write('%s; %s; %s; %d; %.3f; %.3f; %.3f; %.3f \n' %
+            [f.write('%s; %s; %s; %d; %.3f; %.3f; %.3f; %.3f; %.3f \n' %
                      (sim.clock.days, region.region_id[:7], region.region_id, region.pop, region.gdp,
-                      neighbourhood_gini, region.gdp / region.pop, region.total_commute))
+                      neighbourhood_gini, region.gdp / region.pop, region.total_commute,
+                      neighbourhood_gini[region.region_id]))
              for region in sim.regions.values()]
-
 
     def save_data(self, sim):
         # firms data is necessary for plots,
