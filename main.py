@@ -154,7 +154,7 @@ def gen_output_dir(command):
 @click.option('-p', '--params', help='JSON of params override')
 @click.option('-r', '--config', help='JSON of run config override')
 def main(ctx, runs, cpus, params, config):
-    if conf.RUN['SAVE_DATA_PERIDICITY'] is None:
+    if conf.RUN['SAVE_DATA_PERIDIOCITY'] is None:
         logger.warn('Warning!!! Are you sure you do NOT want to save AGENTS\' data?')
 
     # apply any top-level overrides, if specified

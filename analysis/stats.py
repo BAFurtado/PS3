@@ -174,7 +174,10 @@ class Statistics(object):
         return total_gdp, gdp_growth
 
     def calculate_avg_regional_house_price(self, regional_families):
-        return np.average([f.house.price for f in regional_families if f.num_members > 0])
+        if regional_families:
+            return np.average([f.house.price for f in regional_families if f.num_members > 0])
+        else:
+            return 0
 
     def calculate_house_metrics(self, houses):
         """Compute various house-level metrics efficiently."""
@@ -282,7 +285,12 @@ class Statistics(object):
         rent_default_ratio = np.sum(rent_default) / (total_renting - total_voucher) \
             if total_renting > total_voucher else 0
         zero_consumption_ratio = np.sum(utility == 0) / n_families if n_families > 0 else 0
-        avg_utility = np.average(utility[num_members > 0])
+        mask = num_members > 0
+        vals = utility[mask]
+        if vals.size == 0 or np.sum(vals) == 0:
+            avg_utility = 0
+        else:
+            avg_utility = np.average(vals)
 
         # GINI calculation
         sorted_income = np.sort(permanent_income + 1e-7)  # Avoid division by zero
@@ -305,11 +313,13 @@ class Statistics(object):
 
     def calculate_regional_gini(self, families):
         n_families = len(families)
+        if not n_families:
+            return 0
         permanent_income = np.zeros(n_families)
         for i, family in enumerate(families):
             permanent_income[i] = family.get_permanent_income()
         # GINI calculation
-        sorted_income = np.sort(permanent_income + 1e-7)  # Avoid division by zero
+        sorted_income = np.sort(permanent_income + np.min(permanent_income) + 1e-7)  # Avoid division by zero
         n = sorted_income.size
         index = np.arange(1, n + 1)
         gini = (np.sum((2 * index - n - 1) * sorted_income) / (n * np.sum(sorted_income))) if n > 0 else 0

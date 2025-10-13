@@ -33,7 +33,7 @@ PLOT_REGIONAL = True
 PLOT_DPI = 200
 
 # Save Agents data 'MONTHLY' or 'QUARTERLY', 'ANNUALLY', or None
-SAVE_DATA_PERIDICITY = 'MONTHLY'
+SAVE_DATA_PERIDIOCITY = 'MONTHLY'
 
 # What extra CSV data (i.e. not necessary plotting) to save
 # 'stats' data are always saved,

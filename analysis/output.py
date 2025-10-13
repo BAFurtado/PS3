@@ -292,21 +292,22 @@ class Output:
             f.write('\n' + '\n'.join(reports))
 
     def save_neighbourhood_data(self, sim):
-        neighbourhood_families = dict()
+        neighbourhood_families = defaultdict(list)
         neighbourhood_gini = dict()
         neighbourhood_commute = dict()
         for family in sim.families.values():
             neighbourhood_families[family.region_id].append(family)
         for r in neighbourhood_families.keys():
-            neighbourhood_gini[r] = sim.stats.calculate_gini(neighbourhood_families[r].values())
-            commute_value = sim.stats.update_commuting(neighbourhood_families[r].values())
+            families = neighbourhood_families[r]
+            neighbourhood_gini[r] = sim.stats.calculate_regional_gini(families)
+            commute_value = sim.stats.update_commuting(families)
             self.sim.regions[r].total_commute = commute_value
             neighbourhood_commute[r] = commute_value
         with open(self.neighbourhood_path, 'a') as f:
             [f.write('%s; %s; %s; %d; %.3f; %.3f; %.3f; %.3f \n' %
-                     (sim.clock.days, region.region_id[:7], region.region_id, region.pop, region.gdp,
-                      region.gdp / region.pop, neighbourhood_commute[region.region_id],
-                      neighbourhood_gini[region.region_id]))
+                     (sim.clock.days, region.id[:7], region.id, region.pop, region.gdp,
+                      region.gdp / region.pop, neighbourhood_commute[region.id],
+                      neighbourhood_gini[region.id]))
              for region in sim.regions.values()]
 
     def save_data(self, sim):
@@ -318,7 +319,7 @@ class Output:
             # Skip b/c they are saved anyway above
             if each == 'banks':
                 continue
-            save_fn = getattr(self, 'save_{}_data'.format(type))
+            save_fn = getattr(self, 'save_{}_data'.format(each))
             save_fn(sim)
 
     def save_firms_data(self, sim):
