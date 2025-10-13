@@ -123,6 +123,14 @@ OUTPUT_DATA_SPEC = {
                     'regional_gini', 'regional_house_values', 'regional_unemployment',
                     'qli_index', 'gdp_percapita', 'treasure', 'equally', 'locally', 'fpm',
                     'licenses']
+    },
+    'neighbourhood': {
+        'avg': {
+            'groupings': ['month', 'mun_id'],
+            'columns': 'ALL'
+        },
+        'columns': ['month', 'mun_id', 'neigh_id', 'pop', 'neighbourhood_gdp',
+                    'neighbourhood_gini', 'neighbourhood_gdp_percapita', 'neighbourhood_commuting']
     }
 }
 
@@ -133,7 +141,7 @@ class Output:
     def __init__(self, sim, output_path):
         files = ['stats', 'regional', 'time', 'firms', 'banks',
                  'houses', 'agents', 'families', 'grave', 'construction',
-                 'head']
+                 'head', 'neighbourhood']
 
         self.sim = sim
         self.times = []
@@ -288,6 +296,15 @@ class Output:
 
         with open(self.regional_path, 'a') as f:
             f.write('\n' + '\n'.join(reports))
+
+    def save_neighbourhood_data(self, sim):
+        neighbourhood_gini = 0
+        with open(self.neigh_path, 'a') as f:
+            [f.write('%s; %s; %s; %d; %.3f; %.3f; %.3f; %.3f \n' %
+                     (sim.clock.days, region.region_id[:7], region.region_id, region.pop, region.gdp,
+                      neighbourhood_gini, region.gdp / region.pop, region.total_commute))
+             for region in sim.regions.values()]
+
 
     def save_data(self, sim):
         # firms data is necessary for plots,
