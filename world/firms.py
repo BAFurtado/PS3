@@ -22,7 +22,7 @@ class FirmData:
             if year == 2000:
                 num_months = 12 * 10
             else:
-                num_months = 12 * 7
+                num_months = 12 * 11
             self.avg_monthly_deltas[mun_code] = delta/num_months
 
     def _load(self, fname):
@@ -93,5 +93,4 @@ def firm_growth(sim):
             region_id = sim.seed_np.choice(regions, size=1, replace=True, p=region_ps)[0]
             region = sim.regions[region_id]
             firm = list(sim.generator.create_firms(1, region).values())[0]
-            firm.create_product()
             sim.firms[firm.id] = firm

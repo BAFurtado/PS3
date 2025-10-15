@@ -95,7 +95,7 @@ class RegionalMarket:
 
         # Create sector-wise dictionary to reduce filtering within families
         firms_by_sector = {
-            sector: [f for f in self.sim.firms.values() if f.sector == sector and f.get_total_quantity() > 0]
+            sector: [f for f in self.sim.firms.values() if f.sector == sector and f.total_quantity > 0]
             for sector in self.sim.regional_market.final_demand.index
         }
         for family in self.sim.families.values():
@@ -173,7 +173,7 @@ class External:
             market = seed.sample(
                 [f for f in firms.values() if f.sector == sector],
                 min(n_firms, 3 * int(params['SIZE_MARKET'])))
-            market = [firm for firm in market if firm.get_total_quantity() > 0]
+            market = [firm for firm in market if firm.total_quantity > 0]
             if market:
                 # Choose 10 firms with the cheapest prices
                 market.sort(key=lambda firm: firm.prices)

@@ -52,12 +52,13 @@ sectors = {'Agriculture': AgricultureFirm,
            }
 
 # Necessary input Data
-prop_urban = pd.read_csv("input/prop_urban_2000_2010.csv", sep=";")
+prop_urban = pd.read_csv("input/Demografia/3_Percent_Urban/Munic_Percent_Urban_2000_2010_2022.csv")
 # Percentage of firms by input output sector:
 # SOURCE: Data read from RAIS, 2010, converting CNAE code to ISIS 12.
 # Deleted firms for sectors/municipalities below 3 firms
 # Construction and Government are already 0 in final demand table
 perc_firms_sector = pd.read_csv('input/CONCURBs_SECTOR.csv', sep=';', decimal=',')
+house_qual_areap = pd.read_csv('input/dpp_2010_quali.csv', dtype={'areap': str})
 
 
 class Generator:
@@ -128,7 +129,7 @@ class Generator:
                     )
                 except KeyError:
                     num_families = int(
-                        num_agents / self.sim.PARAMS["MEMBERS_PER_FAMILY"]
+                        num_agents / self.sim.geo.avg_num_people[int(region_id[:7])][str(self.sim.geo.year)]
                     )
             else:
                 num_families = int(num_agents / self.sim.PARAMS["MEMBERS_PER_FAMILY"])
@@ -193,16 +194,8 @@ class Generator:
     def create_agents(self, region):
         agents = {}
         pops = self.sim.pops
-        pop_cols = list(list(pops.values())[0].columns)
-        if not self.sim.PARAMS["SIMPLIFY_POP_EVOLUTION"]:
-            list_of_possible_ages = pop_cols[1:]
-        else:
-            list_of_possible_ages = [0] + pop_cols[1:]
-
-        loop_age_control = list(list_of_possible_ages)
-        loop_age_control.pop(0)
-
-        for age in loop_age_control:
+        cols = list(range(101))
+        for age in cols:
             for gender in ["male", "female"]:
                 code = region.id
                 pop = pop_age_data(
@@ -212,19 +205,7 @@ class Generator:
                 qualification = self.qual(code)
                 moneys = self.seed_np.lognormal(3, 0.5, size=pop)
                 months = self.seed_np.randint(1, 13, size=pop)
-                ages = self.seed_np.randint(
-                    list_of_possible_ages[
-                        (
-                                list_of_possible_ages.index(
-                                    age,
-                                )
-                                - 1
-                        )
-                    ]
-                    + 1,
-                    age,
-                    size=pop,
-                )
+                ages = [age] * pop
                 for i in range(pop):
                     agent_id = self.gen_id()
                     a = Agent(
@@ -233,11 +214,21 @@ class Generator:
                     agents[agent_id] = a
         return agents
 
-    def create_random_agents(self, n_agents):
+    def create_random_agents(self, n_agents, people_demand=None):
         """Create random agents by sampling the existing
         agent population and creating clones of the sampled agents"""
         new_agents = {}
-        sample = self.seed.sample(list(self.sim.agents.values()), n_agents)
+        sample = []
+        if people_demand:
+            age_limites = int(people_demand[0][:2]), int(people_demand[0][-2:])
+            n_households = people_demand[1]
+            filtered_agents = [
+                agent for agent in self.sim.agents.values()
+                if age_limites[0] <= agent.age <= age_limites[1]
+            ]
+            sample = self.seed.sample(filtered_agents, n_households)
+            n_agents -= len(sample)
+        sample += self.seed.sample(list(self.sim.agents.values()), max(1, n_agents))
         moneys = self.seed_np.lognormal(3, 0.5, size=len(sample))
         for i, a in enumerate(sample):
             agent_id = self.gen_id()
@@ -307,17 +298,25 @@ class Generator:
             )
         return addresses
 
-    def get_empirical_data(self, region, num_houses):
+    def get_empirical_qualities(self, region, num_houses):
+        quality_typologies = [.5, 1, 2, 3, 4, 5]
+        proportion = house_qual_areap.loc[house_qual_areap['areap'] == region.id,
+        ['DPP0', 'DPP1', 'DPP2', 'DPP3', 'DPP4', 'DPP5']].values.ravel()
+        qualities = np.random.choice(quality_typologies, num_houses, p=proportion)
+        return qualities
+
+    def get_empirical_data(self, region, num_houses, qualities):
         avg_size = self.shapes.loc[self.shapes.id == region.id, "area_util"].to_list()[
             0
         ]
-        # Divide by 1000 so that fits the rest of the model. Prices of estates are roughtly x 1000 of real value
-        avg_price_m2 = (
-                self.shapes.loc[self.shapes.id == region.id, "precom2"].to_list()[0] / 1000
-        )
+        # # Divide by 1000 so that fits the rest of the model. Prices of estates are roughly x 1000 of real value
+        # avg_price_m2 = (
+        #         self.shapes.loc[self.shapes.id == region.id, "precom2"].to_list()[0] / 1000
+        # )
         sizes = self.seed_np.lognormal(np.log(avg_size), 0.5, size=num_houses)
         sizes[sizes < 10] = 10
-        qualities = self.seed_np.lognormal(np.log(avg_price_m2), 0.5, size=num_houses)
+        # Replacing qualities for empirical AREAP data
+        # qualities = self.seed_np.lognormal(np.log(avg_price_m2), 0.5, size=num_houses)
         prices = np.multiply(np.multiply(sizes, qualities), region.index)
         return sizes, qualities, prices
 
@@ -328,13 +327,14 @@ class Generator:
             addresses = list()
         neighborhood = {}
         probability_urban = self.prob_urban(region)
+        urban_addresses = 0
         if probability_urban:
             urban_addresses = int(num_houses * probability_urban)
             urban_region = self.urban[region.id[:7]]
             addresses = self.get_random_points_in_polygon(
                 urban_region, number_addresses=urban_addresses
             )
-        rural = int(num_houses * (1 - probability_urban))
+        rural = num_houses - urban_addresses
         if rural:
             addresses.append(
                 self.get_random_points_in_polygon(
@@ -342,14 +342,11 @@ class Generator:
                 )
             )
         # Use self.shapes and region.id to try to get empirical data on sizes, quality and prices
+        qualities = self.get_empirical_qualities(region, num_houses)
         try:
-            sizes, qualities, prices = self.get_empirical_data(region, num_houses)
+            sizes, qualities, prices = self.get_empirical_data(region, num_houses, qualities)
         except KeyError:
             sizes = self.seed_np.lognormal(np.log(70), 0.5, size=num_houses)
-            # Loose estimate of qualities in the universe
-            qualities = self.seed_np.choice(
-                [1, 2, 3, 4], p=[0.4, 0.3, 0.2, 0.1], size=num_houses
-            )
             prices = np.multiply(np.multiply(sizes, qualities), region.index)
         for i in range(num_houses):
             size = sizes[i]
@@ -357,7 +354,8 @@ class Generator:
             quality = qualities[i]
             price = prices[i]
             house_id = self.gen_id()
-            h = House(house_id, addresses[i], size, price, region.id, quality)
+            rural_flag = i >= (num_houses - rural)
+            h = House(house_id, addresses[i], size, price, region.id, quality, rural=rural_flag)
             neighborhood[house_id] = h
         return neighborhood
 
@@ -403,7 +401,10 @@ class Generator:
 
     def create_firms(self, num_firms, region):
         acp = self.sim.geo.processing_acps[0]
-        p_firms_sector = perc_firms_sector[perc_firms_sector['concurb_name'] == acp].set_index('sector').drop('concurb_name', axis=1).to_dict()['participation']
+        p_firms_sector = \
+            perc_firms_sector[perc_firms_sector['concurb_name'] == acp].set_index('sector').drop('concurb_name',
+                                                                                                 axis=1).to_dict()[
+                'participation']
         sector = dict()
 
         if num_firms == 1:
@@ -417,7 +418,7 @@ class Generator:
             }
         num_firms = sum(num_firms_by_sector.values())
         addresses = self.get_random_points_in_polygon(region, number_addresses=num_firms)
-        balances = self.seed_np.beta(1.5, 10, size=num_firms) * 10e4
+        balances = self.seed_np.beta(1.5, 10, size=num_firms) * 10e5
 
         j = 0
         for key in num_firms_by_sector:

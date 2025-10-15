@@ -11,7 +11,7 @@ from analysis.output import OUTPUT_DATA_SPEC
 from analysis.plotting import Plotter, MissingDataError
 
 
-def conf_to_str(conf, delimiter='\n'):
+def conf_to_str(conf, delimiter='__'):
     """Represent a configuration dict as a string"""
     parts = []
     for k, v in sorted(conf.items()):
@@ -24,7 +24,7 @@ def conf_to_str(conf, delimiter='\n'):
 def average_run_data(path, avg='mean', n_runs=1):
     """Average the run data for a specified output path"""
     output_path = os.path.join(path, 'avg')
-    os.makedirs(output_path, exist_ok=True)
+    os.makedirs(output_path)
 
     # group by filename
     file_groups = defaultdict(list)
@@ -79,13 +79,13 @@ def plot(input_paths, output_path, params, logger, avg=None, sim=None, only=None
         report.stats('')
 
     keys = ['general', 'firms',
-            'regional_stats',
+            'regional',
             'construction', 'houses',
             'families', 'banks']
     if only is not None:
         keys = [k for k in keys if k in only]
 
-    if conf.RUN['SAVE_PLOTS_FIGURES'] and conf.RUN['SAVE_AGENTS_DATA'] is not None:
+    if conf.RUN['SAVE_PLOTS_FIGURES']:
         for k in keys:
             try:
                 logger.info('Plotting {}...'.format(k))
@@ -95,9 +95,9 @@ def plot(input_paths, output_path, params, logger, avg=None, sim=None, only=None
                 if avg is not None:
                     logger.warn('You may need to add "{}" to AVERAGE_DATA.'.format(k))
 
-        if sim is not None and conf.RUN['PLOT_REGIONAL']:
+        if conf.RUN['PLOT_REGIONAL']:
             logger.info('Plotting regional...')
-            plotter.plot_regional_stats()
+            plotter.plot_regional()
 
     # Checking whether to plot or not
     if conf.RUN['SAVE_SPATIAL_PLOTS'] and sim is not None:
@@ -127,34 +127,31 @@ def plot_runs_with_avg(run_data, logger, only=None):
 def plot_results(output_dir, logger):
     """Plot results of multiple simulations"""
     logger.info('Plotting results...')
-
-    meta_path = os.path.join(output_dir, 'meta.json')
-    if not os.path.exists(meta_path):
-        logger.error(f"Missing meta.json at {meta_path}. You need to run simulations first.")
-        return
-
-    with open(meta_path, 'r') as f:
-        results = json.load(f)
-
+    results = json.load(open(os.path.join(output_dir, 'meta.json'), 'r'))
     avgs = []
+
     for r in results:
-        # If avg folder doesn't exist, skip this run
         avg_path = r.get('avg')
+        label = conf_to_str(r['overrides'], delimiter='\n')
+
         if not avg_path or not os.path.exists(avg_path):
-            logger.warning(f"Skipping {r.get('name', 'unknown')} due to missing avg folder")
+            logger.warn(f'Skipping plot for config:\n{label}\nReason: avg folder not found: {avg_path}')
             continue
 
-        label = conf_to_str(r['overrides'], delimiter='\n')
+        try:
+            plot_runs_with_avg(r, logger=logger, only=conf.RUN.get('AVERAGE_DATA'))
+        except (FileNotFoundError, Exception) as e:
+            logger.warn(f'Failed to plot run with avg for {label}:\n{e}')
+
         avgs.append((label, avg_path))
 
-    if not avgs:
-        logger.error("No avg folders found. Cannot generate plots.")
-        return
-
-    output_path = os.path.join(output_dir, 'plots')
-    plot(input_paths=avgs,
-         output_path=output_path,
-         params={},
-         logger=logger,
-         only=['general', 'regional_stats'])
-
+    # Final comparison plot (only if there are multiple averages)
+    if len(avgs) > 1:
+        try:
+            plot(input_paths=avgs,
+                 output_path=os.path.join(output_dir, 'plots'),
+                 params={},
+                 logger=logger,
+                 only=['general'] + conf.RUN.get('AVERAGE_DATA', []))
+        except Exception as e:
+            logger.warn(f'Failed to plot final averaged results: {e}')

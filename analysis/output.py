@@ -2,6 +2,8 @@ import json
 import os
 from collections import defaultdict
 
+import pandas as pd
+
 import conf
 
 AGENTS_PATH = 'StoragedAgents'
@@ -13,9 +15,8 @@ if not os.path.exists(AGENTS_PATH):
 GENERATOR_PARAMS = [
     'MEMBERS_PER_FAMILY',
     'HOUSE_VACANCY',
-    'SIMPLIFY_POP_EVOLUTION',
     'PERCENTAGE_ACTUAL_POP',
-    'PERC_SUPPLY_SIZE_N_LICENSES_PER_REGION',
+    'EXPECTED_LICENSES_PER_REGION',
     'STARTING_DAY'
 ]
 
@@ -98,8 +99,8 @@ OUTPUT_DATA_SPEC = {
         'columns': ['month', 'firm_id', 'region_id', 'mun_id',
                     'long', 'lat', 'total_balance$', 'number_employees',
                     'stocks', 'amount_produced', 'price', 'amount_sold',
-                    'revenue', 'profit', 'wages_paid', 'input_cost', 
-                    'emissions', 'eco_eff', 'innov_investment', 'sector']
+                    'revenue', 'profit', 'wages_paid', 'input_cost',
+                    'emissions', 'eco_eff', 'innov_investment', ' sector']
     },
     'construction': {
         'avg': {
@@ -122,6 +123,14 @@ OUTPUT_DATA_SPEC = {
                     'regional_gini', 'regional_house_values', 'regional_unemployment',
                     'qli_index', 'gdp_percapita', 'treasure', 'equally', 'locally', 'fpm',
                     'licenses']
+    },
+    'neighbourhood': {
+        'avg': {
+            'groupings': ['month', 'mun_id'],
+            'columns': 'ALL'
+        },
+        'columns': ['month', 'mun_id', 'neigh_id', 'pop', 'neighbourhood_gdp',
+                    'neighbourhood_gdp_percapita', 'neighbourhood_commuting', 'neighbourhood_gini']
     }
 }
 
@@ -131,7 +140,8 @@ class Output:
 
     def __init__(self, sim, output_path):
         files = ['stats', 'regional', 'time', 'firms', 'banks',
-                 'houses', 'agents', 'families', 'grave', 'construction']
+                 'houses', 'agents', 'families', 'grave', 'construction',
+                 'head', 'neighbourhood']
 
         self.sim = sim
         self.times = []
@@ -237,12 +247,7 @@ class Output:
             agents_by_mun[mun_id].append(agent)
 
         for family in sim.families.values():
-            # sometimes family.region_id is None?
-            if family.region_id:
-                mun_id = family.region_id[:7]
-                families_by_mun[mun_id].append(family)
-            else:
-                families_by_mun[family.region_id].append(family)
+            families_by_mun[mun_id].append(family)
 
         # aggregate regions into municipalities,
         # in case they are APs
@@ -261,7 +266,6 @@ class Output:
             mun_gini = sim.stats.calculate_regional_gini(mun_families)
             mun_house_values = sim.stats.calculate_avg_regional_house_price(mun_families)
             mun_unemployment = sim.stats.update_unemployment(mun_agents)
-            region.total_commute = commuting
 
             mun_cumulative_treasure = 0
             licenses = 0
@@ -287,9 +291,35 @@ class Output:
         with open(self.regional_path, 'a') as f:
             f.write('\n' + '\n'.join(reports))
 
+    def save_neighbourhood_data(self, sim):
+        neighbourhood_families = defaultdict(list)
+        neighbourhood_gini = dict()
+        neighbourhood_commute = dict()
+        for family in sim.families.values():
+            neighbourhood_families[family.region_id].append(family)
+        for r in neighbourhood_families.keys():
+            families = neighbourhood_families[r]
+            neighbourhood_gini[r] = sim.stats.calculate_regional_gini(families)
+            commute_value = sim.stats.update_commuting(families)
+            self.sim.regions[r].total_commute = commute_value
+            neighbourhood_commute[r] = commute_value
+        with open(self.neighbourhood_path, 'a') as f:
+            [f.write('%s; %s; %s; %d; %.3f; %.3f; %.3f; %.3f \n' %
+                     (sim.clock.days, region.id[:7], region.id, region.pop, region.gdp,
+                      region.gdp / region.pop, neighbourhood_commute[region.id],
+                      neighbourhood_gini[region.id]))
+             for region in sim.regions.values()]
+
     def save_data(self, sim):
-        for type in conf.RUN['SAVE_DATA']:
-            save_fn = getattr(self, 'save_{}_data'.format(type))
+        # firms data is necessary for plots,
+        # so always save
+        self.save_banks_data(sim)
+
+        for each in conf.RUN['SAVE_DATA']:
+            # Skip b/c they are saved anyway above
+            if each == 'banks':
+                continue
+            save_fn = getattr(self, 'save_{}_data'.format(each))
             save_fn(sim)
 
     def save_firms_data(self, sim):
@@ -298,7 +328,7 @@ class Output:
                      '%.3f;%.3f;%.3f;%.3f; %s \n' %
                      (sim.clock.days, firm.id, firm.region_id, firm.region_id[:7], firm.address.x,
                       firm.address.y, firm.total_balance, firm.num_employees,
-                      firm.get_total_quantity(), firm.amount_produced, firm.inventory[0].price,
+                      firm.total_quantity, firm.amount_produced, firm.prices,
                       firm.amount_sold, firm.revenue, firm.profit,
                       firm.wages_paid, firm.input_cost, firm.last_emissions, firm.env_efficiency,
                       firm.inno_inv, firm.sector))
@@ -367,6 +397,23 @@ class Output:
                                                           family.savings,
                                                           family.num_members))
              for family in sim.families.values()]
+
+    def prepare_dataframe(self, sim):
+        """Converts nested dictionary (class range → month → count) into a DataFrame."""
+        data = []
+        for class_range, months in sim.stats.head_rate.items():
+            for month, count in months.items():
+                data.append({"month": month, "class_range": class_range, "count": count})
+        df = pd.DataFrame(data)
+
+        # Ensure month sorting
+        df["month"] = pd.to_datetime(df["month"], errors='coerce').dt.month
+        df = df.sort_values("month")
+        return df
+
+    def save_head_data(self, sim):
+        data = self.prepare_dataframe(sim)
+        data.to_csv(self.head_path, index=False)
 
     def save_banks_data(self, sim):
         bank = sim.central

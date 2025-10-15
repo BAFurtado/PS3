@@ -26,11 +26,11 @@ class Simulation:
         self.PARAMS = params
         self.geo = Geography(params, self.PARAMS["STARTING_DAY"].year)
         self.regional_market = RegionalMarket(self)
-        self.funds = Funds(self)
         self.clock = clock.Clock(self.PARAMS["STARTING_DAY"])
         self.output = analysis.Output(self, output_path)
         self.stats = analysis.Statistics(params)
         self.logger = analysis.Logger(hex(id(self))[-5:])
+        self.funds = Funds(self)
         self._seed = (
             secrets.randbelow(2 ** 32)
             if conf.RUN["KEEP_RANDOM_SEED"]
@@ -42,8 +42,9 @@ class Simulation:
         # Generate the external supplier
         self.avg_prices = 1
         self.external = External(self, self.PARAMS["TAXES_STRUCTURE"]["consumption_equal"])
-        self.mun_pops = dict()
-        self.reg_pops = dict()
+        self.mun_pops = defaultdict(int)
+        self.reg_pops = defaultdict(int)
+        self.demographics = demographics
         self.grave = list()
         self.mun_to_regions = defaultdict(set)
         # Read necessary files
@@ -51,20 +52,17 @@ class Simulation:
 
         for state in self.geo.states_on_process:
             self.m_men[state] = pd.read_csv(
-                "input/mortality/mortality_men_%s.csv" % state,
-                sep=";",
+                "input/Demografia/2_Mortality/mortality_men_%s.csv" % state,
                 header=0,
                 decimal=".",
             ).groupby("age")
             self.m_women[state] = pd.read_csv(
-                "input/mortality/mortality_women_%s.csv" % state,
-                sep=";",
+                "input/Demografia/2_Mortality/mortality_women_%s.csv" % state,
                 header=0,
                 decimal=".",
             ).groupby("age")
             self.f[state] = pd.read_csv(
-                "input/fertility/fertility_%s.csv" % state,
-                sep=";",
+                "input/Demografia/1_Fertility/fertility_%s.csv" % state,
                 header=0,
                 decimal=".",
             ).groupby("age")
@@ -78,6 +76,7 @@ class Simulation:
                 print(f'No matriz OD found for this METRO {state} region!')
         self.labor_market = markets.LaborMarket(self, self.seed, self.seed_np)
         self.housing = markets.HousingMarket()
+        self.heads = population.HouseholdsHeads(self)
         self.pops, self.total_pop = population.load_pops(
             self.geo.mun_codes, self.PARAMS, self.geo.year
         )
@@ -86,9 +85,12 @@ class Simulation:
         # PORT. Taxa média de juros das operações de crédito com recursos direcionados - Pessoas físicas -
         # Financiamento imobiliário com taxas de mercado. BC series 433. 25497. 4390.
         # Values before 2011-03-01 when the series began are set at the value of 2011-03-01. After, mean.
-        interest = pd.read_csv(f"input/interest_{self.PARAMS['INTEREST']}.csv", sep=";")
+        interest = pd.read_csv(f"input/interest_{self.PARAMS['INTEREST']}.csv")
         interest.date = pd.to_datetime(interest.date)
         self.interest = interest.set_index("date")
+        housing_interest = pd.read_csv(f"input/planhab_funds/interest_housing_{self.PARAMS['HOUSING_INTEREST']}.csv")
+        housing_interest.date = pd.to_datetime(housing_interest.date)
+        self.housing_interest = housing_interest.set_index("date")
 
     def update_pop(self, old_region_id, new_region_id):
         if old_region_id and new_region_id:
@@ -124,15 +126,12 @@ class Simulation:
             with open(save_file, "rb") as f:
                 agents, houses, families, firms, regions = pickle.load(f)
 
-        # Count populations for each municipality and region
+        # Initialize populations directly
         for agent in agents.values():
             r_id = agent.region_id
             mun_code = r_id[:7]
-            if r_id not in self.reg_pops:
-                self.reg_pops[r_id] = 0
-            if mun_code not in self.mun_pops:
-                self.mun_pops[mun_code] = 0
-            self.update_pop(None, r_id)
+            self.reg_pops[r_id] += 1
+            self.mun_pops[mun_code] += 1
         return regions, agents, houses, families, firms, self.generator.central
 
     def run(self):
@@ -186,10 +185,6 @@ class Simulation:
         for mun_code, regions in self.mun_to_regions.items():
             self.mun_to_regions[mun_code] = list(regions)
 
-        # Beginning of simulation, generate a product
-        for firm in self.firms.values():
-            firm.create_product()
-
         # First jobs allocated
         # Create an existing job market
         self.labor_market.look_for_jobs(self.agents)
@@ -203,6 +198,10 @@ class Simulation:
             actual = self.labor_market.num_candidates
         self.labor_market.reset()
 
+        for i, family in enumerate( self.families.values()):
+            head_family = max(family.members.values(), key=lambda x: x.last_wage)
+            head_family.set_head_family()
+
         # Update initial pop
         for region in self.regions.values():
             region.pop = self.reg_pops[region.id]
@@ -212,18 +211,18 @@ class Simulation:
 
     def monthly(self):
         # Set interest rates
-        i = self.interest[self.interest.index.date == self.clock.days]["interest"].iloc[0]
-        m = self.interest[self.interest.index.date == self.clock.days]["mortgage"].iloc[0]
-        self.central.set_interest(i, m)
+        interests = self.interest[
+            self.interest.index.date == self.clock.days][['interest', 'mortgage', ]].iloc[0]
+        housing_interests = self.housing_interest[self.housing_interest.index.date == self.clock.days][['sbpe', 'fgts']].iloc[0]
+        values = [interests['interest'] , interests['mortgage'], housing_interests['sbpe'], housing_interests['fgts']]  
+        self.central.set_interest(*values)
 
         current_unemployment = self.stats.global_unemployment_rate
 
         # Create new land licenses
-        licenses_per_region = self.PARAMS["PERC_SUPPLY_SIZE_N_LICENSES_PER_REGION"]
+        licenses_per_region = self.PARAMS["EXPECTED_LICENSES_PER_REGION"]
         for region in self.regions.values():
-            region.licenses += self.seed_np.choice(
-                [True, False], p=[licenses_per_region, 1 - licenses_per_region]
-            )
+            region.licenses += self.seed_np.poisson(lam=licenses_per_region)
 
         # Create new firms according to average historical growth
         firm_growth(self)
@@ -263,6 +262,8 @@ class Simulation:
                 mortality_women,
                 fertility,
             )
+        # Calculate head_rate as input for immigration adjustments
+        self.stats.calculate_head_rate(self.families.values(), self.clock.days.strftime("%Y-%m-%d"))
 
         # Adjust population for immigration
         population.immigration(self)
@@ -372,7 +373,7 @@ class Simulation:
             for a in list(self.seed.sample(list(self.agents.values()), sample_size))
             if a.last_wage is not None
         ]
-        wage_deciles = np.percentile(last_wages, np.arange(0, 100, 10))
+        wage_deciles = np.percentile(last_wages, np.arange(10, 101, 10))
         self.labor_market.assign_post(current_unemployment, wage_deciles, self.PARAMS)
 
         # Initiating Real Estate Market
@@ -385,6 +386,7 @@ class Simulation:
         house_price_quantiles = np.quantile(
             [h.price for h in self.houses.values()], q=[0.25, 0.5, 0.75]
         )
+
         self.housing.housing_market(self, house_price_quantiles)
         # (changed location) self.housing.process_monthly_rent(self)
         for house in self.houses.values():
@@ -410,16 +412,16 @@ class Simulation:
         # Getting regional GDP
         self.output.save_regional_report(self)
 
-        if conf.RUN["SAVE_AGENTS_DATA"] == "MONTHLY":
+        if conf.RUN["SAVE_DATA_PERIDIOCITY"] == "MONTHLY":
             self.output.save_data(self)
 
         if conf.RUN["PRINT_STATISTICS_AND_RESULTS_DURING_PROCESS"]:
             self.logger.info(self.clock.days)
 
     def quarterly(self):
-        if conf.RUN["SAVE_AGENTS_DATA"] == "QUARTERLY":
+        if conf.RUN["SAVE_DATA_PERIDIOCITY"] == "QUARTERLY":
             self.output.save_data(self)
 
     def yearly(self):
-        if conf.RUN["SAVE_AGENTS_DATA"] == "ANNUALLY":
+        if conf.RUN["SAVE_DATA_PERIDIOCITY"] == "ANNUALLY":
             self.output.save_data(self)

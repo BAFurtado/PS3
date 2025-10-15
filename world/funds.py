@@ -6,6 +6,7 @@ import numpy as np
 
 from markets.housing import HousingMarket
 from .geography import STATES_CODES, state_string
+from .mcmv_funds import MCMV
 
 
 class Funds:
@@ -19,67 +20,136 @@ class Funds:
             self.fpm = {
                 state: pd.read_csv('input/fpm/%s.csv' % state, sep=',', header=0, decimal='.', encoding='latin1')
                 for state in self.sim.geo.states_on_process}
-        if sim.PARAMS['POLICY_COEFFICIENT']:
-            # Gather the money by municipality. Later gather the families and act upon policy!
+        if self.needs_policy_funding():
             self.policy_money = defaultdict(float)
             self.policy_families = defaultdict(list)
             self.temporary_houses = defaultdict(list)
+        if sim.PARAMS['POLICY_MCMV']:
+            # Collect money from exogenous funding
+            self.mcmv = MCMV(sim)
 
-    def update_policy_families(self):
-        # Entering the list this month
-        incomes = [f.get_permanent_income() for f in self.sim.families.values()]
-        quantile = np.quantile(incomes, self.sim.PARAMS['POLICY_QUANTILE'])
-        for region in self.sim.regions.values():
-            # Unemployed, Default on rent from the region
-            self.sim.regions[region.id].registry[self.sim.clock.days] += [f for f in self.sim.families.values()
-                                                                          if f.get_permanent_income() < quantile
-                                                                          and f.house.region_id == region.id]
-        if self.sim.clock.days < self.sim.PARAMS['STARTING_DAY'] + datetime.timedelta(360):
+    def needs_policy_funding(self):
+        return (
+                (self.sim.PARAMS['POLICIES'] in ['buy', 'rent', 'wage'] and self.sim.PARAMS['POLICY_COEFFICIENT'] > 0)
+                or self.sim.PARAMS.get('POLICY_MCMV')
+                or self.sim.PARAMS.get('POLICY_MELHORIAS')
+        )
+
+    def update_policy_families(self, quantile=0):
+        today = self.sim.clock.days
+        # Skip if within grace period
+        if today < self.sim.PARAMS['STARTING_DAY'] + datetime.timedelta(360):
             return
-        # Entering the policy list. Includes families for past months as well
+
+        families = list(self.sim.families.values())
+        if not quantile:
+            quantile = self.sim.PARAMS['POLICY_QUANTILE']
+
+        # Cache incomes
+        family_incomes = {f: f.get_permanent_income() for f in families}
+        quantile_value = np.quantile(list(family_incomes.values()), quantile)
+
+        # Register low-income families by region
         for region in self.sim.regions.values():
-            for keys in region.registry:
-                if keys > self.sim.clock.days - datetime.timedelta(self.sim.PARAMS['POLICY_DAYS']):
-                    self.policy_families[region.id[:7]] += region.registry[keys]
-        for mun in self.policy_families.keys():
-            # Make sure families on the list are still valid families, residing at the municipality
-            self.policy_families[mun] = [f for f in self.policy_families[mun]
-                                         if f.id in self.sim.families.keys() and f.house.region_id[:7] == mun]
-            self.policy_families[mun] = list(set(f for f in self.policy_families[mun]))
-            self.policy_families[mun] = sorted(self.policy_families[mun], key=lambda f: f.get_permanent_income())
+            eligible = [
+                f for f in families
+                if family_incomes[f] < quantile_value and f.house.region_id == region.id
+            ]
+            region.registry[today].extend(eligible)
+
+        # Add to policy list
+        window_start = today - datetime.timedelta(self.sim.PARAMS['POLICY_DAYS'])
+        for region in self.sim.regions.values():
+            for key in list(region.registry.keys()):
+                if key > window_start:
+                    self.policy_families[region.id[:6]].extend(region.registry[key])
+
+        valid_families = self.sim.families.keys()
+        for mun in self.policy_families:
+            # Filter, deduplicate, sort
+            filtered = [
+                f for f in self.policy_families[mun]
+                if f.id in valid_families and f.house.region_id[:6] == mun
+            ]
+            if self.sim.PARAMS['TOTAL_TARGETING_POLICY']:
+                filtered.sort(key=lambda f: family_incomes.get(f, f.get_permanent_income()))
+            self.policy_families[mun] = list(dict.fromkeys(filtered))
 
     def apply_policies(self):
-        if self.sim.PARAMS['POLICIES'] not in ['buy', 'rent', 'wage']:
+        if not self.needs_policy_funding():
             # Baseline scenario. Do nothing!
             return
-        # Reset indicator every month to reflect subside in a given month, mun_popsnot cumulatively
-        self.families_subsided = 0
-        self.update_policy_families()
         # Implement policies only after first year of simulation run
         if self.sim.clock.days < self.sim.PARAMS['STARTING_DAY'] + datetime.timedelta(360):
             return
-        if self.sim.PARAMS['POLICIES'] == 'buy':
+        # Reset indicator every month to reflect subside in a given month, mun_pops not cumulatively
+        self.families_subsided = 0
+
+        if self.sim.PARAMS['POLICY_MCMV']:
+            # MCMV FAIXA 1
+            self.policy_money = self.mcmv.update_policy_money(self.sim.clock.year, 'faixa1')
+            quantile = self.sim.PARAMS['INCOME_MODALIDADES']['faixa1']
+            self.update_policy_families(quantile)
             self.buy_houses_give_to_families()
-        elif self.sim.PARAMS['POLICIES'] == 'rent':
-            self.pay_families_rent()
-        else:
-            self.distribute_funds_to_families()
+            # RURAL
+            self.policy_money = self.mcmv.update_policy_money(self.sim.clock.year, 'rural')
+            quantile = self.sim.PARAMS['INCOME_MODALIDADES']['rural']
+            self.update_policy_families(quantile)
+            for mun in self.policy_families.keys():
+                self.policy_families[mun] = [f for f in self.policy_families[mun] if f.house.rural]
+            self.buy_houses_give_to_families()
+        if self.sim.PARAMS['POLICY_MELHORIAS']:
+            self.policy_money = self.mcmv.update_policy_money(self.sim.clock.year, 'melhorias')
+            quantile = self.sim.PARAMS['INCOME_MODALIDADES']['melhorias']
+            self.update_policy_families(quantile)
+            for mun in self.policy_families.keys():
+                self.policy_families[mun] = [f for f in self.policy_families[mun] if f.house.quality == .5]
+            self.apply_house_upgrade()
+
+        if self.sim.PARAMS['POLICY_COEFFICIENT']:
+            self.update_policy_families()
+            if self.sim.PARAMS['POLICIES'] == 'buy':
+                self.buy_houses_give_to_families()
+            elif self.sim.PARAMS['POLICIES'] == 'rent':
+                self.pay_families_rent()
+            elif self.sim.PARAMS['POLICIES'] == 'wage':
+                self.distribute_funds_to_families()
         # Resetting lists for next month
         self.policy_families = defaultdict(list)
         self.temporary_houses = defaultdict(list)
+
+    def apply_house_upgrade(self):
+        # STRICTLY FROM .5 TO 1
+        for mun in self.policy_families.keys():
+            self.policy_families[mun] = [f for f in self.policy_families[mun] if
+                                         (f.house.family_id == f.id) &
+                                         (f.house.quality == .5)]
+            for family in self.policy_families[mun]:
+                if self.policy_money[mun] > 0:
+                    upgrade_cost = family.house.price * self.sim.PARAMS['UPGRADE_COST']
+                    if self.policy_money[mun] > upgrade_cost:
+                        family.house.quality = 1
+                        self.policy_money[mun] -= upgrade_cost
+                        self.money_applied_policy += upgrade_cost
+                        self.families_subsided += 1
+                else:
+                    break
 
     def pay_families_rent(self):
         for mun in self.policy_money.keys():
             self.policy_families[mun] = [f for f in self.policy_families[mun] if not f.owned_houses]
             for family in self.policy_families[mun]:
                 if family.house.rent_data:
-                    if self.policy_money[mun] > 0 and family.house.rent_data[0] * 24 < self.policy_money[mun]:
-                        if not family.rent_voucher:
-                            # Paying rent for a given number of months, independent of rent value.
-                            family.rent_voucher = 24
-                            self.policy_money[mun] -= family.house.rent_data[0] * 24
-                            self.money_applied_policy += family.house.rent_data[0] * 24
-                            self.families_subsided += 1
+                    if self.policy_money[mun] > 0:
+                        if family.house.rent_data[0] * 24 < self.policy_money[mun]:
+                            if not family.rent_voucher:
+                                # Paying rent for a given number of months, independent of rent value.
+                                family.rent_voucher = 24
+                                self.policy_money[mun] -= family.house.rent_data[0] * 24
+                                self.money_applied_policy += family.house.rent_data[0] * 24
+                                self.families_subsided += 1
+                    else:
+                        break
 
     def distribute_funds_to_families(self):
         for mun in self.policy_money.keys():
@@ -94,23 +164,24 @@ class Funds:
                 self.policy_money[mun] = 0
 
     def buy_houses_give_to_families(self):
+        houses_by_mun = defaultdict(list)
+        for firm in self.sim.firms.values():
+            if firm.sector == 'Construction':
+                for h in firm.houses_for_sale:
+                    houses_by_mun[h.region_id[:6]].append(h)
         # Families are sorted in self.policy_families. Buy and give as much as money allows
         for mun in self.policy_money.keys():
-            for firm in self.sim.firms.values():
-                if firm.sector == 'Construction':
-                    # Get the list of the houses for sale within the municipality
-                    self.temporary_houses[mun] += [h for h in firm.houses_for_sale if h.region_id[:7] == mun]
+            self.temporary_houses[mun] = houses_by_mun.get(mun, [])
             # Sort houses and families by cheapest, poorest.
             # Considering # houses is limited, help as many as possible earlier.
-            # Although families in sucession gets better and better houses. Then nothing.
+            # Although families in succession gets better and better houses. Then nothing.
             self.temporary_houses[mun] = sorted(self.temporary_houses[mun], key=lambda h: h.price)
             # Exclude families who own any house. Exclusively for renters
             self.policy_families[mun] = [f for f in self.policy_families[mun] if not f.owned_houses]
-            if self.policy_families[mun]:
+            if len(self.policy_families[mun]) > 0:
                 for house in self.temporary_houses[mun]:
                     # While money is good.
-                    if self.policy_money[mun] > 0 and self.policy_families[mun] \
-                            and house.price < self.policy_money[mun]:
+                    if self.policy_money[mun] > 0 and house.price < self.policy_money[mun]:
                         # Getting poorest family first, given permanent income
                         family = self.policy_families[mun].pop(0)
                         # Transaction taxes help reduce the price of the bulk buying by the municipality
@@ -167,7 +238,7 @@ class Funds:
             regional_fpm = self.gov_consumption_parameter * regional_fpm
 
             # Separating money for policy
-            if self.sim.PARAMS['POLICY_COEFFICIENT']:
+            if self.needs_policy_funding():
                 self.policy_money[mun_code] += regional_fpm * self.sim.PARAMS['POLICY_COEFFICIENT']
                 regional_fpm *= 1 - self.sim.PARAMS['POLICY_COEFFICIENT']
 
@@ -191,7 +262,7 @@ class Funds:
                         amount = self.gov_consumption_parameter * amount
 
                 # Separating money for policy
-                if self.sim.PARAMS['POLICY_COEFFICIENT']:
+                if self.needs_policy_funding():
                     self.policy_money[mun] += amount * self.sim.PARAMS['POLICY_COEFFICIENT']
                     amount *= 1 - self.sim.PARAMS['POLICY_COEFFICIENT']
 
@@ -208,7 +279,7 @@ class Funds:
         for id, region in regions.items():
             amount = value * pop_t[id] / pop_total
             # Separating money for policy
-            if self.sim.PARAMS['POLICY_COEFFICIENT']:
+            if self.needs_policy_funding():
                 self.policy_money[id[:7]] += amount * self.sim.PARAMS['POLICY_COEFFICIENT']
                 amount *= 1 - self.sim.PARAMS['POLICY_COEFFICIENT']
 
@@ -230,8 +301,6 @@ class Funds:
             [f.assign_proportion(i / total_employment) for f, i in zip(gov_firms_here, firms_num_employees)]
             self.mun_gov_firms[mun_code] = gov_firms_here
 
-        if self.sim.PARAMS['POLICIES'] not in ['buy', 'rent', 'wage']:
-            self.sim.PARAMS['POLICY_COEFFICIENT'] = 0
         # Collect and UPDATE pop_t-1 and pop_t
         regions = self.sim.regions
         pop_t_minus_1, pop_t = {}, {}
@@ -257,8 +326,7 @@ class Funds:
         v_local = defaultdict(int)
         # Every month taxes to distribute start from 0
         v_equal = 0
-        # TODO. How to incorporate other_regions taxes into the metropolis? Actually, which fraction?
-        # TODO. At the moment, all taxes charged from other regions return back to the metropolis
+        # All taxes charged from other regions return back to the metropolis
         v_equal += self.sim.external.collect_transfer_consumption_tax()
         if self.sim.PARAMS['ALTERNATIVE0']:
             # Dividing proportion of consumption into equal and local (state, municipality)

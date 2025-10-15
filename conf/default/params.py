@@ -4,36 +4,38 @@ import datetime
 
 # FIRMS #########################################################
 # Production function, labour with decaying exponent, Alpha for K. [0, 1]
-PRODUCTIVITY_EXPONENT = .9
+PRODUCTIVITY_EXPONENT = .8
 # Order of magnitude correction of production. Production divided by parameter
-PRODUCTIVITY_MAGNITUDE_DIVISOR = 10
+PRODUCTIVITY_MAGNITUDE_DIVISOR = .2
 # GENERAL CALIBRATION PARAMETERS
 # Order of magnitude parameter of input into municipality investment
-MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.000001
+MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.00001
 # INTEREST. Choose either: 'nominal', 'real' or 'fixed'. Default 'real'
-INTEREST = "real"
+# FOR CENARIOS PLANHAB, choose either: 'alta', 'media' ou 'baixa'
+### Assumption. Mortgage assumed at 80% of regular economy interest rates.
+INTEREST = "media"
 # By how much percentage to increase prices
-MARKUP = 0.05
-# Frequency firms change prices. Probability > than parameter
-STICKY_PRICES = .2
+MARKUP = 0.07
+# Frequency firms change prices. Probability < than parameter
+STICKY_PRICES = .9
 # Price ruggedness a positive value (below 1) that multiplies the magnitude of price reduction
 # Reflects a reluctance of businesses to lower prices. Amount estimated for reduction multiplied by parameter
 PRICE_RUGGEDNESS = 0.1
 # Number of firms consulted before consumption
-SIZE_MARKET = 5
+SIZE_MARKET = 15
 # Number of firms to buy from in the INTERMEDIATE market
-INTERMEDIATE_SIZE_MARKET = 5
+INTERMEDIATE_SIZE_MARKET = 15
 # Frequency firms enter the market
-LABOR_MARKET = 0.4
+LABOR_MARKET = 0.3
 # Percentage of employees' firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
-RELEVANCE_UNEMPLOYMENT_SALARIES = 2
+RELEVANCE_UNEMPLOYMENT_SALARIES = 4
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 20
 
 # Reduction size in case of eco innovation success: multiplies firm parameters
-ENVIRONMENTAL_EFFICIENCY_STEP = .99
+ENVIRONMENTAL_EFFICIENCY_STEP = 1
 # Innovation process probability: 1 - exp(lambda * investment / wage_base)
 ECO_INVESTMENT_LAMBDA = 10
 # Adjustment factor for emissions within firms
@@ -54,10 +56,26 @@ FPM_DISTRIBUTION = True
 # POLICIES #######################################################################
 # POVERTY POLICIES. If POLICY_COEFFICIENT=0, do nothing.
 # Size of the budget designated to the policy
-POLICY_COEFFICIENT = 0.2
+POLICY_COEFFICIENT = 0
 # Policies alternatives may include: 'buy', 'rent' or 'wage' or 'no_policy'. For no policy set to empty strings ''
 # POLICY_COEFFICIENT needs to be > 0.
 POLICIES = "no_policy"
+POLICY_MCMV = True
+POLICY_MCMV_PERCENTAGE = 0.01
+TOTAL_TARGETING_POLICY = False
+
+# HOUSING_POLICY can be ('baseline', )
+HOUSING_POLICY = 'baseline'
+HOUSING_INTEREST = 'baseline'
+# Quantiles for families to be included in the different programs
+INCOME_MODALIDADES = {'faixa1': .1,
+                      'rural': .1,
+                      'melhorias': .2,
+                      'fgts': .6,
+                      'sbpe': .8
+                      }
+POLICY_MELHORIAS = True
+UPGRADE_COST = .2
 POLICY_DAYS = 360
 # Size of the poorest families to be helped
 POLICY_QUANTILE = 0.2
@@ -87,7 +105,7 @@ CAPPED_TOP_VALUE = 1.3
 CAPPED_LOW_VALUE = 0.7
 # Influence of vacancy size on house prices
 # It can be True or 1 or if construction companies consider vacancy strongly it might be 2 [1 - (vacancy * VALUE)]
-OFFER_SIZE_ON_PRICE = 1
+OFFER_SIZE_ON_PRICE = 2
 # TOO LONG ON THE MARKET:
 # value=(1 - MAX_OFFER_DISCOUNT) * e ** (ON_MARKET_DECAY_FACTOR * MONTHS ON MARKET) + MAX_OFFER_DISCOUNT
 # AS SUCH (-.02) DECAY OF 1% FIRST MONTH, 10% FIRST YEAR. SET TO 0 TO ELIMINATE EFFECT
@@ -104,9 +122,8 @@ INITIAL_RENTAL_PRICE = 0.002
 
 # CONSTRUCTION #################################################################################
 # LICENSES ARE URBANIZED LOTS AVAILABLE FOR CONSTRUCTION PER NEIGHBORHOOD PER MONTH.
-# Percentage of NEW licenses created monthly by region (neighborhood). Set to 0 for no licenses.
-# .5 is plenty of supply!
-PERC_SUPPLY_SIZE_N_LICENSES_PER_REGION = 0.5
+# Expected number of NEW licenses created monthly by region (neighborhood). Set to 0 for no licenses.
+EXPECTED_LICENSES_PER_REGION = 2
 # PERCENT_CONSTRUCTION_FIRMS = 0.07 This has been deprecated with the introduction of sectors
 # Months that construction firm will divide its income into monthly revenue installments.
 # Although prices are accounted for at once.
@@ -116,17 +133,14 @@ LOT_COST = 0.15
 # Initial percentage of vacant houses
 HOUSE_VACANCY = 0.1
 # MAX_NUMBER OF HOUSES IN STOCK
-MAX_HOUSE_STOCK = 7
+MAX_HOUSE_STOCK = 12
 # HOW LARGER IS CONSTRUCTION FIRMS PROFIT RELATIVE TO USUAL MARKUP (firms' productivity, given current prices)
-CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 8
+CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 10
 
 # POPULATION AND DEMOGRAPHY
 # Families run parameters (on average) for year 2000, or no information. 2010 uses APs average data
+EXOGENOUS_HEAD_RATE = False
 MEMBERS_PER_FAMILY = 2.5
-# Definition to simplify population by group age groups(TRUE) or including all ages (FALSE)
-SIMPLIFY_POP_EVOLUTION = True
-# Defines the superior limit of age groups, the first value is always ZERO and is omitted from the list.
-LIST_NEW_AGE_GROUPS = [6, 12, 17, 25, 35, 45, 65, 100]
 MARRIAGE_CHECK_PROBABILITY = 0.03
 
 # TAXES ##################################################################
@@ -138,10 +152,10 @@ TAX_PROPERTY = 0.004
 
 # EMISSIONS POLICIES ######################################################
 # Taxes on emission are given by tax * total_emissions. Roughly R$ * tonCO2. .1 is about R$10
-TAX_EMISSION = .005
+TAX_EMISSION = 0
 # Subsidies in (0,1) is the amount of investment paid by the gov(subsidies * total_invested)
 # 0 is none, 1 is full
-ECO_INVESTMENT_SUBSIDIES = .15
+ECO_INVESTMENT_SUBSIDIES = 0
 
 # Consumption_equal: ratio of consumption tax distributed at state level (equal)
 # Fpm: ratio of 'labor' and 'firm' taxes distributed per the fpm ruling
@@ -179,13 +193,13 @@ REGIONAL_FREIGHT_COST = .3
 PERCENTAGE_ACTUAL_POP = 0.01
 
 # Write exactly like the list below
-PROCESSING_ACPS = ["BRASILIA"]
+PROCESSING_ACPS = ["IPATINGA"]
 
 # Selecting the starting year to build the Agents can be: 1991, 2000 or 2010
 STARTING_DAY = datetime.date(2010, 1, 1)
 
 # The Maximum running time (restrained by official data) is 30 years,
-TOTAL_DAYS = (datetime.date(2025, 3, 1) - STARTING_DAY).days
+TOTAL_DAYS = (datetime.date(2020, 1, 1) - STARTING_DAY).days
 
 # Select the possible ACPs (Population Concentration Areas) from the list below.
 # Actually, they are URBAN CONCENTRATION AREAS FROM IBGE, 2022

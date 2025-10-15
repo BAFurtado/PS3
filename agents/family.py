@@ -36,12 +36,14 @@ class Family:
         self.owned_houses = list()
         self.members = {}
         self.relatives = set()
+        self.loan_rate = 'market'
         # Refers to the house the family is living on currently
         self.house = house
         self.rent_default = 0
         self.rent_voucher = 0
         self.average_utility = 0
         self.last_permanent_income = list()
+        self.affordability_ratio = 1
 
         # Previous region id
         if house is not None:
@@ -130,13 +132,16 @@ class Family:
         # Calculated as "discounted sum of current income and expected future income" plus "financial wealth"
         # Perpetuity of income is a fraction (r_1_r) of income t0 divided by interest r
         self.last_permanent_income.append(r_1_r * t0 + r_1_r * (t0 / r) + self.get_wealth(bank) * r)
-        return self.get_permanent_income()
+        value = self.get_permanent_income()
+        # Update affordability
+        self.affordability_ratio = self.house.price / value if value else np.nan
+        return value
 
     def prob_employed(self):
         """Proportion of members that are employed"""
         employable = [m for m in self.members.values() if 16 < m.age < 70]
         # Employed among those within age to be employed
-        self.probability_employed = len([m for m in employable if m.firm_id is not None])/len(employable) \
+        self.probability_employed = len([m for m in employable if m.firm_id is not None]) / len(employable) \
             if employable else 0
         return self.probability_employed
 
@@ -146,7 +151,9 @@ class Family:
 
     # Consumption ####################################################################################################
     def decision_enter_house_market(self, sim, house_price_quantiles):
-        # In construction adding criteria: affordability, housing needs (renting), estability (jobs), space constraints?
+        # It considers current employment status, space constraints, financial availability,
+        # including consumption and payments, housing needs (is renting).
+        # In construction adding criteria: affordability
         # 0. If family has not made goods consumption, or is defaulting on rent don't consider entering housing market
         if not self.average_utility or self.rent_default:
             return False
@@ -169,7 +176,7 @@ class Family:
 
     def decision_on_consumption(self, central, r, year, month):
         """ Family consumes its permanent income, based on members' wages, real estate assets, and savings.
-        A. Separate expenses for renting, goods' consumption, education, banking loans, and investments in that order.
+        A. Separate expenses for renting, banking loans, goods' consumption, and investments in that order.
          """
         # 1. Grabs wages, money in wallet, from family members.
         money = sum(m.grab_money() for m in self.members.values())
@@ -178,7 +185,7 @@ class Family:
         # Having loans will impact on a lower long-run permanent income consumption and on a monthly reduction on
         # consumption. However, the price of the house may be appreciating in the market.
         # 3. Total spending equals permanent income.
-        # 4. Total spending equals rent (if it is the case), education, loans, consumption.
+        # 4. Total spending equals rent (if it is the case), loans, consumption.
         rent, loan, consumption = 0, 0, 0
         if self.is_renting and not self.rent_voucher:
             rent = self.house.rent_data[0]
@@ -212,11 +219,7 @@ class Family:
         # If we grabbed more than planned
         if money > consumption + rent + loan:
             # Deposit money above that of expenses
-            if consumption > 0:
-                self.savings += (money - consumption)
-            else:
-                self.savings += money
-                consumption = 0
+            self.savings += (money - consumption)
         return consumption
 
     def consume(self, regional_market, seed, central, regions, params, year, month, if_origin,
@@ -225,56 +228,53 @@ class Family:
         Family general consumption depends on its permanent income, based on members wages, working life expectancy
         and real estate and savings interest
         """
-        commute_time = regional_market.sim.labor_market.commute_time
         total_consumption = defaultdict(float)
         # Decision on how much money to consume or save
         money_to_spend = self.decision_on_consumption(central, central.interest, year, month)
-
         # Reset monthly's family consumption
         self.average_utility = 0
 
-        if money_to_spend is not None:
-            # Picks SIZE_MARKET number of firms at seed and choose the closest or the cheapest
-            # Consumes from each product the chosen firm offers
-            # Here each sector to buy from are in the rows, and the buying column refer to HouseholdConsumption
-            # Construction and Government are 0 in the table. Specific construction market apply
-            for sector in regional_market.final_demand.index:
-                money_this_sector = money_to_spend * regional_market.final_demand['HouseholdConsumption'][sector]
-                # Some sectors have 0 value, such as Government, Mining, and Construction (explicit markets are used)
-                if money_this_sector == 0:
-                    continue
-                # Choose the firm to buy from
-                sector_firms = firms_by_sector[sector]
-                
-                if not sector_firms:
-                    continue
-                if len(sector_firms) <= int(params['SIZE_MARKET']):
-                    market = seed.sample(sector_firms, len(sector_firms))
-                else:
-                    market = seed.sample(sector_firms, int(params['SIZE_MARKET']))
-                if market:
-                    # Choose between cheapest or closest
-                    firm_strategy = seed.choice(['Price', 'Distance'])
+        if money_to_spend is None:
+            return total_consumption
 
-                    if firm_strategy == 'Price':
-                        # Choose firm with the cheapest average prices
-                        chosen_firm = min(market, key=lambda firm: firm.prices)
-                    else:
-                        # Choose the closest firm
-                        if commute_time:
-                            chosen_firm = min(market, key=lambda firm: commute_time.get((self.house.region_id,
-                                                                                         firm.region_id), .1))
-                        else:
-                            chosen_firm = min(market, key=lambda firm: self.house.distance_to_firm(firm))
+        # Picks SIZE_MARKET number of firms at seed and choose the closest or the cheapest
+        # Consumes from each product the chosen firm offers
+        # Here each sector to buy from are in the rows, and the buying column refer to HouseholdConsumption
+        # Construction and Government are 0 in the table. Specific construction market apply
+        size_market = int(params['SIZE_MARKET'])
+        tax_consumption = int(params['TAX_CONSUMPTION'])
+        household_demand = regional_market.final_demand['HouseholdConsumption']
+        sectors = regional_market.final_demand.index
+        for sector in sectors:
+            sector_share = household_demand.get(sector, 0)
+            if sector_share <= 0:
+                continue
 
-                    # Buy from chosen company
-                    change = chosen_firm.sale(money_this_sector, regions, params['TAX_CONSUMPTION'],
-                                              self.region_id, if_origin)
-                    self.savings += change
+            money_this_sector = money_to_spend * sector_share
+            sector_firms = firms_by_sector.get(sector, [])
 
-                    # Update monthly family utility
-                    self.average_utility += money_this_sector - change
-                    total_consumption[sector] += money_this_sector - change
+            if not sector_firms:
+                continue
+
+            market = seed.sample(sector_firms, min(size_market, len(sector_firms)))
+            if not market:
+                continue
+
+            firm_strategy = seed.choice(['Price', 'Distance'])
+            chosen_firm = min(
+                market,
+                key=(lambda f: f.prices if firm_strategy == 'Price' else self.house.distance_to_firm(f))
+            )
+
+            change = chosen_firm.sale(
+                money_this_sector, regions, tax_consumption,
+                self.region_id, if_origin
+            )
+            self.savings += change
+            utility_gain = money_this_sector - change
+            self.average_utility += utility_gain
+            total_consumption[sector] += utility_gain
+
         return total_consumption
 
     @property

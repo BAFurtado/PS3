@@ -21,7 +21,61 @@ class Statistics(object):
     def __init__(self, params):
         self.previous_month_price = 0
         self.global_unemployment_rate = .086
+        self.last_gdp = defaultdict(float)
         self.vacancy_rate = params['HOUSE_VACANCY']
+        self.head_rate = defaultdict(lambda: defaultdict(int))
+        self.class_ranges = self._generate_class_ranges()
+
+    def _generate_class_ranges(self):
+        """Creates a dictionary mapping age to the correct class range."""
+        j = 15
+        age_to_class = {}
+        for i in range(13):
+            class_range = f"{j + i}-{j + i + 4}"
+            for age in range(j + i, j + i + 5):  # Map each age to the class range
+                age_to_class[age] = class_range
+            j += 4
+        return age_to_class
+
+    def calculate_firms_metrics(self, firms):
+        """Compute median firms values in one pass."""
+        n_firms = len(firms)
+        firm_balances = np.zeros(n_firms)
+        firm_wages = np.zeros(n_firms)
+        firm_eco_eff = np.zeros(n_firms)
+        firm_emissions = np.zeros(n_firms)
+        firm_stocks = np.zeros(n_firms)
+        firm_workers = np.zeros(n_firms)
+        firm_profits = np.zeros(n_firms)
+
+        for i, firm in enumerate(firms.values()):
+            firm_balances[i] = firm.total_balance
+            firm_wages[i] = firm.wages_paid
+            firm_eco_eff[i] = firm.env_efficiency
+            firm_emissions[i] = firm.last_emissions
+            firm_stocks[i] = firm.total_quantity
+            firm_workers[i] = firm.num_employees
+            firm_profits[i] = firm.profit
+
+        results = {
+            "median_wealth": np.median(firm_balances) if firm_balances.size > 0 else 0,
+            "median_wages": np.median(firm_wages) if firm_wages.size > 0 else 0,
+            "eco_efficiency": np.median(firm_eco_eff) if firm_eco_eff.size > 0 else 0,
+            "emissions": np.median(firm_emissions) if firm_emissions.size > 0 else 0,
+            "median_stock": np.median(firm_stocks) if firm_stocks.size > 0 else 0,
+            "workers": np.median(firm_workers) if firm_workers.size > 0 else 0,
+            "aggregate_profits": np.sum(firm_profits) if firm_profits.size > 0 else 0,
+        }
+        logger.info(f"Firm stats - Median wealth: {results['median_wealth']:.2f}, "
+                    f"Median wages: {results['median_wages']:.2f}, "
+                    f"Eco Efficiency: {results['eco_efficiency']:.2f}, "
+                    f"Emissions: {results['emissions']:.2f}, "
+                    f"Median stock: {results['median_stock']:.2f}, "
+                    f"Median workers: {results['workers']:.2f}, "
+                    f"Aggregate profits: {results['aggregate_profits']:.2f}"
+        )
+
+        return results
 
     def calculate_firms_metrics(self, firms):
         """Compute median firms values in one pass."""
@@ -40,7 +94,7 @@ class Statistics(object):
             firm_wages[i] = firm.wages_paid
             firm_eco_eff[i] = firm.env_efficiency
             firm_emissions[i] = firm.last_emissions
-            firm_stocks[i] = firm.get_total_quantity()
+            firm_stocks[i] = firm.total_quantity
             firm_workers[i] = firm.num_employees
             firm_profits[i] = firm.profit
             firm_inno_inv[i] = firm.inno_inv
@@ -88,7 +142,8 @@ class Statistics(object):
         """Calculate GDP and Eco-Efficiency for all regions using NumPy arrays for maximum efficiency."""
 
         total_gdp = 0
-        previous_total_gdp = sum(region.gdp for region in regions.values())  # Store previous GDP
+        previous_total_gdp = sum(self.last_gdp.values()) # Retrieve previous GDP
+        self.last_gdp.clear()
         n_firms = len(firms)
 
         # Preallocate arrays for firm revenues and eco-efficiencies, mapped to region IDs
@@ -108,16 +163,21 @@ class Statistics(object):
 
             region.gdp = np.sum(firm_revenues[mask]) if np.any(mask) else 0
             region.avg_eco_eff = np.mean(firm_eco_efficiencies[mask]) if np.any(mask) else 0
+            self.last_gdp[int(region.id[:6])] += region.gdp
             total_gdp += region.gdp
 
         # Compute GDP growth
         gdp_growth = ((total_gdp - previous_total_gdp) / total_gdp) * 100 if total_gdp != 0 else 1
         logger.info(f'GDP index variation: {gdp_growth:.2f}%')
+        # self.last_gdp = total_gdp # Update GDP
 
         return total_gdp, gdp_growth
 
     def calculate_avg_regional_house_price(self, regional_families):
-        return np.average([f.house.price for f in regional_families if f.num_members > 0])
+        if regional_families:
+            return np.average([f.house.price for f in regional_families if f.num_members > 0])
+        else:
+            return 0
 
     def calculate_house_metrics(self, houses):
         """Compute various house-level metrics efficiently."""
@@ -170,6 +230,19 @@ class Statistics(object):
             self.global_unemployment_rate = temp
         return temp
 
+    def calculate_head_rate(self, families, current_month):
+        """Counts heads in each age group per month."""
+        for family in families:
+            head_agent = next((agent for agent in family.members.values() if agent.head),
+                              max(family.members.values(), key=lambda a: a.age, default=None))  # Find head, or oldest
+            if head_agent:  # If there's a head, update the count
+                age_group = self.class_ranges.get(head_agent.age)
+                if age_group:  # Ensure age is within the defined ranges
+                    self.head_rate[age_group][current_month] += 1
+
+    def get_head_rate_final_results(self):
+        return self.head_rate
+
     def calculate_families_metrics(self, families):
         """Compute various family-level metrics efficiently."""
         n_families = len(families)
@@ -193,27 +266,40 @@ class Statistics(object):
             utility[i] = family.average_utility
             rent_default[i] = family.rent_default == 1 and family.is_renting
             num_members[i] = family.num_members
+            head_family = max(family.members.values(), key=lambda x: x.last_wage)
+            head_family.set_head_family()
             if family.is_renting:
                 has_rent_voucher[i] = family.rent_voucher
                 rent_ratio[i] = family.house.rent_data[0] / (permanent_income[i] if permanent_income[i] > 0 else 1)
 
         # Compute metrics using NumPy
         total_renting = np.sum(renting)
+        total_voucher = np.sum(has_rent_voucher)
         affordable = np.sum((renting & ~has_rent_voucher & (permanent_income > 0) & (rent_ratio < 0.3)))
 
-        affordability_ratio = affordable / total_renting if total_renting > 0 else 0
+        affordability_ratio = (affordable + total_voucher) / total_renting if total_renting > 0 else 0
         median_wealth = np.median(permanent_income)
         median_affordability = np.median(rent_ratio[renting]) if total_renting > 0 else 0
         median_wages = np.median(wages)
         total_savings = np.sum(savings)
-        rent_default_ratio = np.sum(rent_default) / total_renting if total_renting > 0 else 0
+        rent_default_ratio = np.sum(rent_default) / (total_renting - total_voucher) \
+            if total_renting > total_voucher else 0
         zero_consumption_ratio = np.sum(utility == 0) / n_families if n_families > 0 else 0
-        avg_utility = np.average(utility[num_members > 0])
+        mask = num_members > 0
+        vals = utility[mask]
+        if vals.size == 0 or np.sum(vals) == 0:
+            avg_utility = 0
+        else:
+            avg_utility = np.average(vals)
 
         # GINI calculation
-        sorted_income = np.sort(permanent_income + 1e-7)  # Avoid division by zero
+        x = np.array(permanent_income)
+        x = x - np.min(x) + 1e-6  # shift to ensure all positive
+
+        sorted_income = np.sort(x)
         n = sorted_income.size
         index = np.arange(1, n + 1)
+
         gini = (np.sum((2 * index - n - 1) * sorted_income) / (n * np.sum(sorted_income))) if n > 0 else 0
         logger.info(f"Family stats - Zero consumption: {zero_consumption_ratio:.2f}, "
                     f"Family stats - Median wealth: {median_wealth:.2f}, ")
@@ -231,11 +317,13 @@ class Statistics(object):
 
     def calculate_regional_gini(self, families):
         n_families = len(families)
+        if not n_families:
+            return 0
         permanent_income = np.zeros(n_families)
         for i, family in enumerate(families):
             permanent_income[i] = family.get_permanent_income()
         # GINI calculation
-        sorted_income = np.sort(permanent_income + 1e-7)  # Avoid division by zero
+        sorted_income = np.sort(permanent_income - np.min(permanent_income) + 1e-7)  # Avoid division by zero
         n = sorted_income.size
         index = np.arange(1, n + 1)
         gini = (np.sum((2 * index - n - 1) * sorted_income) / (n * np.sum(sorted_income))) if n > 0 else 0

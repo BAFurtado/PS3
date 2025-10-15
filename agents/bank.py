@@ -8,7 +8,7 @@ from collections import defaultdict
 
 import numpy as np
 import numpy_financial as npf
-
+import pandas as pd
 import conf
 
 
@@ -73,7 +73,13 @@ class Central:
         self.wallet = defaultdict(list)
         self.taxes = 0
         self.mortgage_rate = 0
+        self.i_sbpe = 0
+        self.i_fgts = 0
         self._outstanding_loans = 0
+        # IBGE codes got only 6 digits
+        funding_data = pd.read_csv('input/planhab_funds/fgts_sbpe_pct_{scenario}.csv'.format(scenario=conf.PARAMS['HOUSING_POLICY']))
+        self.funding = (funding_data.set_index(['ano', 'cod_ibge'])[['recursos_sbpe', 'recursos_fgts']]
+                        .to_dict(orient='index'))
         self.tax_firm = conf.PARAMS['TAX_FIRM']
 
         self.loan_to_income = conf.PARAMS['LOAN_PAYMENT_TO_PERMANENT_INCOME']
@@ -81,8 +87,8 @@ class Central:
         # Track remaining loan balances
         self.loans = defaultdict(list)
 
-    def set_interest(self, interest, mortgage):
-        self.interest, self.mortgage_rate = interest, mortgage
+    def set_interest(self, interest, mortgage, sbpe, fgts):
+        self.interest, self.mortgage_rate, self.i_sbpe, self.i_fgts = interest, mortgage, sbpe, fgts
 
     def pay_interest(self, client, y, m):
         """ Updates interest to the client
@@ -178,13 +184,21 @@ class Central:
             return min(amounts), max(amounts), mean
         return 0, 0, 0
 
-    def request_loan(self, family, house, amount):
+    def request_loan(self, family, house, amount, ano):
         # Bank endogenous criteria
         # Can't loan more than on hand
-        # Retuns SUCCESS in Loan, adds loan and returns authorized value.
-        if amount > self.balance:
-            return False, None
-
+        # Returns SUCCESS in Loan, adds loan and returns authorized value.
+        if family.loan_rate == 'market':
+            if amount > self.balance:
+                return False, None
+        else:
+            loan_type = "recursos_" + family.loan_rate
+            region = int(house.region_id[:6])
+            try:
+                if amount > self.funding[(ano, region)][loan_type]:
+                    return False, None
+            except KeyError:
+                return False, None
         # If they have outstanding loans, don't lend
         if self.loans[family.id]:
             return False, None
@@ -194,7 +208,7 @@ class Central:
             return False, None
 
         # Get info considering family
-        max_amount, max_months = self.max_loan(family)
+        max_amount, max_months = self.max_loan(family, flag=family.loan_rate)
         amount = min(amount, max_amount)
         # Criteria related to consumer. Check payments fit last months' paycheck
         monthly_payment = self._max_monthly_payment(family)
@@ -204,8 +218,21 @@ class Central:
 
         # Add loan balance
         # Create a new loan for the family
-        self.loans[family.id].append(Loan(amount, self.mortgage_rate, max_months, house))
-        self.balance -= amount
+        rate = {
+            'market': self.mortgage_rate,
+            'sbpe': self.i_sbpe,
+            'fgts': self.i_fgts
+        }.get(family.loan_rate, self.mortgage_rate)
+
+        # Create and register loan
+        self.loans[family.id].append(Loan(amount, rate, max_months, house))
+
+        # Deduct from appropriate balance
+        if family.loan_rate == 'market':
+            self.balance -= amount
+        else:
+            loan_type = 'recursos_'+family.loan_rate
+            self.funding[(ano, int(house.region_id[:6]))][loan_type] -= amount
         self._outstanding_loans += amount
         return True, amount
 
@@ -213,14 +240,19 @@ class Central:
         # Max % of income on loan repayments
         return family.get_permanent_income() * self.loan_to_income
 
-    def max_loan(self, family):
+    def max_loan(self, family, flag='market'):
         """Estimate maximum loan for family"""
         income = self._max_monthly_payment(family)
         max_years = conf.PARAMS['MAX_LOAN_AGE'] - max([m.age for m in family.members.values()])
         # Longest possible mortgage period is limited to 30 years (360 months).
         max_months = min(max_years * 12, 360)
         max_total = income * max_months
-        max_principal = max_total / (1 + self.mortgage_rate)
+        rate = {
+            'market': self.mortgage_rate,
+            'sbpe': self.i_sbpe,
+            'fgts': self.i_fgts
+        }.get(flag, self.mortgage_rate)
+        max_principal = max_total / (1 + rate)
         return min(max_principal, self.balance), max_months
 
     def collect_loan_payments(self, sim):

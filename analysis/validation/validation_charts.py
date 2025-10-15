@@ -29,6 +29,7 @@ def create_boxplot_with_star(data, x_col, y_col, real_data_means, title, xlabel,
             plt.scatter(i, real_data_means[category], color='black', marker='*', s=150,zorder=1, label="Real Data" if i == 0 else "")
 
     plt.xticks(rotation=rotation, ha='right', fontsize=10)
+
     plt.title(title, fontsize=14)
     plt.xlabel(xlabel, fontsize=12)
     plt.ylabel(ylabel, fontsize=12)

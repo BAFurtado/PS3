@@ -26,6 +26,7 @@ from joblib import Parallel, delayed
 import conf
 import main_plotting
 from simulation import Simulation
+
 # from web import app
 
 matplotlib.pyplot.close('all')
@@ -66,7 +67,7 @@ def multiple_runs(overrides, runs, cpus, output_dir, fix_seeds=None):
     #     seeds = []
 
     # calculate output paths and params with overrides
-    paths = [os.path.join(output_dir, main_plotting.conf_to_str(o, delimiter=';'))
+    paths = [os.path.join(output_dir, main_plotting.conf_to_str(o))
              for o in overrides]
     params = []
     for o in overrides:
@@ -153,7 +154,7 @@ def gen_output_dir(command):
 @click.option('-p', '--params', help='JSON of params override')
 @click.option('-r', '--config', help='JSON of run config override')
 def main(ctx, runs, cpus, params, config):
-    if conf.RUN['SAVE_AGENTS_DATA'] is None:
+    if conf.RUN['SAVE_DATA_PERIDIOCITY'] is None:
         logger.warn('Warning!!! Are you sure you do NOT want to save AGENTS\' data?')
 
     # apply any top-level overrides, if specified
@@ -164,8 +165,8 @@ def main(ctx, runs, cpus, params, config):
         params = {}
     # params = json.loads(params) if params is not None else {}
     config = json.loads(config) if config is not None else {}
-    conf.PARAMS.update(params) # applied per-run
-    conf.RUN.update(config)    # applied globally
+    conf.PARAMS.update(params)  # applied per-run
+    conf.RUN.update(config)  # applied globally
 
     ctx.obj = {
         'output_dir': gen_output_dir(ctx.invoked_subcommand),
@@ -240,9 +241,8 @@ def sensitivity(ctx, params):
             ctx.obj['output_dir'] = ctx.obj['output_dir'].replace('sensitivity', '_'.join(k for k in keys))
             confs = permutations_dicts.copy()
         # Fix the same seed for each run
-        #conf.RUN['KEEP_RANDOM_SEED'] = True
+        # conf.RUN['KEEP_RANDOM_SEED'] = True
         # conf.RUN['FORCE_NEW_POPULATION'] = False # Ideally this is True, but it slows things down a lot
-        conf.RUN['SKIP_PARAM_GROUP_PLOTS'] = True
 
         logger.info('Sensitivity run over {} for values: {}, {} run(s) each'.format(p_name,
                                                                                     p_vals, ctx.obj['runs']))
@@ -283,7 +283,7 @@ def distributions_acps(ctx):
     # ACPs with just one municipality
     exclude_list = ['CAMPO GRANDE', 'CAMPO DOS GOYTACAZES', 'FEIRA DE SANTANA', 'MANAUS',
                     'PETROLINA - JUAZEIRO', 'TERESINA', 'UBERLANDIA', 'SAO PAULO']
-    all_acps = pd.read_csv('input/ACPs_BR.csv', sep=';', header=0)
+    all_acps = pd.read_csv('input/CONCURBs_BR.csv', header=0)
     acps = set(all_acps.loc[:, 'ACPs'].values.tolist())
     acps = list(acps)
     for acp in acps:
@@ -332,7 +332,7 @@ def make_plots(params):
     main_plotting.plot_results(output_dir, logger)
     if len(params) > 1:
         results = json.load(open(os.path.join(output_dir, 'meta.json'), 'r'))
-        keys = ['general', 'firms', 'construction', 'houses', 'families', 'banks', 'regional_stats']
+        keys = ['general', 'firms', 'construction', 'houses', 'families', 'banks', 'regional']
         for res in results:
             for i in range(len(res['runs'])):
                 main_plotting.plot(input_paths=[('run', res['runs'][i])],

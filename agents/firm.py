@@ -6,8 +6,6 @@ from unicodedata import category
 import numpy as np
 import pandas as pd
 from dateutil import relativedelta
-from numba import vectorize, float64
-
 
 from .house import House
 from .product import Product
@@ -27,11 +25,8 @@ initial_input_sectors = {'Agriculture': 0,
                          'Government': 0
                          }
 
-emissions = pd.read_csv('input/emissions_sector_average_years.csv')
+emissions = pd.read_csv('input/emissions_sector_average_years.csv', dtype={'mun_code': str})
 
-@vectorize
-def clip4(x, l, u):
-    return max(min(x, u), l)
 
 class Firm:
     """
@@ -60,7 +55,7 @@ class Firm:
             prices=None,
             sector=None,
             env_indicators=None,
-            env_efficiency=1
+            env_efficiency = 1
     ):
         if env_indicators is None:
             self.env_indicators = {'emissions': 0}
@@ -79,10 +74,10 @@ class Firm:
         self.inventory = {}
         self.input_inventory, self.external_input_inventory = (copy.deepcopy(initial_input_sectors),
                                                                copy.deepcopy(initial_input_sectors))
-        self.total_quantity = total_quantity
         # Amount monthly sold by the firm
         self.amount_sold = amount_sold
         self.product_index = product_index
+        self.create_product()
         # Cumulative amount produced by the firm
         self.amount_produced = amount_produced
         self.wages_paid = wages_paid
@@ -95,7 +90,6 @@ class Firm:
         self.sector = sector
         self.no_emissions = False
         self.last_emissions = 0
-        self.inno_inv = 0
         try:
             self.emissions_base = emissions[emissions.isic_12 == self.sector]['eco'].reset_index(drop=True)[0]
         except KeyError:
@@ -115,29 +109,48 @@ class Firm:
                 self.product_index += 1
             self.prices = sum(p.price for p in self.inventory.values()) / len(self.inventory)
 
+
+    # These getters assume just one Product per firm
+    @property
+    def total_quantity(self):
+        return self.inventory[0].quantity
+
+    @property
+    def prices(self):
+        return self.inventory[0].price
+
+    @total_quantity.setter
+    def total_quantity(self, value):
+        self.inventory[0].quantity = value
+
+    @prices.setter
+    def prices(self, value):
+        return self.inventory[0].price
+
     # ECOLOGICAL PROCEDURES ###########################################################################################
     def probability_success(self, eco_investment, eco_lambda):
         """ 
         Returns the probability of success given the amount invested per wages paid (I/W)
         """
-        return 1 - np.exp(- eco_lambda * eco_investment)
+        return 1 - np.exp(np.clip(- eco_lambda * eco_investment, -700, 700))
 
     def create_externalities(self, regions, tax_emission, emissions_param):
         """
         Based on empirical data, creates externalities according to money output produced by a given activity.
         Total emissions are multiplied by firm-level env efficiency.
         """
-        # Environmental indicators (emissions, water, energy, waste) by sector
-        # Procedure: Apply endogenous salary amount to external eco-efficiency to find estimated output indicator
+        # Environmental indicators (emissions, water, energy, waste) by municipality and sector
+        # Using median from 2010.
+        # Procedure: Apply endogenous salary amount to external ecoefficiency to find estimated output indicator
         if not self.no_emissions:
-            emissions_this_month = self.env_efficiency * emissions_param * self.wages_paid / self.emissions_base
+            emissions_this_month = self.env_efficiency * self.wages_paid / self.emissions_base
             self.last_emissions = emissions_this_month
             self.env_indicators['emissions'] += emissions_this_month
             emission_tax = emissions_this_month * tax_emission
-            if emission_tax >= 0:
+            if emission_tax > 0:
                 self.emission_taxes_paid = emission_tax
                 self.total_balance -= emission_tax
-                regions[self.region_id].collect_taxes(emission_tax, "emissions")
+                regions[self.region_id].collect_taxes(self.taxes_paid, "emissions")
             else:
                 self.emission_taxes_paid = 0
 
@@ -147,78 +160,99 @@ class Firm:
         """
         # Decide how much to invest based on expected cost and benefit analysis
         eco_investment, paid_subsidies = self.decision_on_eco_efficiency(regional_market)
-        
+
         # Check if firm has enough balance
-        if self.total_balance < eco_investment * self.wages_paid or eco_investment==0:
-            return  # No money to invest
-
-        self.total_balance -= eco_investment * self.wages_paid - paid_subsidies
-        regions[self.region_id].collect_taxes(-paid_subsidies, "emissions")
-        self.inno_inv = eco_investment
-
+        if self.total_balance >= eco_investment:
+            self.total_balance -= eco_investment
+        else:
+            eco_investment = self.total_balance
+            self.total_balance = 0
 
         params = regional_market.sim.PARAMS
         # Stochastic process to actually reduce firm-level parameter
-        p_success = self.probability_success(eco_investment, params['ECO_INVESTMENT_LAMBDA'])  # regional_market.
+        p_success = self.probability_success(eco_investment,params['ECO_INVESTMENT_LAMBDA']) #regional_market.
         random_value = seed_np.rand()
-        if p_success > random_value:
-            # Innovation was successful
+        if p_success>random_value:
+            # Inovation was successful
             self.env_efficiency *= params['ENVIRONMENTAL_EFFICIENCY_STEP']
         else:
             # Nothing happens
             pass
-        
+        regions[self.region_id].collect_taxes(-paid_subsidies, "emissions")
+        self.total_balance += paid_subsidies
+        self.inno_inv = eco_investment
 
-    def decision_on_eco_efficiency(self, regional_market):
+    def decision_on_eco_efficiency(self,regional_market):
         """ 
         Choose how much to invest based on expected emission cost (taxes, reputational costs and intrinsic cost)
         Also accounts for possible environmental policies
         """
         params = regional_market.sim.PARAMS
-        # Calculate expected emission cost with adaptively expectations
+        ## Calculate expected emission cost with adaptative expectations
         # Tax cost
         tax_cost = self.emission_taxes_paid
         input_cost = self.input_cost
 
-        total_cost = tax_cost + input_cost
+        # TODO: Implement other emission costs
+        reputation_cost, intrinsic_cost = 0,0
+        total_cost = tax_cost+reputation_cost+intrinsic_cost+input_cost
 
         # The next step assumes linearity in costs
-        expected_cost_reduction = (1 - params['ENVIRONMENTAL_EFFICIENCY_STEP']) * total_cost
+        # TODO: Define wether costs are linear or not: we can make any function over total_emission and have
+        # expected_cost_reduction = cost(last_emissions)-cost((1-delta)*last_emissions)
+        expected_cost_reduction = (1-params['ENVIRONMENTAL_EFFICIENCY_STEP']) * total_cost
 
         # Profit maximization formula yields the formula below
         eco_lambda, subsidies = params['ECO_INVESTMENT_LAMBDA'], params['ECO_INVESTMENT_SUBSIDIES']
-        assert self.wages_paid >= 0
-        inner_part_eco_investment = (eco_lambda * expected_cost_reduction) / ((1 - subsidies) * self.wages_paid) \
-            if self.wages_paid > 0 else 0
-        if inner_part_eco_investment > 1:
-            investment_per_wages_paid = (np.log(inner_part_eco_investment) *
-                                         (1 / eco_lambda))
+        if self.wages_paid>0:
+            investment_per_wages_paid = (np.log(
+                                            eco_lambda*expected_cost_reduction/((1-subsidies)*self.wages_paid))*
+                                     (self.wages_paid/eco_lambda))
         else:
             investment_per_wages_paid = 0
+
+        if investment_per_wages_paid < 0:
+            investment_per_wages_paid = 0
         # TODO: Can the government enter deficit?
-        paid_subsidies = subsidies * investment_per_wages_paid * self.wages_paid
+        paid_subsidies = subsidies*investment_per_wages_paid*self.wages_paid
         return investment_per_wages_paid, paid_subsidies
 
     # PRODUCTION DEPARTMENT ###########################################################################################
     def choose_firm_per_sector(self, regional_market, firms, seed, market_size):
         """
-        Choose local firms to buy inputs from
+        Choose local firms to buy inputs from, optimizing firm selection per sector.
         """
         params = regional_market.sim.PARAMS
+        size_market = int(params['SIZE_MARKET'])
         chosen_firms = {}
+
+        # Pre-group firms by sector, excluding self
+        sector_firm_map = {}
+        for firm in firms.values():
+            if firm.id != self.id:
+                sector_firm_map.setdefault(firm.sector, []).append(firm)
+
         for sector in regional_market.technical_matrix.index:
-            eligible_firms = [f for f in firms.values() if f.sector == sector and f.id != self.id]
-            market = list(np.random.choice(eligible_firms, 
-                              min(len(eligible_firms), int(params['SIZE_MARKET'])), 
-                              replace=False))
-            market = [firm for firm in market if firm.get_total_quantity() > 0]
-            if market:
-                # Choose firms with the cheapest average prices
-                market.sort(key=lambda firm: firm.prices)
-                # Choose the THREE cheapest firms, when available
-                chosen_firms[sector] = market[:min(len(market), int(market_size))]
-            else:
+            eligible_firms = sector_firm_map.get(sector, [])
+
+            if not eligible_firms:
                 chosen_firms[sector] = None
+                continue
+
+            # Filter only those with positive quantity
+            available_firms = [f for f in eligible_firms if f.total_quantity > 0]
+
+            if not available_firms:
+                chosen_firms[sector] = None
+                continue
+
+            # Sample up to size_market firms
+            sampled_firms = seed.sample(available_firms, min(len(available_firms), size_market))
+
+            # Sort by price and take top `market_size` firms
+            sampled_firms.sort(key=lambda f: f.prices)
+            chosen_firms[sector] = sampled_firms[:min(len(sampled_firms), int(market_size))]
+
         return chosen_firms
 
     def buy_inputs(self, desired_quantity, regional_market, firms, seed,
@@ -227,12 +261,14 @@ class Firm:
         Buys inputs according to the technical coefficients.
         In fact, this is the intermediate consumer market (firms buying from firms)
         """
-       
         # Reset input cost
         self.input_cost = 0
         if self.total_balance > 0:
+            sectors = regional_market.technical_matrix.index
             # First the firm checks how much it needs to buy
             params = regional_market.sim.PARAMS
+            freight_cost = 1 + params['REGIONAL_FREIGHT_COST']
+
             # The input ratio accounts for the need to buy inputs from other regions
             input_ratio = np.divide(technical_matrix.loc[:, self.sector],
                                     technical_matrix.loc[:, self.sector] +
@@ -241,7 +277,7 @@ class Firm:
                                        (technical_matrix.loc[:, self.sector] +
                                         external_technical_matrix.loc[:, self.sector]))
             input_quantities_needed -= pd.Series(self.input_inventory)
-            input_quantities_needed = clip4(input_quantities_needed,0,10e6)#np.clip(input_quantities_needed, 0, None)
+            input_quantities_needed = np.clip(input_quantities_needed, 0, None)
             local_input_quantities_needed = np.multiply(input_ratio,
                                                         input_quantities_needed)
             external_input_quantities_needed = input_quantities_needed - local_input_quantities_needed
@@ -249,26 +285,28 @@ class Firm:
             chosen_firms_per_sector = self.choose_firm_per_sector(regional_market, firms, seed,
                                                                   params['INTERMEDIATE_SIZE_MARKET'])
             money_local_inputs = sum([local_input_quantities_needed[sector] * chosen_firms_per_sector[sector][0].prices
-                                      for sector in regional_market.technical_matrix.index
+                                      for sector in sectors
                                       if chosen_firms_per_sector[sector]])
 
             # External buying of inputs includes an ADDITIONAL FREIGHT COST!
-            money_external_inputs = sum([external_input_quantities_needed[sector] *
-                                         chosen_firms_per_sector[sector][0].prices *
-                                         (1 + params['REGIONAL_FREIGHT_COST'])
-                                         for sector in regional_market.technical_matrix.index
-                                         if chosen_firms_per_sector[sector]])
+            money_external_inputs = sum([external_input_quantities_needed[sector] * chosen_firms_per_sector[
+                sector][0].prices * freight_cost
+                                        for sector in sectors
+                                        if chosen_firms_per_sector[sector]])
 
             # The reduction factor is used to account for the firm having LESS MONEY than needed
-            reduction_factor = (min(self.total_balance, money_local_inputs + money_external_inputs) /
-                               (money_local_inputs + money_external_inputs)) if money_local_inputs + money_external_inputs > 0 else 1 
-
+            if money_local_inputs + money_external_inputs > 0:
+                reduction_factor = min(self.total_balance,
+                                       money_local_inputs + money_external_inputs) / (
+                                           money_local_inputs + money_external_inputs)
+            else:
+                reduction_factor = 1
 
             # Withdraw all the necessary money. If no inputs are available, change is returned
             self.total_balance -= reduction_factor * (money_local_inputs + money_external_inputs)
 
             # First buy inputs locally. Pay cheapest firm prices
-            for sector in regional_market.technical_matrix.index:
+            for sector in sectors:
                 if chosen_firms_per_sector[sector]:
                     prices = chosen_firms_per_sector[sector][0].prices
                 else:
@@ -281,7 +319,7 @@ class Firm:
                 # TODO. Check flow consistency, where does FREIGHT MONEY GOES?
                 external_money_this_sector = (reduction_factor * external_input_quantities_needed[sector] *
                                               prices *
-                                              (1 + params['REGIONAL_FREIGHT_COST']))
+                                              freight_cost)
 
                 if money_this_sector == 0 and external_money_this_sector == 0:
                     continue
@@ -299,19 +337,19 @@ class Firm:
                     change = money_this_sector
                 # Check whether there was change and buy the rest from the external sector
                 #  so that firms won't consistently buy less than needed while having money
-                if self.total_balance > ((1 + params['REGIONAL_FREIGHT_COST']) - 1) * change:
-                    self.total_balance -= ((1 + params['REGIONAL_FREIGHT_COST']) - 1) * change
-                    external_money_this_sector += (1 + params['REGIONAL_FREIGHT_COST']) * change
+                if self.total_balance > (freight_cost - 1) * change:
+                    self.total_balance -= (freight_cost - 1) * change
+                    external_money_this_sector += freight_cost * change
                 else:
                     external_money_this_sector += self.total_balance
                     self.total_balance = 0
                 # Go for external market which has full supply
                 regional_market.sim.external.intermediate_consumption(external_money_this_sector,
                                                                       prices *
-                                                                      (1 + params['REGIONAL_FREIGHT_COST']))
+                                                                      freight_cost)
                 self.input_inventory[sector] += ((money_this_sector - change) / prices +
                                                  external_money_this_sector / (prices *
-                                                                               (1 + params['REGIONAL_FREIGHT_COST'])))
+                                                                               freight_cost))
                 self.input_cost += money_this_sector - change + external_money_this_sector
 
     def update_product_quantity(self, prod_exponent, prod_divisor, regional_market, firms, seed):
@@ -321,6 +359,8 @@ class Firm:
         """
         # """ Production equation = Labor * qualification ** alpha """
         quantity = 0
+        if self.sector == "Government":
+            pass
         if self.employees and self.inventory:
             # Call get_sum_qualification below: sum([employee.qualification ** parameters.PRODUCTIVITY_EXPONENT
             #                                   for employee in self.employees.values()])
@@ -342,21 +382,16 @@ class Firm:
             # The following process would be a traditional Leontief production function
             productive_constraint = np.divide(pd.Series(self.input_inventory),
                                               input_quantities_needed)
-            productive_constraint = clip4(productive_constraint, 0, 1)#np.clip(productive_constraint, 0, 1)
+            productive_constraint = np.clip(productive_constraint, 0, 1)
             # Check that we have enough inputs to produce desired quantity
             productive_constraint_numeric = max(min(productive_constraint), 0)
             input_used = productive_constraint_numeric * input_quantities_needed
             quantity = productive_constraint_numeric * desired_quantity
             for sector in regional_market.technical_matrix.index:
                 self.input_inventory[sector] -= input_used[sector]
-            self.inventory[0].quantity += quantity
+            self.total_quantity += quantity
             self.amount_produced += quantity
         return quantity
-
-    def get_total_quantity(self):
-        # Simplifying for JUST ONE PRODUCT. More products will need rearranging it
-        self.total_quantity = self.inventory[0].quantity
-        return self.total_quantity
 
     # Commercial department
     def decision_on_prices_production(
@@ -373,9 +408,8 @@ class Firm:
         """ Update prices based on inventory and average prices
             Save signal for the labor market """
         # Sticky prices (KLENOW, MALIN, 2010)
-        if seed_np.rand() > sticky_prices:
+        if seed_np.rand() < sticky_prices:
             for p in self.inventory.values():
-                self.get_total_quantity()
                 # if the firm has sold this month more than available in stocks, prices rise
                 # Dawid 2018 p.26 Firm observes excess or shortage inventory and relative price considering other firms
                 # Considering inventory to last one month only
@@ -470,10 +504,7 @@ class Firm:
                        - self.emission_taxes_paid)
 
     def pay_taxes(self, regions, tax_firm):
-        taxes = (self.revenue 
-                    - self.wages_paid 
-                    - self.input_cost 
-                    - self.emission_taxes_paid) * tax_firm
+        taxes = (self.revenue - self.wages_paid - self.input_cost) * tax_firm
         if taxes >= 0:
             # Revenue minus salaries paid in previous month may be negative.
             # In this case, no taxes are paid
@@ -492,17 +523,15 @@ class Firm:
     def wage_base(self, unemployment, relevance_unemployment):
         # Observing global economic performance to set salaries,
         # guarantees that firms do not spend all revenue on salaries
+        # guarantees that firms do not distribute all money when unemployment is 0
         # Calculating wage base on a per-employee basis.
+        unemployment = .04 if unemployment == 0 else unemployment
         if self.num_employees > 0:
-            return ((self.revenue 
-                     - self.input_cost
-                     - self.emission_taxes_paid) / self.num_employees) * (max(
-                    1 - (unemployment * relevance_unemployment), 0)
+            return ((self.revenue - self.input_cost) / self.num_employees) * (
+                    1 - (unemployment * relevance_unemployment)
             )
         else:
-            return (self.revenue - self.input_cost- self.emission_taxes_paid) * (max(
-                    1 - (unemployment * relevance_unemployment), 0)
-            )
+            return (self.revenue - self.input_cost) * (1 - (unemployment * relevance_unemployment))
 
     def make_payment(self, regions, unemployment, alpha, tax_labor, relevance_unemployment):
         """ Pay employees based on revenue, relative employee qualification, labor taxes, and alpha param
@@ -531,11 +560,9 @@ class Firm:
                 labor_tax = total_salary_paid * tax_labor
                 regions[self.region_id].collect_taxes(labor_tax, "labor")
                 self.total_balance -= total_salary_paid
-                self.wages_paid = total_salary_paid * (1-tax_labor)
+                self.wages_paid = total_salary_paid
             else:
                 self.wages_paid = 0
-                for employee in self.employees.values():
-                    employee.last_wage = 0
 
     # Human resources department #################
     def add_employee(self, employee):
@@ -663,7 +690,7 @@ class ConstructionFirm(Firm):
         # Productivity reduces the cost of construction and sets the size of profiting when selling
         if not self.productivity:
             self.productivity = seed_np.randint(100 - int(params['CONSTRUCTION_FIRM_MARKUP_MULTIPLIER'] *
-                                                          params["MARKUP"] * 100), 101) / 100
+                                                params["MARKUP"] * 100), 101) / 100
         building_cost = gross_cost * self.productivity
 
         # Choose region where construction is most profitable
@@ -728,8 +755,8 @@ class ConstructionFirm(Firm):
         # Finished, expend inputs
         # Remember: if inventory of products is expanded for more than 1, this needs adapting
         building_info = self.building[min_cost_idx]
-        paid = min(building_info["cost"], self.inventory[0].quantity)
-        self.inventory[0].quantity -= paid
+        paid = min(building_info["cost"], self.total_quantity)
+        self.total_quantity -= paid
 
         # Choose random place in region
         region = regions[building_info["region"]]
@@ -779,20 +806,19 @@ class ConstructionFirm(Firm):
                 date += relativedelta.relativedelta(months=+1)
 
     def wage_base(self, unemployment, relevance_unemployment):
-        #TODO: All revenue added before (from intermediate and final consumption) is being ovelooked
-        self.revenue += self.cash_flow[self.present]
+        #TODO: Verify this statement
+        self.revenue = self.cash_flow[self.present]
         # Using temporary planned income before money starts to flow in
-        if self.cash_flow[self.present] == 0 and self.monthly_planned_revenue:
+        if self.revenue == 0 and self.monthly_planned_revenue:
             # Adding the last planned house income
-            self.revenue += self.monthly_planned_revenue[-1]
+            self.revenue = self.monthly_planned_revenue[-1]
         # Observing global economic performance has the added advantage of not spending all revenue on salaries
         if self.num_employees > 0:
-            return ((self.revenue 
-                     - self.input_cost
-                     - self.emission_taxes_paid) / self.num_employees)  * max(
-                    1 - (unemployment * relevance_unemployment), 0)
+            return (self.revenue / self.num_employees) * (
+                    1 - (unemployment * relevance_unemployment)
+            )
         else:
-            return (self.revenue-self.input_cost-self.emission_taxes_paid) * (1 - (unemployment * relevance_unemployment))
+            return self.revenue * (1 - (unemployment * relevance_unemployment))
 
     @property
     def n_houses_sold(self):
@@ -841,7 +867,7 @@ class GovernmentFirm(Firm):
         # Consumption: government own consumption is used as update index. Other sectors consume here.
         total_consumption = defaultdict(float)
 
-        money_to_spend = self.total_balance/10
+        money_to_spend = self.total_balance
         self.total_balance -= money_to_spend
         for sector in sim.regional_market.final_demand.index:
             if sector == 'Government':
@@ -857,7 +883,7 @@ class GovernmentFirm(Firm):
             sector_firms = [f for f in sim.firms.values() if f.sector == sector]
             market = sim.seed.sample(sector_firms,
                                      min(len(sector_firms), int(sim.PARAMS['SIZE_MARKET'])))
-            market = [firm for firm in market if firm.get_total_quantity() > 0]
+            market = [firm for firm in market if firm.total_quantity > 0]
             if market:
                 chosen_firm = min(market, key=lambda firm: firm.prices)
                 # Buy from chosen company

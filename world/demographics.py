@@ -19,10 +19,24 @@ def check_demographics(sim, birthdays, year, mortality_men, mortality_women, fer
     random_numbers = sim.seed_np.random(size=len(birthdays))
     for i, (age, agents) in enumerate(birthdays.items()):
         age = age + 1
-        prob_mort_m = mortality_men.get_group(age)[str(year)].iloc[0]
-        prob_mort_f = mortality_women.get_group(age)[str(year)].iloc[0]
+        try:
+            prob_mort_m = mortality_men.get_group(age)[str(year)].iloc[0]
+            prob_mort_f = mortality_women.get_group(age)[str(year)].iloc[0]
+        except KeyError:
+            try:
+                # New data only contains probability at 0, 1, 5, 10 and from onwards.
+                rounded_age = ((age + 4) // 5) * 5
+                prob_mort_m = mortality_men.get_group(rounded_age)[str(year)].iloc[0]
+                prob_mort_f = mortality_women.get_group(rounded_age)[str(year)].iloc[0]
+            except KeyError:
+                # New data also only goes up to 90
+                prob_mort_m = mortality_men.get_group(90)[str(year)].iloc[0]
+                prob_mort_f = mortality_women.get_group(90)[str(year)].iloc[0]
         if 14 < age < 50:
-            p_pregnancy = fertility.get_group(age)[str(year)].iloc[0]
+            try:
+                p_pregnancy = fertility.get_group(age)[str(year)].iloc[0]
+            except KeyError:
+                p_pregnancy = fertility.get_group(rounded_age)[str(year)].iloc[0]
         for agent in agents:
             agent.age += 1
             if 7 < age < 18:
@@ -67,12 +81,14 @@ def die(sim, agent):
     """An agent dies"""
     sim.grave.append(agent)
     old_region_id = agent.family.region_id
+    if agent.is_employed:
+        sim.firms[agent.firm_id].obit(agent)
     # This makes the house vacant if all members of a given family have passed
     if agent.family.num_members == 1:
         # Save houses of empty family
-        id = agent.family.id
-        inheritance = [h for h in sim.houses.values() if h.owner_id == id]
-        to_empty = [h for h in sim.houses.values() if h.family_id == id]
+        _id = agent.family.id
+        inheritance = [h for h in sim.houses.values() if h.owner_id == _id]
+        to_empty = [h for h in sim.houses.values() if h.family_id == _id]
         for each in to_empty:
             each.family_id = None
             each.rent_data = None
@@ -81,14 +97,14 @@ def die(sim, agent):
             h.owner_id = None
             agent.family.owned_houses.remove(h)
 
-        # Eliminate families with no members
-        id = agent.family.id
-        del sim.families[id]
-        unassigned_houses = [h for h in sim.houses.values() if h.owner_id == id]
-        assert len(unassigned_houses) == 0
-
         savings = agent.family.grab_savings(sim.central, sim.clock.year, sim.clock.months)
         relatives = [sim.families[i] for i in agent.family.relatives if i in sim.families]
+
+        # Eliminate families with no members
+        agent.family.remove_agent(agent)
+        del sim.families[_id]
+        unassigned_houses = [h for h in sim.houses.values() if h.owner_id == _id]
+        assert len(unassigned_houses) == 0
 
         # Redistribute houses, debt, and savings of empty family
         if relatives:
@@ -115,8 +131,8 @@ def die(sim, agent):
                 f.update_balance(savings_per_relative)
 
             # Distribute debt
-            if id in sim.central.loans:
-                loans = sim.central.loans.pop(id)
+            if _id in sim.central.loans:
+                loans = sim.central.loans.pop(_id)
                 sim.central.loans[debtor.id] = loans
 
         else:
@@ -124,13 +140,10 @@ def die(sim, agent):
             sim.generator.randomly_assign_houses(inheritance, sim.families.values())
 
             # Delete debt
-            if id in sim.central.loans:
-                del sim.central.loans[id]
+            if _id in sim.central.loans:
+                del sim.central.loans[_id]
     else:
         agent.family.remove_agent(agent)
-
-    if agent.is_employed:
-        sim.firms[agent.firm_id].obit(agent)
 
     sim.update_pop(old_region_id, None)
     a_id = agent.id

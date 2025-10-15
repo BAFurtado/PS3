@@ -44,10 +44,10 @@ class LaborMarket:
         return self.sim.od_matrix.set_index(['code_weighting_orig', 'code_weighting_dest'])[mode_col].to_dict()
 
     def process_gov_employees_year(self):
-        employees = pd.read_csv('input/qtde_vinc_gov_rais.csv')
+        employees = pd.read_csv('input/qtde_vinc_gov_rais_stable_from_2020_onwards.csv')
         geo_codes_6_digit = [int(str(_)[:6]) for _ in self.sim.geo.mun_codes]
         # Just municipalities in this run
-        return employees[employees['codemun'].isin(geo_codes_6_digit)]  #self.sim.geo.mun_codes)]
+        return employees[employees['codemun'].isin(geo_codes_6_digit)]
 
     def add_post(self, firm):
         self.available_postings.append(firm)
@@ -106,8 +106,9 @@ class LaborMarket:
 
     def compute_scores_cobb_douglas_vectorized(self,
                                                candidates, firm, wage,
-                                               qual_min, qual_max, dist_min, dist_max, wage_min, wage_max,
-                                               alpha, beta
+                                               qual_min, qual_max, dist_max, wage_min, wage_max,
+                                               alpha, beta,
+                                               private_cost, public_cost
                                                ):
         """
         candidates: lista de candidatos
@@ -125,6 +126,10 @@ class LaborMarket:
         # Normalização
         q_norm = (quals - qual_min) / (qual_max - qual_min + 1e-6)
 
+        # Transit cost
+        has_car = np.array([c.has_car for c in candidates])
+        transit_cost = np.where(has_car, private_cost, public_cost)
+
         # Distâncias ou tempos de deslocamento
         if self.sim.od_matrix is not None:
             commutes = np.array([
@@ -136,8 +141,12 @@ class LaborMarket:
                 c.family.house.distance_to_firm(firm)
                 for c in candidates
             ])
-        # Quanto menor a distância, melhor
-        t_norm = 1.0 - (commutes - dist_min) / (dist_max - dist_min + 1e-6)
+        # Penalty: distance * cost
+        commute_penalty = commutes * transit_cost
+        penalty_min = np.min(commute_penalty)
+        penalty_max = np.max(commute_penalty)
+
+        t_norm = 1.0 - (commute_penalty - penalty_min) / (penalty_max - penalty_min + 1e6)
 
         # Salário é fixo por firma
         w_norm = (wage - wage_min) / (wage_max - wage_min + 1e-6)
@@ -158,19 +167,28 @@ class LaborMarket:
             candidates = cand_looking
         else:
             candidates = self.candidates
+
+        # # 2. Create a NEW, filtered list from the source.
+        # #    This is the crucial fix. We are not modifying the original.
+        # candidates = [
+        #     cand for cand in source_candidates
+        #     if cand.family is not None
+        # ]
         offers = []
         done_firms = set()
         done_cands = set()
         alpha = self.sim.PARAMS['CB_QUALIFICATION']
         beta = self.sim.PARAMS['CB_COMMUTING']
+        public_cost = self.sim.PARAMS['PUBLIC_TRANSIT_COST']
+        public_private = self.sim.PARAMS['PRIVATE_TRANSIT_COST']
         # This organizes a number of offers of candidates per firm, according to their own location
         # and "size" of a firm, giving by its more recent revenue level
         # Min, Max for score attributes normalization
         qual_min, qual_max = min(c.qualification for c in candidates), max(c.qualification for c in candidates)
         if self.sim.od_matrix is not None:
-            dist_min, dist_max = min(self.commute_time.values()), max(self.commute_time.values())
+            dist_max = max(self.commute_time.values())
         else:
-            dist_min, dist_max = 0, self.max_dist
+            dist_max = self.max_dist
         wages = [w for _, w in lst_firms]
         wage_min, wage_max = min(wages), max(wages)
 
@@ -179,8 +197,9 @@ class LaborMarket:
                                                   min(len(candidates), int(params['HIRING_SAMPLE_SIZE'])))
             scores = self.compute_scores_cobb_douglas_vectorized(
                 sampled_candidates, firm, wage,
-                qual_min, qual_max, dist_min, dist_max, wage_min, wage_max,
-                alpha=alpha, beta=beta
+                qual_min, qual_max, dist_max, wage_min, wage_max,
+                alpha, beta,
+                public_cost, public_private
             )
             for c, s in zip(sampled_candidates, scores):
                 offers.append((firm, c, s))

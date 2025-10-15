@@ -1,7 +1,5 @@
 # THE ROOT OUTPUT DATA LOCATION #######################################################################################
 # Change your output directory as necessary
-
-
 # OUTPUT_PATH = 'output'
 OUTPUT_PATH = r'output'
 
@@ -23,29 +21,30 @@ SAVE_PLOTS_FIGURES = True
 
 # If plots should be generated separately for each simulation run or just aggregated
 # When PLOT_EACH_RUN is True, DATA for banks, construction, firms, regional, stats are also SAVED
-#                       ***be aware of theirs sizes***
-PLOT_EACH_RUN = False
+#                       ***be aware of their sizes***
+PLOT_EACH_RUN = True
 # Spatial plots only works when PLOT_EACH_RUN is True
 SAVE_SPATIAL_PLOTS = False
 # 'png' or 'eps'
 PLOT_FORMAT = 'png'
-PLOT_REGIONAL = False
+PLOT_REGIONAL = True
 
 # Plot DPI. Lower ones will plot faster
-PLOT_DPI = 300
+PLOT_DPI = 200
 
 # Save Agents data 'MONTHLY' or 'QUARTERLY', 'ANNUALLY', or None
-SAVE_AGENTS_DATA = 'MONTHLY'
+SAVE_DATA_PERIDIOCITY = 'MONTHLY'
 
 # What extra CSV data (i.e. not necessary plotting) to save
 # 'stats' data are always saved,
 # "agents", "grave", "house", "family" are optional.
 
 # If you don't save "house" data for instance you can't generate housing plots.
-# Can include: ['agents', 'grave', 'house', 'family', 'firms', 'regional', 'construction']
+# 'head' refers to the need to calculate head of family rates for household projections and monitoring
+# Can include: ['agents', 'grave', 'house', 'family', 'head', 'neighbourhood']
 # If None, set to empty list: []
-SAVE_DATA = []
-# SAVE_DATA = ['agents', 'house', 'family', 'firms']
+SAVE_DATA = ['neighbourhood']
+# SAVE_DATA = ['agents', 'house', 'family']
 
 # What data to average across all runs.
 # If plotting and not 'firms', 'banks', 'construction' or 'regional',
@@ -53,7 +52,8 @@ SAVE_DATA = []
 # Notice that they are grouped by MONTH and MUNICIPALITY and some values may not make sense
 # Options: ['families', 'houses', 'agents]
 # You need to INCLUDE STATS to generate SPATIAL PLOTS. 'stats' also refer to general averaged plots
-AVERAGE_DATA = ['stats']
+# YOU MAY INCLUDE 'regional'
+AVERAGE_DATA = ['stats', 'regional']
 # 'median' or 'mean'
 AVERAGE_TYPE = 'mean'
 

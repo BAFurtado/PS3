@@ -4,8 +4,9 @@ Definitions on ownership and actual living residence is made.
 """
 from collections import defaultdict
 
+import numpy as np
 from numpy import median
-
+from copy import deepcopy
 from .rentmarket import RentalMarket, collect_rent
 
 
@@ -13,7 +14,9 @@ class HousingMarket:
     def __init__(self):
         self.rental = RentalMarket()
         self.for_sale = list()
-
+        self.policy_year = 0
+        self.policy_percentages = defaultdict(dict)
+        
     @staticmethod
     def process_monthly_rent(sim):
         """ Collection of rental payment due made by households that are renting """
@@ -62,6 +65,19 @@ class HousingMarket:
         looking = sorted(looking, key=lambda score: score[1], reverse=True)
         looking = [score[0] for score in looking]
         looking = looking[:threshold]
+        regions = np.unique([int(region[0:6]) for region in sim.regions.keys()])
+        if sim.clock.year > self.policy_year:
+            self.policy_year = sim.clock.year
+            for r in regions:
+                self.policy_percentages[(sim.clock.year, r)] = deepcopy(sim.central.funding[(sim.clock.year, r)])
+        # Update funding
+        for r in regions:
+            for loan_type in ['recursos_fgts', 'recursos_sbpe',]:
+                sim.central.funding[(sim.clock.year,
+                                     r)][loan_type] = max(0,
+                                                          self.policy_percentages[(sim.clock.year, r)][loan_type]
+                                                          * sim.stats.last_gdp[r])
+
         # Update prices of all houses in the simulation and status 'on_market' or not
         self.update_for_sale(sim)
 
@@ -79,8 +95,21 @@ class HousingMarket:
             return
 
         # Families check the bank for potential credit
-        for f in looking:
-            f.savings_with_loan = f.savings + f.bank_savings + sim.central.max_loan(f)[0]
+        # Check families that have access to subsidised rates
+        # First FGTS, then SBPE, then MARKET
+        incomes = np.array([f.get_permanent_income() for f in looking])
+        fgts_quantiles_value = np.quantile(incomes, sim.PARAMS['INCOME_MODALIDADES']['fgts'])
+        sbpe_quantiles_value = np.quantile(incomes, sim.PARAMS['INCOME_MODALIDADES']['sbpe'])
+
+        for f, income in zip(looking, incomes):
+            if income < fgts_quantiles_value:
+                f.savings_with_loan = f.savings + f.bank_savings + sim.central.max_loan(f, flag='fgts')[0]
+                f.loan_rate = 'fgts'
+            elif income < sbpe_quantiles_value:
+                f.savings_with_loan = f.savings + f.bank_savings + sim.central.max_loan(f, flag='sbpe')[0]
+                f.loan_rate = 'sbpe'
+            else:
+                f.savings_with_loan = f.savings + f.bank_savings + sim.central.max_loan(f)[0]
 
         # Family with the largest savings
         family_maximum_purchasing_power = max(looking, key=lambda fam: fam.savings_with_loan)
@@ -184,12 +213,12 @@ class HousingMarket:
                 else:
                     price = (savings_with_mortgage + p) / 2
                 # Get loan to make up the difference
-                loan_amount = price - savings
+                loan_amount = max(0,price - savings)
                 # Check macroprudencial policy. If loan to value is above set value, no loan, leave the market.
                 if (loan_amount / price) > sim.PARAMS['MAX_LOAN_TO_VALUE']:
                     return
                 # Attempt to actually get the loan from the bank
-                success = sim.central.request_loan(family, house, loan_amount)
+                success = sim.central.request_loan(family, house, loan_amount, sim.clock.year)
                 if not success:
                     # Just one shot at getting a loan
                     return
