@@ -75,6 +75,7 @@ class Central:
         self.mortgage_rate = 0
         self._outstanding_loans = 0
         self.tax_firm = conf.PARAMS['TAX_FIRM']
+
         self.loan_to_income = conf.PARAMS['LOAN_PAYMENT_TO_PERMANENT_INCOME']
 
         # Track remaining loan balances
