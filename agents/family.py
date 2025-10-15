@@ -176,7 +176,7 @@ class Family:
 
     def decision_on_consumption(self, central, r, year, month):
         """ Family consumes its permanent income, based on members' wages, real estate assets, and savings.
-        A. Separate expenses for renting, goods' consumption, education, banking loans, and investments in that order.
+        A. Separate expenses for renting, banking loans, goods' consumption, and investments in that order.
          """
         # 1. Grabs wages, money in wallet, from family members.
         money = sum(m.grab_money() for m in self.members.values())
@@ -185,7 +185,7 @@ class Family:
         # Having loans will impact on a lower long-run permanent income consumption and on a monthly reduction on
         # consumption. However, the price of the house may be appreciating in the market.
         # 3. Total spending equals permanent income.
-        # 4. Total spending equals rent (if it is the case), education, loans, consumption.
+        # 4. Total spending equals rent (if it is the case), loans, consumption.
         rent, loan, consumption = 0, 0, 0
         if self.is_renting and not self.rent_voucher:
             rent = self.house.rent_data[0]
