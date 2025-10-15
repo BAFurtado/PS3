@@ -16,8 +16,7 @@ def collect_rent(houses, sim):
                 payment = house.rent_data[0].copy()
                 tenant.rent_voucher -= 1
             else:
-                # Withdraw money from family members
-                payment = sum(m.grab_money() for m in tenant.members.values())
+                payment = 0
 
             # If cash is not enough to pay rent
             if payment < rent:

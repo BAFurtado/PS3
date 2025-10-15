@@ -41,6 +41,7 @@ class Agent:
         firm_id=None,
         family=None,
         distance=0,
+        has_car=False
     ):
         self.id = id
         self.gender = gender
@@ -54,6 +55,7 @@ class Agent:
         self.last_wage = 0
         self.p_marriage = marriage_data.p_marriage(self)
         self.head = False
+        self.has_car = has_car
 
     @property
     def address(self):
@@ -71,10 +73,22 @@ class Agent:
     def is_retired(self):
         return self.age > 70
 
-    def grab_money(self):
-        d = self.money
+    def pay_transport(self, money, params, regions):
+        # TODO. Check how much money is being collected as well as proportion of distance/wages
+        if self.has_car:
+            cost_transport = self.distance * params['PRIVATE_TRANSIT_COST']
+        else:
+            cost_transport = self.distance * params['PUBLIC_TRANSIT_COST']
+        # Collect taxes to the municipality
+        regions[self.family.house.region_id].collect_taxes(cost_transport, 'transport')
+        return money - cost_transport
+
+    def grab_money(self, params, regions):
+        money = self.money
         self.money = 0
-        return d
+        if self.is_employed:
+            money = self.pay_transport(money, params, regions)
+        return money
 
     @property
     def belongs_to_family(self):
