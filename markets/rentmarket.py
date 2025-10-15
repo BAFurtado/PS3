@@ -9,7 +9,6 @@ def collect_rent(houses, sim):
 
             # Collect taxes on transaction
             taxes = rent * sim.PARAMS['TAX_LABOR']
-            sim.regions[house.region_id].collect_taxes(taxes, 'labor')
 
             # If family belongs to rent policy programme, rent is paid for
             if tenant.rent_voucher:
@@ -24,11 +23,16 @@ def collect_rent(houses, sim):
             if payment < rent:
                 difference = rent - payment
                 # Try savings
-                if tenant.savings > difference:
+                if tenant.savings >= difference:
                     # Withdraw difference from savings
                     tenant.savings -= difference
                     # And add to payment made
                     payment += difference
+                else:
+                    # Take whatever savings are available
+                    payment += tenant.savings
+                    tenant.savings = 0
+
                 # If money still not enough, try deposits in the bank
                 if payment < rent:
                     if sim.central.wallet[tenant]:
@@ -43,12 +47,21 @@ def collect_rent(houses, sim):
             tenant.rent_default = 1 if payment == 0 else 0
             # Deposit change, if any. If payment is not enough in the end, land_family gets the loss
             # and does not receive payment.
-            if payment > rent:
-                tenant.update_balance(round(payment - rent, 2))
+            # Now handle the financial transactions
+            if payment > 0:
+                # Collect taxes only on actual payment made
+                actual_taxes = min(payment, taxes)  # Can't tax more than was paid
+                sim.regions[house.region_id].collect_taxes(actual_taxes, 'labor')
 
-            # Deposit money on land_family. Taxes are due only when below payment made. Otherwise, no rent id owed.
-            if payment > taxes:
-                land_family.update_balance(round(payment - taxes, 2))
+                # Landlord gets what's left after taxes
+                landlord_payment = payment - actual_taxes
+                if landlord_payment > 0:
+                    land_family.update_balance(round(landlord_payment, 2))
+
+                # If tenant overpaid, return the difference
+                if payment > rent:
+                    overpayment = payment - rent
+                    tenant.update_balance(round(overpayment, 2))
 
 
 class RentalMarket:
