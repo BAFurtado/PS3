@@ -1,42 +1,52 @@
-# New model. PolicySpace3--regional input-output matrices, environmental externalities
+## PolicySpace3--regional input-output matrices, environmental externalities, exogenous demographic projections
+### Applications: PlanHab scenarios, Emissions analysis, Transport policy comparisons, Causality
 
-## Todo
-1. Fix labels plots (name instead of code)
-2. Use RAIS data to validate model (qualification, numbers, wages)
+### Lates publications
+1. Modelling environmental policy impacts on firms' carbon emissions: https://surfdrive.surf.nl/files/index.php/s/eTUN9yCbwrkGfrJ 
+2. A provocation on Agent-Based Models as causal inference tools: https://surfdrive.surf.nl/files/index.php/s/AUt2TsUOIVb51Zx
 
-
-### Enhancements and Improvements in PolicySpace2--Changes made in this version
-1. Addresses chosen with spatial join (instead of individually). Enhancement: faster run
-2. Fixed bug construction firm planning house
-3. Introduced new parameter to control for availability of lot space supply for construction
-4. Changed output figures to include lower-upper bound confidence intervals, instead of plotting all runs lines.
-5. Sales and rental markets now use sub-markets in quartiles by income distributions. 
-   Families in the lower income quartile search for houses in the lower quartile of quality
-6. Endogenized decision to enter house market: based on employability, renting status, funds available, level consumption
-7. Ordered, organized decision on consumption
-8. Changed price and production decisions based on Dawid, 2018 benchmarks
-9. Checked bank loan systems. 
-10. Included new graph reports: wages received, wages paid, firms' stocks, population
-11. Sorting of firms in the labor market made by per capita revenue!
-12. Introduced parameters PRICE_RUGGEDNESS so that prices reduction is more rugged than when increasing
-13. Now there is endogenous qualification growth, observing dropout average magnitude
-14. Plotting with lower upper bounds (2std) for sensitivity comparison
-15. Introduced test of collecting consumption taxes at consumers' municipality rather than firms'
-16. Migrated from using `OGR from OSGEO` to regular `geopandas.DataFrames`
-17. Initial real estate average area estimates of empirical values from FIPEZAP in the beginning are read from file, when available
-18. Introduced and checked 12-sector firm types (according to ISIC/NACE 12) on generator create_firms()
-19. Production logic: buying inputs from sectors, according to technical matrix coefficients at the same proportion of labor input
-20. Households buy from all sectors, following final demand IBGE's table
-21. Government budget division to participate in the intermediate market included.
-22. Government labor market distinctions (fixed exogenous values by year) were implemented
-23. Government firms participate in the consumption market, 
+### Changes and enhancements compared to PolicySpace2
+1. Fix regional plotting with confidence intervals
+2. Optimization of consume and update policy functions
+3. Updated data to run into 2040 (resources)
+4. Reorganized policy triggering (to include MCMV faixa 1)
+5. Included subsided interest for FGTS and SBPE
+6. Gathered data from MCidades for ações MCMV faixa 1, calculated as GDP weighted values
+7. Miscelaneous optimization
+8. Fix head-rate saving mechanism
+9. Modified labour matching for a Cobb-Douglas with 3 parameters
+10. Included melhorias (housing improvements) policy
+11. Addresses chosen with spatial join (instead of individually). Enhancement: faster run
+12. Fixed bug construction firm planning house
+13. Introduced new parameter to control for availability of lot space supply for construction
+14. Changed output figures to include lower-upper bound confidence intervals, instead of plotting all runs lines.
+15. Sales and rental markets now use sub-markets in quartiles by income distributions. 
+    Families in the lower income quartile search for houses in the lower quartile of quality
+16. Endogenized decision to enter house market: based on employability, renting status, funds available, level consumption
+17. Ordered, organized decision on consumption
+18. Changed price and production decisions based on Dawid, 2018 benchmarks
+19. Checked bank loan systems. 
+20. Included new graph reports: wages received, wages paid, firms' stocks, population
+21. Sorting of firms in the labor market made by per capita revenue!
+22. Introduced parameters PRICE_RUGGEDNESS so that prices reduction is more rugged than when increasing
+23. Now there is endogenous qualification growth, observing dropout average magnitude
+24. Plotting with lower upper bounds (2std) for sensitivity comparison
+25. Introduced test of collecting consumption taxes at consumers' municipality rather than firms'
+26. Migrated from using `OGR from OSGEO` to regular `geopandas.DataFrames`
+27. Initial real estate average area estimates of empirical values from FIPEZAP in the beginning are read from file, when available
+28. Introduced and checked 12-sector firm types (according to ISIC/NACE 12) on generator create_firms()
+29. Production logic: buying inputs from sectors, according to technical matrix coefficients at the same proportion of labor input
+30. Households buy from all sectors, following final demand IBGE's table
+31. Government budget division to participate in the intermediate market included.
+32. Government labor market distinctions (fixed exogenous values by year) were implemented
+33. Government firms participate in the consumption market, 
 additionally from being responsible for infrastructure and policy.
-24. Intermediate market for sectoral firms
-25. Regionalization of metropolis versus rest of Brazil via decomposition of input-output official matrix
-26. Regionalization of final demands
-27. Implementation of new official urban concentration areas from IBGE, updated in 2022--CONURBs. 
-Due to inumerous mentions in the code, we will continue to use **ACPs despite them having been updated to CONURBs.**
-28. Percentage of firms per sectors are now read from the data (not parameters anymore)
+34. Intermediate market for sectoral firms
+35. Regionalization of metropolis versus rest of Brazil via decomposition of input-output official matrix
+36. Regionalization of final demands
+37. Implementation of new official urban concentration areas from IBGE, updated in 2022--CONURBs. 
+Due to numerous mentions in the code, we will continue to use **ACPs despite them having been updated to CONURBs.**
+38. Percentage of firms per sectors are now read from the data (not parameters anymore)
 
 ------
 ``` python 3.12```

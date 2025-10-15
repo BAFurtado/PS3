@@ -123,6 +123,14 @@ OUTPUT_DATA_SPEC = {
                     'regional_gini', 'regional_house_values', 'regional_unemployment',
                     'qli_index', 'gdp_percapita', 'treasure', 'equally', 'locally', 'fpm',
                     'licenses']
+    },
+    'neighbourhood': {
+        'avg': {
+            'groupings': ['month', 'mun_id'],
+            'columns': 'ALL'
+        },
+        'columns': ['month', 'mun_id', 'neigh_id', 'pop', 'neighbourhood_gdp',
+                    'neighbourhood_gdp_percapita', 'neighbourhood_commuting', 'neighbourhood_gini']
     }
 }
 
@@ -133,7 +141,7 @@ class Output:
     def __init__(self, sim, output_path):
         files = ['stats', 'regional', 'time', 'firms', 'banks',
                  'houses', 'agents', 'families', 'grave', 'construction',
-                 'head']
+                 'head', 'neighbourhood']
 
         self.sim = sim
         self.times = []
@@ -239,12 +247,7 @@ class Output:
             agents_by_mun[mun_id].append(agent)
 
         for family in sim.families.values():
-            # sometimes family.region_id is None?
-            if family.region_id:
-                mun_id = family.region_id[:7]
-                families_by_mun[mun_id].append(family)
-            else:
-                families_by_mun[family.region_id].append(family)
+            families_by_mun[mun_id].append(family)
 
         # aggregate regions into municipalities,
         # in case they are APs
@@ -263,7 +266,6 @@ class Output:
             mun_gini = sim.stats.calculate_regional_gini(mun_families)
             mun_house_values = sim.stats.calculate_avg_regional_house_price(mun_families)
             mun_unemployment = sim.stats.update_unemployment(mun_agents)
-            region.total_commute = commuting
 
             mun_cumulative_treasure = 0
             licenses = 0
@@ -289,16 +291,35 @@ class Output:
         with open(self.regional_path, 'a') as f:
             f.write('\n' + '\n'.join(reports))
 
+    def save_neighbourhood_data(self, sim):
+        neighbourhood_families = defaultdict(list)
+        neighbourhood_gini = dict()
+        neighbourhood_commute = dict()
+        for family in sim.families.values():
+            neighbourhood_families[family.region_id].append(family)
+        for r in neighbourhood_families.keys():
+            families = neighbourhood_families[r]
+            neighbourhood_gini[r] = sim.stats.calculate_regional_gini(families)
+            commute_value = sim.stats.update_commuting(families)
+            self.sim.regions[r].total_commute = commute_value
+            neighbourhood_commute[r] = commute_value
+        with open(self.neighbourhood_path, 'a') as f:
+            [f.write('%s; %s; %s; %d; %.3f; %.3f; %.3f; %.3f \n' %
+                     (sim.clock.days, region.id[:7], region.id, region.pop, region.gdp,
+                      region.gdp / region.pop, neighbourhood_commute[region.id],
+                      neighbourhood_gini[region.id]))
+             for region in sim.regions.values()]
+
     def save_data(self, sim):
         # firms data is necessary for plots,
         # so always save
         self.save_banks_data(sim)
 
-        for type in conf.RUN['SAVE_DATA']:
+        for each in conf.RUN['SAVE_DATA']:
             # Skip b/c they are saved anyway above
-            if type in ['banks']:
+            if each == 'banks':
                 continue
-            save_fn = getattr(self, 'save_{}_data'.format(type))
+            save_fn = getattr(self, 'save_{}_data'.format(each))
             save_fn(sim)
 
     def save_firms_data(self, sim):
