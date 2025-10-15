@@ -11,9 +11,7 @@ PRODUCTIVITY_MAGNITUDE_DIVISOR = .2
 # Order of magnitude parameter of input into municipality investment
 MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.00001
 # INTEREST. Choose either: 'nominal', 'real' or 'fixed'. Default 'real'
-# FOR CENARIOS PLANHAB, choose either: 'alta', 'media' ou 'baixa'
-### Assumption. Mortgage assumed at 80% of regular economy interest rates.
-INTEREST = "media"
+INTEREST = "real"
 # By how much percentage to increase prices
 MARKUP = 0.07
 # Frequency firms change prices. Probability < than parameter
