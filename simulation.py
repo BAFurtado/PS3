@@ -303,6 +303,7 @@ class Simulation:
         markup = self.PARAMS["MARKUP"]
         const_cash_flow = self.PARAMS["CONSTRUCTION_ACC_CASH_FLOW"]
         price_ruggedness = self.PARAMS["PRICE_RUGGEDNESS"]
+        tax_transport = self.PARAMS["TAX_TRANSPORT"]
         self.avg_prices, _ = self.stats.update_price(self.firms, mid_simulation_calculus=True)
         for firm in self.firms.values():
             # Tax workers when paying salaries
@@ -311,7 +312,8 @@ class Simulation:
                 current_unemployment,
                 prod_exponent,
                 tax_labor,
-                relevance_unemployment)
+                relevance_unemployment,
+                tax_transport)
             # Firms update generated externalities, based on own sector and wages paid this month
             firm.create_externalities(self.regions, tax_emission, self.PARAMS['EMISSIONS_PARAM'])
             # Tax firms before profits: (revenue - salaries paid)

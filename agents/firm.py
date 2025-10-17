@@ -533,7 +533,7 @@ class Firm:
         else:
             return (self.revenue - self.input_cost) * (1 - (unemployment * relevance_unemployment))
 
-    def make_payment(self, regions, unemployment, alpha, tax_labor, relevance_unemployment):
+    def make_payment(self, regions, unemployment, alpha, tax_labor, relevance_unemployment, tax_transport=False):
         """ Pay employees based on revenue, relative employee qualification, labor taxes, and alpha param
         """
         if self.employees:
@@ -553,6 +553,10 @@ class Firm:
                                    * (employee.qualification ** alpha)
                                    / total_qualification
                            ) * (1 - tax_labor)
+                    if tax_transport:
+                        transport_tax = wage * tax_transport
+                        wage -= transport_tax
+                        regions[self.region_id].collect_taxes(transport_tax, "transport")
                     employee.money += wage
                     employee.last_wage = wage
 
@@ -806,7 +810,6 @@ class ConstructionFirm(Firm):
                 date += relativedelta.relativedelta(months=+1)
 
     def wage_base(self, unemployment, relevance_unemployment):
-        #TODO: Verify this statement
         self.revenue = self.cash_flow[self.present]
         # Using temporary planned income before money starts to flow in
         if self.revenue == 0 and self.monthly_planned_revenue:

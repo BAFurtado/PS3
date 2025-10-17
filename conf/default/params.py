@@ -147,6 +147,7 @@ TAX_LABOR = 0.15
 TAX_ESTATE_TRANSACTION = 0.004
 TAX_FIRM = 0.15
 TAX_PROPERTY = 0.004
+TAX_TRANSPORT = 0
 
 # EMISSIONS POLICIES ######################################################
 # Taxes on emission are given by tax * total_emissions. Roughly R$ * tonCO2. .1 is about R$10
