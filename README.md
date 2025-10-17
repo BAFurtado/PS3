@@ -199,7 +199,7 @@ For multiple combinations of parameters one may try the following rules
 
 Include first the params, separated by '+', then '*' and then the list of values also '+'
 Such as 'param1+param2*1+2*10+20'.
-Thus,  producing the dict: {'param1': ['10', '20'], 'param2': ['10', '20']}
+Thus,  producing the dict: {'param1': ['1', '2'], 'param2': ['10', '20']}
 ```
 python main.py sensitivity PRODUCTIVITY_EXPONENT+PRODUCTIVITY_MAGNITUDE_DIVISOR*.3+.4*10+20
 ```

@@ -24,12 +24,12 @@ class LaborMarket:
         self.available_postings = list()
         self.candidates = list()
         if self.sim.od_matrix is not None:
-            mode_col = 'TempoRedeNec' if self.sim.PARAMS['TRANSPORT_POLICY'] else 'TempoRedeBase'
+            mode_col = 'TempoRedeNec' if self.sim.PARAMS['TRANSPORT_TIME'] else 'TempoRedeBase'
             self.commute_time = self.build_commute_time_cache(mode_col)
             self.max_dist = None
         else:
             self.commute_time = None
-            self.max_dist = self.compute_max_distance()
+            self.max_dist = None
 
     def compute_max_distance(self):
         centroids = [r.addresses.centroid for r in self.sim.regions.values()]
@@ -188,7 +188,11 @@ class LaborMarket:
         if self.sim.od_matrix is not None:
             dist_max = max(self.commute_time.values())
         else:
-            dist_max = self.max_dist
+            if self.max_dist is None:
+                self.max_dist = self.compute_max_distance()
+                dist_max = self.max_dist
+            else:
+                dist_max = self.max_dist
         wages = [w for _, w in lst_firms]
         wage_min, wage_max = min(wages), max(wages)
 

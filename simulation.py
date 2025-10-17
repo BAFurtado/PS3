@@ -47,6 +47,7 @@ class Simulation:
         self.demographics = demographics
         self.grave = list()
         self.mun_to_regions = defaultdict(set)
+        self.od_matrix = None
         # Read necessary files
         self.m_men, self.m_women, self.f = dict(), dict(), dict()
 
@@ -66,9 +67,8 @@ class Simulation:
                 header=0,
                 decimal=".",
             ).groupby("age")
-        if self.PARAMS['READ_TRANSPORT_MATRIX']:
-            # Implement loop when other RMs ODs become available
-            state = 'DF'
+        # Implement loop when other RMs ODs become available
+        if 'DF' in self.geo.states_on_process:
             try:
                 self.od_matrix = pd.read_parquet('input/bndes/travel_times_areapond_%s.parquet' % state)
             except FileNotFoundError:
