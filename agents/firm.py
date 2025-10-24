@@ -554,9 +554,10 @@ class Firm:
                                    / total_qualification
                            ) * (1 - tax_labor)
                     if tax_transport:
-                        transport_tax = wage * tax_transport
-                        wage -= transport_tax
-                        regions[self.region_id].collect_taxes(transport_tax, "transport")
+                        if self.num_employees > 10:
+                            transport_tax = wage * tax_transport
+                            wage -= transport_tax
+                            regions[self.region_id].collect_taxes(transport_tax, "transport")
                     employee.money += wage
                     employee.last_wage = wage
 
