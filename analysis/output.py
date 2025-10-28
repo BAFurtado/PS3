@@ -3,6 +3,7 @@ import os
 from collections import defaultdict
 
 import pandas as pd
+import numpy as np
 
 import conf
 
@@ -130,7 +131,8 @@ OUTPUT_DATA_SPEC = {
             'columns': 'ALL'
         },
         'columns': ['month', 'mun_id', 'neigh_id', 'pop', 'neighbourhood_gdp',
-                    'neighbourhood_gdp_percapita', 'neighbourhood_commuting', 'neighbourhood_gini']
+                    'neighbourhood_gdp_percapita', 'neighbourhood_commuting', 'neighbourhood_gini',
+                    'neighbourhood_avg_family_income']
     }
 }
 
@@ -303,11 +305,12 @@ class Output:
             commute_value = sim.stats.update_commuting(families)
             self.sim.regions[r].total_commute = commute_value
             neighbourhood_commute[r] = commute_value
+            neigh_avg_family_income = np.sum([fam.get_permanent_income() for fam in families])
         with open(self.neighbourhood_path, 'a') as f:
-            [f.write('%s; %s; %s; %d; %.3f; %.3f; %.3f; %.3f \n' %
+            [f.write('%s; %s; %s; %d; %.3f; %.3f; %.3f; %.3f; %.3f \n' %
                      (sim.clock.days, region.id[:7], region.id, region.pop, region.gdp,
                       region.gdp / region.pop, neighbourhood_commute[region.id],
-                      neighbourhood_gini[region.id]))
+                      neighbourhood_gini[region.id], neigh_avg_family_income))
              for region in sim.regions.values()]
 
     def save_data(self, sim):

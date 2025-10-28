@@ -44,7 +44,7 @@ class Family:
         self.average_utility = 0
         self.last_permanent_income = list()
         self.affordability_ratio = 1
-
+        self.cached_permanent_income = 0
         # Previous region id
         if house is not None:
             self.region_id = house.region_id
@@ -121,8 +121,11 @@ class Family:
     def total_wage(self):
         return sum(member.last_wage for member in self.members.values() if member.last_wage is not None)
 
-    def get_permanent_income(self):
-        return sum(self.last_permanent_income) / len(self.last_permanent_income) if self.last_permanent_income else 0
+    def get_permanent_income(self, flag_first_time_month=False):
+        if flag_first_time_month:
+            # Update only once a month, during consumption: all families
+            self.cached_permanent_income = sum(self.last_permanent_income) / len(self.last_permanent_income) if self.last_permanent_income else 0
+        return self.cached_permanent_income
 
     def permanent_income(self, bank, r):
         # Equals Consumption (Bielefeld, 2018, pp.13-14)
@@ -132,7 +135,8 @@ class Family:
         # Calculated as "discounted sum of current income and expected future income" plus "financial wealth"
         # Perpetuity of income is a fraction (r_1_r) of income t0 divided by interest r
         self.last_permanent_income.append(r_1_r * t0 + r_1_r * (t0 / r) + self.get_wealth(bank) * r)
-        value = self.get_permanent_income()
+        # Monthly single need to calculate. Used 12x in a month
+        value = self.get_permanent_income(flag_first_time_month=True)
         # Update affordability
         self.affordability_ratio = self.house.price / value if value else np.nan
         return value
