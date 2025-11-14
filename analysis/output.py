@@ -43,6 +43,8 @@ OUTPUT_DATA_SPEC = {
                     'firms_avg_eco_eff',
                     'firms_median_wage_paid',
                     'firms_median_innovation_investment',
+                    'total_subsidies',
+                    'total_emission_tax',
                     'emissions',
                     'gini_index',
                     'average_utility',
@@ -205,6 +207,8 @@ class Output:
                  f"{firm_results['eco_efficiency']:.4f};" \
                  f"{firm_results['median_wages']:.2f};" \
                  f"{firm_results['innovation_investment']:.4f};" \
+                 f"{firm_results['total_subsidies']:.4f};" \
+                 f"{firm_results['total_emission_tax']:.4f};" \
                  f"{firm_results['emissions']:.2f};" \
                  f"{families_results['gini']:.3f};" \
                  f"{families_results['avg_utility']:.2f};" \

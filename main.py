@@ -196,6 +196,25 @@ def sensitivity(ctx, params):
             p_vals = [round(v, 8) for v in p_vals]
         # TODO: Fix plots for starting-day sensitivity analysis.
         #  Yearly information refers to 2010-2020. Should go the whole period.
+        elif "EMISSIONS" in param: 
+            # The EMISSIONS sensitivity configuration follows the structure: 
+            # python main.py -n x -c x sensitivity EMISSIONS... 
+            # TODO: Add ACP groups as (Capital or all) 
+            flag = True 
+                # Define MCMV scenarios and define available interest values 
+            my_dict = {'TAX_EMISSION': [0, .005], 
+                        'TARGETED_TAX_EMISSION': [False, True], 
+                        'CARBON_TAX_RECYCLING': [False, True], 
+                        'ECO_INVESTMENT_SUBSIDIES': [0,.25]} 
+            ps = list(my_dict.keys()) 
+            keys, values = zip(*my_dict.items()) 
+            all_permutations = [dict(zip(keys, v)) for v in itertools.product(*values)] 
+            # Filter so that if POLICY_MCMV is False, the use only INTEREST='media' 
+            for p in all_permutations: 
+                if p['TAX_EMISSION'] == 0 and (p['TARGETED_TAX_EMISSION'] or p['CARBON_TAX_RECYCLING']): 
+                    continue 
+                #It's a valid combination 
+                permutations_dicts.append(p) 
         elif param == 'STARTING_DAY':
             p_name = param
             p_vals = [datetime.date(2000, 1, 1), datetime.date(2010, 1, 1)]

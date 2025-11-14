@@ -403,6 +403,7 @@ class Simulation:
         # Apply policies if percentage is different from 0
         if self.PARAMS["POLICY_COEFFICIENT"]:
             self.funds.apply_policies()
+        #TODO: ADD CAR|BONS RECYCLING
 
         # Pass monthly information to be stored in Statistics
         self.output.save_stats_report(self, bank_taxes)

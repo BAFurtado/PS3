@@ -285,6 +285,11 @@ class Funds:
         else:
             v_equal += (sum([treasure[key]['labor'] for key in treasure.keys()]) +
                         sum([treasure[key]['firm'] for key in treasure.keys()]))
+        if self.sim.PARAMS['CARBON_TAX_RECYCLING']:
+            v_equal += sum([treasure[key]['emissions'] for key in treasure.keys()])
         # Taxes charged from interests paid by the bank are equally distributed
         v_equal += bank_taxes
         self.equally(v_equal, regions, pop_t, sum(pop_mun_t.values()))
+    
+ 
+           

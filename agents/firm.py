@@ -90,7 +90,7 @@ class Firm:
         # Monthly income received from sales
         self.revenue = revenue
         self.taxes_paid = taxes_paid
-        self.emission_taxes_paid = 0
+        self.emission_taxes_paid, self.subsidies_received = 0, 0
         self.prices = prices
         self.sector = sector
         self.no_emissions = False
@@ -122,7 +122,7 @@ class Firm:
         """
         return 1 - np.exp(- eco_lambda * eco_investment)
 
-    def create_externalities(self, regions, tax_emission, emissions_param):
+    def create_externalities(self, regions, tax_emission, emissions_param,targeted_tax):
         """
         Based on empirical data, creates externalities according to money output produced by a given activity.
         Total emissions are multiplied by firm-level env efficiency.
@@ -133,6 +133,11 @@ class Firm:
             emissions_this_month = self.env_efficiency * emissions_param * self.wages_paid / self.emissions_base
             self.last_emissions = emissions_this_month
             self.env_indicators['emissions'] += emissions_this_month
+            if targeted_tax and not self.sector in ['Construction']:
+                 emission_tax = 0
+            else:
+                emission_tax = emissions_this_month * tax_emission
+
             emission_tax = emissions_this_month * tax_emission
             if emission_tax >= 0:
                 self.emission_taxes_paid = emission_tax
@@ -147,14 +152,16 @@ class Firm:
         """
         # Decide how much to invest based on expected cost and benefit analysis
         eco_investment, paid_subsidies = self.decision_on_eco_efficiency(regional_market)
+        if paid_subsidies > sum([regions[r].treasure["emissions"] for r in regions.keys()]):
+            paid_subsidies = sum([regions[r].treasure["emissions"] for r in regions.keys()])
         
         # Check if firm has enough balance
-        if self.total_balance < eco_investment * self.wages_paid or eco_investment==0:
+        if self.total_balance < eco_investment * self.wages_paid-paid_subsidies or eco_investment<=0:
             return  # No money to invest
-
         self.total_balance -= eco_investment * self.wages_paid - paid_subsidies
         regions[self.region_id].collect_taxes(-paid_subsidies, "emissions")
         self.inno_inv = eco_investment
+        self.subsidies_received = paid_subsidies
 
 
         params = regional_market.sim.PARAMS

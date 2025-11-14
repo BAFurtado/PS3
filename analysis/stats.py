@@ -34,6 +34,8 @@ class Statistics(object):
         firm_workers = np.zeros(n_firms)
         firm_profits = np.zeros(n_firms)
         firm_inno_inv = np.zeros(n_firms)
+        firm_rec_subsidies = np.zeros(n_firms)
+        firm_paid_emission_tax = np.zeros(n_firms)
 
         for i, firm in enumerate(firms.values()):
             firm_balances[i] = firm.total_balance
@@ -44,6 +46,8 @@ class Statistics(object):
             firm_workers[i] = firm.num_employees
             firm_profits[i] = firm.profit
             firm_inno_inv[i] = firm.inno_inv
+            firm_rec_subsidies[i] = firm.subsidies_received
+            firm_paid_emission_tax[i] = firm.emission_taxes_paid
 
         results = {
             "median_wealth": np.median(firm_balances) if firm_balances.size > 0 else 0,
@@ -53,7 +57,9 @@ class Statistics(object):
             "median_stock": np.median(firm_stocks) if firm_stocks.size > 0 else 0,
             "workers": np.median(firm_workers) if firm_workers.size > 0 else 0,
             "aggregate_profits": np.sum(firm_profits) if firm_profits.size > 0 else 0,
-            "innovation_investment": np.mean(firm_inno_inv) if firm_inno_inv.size > 0 else 0
+            "innovation_investment": np.mean(firm_inno_inv) if firm_inno_inv.size > 0 else 0,
+            "total_subsidies": np.sum(firm_rec_subsidies) if firm_rec_subsidies.size > 0 else 0,
+            "total_emission_tax": np.sum(firm_paid_emission_tax) if firm_paid_emission_tax.size > 0 else 0
         }
         logger.info(f"Firm stats - Median wealth: {results['median_wealth']:.2f}, "
                     f"Median wages: {results['median_wages']:.2f}, "
