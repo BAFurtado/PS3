@@ -122,7 +122,7 @@ class Firm:
         """
         return 1 - np.exp(- eco_lambda * eco_investment)
 
-    def create_externalities(self, regions, tax_emission, emissions_param,targeted_tax):
+    def create_externalities(self, regions, tax_emission, emissions_param):
         """
         Based on empirical data, creates externalities according to money output produced by a given activity.
         Total emissions are multiplied by firm-level env efficiency.
@@ -133,11 +133,6 @@ class Firm:
             emissions_this_month = self.env_efficiency * emissions_param * self.wages_paid / self.emissions_base
             self.last_emissions = emissions_this_month
             self.env_indicators['emissions'] += emissions_this_month
-            if targeted_tax and not self.sector in ['Construction']:
-                 emission_tax = 0
-            else:
-                emission_tax = emissions_this_month * tax_emission
-
             emission_tax = emissions_this_month * tax_emission
             if emission_tax >= 0:
                 self.emission_taxes_paid = emission_tax
@@ -146,7 +141,7 @@ class Firm:
             else:
                 self.emission_taxes_paid = 0
 
-    def invest_eco_efficiency(self, regional_market, regions, seed_np):
+    def invest_eco_efficiency(self, regional_market, regions, seed_np, targeted_subsidies = False):
         """
         Reduce overall emissions per wage employed.
         """
@@ -182,7 +177,7 @@ class Firm:
         Also accounts for possible environmental policies
         """
         params = regional_market.sim.PARAMS
-        # Calculate expected emission cost with adaptively expectations
+        # Calculate expected emission cost with adaptive expectations
         # Tax cost
         tax_cost = self.emission_taxes_paid
         input_cost = self.input_cost
@@ -191,9 +186,11 @@ class Firm:
 
         # The next step assumes linearity in costs
         expected_cost_reduction = (1 - params['ENVIRONMENTAL_EFFICIENCY_STEP']) * total_cost
-
-        # Profit maximization formula yields the formula below
         eco_lambda, subsidies = params['ECO_INVESTMENT_LAMBDA'], params['ECO_INVESTMENT_SUBSIDIES']
+
+        # No subsidies if the subsidies are targeted
+        if params['TARGETED_TAX_SUBSIDIES'] and not self.sector in ['Construction']:
+            subsidies = 0
         assert self.wages_paid >= 0
         inner_part_eco_investment = (eco_lambda * expected_cost_reduction) / ((1 - subsidies) * self.wages_paid) \
             if self.wages_paid > 0 else 0
