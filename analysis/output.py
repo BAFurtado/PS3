@@ -122,7 +122,7 @@ OUTPUT_DATA_SPEC = {
         'columns': ['month', 'mun_id', 'commuting', 'pop', 'gdp_region',
                     'regional_gini', 'regional_house_values', 'regional_unemployment',
                     'qli_index', 'gdp_percapita', 'treasure', 'equally', 'locally', 'fpm',
-                    'licenses']
+                    'licenses', 'affordability_ratio', 'median_wealth', 'median_affordability']
     }
 }
 
@@ -239,7 +239,7 @@ class Output:
             agents_by_mun[mun_id].append(agent)
 
         for family in sim.families.values():
-            # sometimes family.region_id is None?
+            # TODO: sometimes family.region_id is None?
             if family.region_id:
                 mun_id = family.region_id[:7]
                 families_by_mun[mun_id].append(family)
@@ -265,6 +265,9 @@ class Output:
             mun_unemployment = sim.stats.update_unemployment(mun_agents)
             region.total_commute = commuting
 
+
+            families_regional_metrics = sim.stats.calculate_families_metrics({i: mun_families[i] for i in range(len(mun_families))})
+
             mun_cumulative_treasure = 0
             licenses = 0
             for r in regions:
@@ -278,13 +281,16 @@ class Output:
             # average QLI of regions
             mun_qli = sum(r.index for r in regions) / len(regions)
 
-            reports.append('%s;%s;%.3f;%d;%.3f;%.4f;%.3f;%.4f;%.5f;%.3f;%.6f;%.6f;%.6f;%.6f;%s'
+            reports.append('%s;%s;%.3f;%d;%.3f;%.4f;%.3f;%.4f;%.5f;%.3f;%.6f;%.6f;%.6f;%.6f;%s;%.6f;%.6f;%.6f \n'
                            % (sim.clock.days, mun_id, commuting, mun_pop, mun_gdp, mun_gini, mun_house_values,
                               mun_unemployment, mun_qli, GDP_mun_capita, mun_cumulative_treasure,
                               mun_applied_treasure['equally'],
                               mun_applied_treasure['locally'],
                               mun_applied_treasure['fpm'],
-                              licenses))
+                              licenses,
+                              families_regional_metrics['affordability_ratio'],
+                              families_regional_metrics['median_wealth'],
+                              families_regional_metrics['median_affordability']))
 
         with open(self.regional_path, 'a') as f:
             f.write('\n' + '\n'.join(reports))
@@ -292,7 +298,7 @@ class Output:
     def save_data(self, sim):
         # firms data is necessary for plots,
         # so always save
-        self.save_banks_data(sim)
+        #self.save_banks_data(sim)
 
         for type in conf.RUN['SAVE_DATA']:
             # Skip b/c they are saved anyway above

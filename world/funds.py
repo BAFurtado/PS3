@@ -321,6 +321,9 @@ class Funds:
         # Update proportion of index coming from population variation
         for id, region in regions.items():
             m_id = id[:7]
+            #TODO: Check for zero divisions here
+            if pop_mun_t[m_id] == 0:
+                continue
             region.update_index_pop(pop_mun_minus[m_id]/pop_mun_t[m_id])
 
         v_local = defaultdict(int)

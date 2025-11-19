@@ -206,6 +206,56 @@ def sensitivity(ctx, params):
             p_vals = [round(v, 8) for v in p_vals]
         # TODO: Fix plots for starting-day sensitivity analysis.
         #  Yearly information refers to 2010-2020. Should go the whole period.
+        elif "PLANHAB" in param:
+            # The PLANHAB sensitivity configuration follows the structure:
+            # python main.py -n x -c x sensitivity PLANHAB-ACP_1-ACP2...
+            # TODO: Add ACP groups as (Capital or all)
+            flag = True
+            capitais = ['ARACAJU',
+                        'BELEM',
+                        'BELO HORIZONTE',
+                        #'BOA VISTA',
+                        'BRASILIA',
+                        'CAMPO GRANDE',
+                        'CUIABA',
+                        'CURITIBA',
+                        #'FLORIANOPOLIS',
+                        'FORTALEZA',
+                        'GOIANIA',
+                        #'JOAO PESSOA',
+                        'MACAPA',
+                        'MACEIO',
+                        'MANAUS',
+                        'NATAL',
+                        #'PALMAS',
+                        'PORTO ALEGRE',
+                        #'PORTO VELHO',
+                        'RECIFE',
+                        #'RIO BRANCO',
+                        #'RIO DE JANEIRO',
+                        #'SALVADOR',
+                        'SAO LUIS',
+                        #'SAO PAULO',
+                        'TERESINA',
+                        'VITORIA'
+                        ]
+            # Define MCMV scenarios and define available interest values
+            my_dict = {'POLICY_MCMV': [False, True],
+                       'POLICY_MELHORIAS': [False, True],
+                       'INTEREST': ['baixa', 'media', 'alta'],
+                       'PROCESSING_ACPS': [[i] for i in param.split('-')[1:]]}
+            ps = list(my_dict.keys())
+            if my_dict['PROCESSING_ACPS'][0][0] == 'capitais':
+                my_dict['PROCESSING_ACPS'] = [[c] for c in capitais]
+            keys, values = zip(*my_dict.items())
+            all_permutations = [dict(zip(keys, v)) for v in itertools.product(*values)]
+            # Filter so that if POLICY_MCMV is False, the use only INTEREST='media'
+            for p in all_permutations:
+                if p['POLICY_MCMV'] == False and p['INTEREST'] != 'media':
+                    pass
+                    #continue
+                #It's a valid combination
+                permutations_dicts.append(p)
         elif param == 'STARTING_DAY':
             p_name = param
             p_vals = [datetime.date(2000, 1, 1), datetime.date(2010, 1, 1)]

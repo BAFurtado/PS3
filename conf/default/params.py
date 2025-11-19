@@ -4,9 +4,9 @@ import datetime
 
 # FIRMS #########################################################
 # Production function, labour with decaying exponent, Alpha for K. [0, 1]
-PRODUCTIVITY_EXPONENT = .8
+PRODUCTIVITY_EXPONENT = .7
 # Order of magnitude correction of production. Production divided by parameter
-PRODUCTIVITY_MAGNITUDE_DIVISOR = .2
+PRODUCTIVITY_MAGNITUDE_DIVISOR = .4 #.4
 # GENERAL CALIBRATION PARAMETERS
 # Order of magnitude parameter of input into municipality investment
 MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.00001
@@ -26,7 +26,7 @@ SIZE_MARKET = 15
 # Number of firms to buy from in the INTERMEDIATE market
 INTERMEDIATE_SIZE_MARKET = 15
 # Frequency firms enter the market
-LABOR_MARKET = 0.3
+LABOR_MARKET = 0.8
 # Percentage of employees' firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
@@ -60,11 +60,13 @@ POLICY_COEFFICIENT = 0
 # Policies alternatives may include: 'buy', 'rent' or 'wage' or 'no_policy'. For no policy set to empty strings ''
 # POLICY_COEFFICIENT needs to be > 0.
 POLICIES = "no_policy"
+
+# POLICY_MCMV indicates whether MCMV is active
 POLICY_MCMV = True
 POLICY_MCMV_PERCENTAGE = 0.01
 TOTAL_TARGETING_POLICY = False
 
-# HOUSING_POLICY can be ('baseline', )
+# HOUSING_POLICY can be ('baseline', ) and indicates the amount
 HOUSING_POLICY = 'baseline'
 HOUSING_INTEREST = 'baseline'
 # Quantiles for families to be included in the different programs
@@ -199,7 +201,7 @@ PROCESSING_ACPS = ["BRASILIA"]
 STARTING_DAY = datetime.date(2010, 1, 1)
 
 # The Maximum running time (restrained by official data) is 30 years,
-TOTAL_DAYS = (datetime.date(2040, 1, 1) - STARTING_DAY).days
+TOTAL_DAYS = (datetime.date(2025, 1, 1) - STARTING_DAY).days
 
 # Select the possible ACPs (Population Concentration Areas) from the list below.
 # Actually, they are URBAN CONCENTRATION AREAS FROM IBGE, 2022

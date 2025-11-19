@@ -10,17 +10,19 @@ from matplotlib.ticker import MaxNLocator
 # --- Configuration ---
 # List your three data directories here
 DATA_ROOT_DIRECTORIES = [
-    'analysis/validation/simulated_data/TAX_EMISSION__2025-08-31T20_37_38.636034',
-    'analysis/validation/simulated_data/ECO_INVESTMENT_SUBSIDIES__2025-08-31T12_30_31.123224', # Example path 2
-    'analysis/validation/simulated_data/PRODUCTIVITY_MAGNITUDE_DIVISOR__2025-08-30T16_07_18.167714'    # Example path 3
+    'analysis/validation/simulated_data/EXPECTED_LICENSES_PER_REGION__2025-10-09T23_29_08.998256',
+    'analysis/validation/simulated_data/CONSTRUCTION_FIRM_MARKUP_MULTIPLIER__2025-10-09T23_28_30.702428', # Example path 2
+    'analysis/validation/simulated_data/PRODUCTIVITY_MAGNITUDE_DIVISOR__2025-10-07T08_09_10.144343'    # Example path 3
 ]
 # List your five outcome variables here
 OUTCOME_VARIABLES_TO_PLOT = [
-    'emissions', 
-    'firms_median_innovation_investment',
+    'gdp_growth',
+    'firms_median_stock',
     'unemployment', 
     'gdp_index',
-    'price_index'
+    'price_index',
+    'house_price',
+    'inflation'
 ]
 
 # --- Data Specification ---
@@ -88,7 +90,7 @@ def process_simulation_data(root_directory: str) -> pd.DataFrame:
         return pd.DataFrame()
 
     master_df = pd.concat(all_results, ignore_index=True)
-    return master_df[master_df['month'] >= '2016-01-01']
+    return master_df[master_df['month'] >= '2020-01-01']
 
 def plot_single_sensitivity_on_ax(ax: plt.Axes, df: pd.DataFrame, outcome_var: str):
     """
@@ -122,7 +124,7 @@ def plot_single_sensitivity_on_ax(ax: plt.Axes, df: pd.DataFrame, outcome_var: s
 # --- Main Execution ---
 if __name__ == '__main__':
     num_cols = len(OUTCOME_VARIABLES_TO_PLOT)
-    
+    os.chdir(r'C:\Users\B04903452123\Documents\Projects\PS3_planhab_pvt')
     # Loop through each data directory and create a separate PDF for each one.
     for data_dir in DATA_ROOT_DIRECTORIES:
         master_dataframe = process_simulation_data(data_dir)
@@ -159,6 +161,7 @@ if __name__ == '__main__':
         pdf_filename = f"sensitivity_dashboard_{param_name}.pdf"
         print(f"\n--- Saving Dashboard to {pdf_filename} ---")
         plt.savefig(pdf_filename, dpi=300)
+        plt.show()
         plt.close(fig) # Close the figure to free up memory before the next loop
 
     print("\n--- Script Finished ---")

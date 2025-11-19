@@ -47,46 +47,6 @@ class Statistics(object):
         firm_stocks = np.zeros(n_firms)
         firm_workers = np.zeros(n_firms)
         firm_profits = np.zeros(n_firms)
-
-        for i, firm in enumerate(firms.values()):
-            firm_balances[i] = firm.total_balance
-            firm_wages[i] = firm.wages_paid
-            firm_eco_eff[i] = firm.env_efficiency
-            firm_emissions[i] = firm.last_emissions
-            firm_stocks[i] = firm.total_quantity
-            firm_workers[i] = firm.num_employees
-            firm_profits[i] = firm.profit
-
-        results = {
-            "median_wealth": np.median(firm_balances) if firm_balances.size > 0 else 0,
-            "median_wages": np.median(firm_wages) if firm_wages.size > 0 else 0,
-            "eco_efficiency": np.median(firm_eco_eff) if firm_eco_eff.size > 0 else 0,
-            "emissions": np.median(firm_emissions) if firm_emissions.size > 0 else 0,
-            "median_stock": np.median(firm_stocks) if firm_stocks.size > 0 else 0,
-            "workers": np.median(firm_workers) if firm_workers.size > 0 else 0,
-            "aggregate_profits": np.sum(firm_profits) if firm_profits.size > 0 else 0,
-        }
-        logger.info(f"Firm stats - Median wealth: {results['median_wealth']:.2f}, "
-                    f"Median wages: {results['median_wages']:.2f}, "
-                    f"Eco Efficiency: {results['eco_efficiency']:.2f}, "
-                    f"Emissions: {results['emissions']:.2f}, "
-                    f"Median stock: {results['median_stock']:.2f}, "
-                    f"Median workers: {results['workers']:.2f}, "
-                    f"Aggregate profits: {results['aggregate_profits']:.2f}"
-        )
-
-        return results
-
-    def calculate_firms_metrics(self, firms):
-        """Compute median firms values in one pass."""
-        n_firms = len(firms)
-        firm_balances = np.zeros(n_firms)
-        firm_wages = np.zeros(n_firms)
-        firm_eco_eff = np.zeros(n_firms)
-        firm_emissions = np.zeros(n_firms)
-        firm_stocks = np.zeros(n_firms)
-        firm_workers = np.zeros(n_firms)
-        firm_profits = np.zeros(n_firms)
         firm_inno_inv = np.zeros(n_firms)
 
         for i, firm in enumerate(firms.values()):
