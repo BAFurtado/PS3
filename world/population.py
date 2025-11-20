@@ -125,7 +125,6 @@ def immigration(sim):
                 # Not all families might get members, skip those
                 if not f.members:
                     continue
-                f.savings = sum(m.grab_money() for m in f.members.values())
                 families.append(f)
 
             # Some might have tried to buy houses but failed, pass them directly to the rental market

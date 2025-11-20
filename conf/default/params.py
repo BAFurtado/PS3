@@ -85,9 +85,8 @@ POLICY_QUANTILE = 0.2
 # firms' municipalities origin (True) or destiny (consumers' municipality)
 TAX_ON_ORIGIN = True
 # BNDES test with (True) and without (False) TRANSPORT investments.
-# Variation in time_travel implemented in labor market decisions
-READ_TRANSPORT_MATRIX = True
-TRANSPORT_POLICY = True
+# Variation in time_travel implemented in labor market decisions -- BNDES test
+TRANSPORT_TIME = True
 # LOANS ##############################################################################
 # Maximum age of borrower at the end of the contract
 MAX_LOAN_AGE = 70
@@ -151,6 +150,7 @@ TAX_LABOR = 0.15
 TAX_ESTATE_TRANSACTION = 0.004
 TAX_FIRM = 0.15
 TAX_PROPERTY = 0.004
+TAX_TRANSPORT = 0
 
 # EMISSIONS POLICIES ######################################################
 # Taxes on emission are given by tax * total_emissions. Roughly R$ * tonCO2. .1 is about R$10

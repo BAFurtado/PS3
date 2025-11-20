@@ -81,6 +81,7 @@ class Central:
         self.funding = (funding_data.set_index(['ano', 'cod_ibge'])[['recursos_sbpe', 'recursos_fgts']]
                         .to_dict(orient='index'))
         self.tax_firm = conf.PARAMS['TAX_FIRM']
+
         self.loan_to_income = conf.PARAMS['LOAN_PAYMENT_TO_PERMANENT_INCOME']
 
         # Track remaining loan balances

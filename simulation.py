@@ -47,6 +47,7 @@ class Simulation:
         self.demographics = demographics
         self.grave = list()
         self.mun_to_regions = defaultdict(set)
+        self.od_matrix = None
         # Read necessary files
         self.m_men, self.m_women, self.f = dict(), dict(), dict()
 
@@ -66,9 +67,8 @@ class Simulation:
                 header=0,
                 decimal=".",
             ).groupby("age")
-        if self.PARAMS['READ_TRANSPORT_MATRIX']:
-            # Implement loop when other RMs ODs become available
-            state = 'DF'
+        # Implement loop when other RMs ODs become available
+        if 'DF' in self.geo.states_on_process:
             try:
                 self.od_matrix = pd.read_parquet('input/bndes/travel_times_areapond_%s.parquet' % state)
             except FileNotFoundError:
@@ -303,6 +303,7 @@ class Simulation:
         markup = self.PARAMS["MARKUP"]
         const_cash_flow = self.PARAMS["CONSTRUCTION_ACC_CASH_FLOW"]
         price_ruggedness = self.PARAMS["PRICE_RUGGEDNESS"]
+        tax_transport = self.PARAMS["TAX_TRANSPORT"]
         self.avg_prices, _ = self.stats.update_price(self.firms, mid_simulation_calculus=True)
         for firm in self.firms.values():
             # Tax workers when paying salaries
@@ -311,7 +312,8 @@ class Simulation:
                 current_unemployment,
                 prod_exponent,
                 tax_labor,
-                relevance_unemployment)
+                relevance_unemployment,
+                tax_transport)
             # Firms update generated externalities, based on own sector and wages paid this month
             firm.create_externalities(self.regions, tax_emission, self.PARAMS['EMISSIONS_PARAM'])
             # Tax firms before profits: (revenue - salaries paid)
@@ -412,16 +414,16 @@ class Simulation:
         # Getting regional GDP
         self.output.save_regional_report(self)
 
-        if conf.RUN["SAVE_AGENTS_DATA"] == "MONTHLY":
+        if conf.RUN["SAVE_DATA_PERIDIOCITY"] == "MONTHLY":
             self.output.save_data(self)
 
         if conf.RUN["PRINT_STATISTICS_AND_RESULTS_DURING_PROCESS"]:
             self.logger.info(self.clock.days)
 
     def quarterly(self):
-        if conf.RUN["SAVE_AGENTS_DATA"] == "QUARTERLY":
+        if conf.RUN["SAVE_DATA_PERIDIOCITY"] == "QUARTERLY":
             self.output.save_data(self)
 
     def yearly(self):
-        if conf.RUN["SAVE_AGENTS_DATA"] == "ANNUALLY":
+        if conf.RUN["SAVE_DATA_PERIDIOCITY"] == "ANNUALLY":
             self.output.save_data(self)

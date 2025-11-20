@@ -174,18 +174,19 @@ class Family:
         self.space_constraint = self.num_members / self.house.size * 3.5  # To approximate value to a range 0, 1
         return self.is_renting + prob_employed + self.space_constraint
 
-    def decision_on_consumption(self, central, r, year, month):
+    def decision_on_consumption(self, central, r, year, month, params, regions):
         """ Family consumes its permanent income, based on members' wages, real estate assets, and savings.
-        A. Separate expenses for renting, goods' consumption, education, banking loans, and investments in that order.
+        A. Separate expenses for renting, banking loans, goods' consumption, and investments in that order.
          """
         # 1. Grabs wages, money in wallet, from family members.
-        money = sum(m.grab_money() for m in self.members.values())
+        # This can only be called once due to transport deduction
+        money = sum(m.grab_money(params, regions) for m in self.members.values())
         # 2. Calculate permanent income
         permanent_income = self.permanent_income(central, r)
         # Having loans will impact on a lower long-run permanent income consumption and on a monthly reduction on
         # consumption. However, the price of the house may be appreciating in the market.
         # 3. Total spending equals permanent income.
-        # 4. Total spending equals rent (if it is the case), education, loans, consumption.
+        # 4. Total spending equals rent (if it is the case), loans, consumption.
         rent, loan, consumption = 0, 0, 0
         if self.is_renting and not self.rent_voucher:
             rent = self.house.rent_data[0]
@@ -230,7 +231,7 @@ class Family:
         """
         total_consumption = defaultdict(float)
         # Decision on how much money to consume or save
-        money_to_spend = self.decision_on_consumption(central, central.interest, year, month)
+        money_to_spend = self.decision_on_consumption(central, central.interest, year, month, params, regions)
         # Reset monthly's family consumption
         self.average_utility = 0
 
