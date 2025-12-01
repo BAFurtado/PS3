@@ -301,7 +301,7 @@ class Generator:
     def get_empirical_qualities(self, region, num_houses):
         quality_typologies = [.5, 1, 2, 3, 4, 5]
         proportion = house_qual_areap.loc[house_qual_areap['areap'] == region.id,
-        ['DPP0', 'DPP1', 'DPP2', 'DPP3', 'DPP4', 'DPP5']].values.ravel()
+                     ['DPP0', 'DPP1', 'DPP2', 'DPP3', 'DPP4', 'DPP5']].values.ravel()
         qualities = np.random.choice(quality_typologies, num_houses, p=proportion)
         return qualities
 

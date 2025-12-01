@@ -62,6 +62,16 @@ OUTPUT_DATA_SPEC = {
                     'bank',
                     'emissions_fund',
                     'ext_amount_sold',
+                    'affordability_decis_1',
+                    'affordability_decis_2',
+                    'affordability_decis_3',
+                    'affordability_decis_4',
+                    'affordability_decis_5',
+                    'affordability_decis_6',
+                    'affordability_decis_7',
+                    'affordability_decis_8',
+                    'affordability_decis_9',
+                    'affordability_decis_10',
                     'affordability_median'
                     ]
     },
@@ -165,8 +175,9 @@ class Output:
             '_'.join(sim.geo.states_on_process),
             '_'.join(sim.geo.processing_acps_codes))
 
-    def save_stats_report(self, sim, bank_taxes):
+    def save_stats_report(self, sim, bank_taxes, affordability_decis):
         # Banks
+        affordability_decis_values = ";".join(f"{v:.2f}" for v in affordability_decis)
         bank = sim.central
         active = bank.active_loans()
         n_active = len(active)
@@ -233,6 +244,7 @@ class Output:
                  f"{mun_applied_treasure['bank']:.4f};" \
                  f"{emissions_fund:.4f};" \
                  f"{ext_amount_sold:.2f};" \
+                 f"{affordability_decis_values};" \
                  f"{families_results['median_affordability']:.2f}\n"
 
         with open(self.stats_path, 'a') as f:

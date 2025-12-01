@@ -133,7 +133,8 @@ HOUSE_VACANCY = 0.1
 MAX_HOUSE_STOCK = 12
 # HOW LARGER IS CONSTRUCTION FIRMS PROFIT RELATIVE TO USUAL MARKUP (firms' productivity, given current prices)
 CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 10
-
+# Old house categories. TODO. Update to use input quali_house dd from generator
+PERC_HOUSE_CATEGORIES = [0.4, 0.3, 0.2, 0.1]
 # POPULATION AND DEMOGRAPHY
 # Families run parameters (on average) for year 2000, or no information. 2010 uses APs average data
 EXOGENOUS_HEAD_RATE = False
