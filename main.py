@@ -202,7 +202,7 @@ def sensitivity(ctx, params):
             # TODO: Add ACP groups as (Capital or all) 
             flag = True 
                 # Define MCMV scenarios and define available interest values 
-            my_dict = {'TAX_EMISSION': [0, .005], 
+            my_dict = {'TAX_EMISSION': [0, 10], 
                         'TARGETED_TAX_SUBSIDIES': [False, True], 
                         'CARBON_TAX_RECYCLING': [False, True], 
                         'ECO_INVESTMENT_SUBSIDIES': [0,.15]} 
@@ -213,6 +213,8 @@ def sensitivity(ctx, params):
             for p in all_permutations: 
                 if p['ECO_INVESTMENT_SUBSIDIES'] == 0 and (p['TARGETED_TAX_SUBSIDIES'] or p['CARBON_TAX_RECYCLING']): 
                     continue 
+                elif p['TAX_EMISSION'] == 0 and (p['TARGETED_TAX_SUBSIDIES'] or p['CARBON_TAX_RECYCLING']): 
+                    continue
                 #It's a valid combination 
                 permutations_dicts.append(p) 
         elif param == 'STARTING_DAY':

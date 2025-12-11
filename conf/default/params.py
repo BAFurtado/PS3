@@ -6,7 +6,7 @@ import datetime
 # Production function, labour with decaying exponent, Alpha for K. [0, 1]
 PRODUCTIVITY_EXPONENT = .9
 # Order of magnitude correction of production. Production divided by parameter
-PRODUCTIVITY_MAGNITUDE_DIVISOR = 8.25 #3.2#1:2
+PRODUCTIVITY_MAGNITUDE_DIVISOR = 1.5 #3.2#1:2
 # GENERAL CALIBRATION PARAMETERS
 # Order of magnitude parameter of input into municipality investment
 MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.0000003
@@ -33,7 +33,7 @@ RELEVANCE_UNEMPLOYMENT_SALARIES = 3.5# 0.17
 HIRING_SAMPLE_SIZE = 20
 
 # Reduction size in case of eco innovation success: multiplies firm parameters
-ENVIRONMENTAL_EFFICIENCY_STEP = .99
+ENVIRONMENTAL_EFFICIENCY_STEP = .95
 # Innovation process probability: 1 - exp(lambda * investment / wage_base)
 ECO_INVESTMENT_LAMBDA = 10
 # Adjustment factor for emissions within firms
@@ -139,6 +139,10 @@ TAX_PROPERTY = 0.004
 # EMISSIONS POLICIES ######################################################
 # Taxes on emission are given by tax * total_emissions. Roughly R$ * tonCO2. .1 is about R$10
 TAX_EMISSION = .005
+# If TRUE, then taxes on emission are applied only to most polluent sectors
+TARGETED_TAX_SUBSIDIES = False
+# If True, raised taxes will be shared among population
+CARBON_TAX_RECYCLING = False
 # Subsidies in (0,1) is the amount of investment paid by the gov(subsidies * total_invested)
 # 0 is none, 1 is full
 ECO_INVESTMENT_SUBSIDIES = .15
@@ -166,16 +170,16 @@ REGIONAL_FREIGHT_COST = .3
 # RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation
 # Minimum value to run depends on the size of municipality 0,001 is recommended minimum
-PERCENTAGE_ACTUAL_POP = 0.01
+PERCENTAGE_ACTUAL_POP = 0.05
 
 # Write exactly like the list below
-PROCESSING_ACPS = ["BRASILIA"]
+PROCESSING_ACPS = ["BELO HORIZONTE"]
 
 # Selecting the starting year to build the Agents, can be: 1991, 2000 or 2010
 STARTING_DAY = datetime.date(2010, 1, 1)
 
 # Maximum running time (restrained by official data) is 30 years,
-TOTAL_DAYS = (datetime.date(2012, 1, 1) - STARTING_DAY).days
+TOTAL_DAYS = (datetime.date(2025, 1, 1) - STARTING_DAY).days
 
 # Select the possible ACPs (Population Concentration Areas) from the list below.
 # Actually they are URBAN CONCENTRATION AREAS FROM IBGE, 2022

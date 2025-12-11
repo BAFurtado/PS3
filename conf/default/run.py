@@ -11,7 +11,7 @@ KEEP_RANDOM_SEED = True
 DESCRIPTIVE_STATS_CHOICE = False
 
 # Logging
-PRINT_STATISTICS_AND_RESULTS_DURING_PROCESS = True
+PRINT_STATISTICS_AND_RESULTS_DURING_PROCESS = False
 PRINT_FINAL_STATISTICS_ABOUT_AGENTS = False
 
 # Inform numbers in percentage of the period
@@ -19,12 +19,12 @@ TIME_TO_BE_ELIMINATED = 0.2
 
 # Saving adjustments
 # If you save_plots (in a multiple run), you need AVERAGE_DATA = ['stats'] below!
-SAVE_PLOTS_FIGURES = True
+SAVE_PLOTS_FIGURES = False
 
 # If plots should be generated separately for each simulation run or just aggregated
 # When PLOT_EACH_RUN is True, DATA for banks, construction, firms, regional, stats are also SAVED
 #                       ***be aware of theirs sizes***
-PLOT_EACH_RUN = True
+PLOT_EACH_RUN = False
 # Spatial plots only works when PLOT_EACH_RUN is True
 SAVE_SPATIAL_PLOTS = False
 # 'png' or 'eps'
@@ -44,7 +44,7 @@ SAVE_AGENTS_DATA = 'MONTHLY'
 # If you don't save "house" data for instance you can't generate housing plots.
 # Can include: ['agents', 'grave', 'house', 'family', 'firms', 'regional', 'construction']
 # If None, set to empty list: []
-SAVE_DATA = ['banks', 'house', 'family', 'firms']
+SAVE_DATA = ['firms']
 # SAVE_DATA = ['agents', 'house', 'family', 'firms']
 
 # What data to average across all runs.
@@ -53,7 +53,7 @@ SAVE_DATA = ['banks', 'house', 'family', 'firms']
 # Notice that they are grouped by MONTH and MUNICIPALITY and some values may not make sense
 # Options: ['families', 'houses', 'agents]
 # You need to INCLUDE STATS to generate SPATIAL PLOTS. 'stats' also refer to general averaged plots
-AVERAGE_DATA = ['stats', 'regional']
+AVERAGE_DATA = ['stats']
 # 'median' or 'mean'
 AVERAGE_TYPE = 'mean'
 

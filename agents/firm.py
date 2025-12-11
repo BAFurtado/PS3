@@ -145,14 +145,21 @@ class Firm:
         """
         Reduce overall emissions per wage employed.
         """
+        params = regional_market.sim.PARAMS
         # Decide how much to invest based on expected cost and benefit analysis
         eco_investment, paid_subsidies = self.decision_on_eco_efficiency(regional_market)
         if paid_subsidies > sum([regions[r].treasure["emissions"] for r in regions.keys()]):
+            eco_investment = sum([regions[r].treasure["emissions"] for r in regions.keys()]) / paid_subsidies
             paid_subsidies = sum([regions[r].treasure["emissions"] for r in regions.keys()])
+            
         
         # Check if firm has enough balance
         if self.total_balance < eco_investment * self.wages_paid-paid_subsidies or eco_investment<=0:
-            return  # No money to invest
+            # No govt money to pay subsidies
+            if params['TAX_EMISSION'] > 0:
+                #We only constrain Subsidies if Carbon taxes are being levied.
+                # Otherwise we only analyze the deficit of subsidies policy
+                return
         self.total_balance -= eco_investment * self.wages_paid - paid_subsidies
         regions[self.region_id].collect_taxes(-paid_subsidies, "emissions")
         self.inno_inv = eco_investment
