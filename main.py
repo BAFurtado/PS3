@@ -247,14 +247,14 @@ def sensitivity(ctx, params):
         if not flag:
             ctx.obj['output_dir'] = ctx.obj['output_dir'].replace('sensitivity', p_name)
             confs = [{p_name: v} for v in p_vals]
-            if emissions:
-                timestamp = datetime.datetime.now().isoformat().replace(':', '_') 
-                ctx.obj['output_dir'] = os.path.join(conf.RUN['OUTPUT_PATH'], f"EMISSIONS_{timestamp}") 
         else:
             p_name = ps
             p_vals = my_dict.values()
             ctx.obj['output_dir'] = ctx.obj['output_dir'].replace('sensitivity', '_'.join(k for k in keys))
             confs = permutations_dicts.copy()
+            if emissions:
+                timestamp = datetime.datetime.now().isoformat().replace(':', '_') 
+                ctx.obj['output_dir'] = os.path.join(conf.RUN['OUTPUT_PATH'], f"EMISSIONS_{timestamp}") 
         # Fix the same seed for each run
         conf.RUN['KEEP_RANDOM_SEED'] = True
         # conf.RUN['FORCE_NEW_POPULATION'] = False # Ideally this is True, but it slows things down a lot
