@@ -159,7 +159,7 @@ class Firm:
         
         # Check if firm has enough balance
         if self.total_balance < eco_investment * self.wages_paid-paid_subsidies or eco_investment<=0:
-            eco_investment = self.total_balance
+            return
         self.total_balance -= eco_investment * self.wages_paid - paid_subsidies
         regions[self.region_id].collect_taxes(-paid_subsidies, "emissions")
         self.inno_inv = eco_investment
