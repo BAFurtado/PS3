@@ -6,7 +6,7 @@ import datetime
 # Production function, labour with decaying exponent, Alpha for K. [0, 1]
 PRODUCTIVITY_EXPONENT = .9
 # Order of magnitude correction of production. Production divided by parameter
-PRODUCTIVITY_MAGNITUDE_DIVISOR = 1.5 #3.2#1:2
+PRODUCTIVITY_MAGNITUDE_DIVISOR = 8.25
 # GENERAL CALIBRATION PARAMETERS
 # Order of magnitude parameter of input into municipality investment
 MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.0000003
@@ -33,7 +33,7 @@ RELEVANCE_UNEMPLOYMENT_SALARIES = 3.5# 0.17
 HIRING_SAMPLE_SIZE = 20
 
 # Reduction size in case of eco innovation success: multiplies firm parameters
-ENVIRONMENTAL_EFFICIENCY_STEP = .95
+ENVIRONMENTAL_EFFICIENCY_STEP = .99
 # Innovation process probability: 1 - exp(lambda * investment / wage_base)
 ECO_INVESTMENT_LAMBDA = 10
 # Adjustment factor for emissions within firms
@@ -170,7 +170,7 @@ REGIONAL_FREIGHT_COST = .3
 # RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation
 # Minimum value to run depends on the size of municipality 0,001 is recommended minimum
-PERCENTAGE_ACTUAL_POP = 0.05
+PERCENTAGE_ACTUAL_POP = 0.01
 
 # Write exactly like the list below
 PROCESSING_ACPS = ["BELO HORIZONTE"]
@@ -179,7 +179,7 @@ PROCESSING_ACPS = ["BELO HORIZONTE"]
 STARTING_DAY = datetime.date(2010, 1, 1)
 
 # Maximum running time (restrained by official data) is 30 years,
-TOTAL_DAYS = (datetime.date(2025, 1, 1) - STARTING_DAY).days
+TOTAL_DAYS = (datetime.date(2020, 1, 1) - STARTING_DAY).days
 
 # Select the possible ACPs (Population Concentration Areas) from the list below.
 # Actually they are URBAN CONCENTRATION AREAS FROM IBGE, 2022
