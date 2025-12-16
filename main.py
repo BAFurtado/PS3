@@ -201,6 +201,7 @@ def sensitivity(ctx, params):
             # python main.py -n x -c x sensitivity EMISSIONS... 
             # TODO: Add ACP groups as (Capital or all) 
             flag = True 
+            emissions = True
                 # Define MCMV scenarios and define available interest values 
             my_dict = {'TAX_EMISSION': [0, 10], 
                         'TARGETED_TAX_SUBSIDIES': [False, True], 
@@ -246,6 +247,9 @@ def sensitivity(ctx, params):
         if not flag:
             ctx.obj['output_dir'] = ctx.obj['output_dir'].replace('sensitivity', p_name)
             confs = [{p_name: v} for v in p_vals]
+            if emissions:
+                timestamp = datetime.datetime.now().isoformat().replace(':', '_') 
+                ctx.obj['output_dir'] = os.path.join(conf.RUN['OUTPUT_PATH'], f"EMISSIONS_{timestamp}") 
         else:
             p_name = ps
             p_vals = my_dict.values()

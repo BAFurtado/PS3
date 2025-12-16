@@ -197,7 +197,7 @@ class Output:
                  f"{unemployment:.2f};" \
                  f"{firm_results['workers']:.2f};" \
                  f"{families_results['median_wealth']:.2f};" \
-                 f"{families_results['median_wages']:.2f};" \
+                 f"{families_results['total_wages']:.2f};" \
                  f"{commuting:.3f};" \
                  f"{families_results['total_savings']:.2f};" \
                  f"{families_helped:.0f};" \

@@ -211,6 +211,7 @@ class Statistics(object):
         median_wealth = np.median(permanent_income)
         median_affordability = np.median(rent_ratio[renting]) if total_renting > 0 else 0
         median_wages = np.median(wages)
+        total_wages = np.sum(wages)
         total_savings = np.sum(savings)
         rent_default_ratio = np.sum(rent_default) / total_renting if total_renting > 0 else 0
         zero_consumption_ratio = np.sum(utility == 0) / n_families if n_families > 0 else 0
@@ -233,6 +234,7 @@ class Statistics(object):
             "zero_consumption_ratio": zero_consumption_ratio,
             "avg_utility": avg_utility,
             "gini": gini,
+            "total_wages":total_wages
         }
 
     def calculate_regional_gini(self, families):
