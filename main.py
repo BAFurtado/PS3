@@ -203,10 +203,10 @@ def sensitivity(ctx, params):
             flag = True 
             emissions = True
                 # Define MCMV scenarios and define available interest values 
-            my_dict = {'TAX_EMISSION': [0, 10], 
+            my_dict = {'TAX_EMISSION': [0, 40], 
                         'TARGETED_TAX_SUBSIDIES': [False, True], 
                         'CARBON_TAX_RECYCLING': [False, True], 
-                        'ECO_INVESTMENT_SUBSIDIES': [0,.15]} 
+                        'ECO_INVESTMENT_SUBSIDIES': [0,.25]} 
             ps = list(my_dict.keys()) 
             keys, values = zip(*my_dict.items()) 
             all_permutations = [dict(zip(keys, v)) for v in itertools.product(*values)] 

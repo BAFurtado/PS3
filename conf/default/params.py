@@ -18,7 +18,7 @@ MARKUP = 0.1
 STICKY_PRICES = .5
 # Price ruggedness a positive value (below 1) that multiplies the magnitude of price reduction
 # Reflects a reluctance of businesses to lower prices. Amount estimated for reduction multiplied by parameter
-PRICE_RUGGEDNESS = 0.05
+PRICE_RUGGEDNESS = 0.001
 # Number of firms consulted before consumption
 SIZE_MARKET = 15
 # Number of firms to buy from in the INTERMEDIATE market
