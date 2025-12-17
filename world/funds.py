@@ -19,7 +19,7 @@ class Funds:
             self.fpm = {
                 state: pd.read_csv('input/fpm/%s.csv' % state, sep=',', header=0, decimal='.', encoding='latin1')
                 for state in self.sim.geo.states_on_process}
-        if sim.PARAMS['POLICY_COEFFICIENT']:
+        if sim.PARAMS['POLICY_COEFFICIENT'] or sim.PARAMS['CARBON_TAX_RECYCLING']:
             # Gather the money by municipality. Later gather the families and act upon policy!
             self.policy_money = defaultdict(float)
             self.policy_families = defaultdict(list)
@@ -34,8 +34,13 @@ class Funds:
             self.sim.regions[region.id].registry[self.sim.clock.days] += [f for f in self.sim.families.values()
                                                                           if f.get_permanent_income() < quantile
                                                                           and f.house.region_id == region.id]
-        if self.sim.clock.days < self.sim.PARAMS['STARTING_DAY'] + datetime.timedelta(360):
+        if (
+                self.sim.clock.days
+                < self.sim.PARAMS['STARTING_DAY'] + datetime.timedelta(360)
+                and not self.sim.PARAMS['CARBON_TAX_RECYCLING']
+        ):
             return
+
         # Entering the policy list. Includes families for past months as well
         for region in self.sim.regions.values():
             for keys in region.registry:
@@ -49,14 +54,21 @@ class Funds:
             self.policy_families[mun] = sorted(self.policy_families[mun], key=lambda f: f.get_permanent_income())
 
     def apply_policies(self):
-        if self.sim.PARAMS['POLICIES'] not in ['buy', 'rent', 'wage']:
+        if (
+                self.sim.PARAMS['POLICIES'] not in ['buy', 'rent', 'wage']
+                and not self.sim.PARAMS['CARBON_TAX_RECYCLING']
+        ):
             # Baseline scenario. Do nothing!
             return
+
         # Reset indicator every month to reflect subside in a given month, mun_popsnot cumulatively
         self.families_subsided = 0
         self.update_policy_families()
         # Implement policies only after first year of simulation run
-        if self.sim.clock.days < self.sim.PARAMS['STARTING_DAY'] + datetime.timedelta(360):
+        if (
+                self.sim.clock.days < self.sim.PARAMS['STARTING_DAY'] + datetime.timedelta(360)
+                and not self.sim.PARAMS['CARBON_TAX_RECYCLING']
+        ):
             return
         if self.sim.PARAMS['POLICIES'] == 'buy':
             self.buy_houses_give_to_families()
@@ -187,7 +199,7 @@ class Funds:
                     if firms_here:
                         gov_firms_money = (1 - self.gov_consumption_parameter) * amount
                         [f.government_transfer(gov_firms_money * f.budget_proportion)
-                         for f in list(self.mun_gov_firms[mun_code])]
+                         for f in firms_here]
                         amount = self.gov_consumption_parameter * amount
 
                 # Separating money for policy
@@ -198,7 +210,7 @@ class Funds:
                 regions[id_].update_index(amount * self.sim.PARAMS['MUNICIPAL_EFFICIENCY_MANAGEMENT'])
                 regions[id_].update_applied_taxes(amount, 'locally')
 
-    def equally(self, value, regions, pop_t, pop_total):
+    def equally(self, value, regions, pop_t, pop_total, force_policy=False):
         # Dividing government investment between intermediate consumption and own consumption
         gov_firms_money = (1 - self.gov_consumption_parameter) * value
         value = self.gov_consumption_parameter * value
@@ -208,9 +220,10 @@ class Funds:
         for id, region in regions.items():
             amount = value * pop_t[id] / pop_total
             # Separating money for policy
-            if self.sim.PARAMS['POLICY_COEFFICIENT']:
-                self.policy_money[id[:7]] += amount * self.sim.PARAMS['POLICY_COEFFICIENT']
-                amount *= 1 - self.sim.PARAMS['POLICY_COEFFICIENT']
+            if force_policy or self.sim.PARAMS['POLICY_COEFFICIENT']:
+                coef = 1.0 if force_policy else self.sim.PARAMS['POLICY_COEFFICIENT']
+                self.policy_money[id[:7]] += amount * coef
+                amount *= 1 - coef
 
             region.update_index(amount * self.sim.PARAMS['MUNICIPAL_EFFICIENCY_MANAGEMENT'])
             region.update_applied_taxes(amount, 'equally')
@@ -257,6 +270,7 @@ class Funds:
         v_local = defaultdict(int)
         # Every month taxes to distribute start from 0
         v_equal = 0
+        v_carbon = 0
         # TODO. How to incorporate other_regions taxes into the metropolis? Actually, which fraction?
         # TODO. At the moment, all taxes charged from other regions return back to the metropolis
         v_equal += self.sim.external.collect_transfer_consumption_tax()
@@ -286,10 +300,14 @@ class Funds:
             v_equal += (sum([treasure[key]['labor'] for key in treasure.keys()]) +
                         sum([treasure[key]['firm'] for key in treasure.keys()]))
         if self.sim.PARAMS['CARBON_TAX_RECYCLING']:
-            v_equal += sum([treasure[key]['emissions'] for key in treasure.keys()])
+            v_carbon += sum([treasure[key]['emissions'] for key in treasure.keys()])
         # Taxes charged from interests paid by the bank are equally distributed
         v_equal += bank_taxes
         self.equally(v_equal, regions, pop_t, sum(pop_mun_t.values()))
+        # Carbon tax: 100% to families
+        if self.sim.PARAMS['CARBON_TAX_RECYCLING'] and v_carbon > 0:
+            self.equally(v_carbon, regions, pop_t, sum(pop_mun_t.values()),
+                         force_policy=True)
     
  
            
