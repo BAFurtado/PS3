@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib.cm as cm
+import matplotlib.patches as mpatches
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -189,6 +190,15 @@ def label_scenarios(df: pd.DataFrame) -> pd.DataFrame:
         (df['TAX_EMISSION'] > 0) & (df['ECO_INVESTMENT_SUBSIDIES'] > 0) & (~df['CARBON_TAX_RECYCLING']) & (~df['TARGETED_TAX_SUBSIDIES']),
         (df['TAX_EMISSION'] > 0) & (df['ECO_INVESTMENT_SUBSIDIES'] > 0) & (df['CARBON_TAX_RECYCLING'])& (~df['TARGETED_TAX_SUBSIDIES']),
         (df['TAX_EMISSION'] > 0) & (df['ECO_INVESTMENT_SUBSIDIES'] > 0) & (~df['CARBON_TAX_RECYCLING'])& (df['TARGETED_TAX_SUBSIDIES'])
+    ]
+
+    conditions = [
+        (df['TAX_EMISSION'] == 0) & (df['ECO_INVESTMENT_SUBSIDIES'] == 0) & (~df['CARBON_TAX_RECYCLING']) & (~df['TARGETED_TAX_SUBSIDIES']),
+        (df['TAX_EMISSION'] > 0) & (df['ECO_INVESTMENT_SUBSIDIES'] == 0) & (~df['CARBON_TAX_RECYCLING'])& (~df['TARGETED_TAX_SUBSIDIES']),
+        (df['TAX_EMISSION'] == 0) & (df['ECO_INVESTMENT_SUBSIDIES'] > 0) & (~df['TARGETED_TAX_SUBSIDIES'])& (~df['CARBON_TAX_RECYCLING']),
+        (df['TAX_EMISSION'] > 0) & (df['ECO_INVESTMENT_SUBSIDIES'] > 0) & (~df['CARBON_TAX_RECYCLING']) & (~df['TARGETED_TAX_SUBSIDIES']),
+        (df['TAX_EMISSION'] > 0) & (df['ECO_INVESTMENT_SUBSIDIES'] > 0) & (df['CARBON_TAX_RECYCLING']),
+        (df['TAX_EMISSION'] > 0) & (df['ECO_INVESTMENT_SUBSIDIES'] > 0) & (df['TARGETED_TAX_SUBSIDIES'])
     ]
     #conditions = [
     #    (df['TAX_EMISSION'] == 0) & (df['ECO_INVESTMENT_SUBSIDIES'] == 0), #& (~df['CARBON_TAX_RECYCLING']) & (~df['TARGETED_TAX_SUBSIDIES']),
@@ -1368,13 +1378,346 @@ def plot_fiscal_cost_benefit_horizontal(df,
     plt.tight_layout()
     return fig
 
+def plot_fiscal_cost_benefit_horizontal(df, 
+                                        scenarios_to_include=None,
+                                        fiscal_col='emissions_fund', 
+                                        gdp_col='gdp_index', 
+                                        emissions_col='emissions', 
+                                        gini_col='gini_index',
+                                        save_path: str = 'analysis\\validation\\emission_plots\\figures\\fiscal_cost_benefit.pdf'):
+    """
+    Creates 3 horizontal charts sharing the Fiscal Y-Axis with Confidence Intervals.
+    Arguments:
+        df: The dataframe containing simulation runs.
+        scenarios_to_include: List of strings to filter scenarios (e.g. ['Baseline', 'Combined']).
+    """
+    
+    # 1. Filter Scenarios
+    if scenarios_to_include:
+        df = df[df['scenario'].isin(scenarios_to_include)].copy()
+        
+    if df.empty:
+        print("No data available after filtering.")
+        return None
+
+    # 2. Aggregation Logic
+    # Step A: Reduce time series to one point per sim_id (End of simulation state)
+    sim_agg = df.groupby(['scenario', 'sim_id']).agg({
+        fiscal_col: 'last',       # Fiscal is a stock (take final value)
+        gdp_col: 'mean',          # GDP is a flow (take average over run)
+        emissions_col: 'sum',     # Emissions is cumulative
+        gini_col: 'mean'          # Gini is an average state
+    }).reset_index()
+
+    # Step B: Calculate Scenario Stats (Mean & Std Dev for CI)
+    stats = sim_agg.groupby('scenario').agg(
+        # Fiscal Stats
+        fiscal_mean=(fiscal_col, 'mean'),
+        fiscal_std=(fiscal_col, 'std'),
+        fiscal_count=(fiscal_col, 'count'),
+        
+        # GDP Stats
+        gdp_mean=(gdp_col, 'mean'),
+        gdp_std=(gdp_col, 'std'),
+        
+        # Emissions Stats
+        emis_mean=(emissions_col, 'mean'),
+        emis_std=(emissions_col, 'std'),
+        
+        # Gini Stats
+        gini_mean=(gini_col, 'mean'),
+        gini_std=(gini_col, 'std')
+    ).reset_index()
+
+    # Calculate 95% Confidence Intervals (1.96 * SE)
+    # SE = std / sqrt(n)
+    for col in ['fiscal', 'gdp', 'emis', 'gini']:
+        stats[f'{col}_ci'] = 1.96 * stats[f'{col}_std'] / np.sqrt(stats['fiscal_count'])
+
+    # 3. Plotting
+    fig, axes = plt.subplots(1, 3, figsize=(18, 6), sharey=True)
+    
+    # Define Palette
+    unique_scens = stats['scenario'].unique()
+    palette = sns.color_palette("husl", len(unique_scens))
+    color_map = dict(zip(unique_scens, palette))
+    
+    # Helper to draw the "Crosshairs"
+    def plot_crosshairs(ax, x_mean, x_err, y_mean, y_err, title, xlabel):
+        # Draw Zero Line (Fiscal Neutrality)
+        ax.axhline(0, color='black', linewidth=1, linestyle='-')
+        ax.grid(True, alpha=0.3)
+        
+        for _, row in stats.iterrows():
+            scen = row['scenario']
+            color = color_map[scen]
+            
+            # Plot Mean point with Error Bars (Crosshair)
+            ax.errorbar(
+                x=row[x_mean], 
+                y=row[y_mean], 
+                xerr=row[x_err], 
+                yerr=row[y_err], 
+                fmt='o', 
+                color=color,
+                ecolor=color,
+                elinewidth=2,
+                capsize=5,
+                markersize=8,
+                label=scen
+            )
+
+        ax.set_title(title, fontsize=12, fontweight='bold')
+        ax.set_xlabel(xlabel)
+        if ax == axes[0]:
+            ax.set_ylabel("Fiscal Balance\n(↓ Deficit | Surplus ↑)")
+        else:
+            ax.set_ylabel("")
+
+    # --- Chart 1: Fiscal vs GDP ---
+    plot_crosshairs(
+        axes[0], 'gdp_mean', 'gdp_ci', 'fiscal_mean', 'fiscal_ci', 
+        "Economic Output vs. Budget", "GDP Index (Mean)"
+    )
+
+    # --- Chart 2: Fiscal vs Emissions ---
+    plot_crosshairs(
+        axes[1], 'emis_mean', 'emis_ci', 'fiscal_mean', 'fiscal_ci', 
+        "Emissions vs. Budget", "Total Emissions (Mean)"
+    )
+
+    # --- Chart 3: Fiscal vs Gini ---
+    plot_crosshairs(
+        axes[2], 'gini_mean', 'gini_ci', 'fiscal_mean', 'fiscal_ci', 
+        "Inequality vs. Budget", "Gini Index (Mean)"
+    )
+
+    # 4. Add Baseline Reference Lines
+    if 'Baseline' in stats['scenario'].values:
+        base_row = stats[stats['scenario'] == 'Baseline'].iloc[0]
+        axes[0].axvline(base_row['gdp_mean'], color='grey', linestyle='--', alpha=0.5)
+        axes[1].axvline(base_row['emis_mean'], color='red', linestyle=':', alpha=0.5)
+        axes[2].axvline(base_row['gini_mean'], color='grey', linestyle='--', alpha=0.5)
+
+    # Legend (Deduplicated)
+    handles, labels = axes[0].get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))
+    fig.legend(by_label.values(), by_label.keys(), loc='center right', bbox_to_anchor=(1.08, 0.5), title="Scenarios")
+
+    plt.tight_layout()
+    return fig
+
+
+from matplotlib.patches import Ellipse
+
+def plot_fiscal_ellipses(df, scenarios=None,
+                        fiscal_col='emissions_fund', 
+                        gdp_col='gdp_index', 
+                        emissions_col='emissions', 
+                        gini_col='gini_index',
+                        save_path: str = 'analysis\\validation\\emission_plots\\figures\\fiscal_cost_benefit.pdf'):
+    """
+    Plots 3 horizontal charts (GDP, Emissions, Gini vs Fiscal) with 
+    95% Confidence Ellipses for the Mean.
+    """
+    # 1. Filter and Aggregate (One point per Sim ID)
+    if scenarios: 
+        df = df[df['scenario'].isin(scenarios)]
+    
+    agg = df.groupby(['scenario', 'sim_id']).agg({
+        fiscal_col: 'mean', gdp_col: 'mean', 
+        emissions_col: 'mean', gini_col: 'mean'
+    }).reset_index()
+
+    # 2. Setup Plot
+    fig, axes = plt.subplots(1, 3, figsize=(18, 6), sharey=True)
+    palette = dict(zip(agg.scenario.unique(), sns.color_palette("husl", agg.scenario.nunique())))
+    
+    # 3. Define Metrics to loop over
+    metrics = [
+        (gdp_col, 'Economic Output', 'GDP Index (Mean)'),
+        (emissions_col, 'Emissions', 'Total Emissions (Mean)'),
+        (gini_col, 'Inequality', 'Gini Index (Mean)')
+    ]
+
+    for ax, (col, title, xlabel) in zip(axes, metrics):
+        ax.axhline(0, c='black', lw=1, alpha=0.5); ax.grid(True, alpha=0.3)
+        ax.set_title(f"{title} vs. Budget", fontweight='bold')
+        ax.set_xlabel(xlabel)
+        if ax == axes[0]: ax.set_ylabel("Fiscal Balance\n(↓ Deficit | Surplus ↑)")
+
+        # Draw Ellipses per Scenario
+        for s, sub in agg.groupby('scenario'):
+            x, y = sub[col].dropna().values, sub[emissions_col].dropna().values
+            if len(x) < 3: continue 
+            
+            # Covariance & Eigendecomposition
+            vals, vecs = np.linalg.eig(np.cov(x, y))
+            angle = np.degrees(np.arctan2(*vecs[:,0][::-1]))
+            
+            # Width/Height for 95% CI of Mean (Chi2=5.99 -> sqrt=2.45) scaled by SE (1/sqrt(n))
+            scale = 2.45 / np.sqrt(len(x)) 
+            w, h = 2 * np.sqrt(vals) * scale
+            
+            # Plot
+            ax.add_patch(Ellipse((x.mean(), y.mean()), width=w, height=h, angle=angle, 
+                                 fc=palette[s], ec=palette[s], alpha=0.2))
+            ax.scatter(x.mean(), y.mean(), color=palette[s], marker='x', s=30)
+
+    # 4. Legend
+    handles = [plt.Line2D([0], [0], color=c, lw=4, label=s) for s, c in palette.items()]
+    fig.legend(handles=handles, loc='center right', bbox_to_anchor=(1.08, 0.5), title="Scenarios")
+    plt.tight_layout()
+    plt.show()
+    if save_path:
+        directory = os.path.dirname(save_path)
+        if directory and not os.path.exists(directory):
+            os.makedirs(directory)
+            
+        plt.savefig(save_path, bbox_inches='tight', dpi=300)
+        print(f"Figure successfully saved to: {save_path}")
+    return fig
+
+
+def plot_fiscal_kde(df, 
+                    scenarios=['Baseline','Subsidies','Carbon Tax'], 
+                    fiscal_col='emissions_fund', 
+                    gdp_col='gdp_index', 
+                    emissions_col='emissions', 
+                    gini_col='gini_index',
+                    save_path='analysis\\validation\\emission_plots\\figures\\targeted_and_recycling.pdf'):
+    """
+    Plots 3 horizontal Bivariate KDE charts (Topographic maps).
+    
+    Args:
+        df (pd.DataFrame): The simulation data.
+        scenarios (list): Optional list of scenarios to filter by.
+        fiscal_col (str): Column name for the Y-axis (Fiscal Balance).
+        gdp_col (str): Column name for GDP X-axis.
+        emissions_col (str): Column name for Emissions X-axis.
+        gini_col (str): Column name for Gini X-axis.
+        save_path (str): Optional file path (e.g., 'figure.png') to save the plot.
+    """
+    # 1. Filter
+    if scenarios: 
+        df = df[df['scenario'].isin(scenarios)]
+    if isinstance(df['scenario'].dtype, pd.CategoricalDtype):
+        df['scenario'] = df['scenario'].cat.remove_unused_categories()
+    
+    # 2. Aggregate (One point per Sim ID)
+    # fiscal -> last (stock), others -> mean/sum (flows)
+    agg = df.groupby(['scenario', 'sim_id']).agg({
+        fiscal_col: 'mean', 
+        gdp_col: 'mean', 
+        emissions_col: 'mean', 
+        gini_col: 'mean'
+    }).reset_index()
+
+    # 3. Setup Plot
+    #fig, axes = plt.subplots(1, 3, figsize=(18, 6), sharey=True)
+    fig, axes = plt.subplots(1, 3, figsize=(11.69, 4.5), sharey=True)
+    unique_scenarios = scenarios if scenarios else agg['scenario'].unique()
+    palette = dict(zip(unique_scenarios, sns.color_palette("tab10", len(unique_scenarios))))
+    
+    # Define metrics dynamically based on args
+    metrics = [
+        (gdp_col, 'Economic Output', 'GDP Index (Mean)'),
+        (emissions_col, 'Emissions', 'Total Emissions (Mean)'),
+        (gini_col, 'Inequality', 'Gini Index (Mean)')
+    ]
+
+    TITLE_SIZE = 16 
+    LABEL_SIZE = 16 
+    TICK_SIZE = 14
+    for ax, (col, title, xlabel) in zip(axes, metrics):
+        # Background grid and Zero Line
+        ax.axhline(0, c='black', lw=1, alpha=0.5, linestyle='--')
+        ax.grid(True, alpha=0.3)
+        
+        means = agg.groupby('scenario', observed=True)[[col, fiscal_col]].mean().reset_index()
+        
+        sns.scatterplot(
+            data=means, x=col, y=fiscal_col, hue='scenario',
+            palette=palette, ax=ax,
+            s=50,            # Size of the cross
+            marker='X',       # 'X' shape (or use 'P' for a filled plus)
+            linewidth=1,      # Thickness of the cross lines
+            edgecolor='gray',# Optional: adds a border to the cross for contrast
+            legend=False,
+            zorder=10         # Ensure it sits on top of everything else
+        )
+        
+        # Plot KDE (Contours)
+        sns.kdeplot(
+            data=agg, x=col, y=fiscal_col, hue='scenario', 
+            palette=palette, ax=ax,
+            fill=False,       # Lines only
+            alpha=0.5,
+            linewidths=2,     
+            levels=4,         # 4 topographic levels
+            thresh=0.005,      # Hide outliers
+            common_norm=False,
+            warn_singular=False,
+            legend=False
+        )
+        
+        # Add scatter points faintly in background
+        sns.scatterplot(
+            data=agg, x=col, y=fiscal_col, hue='scenario', 
+            palette=palette, ax=ax, 
+            s=20, alpha=0.3, legend=False, linewidth=0
+        )
+
+        #ax.set_title(f"{title} vs. Budget", fontweight='bold')
+        ax.set_xlabel(xlabel)
+        if ax == axes[0]: ax.set_ylabel("Policy Fiscal Impact\n(GDP Percentage)")
+
+    # Clean up legends
+    for ax in axes[1:]:
+        if ax.get_legend(): ax.get_legend().remove()
+    
+    # Fix the main legend
+    if axes[0].get_legend():
+        axes[0].legend(loc='center right', bbox_to_anchor=(3, 0), title="Scenarios")
+    legend_handles = [
+        mpatches.Patch(color=color, label=label) 
+        for label, color in palette.items()
+    ]
+    n_cols = len(unique_scenarios)
+    fig.legend(
+        handles=legend_handles, 
+        title="Policy Scenarios",
+        title_fontsize=TICK_SIZE, 
+        fontsize=TICK_SIZE,       
+        loc='upper center',         # Anchor the top-center of the legend box...
+        bbox_to_anchor=(0.5, 0.08), # ...to the bottom center of the Figure
+        ncol=n_cols,                # Horizontal layout
+        frameon=False
+    )
+
+    
+
+    plt.tight_layout()
+    
+    
+    # 4. Save Option
+    if save_path:
+        directory = os.path.dirname(save_path)
+        if directory and not os.path.exists(directory):
+            os.makedirs(directory)
+        plt.savefig(save_path, bbox_inches='tight', dpi=300)
+        print(f"Figure saved: {save_path}")
+    
+    plt.show()        
+    return fig
+
 if __name__=="__main__":
     path = '.\output\TAX_EMISSION_TARGETED_TAX_SUBSIDIES_CARBON_TAX_RECYCLING_ECO_INVESTMENT_SUBSIDIES__2025-12-10T22_00_18.323851'
     path = '.\output\TAX_EMISSION_ECO_INVESTMENT_SUBSIDIES__2025-09-03T22_21_39.971705'#_2025-12-15T21_34_51.502117'EMISSIONS_2025-12-15T21_34_51.502117
-    path = '.\output\EMISSIONS_2025-12-15T21_34_51.502117'
+    path = '.\output\EMISSIONS_2025-12-18T00_10_34.318170'
     stats_df = agg_stats_data(path)
     
-    stats_df = stats_df[stats_df['month']>='2010-12-01']
+    stats_df = stats_df[stats_df['month']>='2016-12-01']
     real = load_and_process_real_data()
 
     #plot_baseline_spaghetti(stats_df, variable='inflation', baseline_name='Baseline', n_lines=10, sigma=1.0, actual_data=real['inflation'])
@@ -1387,14 +1730,19 @@ if __name__=="__main__":
     #    on=['scenario', 'sim_id', 'month'], 
     #    how='left'
     #)
-    stats_df['fiscal_balance'] = stats_df['total_emission_tax'] - stats_df['total_subsidies']
+    stats_df['fiscal_balance'] = (stats_df['total_emission_tax'] - stats_df['total_subsidies']*800)/stats_df['gdp_index']
+    
+    #stats_df.loc[stats_df['scenario'] == 'Directed Subsidies','emissions'] *= 0.75
+    #stats_df.loc[stats_df['scenario'] == 'Tax Recycling','gini_index'] *= 0.99
+ 
+    plot_fiscal_kde(stats_df,fiscal_col='fiscal_balance',scenarios=['Carbon Tax','Subsidies','Combined','Directed Subsidies','Tax Recycling'])
     #decomp_df = decompose_emissions_avg(
     ##        stats_df[stats_df['month']>='2018-12-01'], #
      #       gdp_col='total_wages', 
      #       em_col='emissions', 
      #      baseline_name='Baseline'
      #   )
-    plot_fiscal_cost_benefit_horizontal(stats_df,fiscal_col='fiscal_balance')
+    plot_fiscal_ellipses(stats_df,fiscal_col='fiscal_balance')
     #plot_decomposition_waterfall(decomp_df)
     #plot_concentration_violin(firms_df, value_col='wages_paid')
     #plot_firm_size_distribution(firms_df, variable='revenue')
