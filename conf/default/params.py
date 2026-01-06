@@ -86,7 +86,7 @@ POLICY_QUANTILE = 0.2
 TAX_ON_ORIGIN = True
 # BNDES test with (True) and without (False) TRANSPORT investments.
 # Variation in time_travel implemented in labor market decisions -- BNDES test
-TRANSPORT_TIME = True
+TRANSPORT_TIME = False#True
 # LOANS ##############################################################################
 # Maximum age of borrower at the end of the contract
 MAX_LOAN_AGE = 70
@@ -135,6 +135,8 @@ LOT_COST = 0.15
 HOUSE_VACANCY = 0.1
 # MAX_NUMBER OF HOUSES IN STOCK
 MAX_HOUSE_STOCK = 12
+# Old house categories. TODO. Update to use input quali_house dd from generator
+PERC_HOUSE_CATEGORIES = [0.4, 0.3, 0.2, 0.1]
 # HOW LARGER IS CONSTRUCTION FIRMS PROFIT RELATIVE TO USUAL MARKUP (firms' productivity, given current prices)
 CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 10
 

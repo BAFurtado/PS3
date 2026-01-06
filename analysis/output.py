@@ -62,6 +62,16 @@ OUTPUT_DATA_SPEC = {
                     'bank',
                     'emissions_fund',
                     'ext_amount_sold',
+                    'affordability_decis_1',
+                    'affordability_decis_2',
+                    'affordability_decis_3',
+                    'affordability_decis_4',
+                    'affordability_decis_5',
+                    'affordability_decis_6',
+                    'affordability_decis_7',
+                    'affordability_decis_8',
+                    'affordability_decis_9',
+                    'affordability_decis_10',
                     'affordability_median'
                     ]
     },
@@ -119,11 +129,34 @@ OUTPUT_DATA_SPEC = {
             'groupings': ['month', 'mun_id'],
             'columns': 'ALL'
         },
-        'columns': ['month', 'mun_id', 'commuting', 'pop', 'gdp_region',
-                    'regional_gini', 'regional_house_values', 'regional_unemployment',
-                    'qli_index', 'gdp_percapita', 'treasure', 'equally', 'locally', 'fpm',
-                    'licenses', 'affordability_ratio', 'median_wealth', 'median_affordability'
-                    'licenses']
+        'columns': ['month',
+                    'mun_id',
+                    'commuting',
+                    'pop',
+                    'gdp_region',
+                    'regional_gini',
+                    'regional_house_values',
+                    'regional_unemployment',
+                    'qli_index',
+                    'gdp_percapita',
+                    'treasure',
+                    'equally',
+                    'locally',
+                    'fpm',
+                    'licenses',
+                    'affordability_ratio',
+                    'median_wealth',
+                    'median_affordability',
+                    'affordability_p10',
+                    'affordability_p20',
+                    'affordability_p30',
+                    'affordability_p40',
+                    'affordability_p50',
+                    'affordability_p60',
+                    'affordability_p70',
+                    'affordability_p80',
+                    'affordability_p90',
+                    'affordability_p100',]
     },
     'neighbourhood': {
         'avg': {
@@ -166,8 +199,9 @@ class Output:
             '_'.join(sim.geo.states_on_process),
             '_'.join(sim.geo.processing_acps_codes))
 
-    def save_stats_report(self, sim, bank_taxes):
+    def save_stats_report(self, sim, bank_taxes, affordability_decis):
         # Banks
+        affordability_decis_values = ";".join(f"{v:.2f}" for v in affordability_decis)
         bank = sim.central
         active = bank.active_loans()
         n_active = len(active)
@@ -234,6 +268,7 @@ class Output:
                  f"{mun_applied_treasure['bank']:.4f};" \
                  f"{emissions_fund:.4f};" \
                  f"{ext_amount_sold:.2f};" \
+                 f"{affordability_decis_values};" \
                  f"{families_results['median_affordability']:.2f}\n"
 
         with open(self.stats_path, 'a') as f:
@@ -274,8 +309,8 @@ class Output:
             mun_unemployment = sim.stats.update_unemployment(mun_agents)
             region.total_commute = commuting
 
-
-            families_regional_metrics = sim.stats.calculate_families_metrics({i: mun_families[i] for i in range(len(mun_families))})
+            families_regional_metrics = sim.stats.calculate_families_metrics(
+                {i: mun_families[i] for i in range(len(mun_families))})
 
             mun_cumulative_treasure = 0
             licenses = 0
@@ -290,16 +325,28 @@ class Output:
             # average QLI of regions
             mun_qli = sum(r.index for r in regions) / len(regions)
 
-            reports.append('%s;%s;%.3f;%d;%.3f;%.4f;%.3f;%.4f;%.5f;%.3f;%.6f;%.6f;%.6f;%.6f;%s;%.6f;%.6f;%.6f \n'
-                           % (sim.clock.days, mun_id, commuting, mun_pop, mun_gdp, mun_gini, mun_house_values,
-                              mun_unemployment, mun_qli, GDP_mun_capita, mun_cumulative_treasure,
-                              mun_applied_treasure['equally'],
-                              mun_applied_treasure['locally'],
-                              mun_applied_treasure['fpm'],
-                              licenses,
-                              families_regional_metrics['affordability_ratio'],
-                              families_regional_metrics['median_wealth'],
-                              families_regional_metrics['median_affordability']))
+            reports.append(
+                '%s;%s;%.3f;%d;%.3f;%.4f;%.3f;%.4f;%.5f;%.3f;%.6f;%.6f;%.6f;%.6f;%s;%.6f;%.6f;%.6f;%.6f;%.6f;%.6f;%.6f;%.6f;%.6f;%.6f;%.6f;%.6f;%.6f \n'
+                % (sim.clock.days, mun_id, commuting, mun_pop, mun_gdp, mun_gini, mun_house_values,
+                   mun_unemployment, mun_qli, GDP_mun_capita, mun_cumulative_treasure,
+                   mun_applied_treasure['equally'],
+                   mun_applied_treasure['locally'],
+                   mun_applied_treasure['fpm'],
+                   licenses,
+                   families_regional_metrics['affordability_ratio'],
+                   families_regional_metrics['median_wealth'],
+                   families_regional_metrics['median_affordability'],
+                   families_regional_metrics['affordability_p10'],
+                   families_regional_metrics['affordability_p20'],
+                   families_regional_metrics['affordability_p30'],
+                   families_regional_metrics['affordability_p40'],
+                   families_regional_metrics['affordability_p50'],
+                   families_regional_metrics['affordability_p60'],
+                   families_regional_metrics['affordability_p70'],
+                   families_regional_metrics['affordability_p80'],
+                   families_regional_metrics['affordability_p90'],
+                   families_regional_metrics['affordability_p100']
+                   ))
 
         with open(self.regional_path, 'a') as f:
             f.write('\n' + '\n'.join(reports))
@@ -317,16 +364,23 @@ class Output:
             self.sim.regions[r].total_commute = commute_value
             neighbourhood_commute[r] = commute_value
         with open(self.neighbourhood_path, 'a') as f:
-            [f.write('%s; %s; %s; %d; %.3f; %.3f; %.3f; %.3f \n' %
-                     (sim.clock.days, region.id[:7], region.id, region.pop, region.gdp,
-                      region.gdp / region.pop, neighbourhood_commute[region.id],
-                      neighbourhood_gini[region.id]))
-             for region in sim.regions.values()]
+            try:
+                [f.write('%s; %s; %s; %d; %.3f; %.3f; %.3f; %.3f \n' %
+                         (sim.clock.days, region.id[:7], region.id, region.pop, region.gdp,
+                          region.gdp / region.pop, neighbourhood_commute[region.id],
+                          neighbourhood_gini[region.id]))
+                 for region in sim.regions.values()]
+            except KeyError:
+                [f.write('%s; %s; %s; %d; %.3f; %.3f; %.3f; %.3f \n' %
+                         (sim.clock.days, region.id[:7], region.id, region.pop, region.gdp,
+                          region.gdp / region.pop, 0,
+                          0))
+                 for region in sim.regions.values()]
 
     def save_data(self, sim):
         # firms data is necessary for plots,
         # so always save
-        #self.save_banks_data(sim)
+        # self.save_banks_data(sim)
 
         for each in conf.RUN['SAVE_DATA']:
             # Skip b/c they are saved anyway above

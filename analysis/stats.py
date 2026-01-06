@@ -236,6 +236,18 @@ class Statistics(object):
         total_renting = np.sum(renting)
         total_voucher = np.sum(has_rent_voucher)
         affordable = np.sum((renting & ~has_rent_voucher & (permanent_income > 0) & (rent_ratio < 0.3)))
+        # Affordability percentiles
+        try:
+            deciles = np.percentile(permanent_income, np.arange(10, 100, 10))
+            bins = np.digitize(permanent_income, deciles)
+            # How much does rent represent (on average) as a fraction of income in each decile
+            affordability_dict = {
+                f"affordability_p{(i + 1) * 10}": np.mean(rent_ratio[bins == i & renting])
+                for i in range(10)
+            }
+        except IndexError:
+            affordability_dict = {
+                f"affordability_p{(i + 1) * 10}": np.nan for i in range(10)}
 
         affordability_ratio = (affordable + total_voucher) / total_renting if total_renting > 0 else 0
         median_wealth = np.median(permanent_income)
@@ -254,11 +266,14 @@ class Statistics(object):
 
         # GINI calculation
         x = np.array(permanent_income)
-        x = x - np.min(x) + 1e-6  # shift to ensure all positive
+        try:
+            x = x - np.min(x) + 1e-6  # shift to ensure all positive
+            sorted_income = np.sort(x)
+            n = sorted_income.size
+            index = np.arange(1, n + 1)
 
-        sorted_income = np.sort(x)
-        n = sorted_income.size
-        index = np.arange(1, n + 1)
+        except ValueError:
+            x, sorted_income, n, index = 0, 0, 0, 0
 
         gini = (np.sum((2 * index - n - 1) * sorted_income) / (n * np.sum(sorted_income))) if n > 0 else 0
         logger.info(f"Family stats - Zero consumption: {zero_consumption_ratio:.2f}, "
@@ -272,7 +287,17 @@ class Statistics(object):
             "rent_default_ratio": rent_default_ratio,
             "zero_consumption_ratio": zero_consumption_ratio,
             "avg_utility": avg_utility,
-            "gini": gini,
+            'gini': gini,
+            "affordability_p10": affordability_dict['affordability_p10'],
+            "affordability_p20": affordability_dict['affordability_p20'],
+            "affordability_p30": affordability_dict['affordability_p30'],
+            "affordability_p40": affordability_dict['affordability_p40'],
+            "affordability_p50": affordability_dict['affordability_p50'],
+            "affordability_p60": affordability_dict['affordability_p60'],
+            "affordability_p70": affordability_dict['affordability_p70'],
+            "affordability_p80": affordability_dict['affordability_p80'],
+            "affordability_p90": affordability_dict['affordability_p90'],
+            "affordability_p100": affordability_dict['affordability_p100'],
         }
 
     def calculate_regional_gini(self, families):
