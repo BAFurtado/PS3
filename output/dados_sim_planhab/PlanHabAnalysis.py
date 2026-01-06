@@ -1,0 +1,59 @@
+
+from pathlib import Path
+import pandas as pd
+
+from analysis.output import OUTPUT_DATA_SPEC
+
+
+def extract_metadata(stats_path: Path) -> dict:
+    # parent of "0", i.e. the folder with INTEREST=... etc
+    config_dir = next(
+        p.name for p in stats_path.parents
+        if '=' in p.name
+    )
+    parts = config_dir.split("__")
+    meta = {}
+
+    for part in parts:
+        key, value = part.split("=")
+        meta[key.lower()] = value
+
+    # normalize types
+    meta["policy_mcmv"] = meta["policy_mcmv"] == "True"
+    meta["policy_melhorias"] = meta["policy_melhorias"] == "True"
+
+    return meta
+
+
+def main(base='stats'):
+    path_base = Path('.')
+    stats_files = list(path_base.rglob(f'{base}.csv'))
+    stats_cols = OUTPUT_DATA_SPEC[base]['columns']
+
+    dfs = []
+
+    for path in stats_files:
+        df = pd.read_csv(path, sep=';')
+        df.columns = stats_cols
+        meta = extract_metadata(path)
+        for key, value in meta.items():
+            df[key] = value
+        dfs.append(df)
+    final = pd.concat(dfs, ignore_index=True)
+    return final
+
+
+if __name__ == '__main__':
+    final_stats = main('stats')
+    regional_stats = main('regional')
+
+    out = final_stats.groupby(by=['processing_acps', 'policy_mcmv', 'policy_melhorias', 'interest'], as_index=False)[
+        ['pop', 'price_index', 'gdp_index',
+         'unemployment', 'median_workers', 'families_median_wealth',
+         'gini_index',
+         'pct_zero_consumption', 'rent_default', 'inflation',
+         'average_qli', 'house_vacancy', 'house_price', 'house_rent',
+         'affordable', 'p_delinquent', ]].median(numeric_only=True)
+
+
+
