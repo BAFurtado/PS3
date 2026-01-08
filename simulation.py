@@ -215,7 +215,7 @@ class Simulation:
             self.interest.index.date == self.clock.days][['interest', 'mortgage', ]].iloc[0]
         mask = self.housing_interest.index.normalize() == pd.to_datetime(self.clock.days)
         housing_interests = self.housing_interest.loc[mask, ['sbpe', 'fgts']].iloc[0]
-        #housing_interests = self.housing_interest[self.housing_interest.index.date == self.clock.days][['sbpe', 'fgts']].iloc[0]
+
         values = [interests['interest'], interests['mortgage'], housing_interests['sbpe'], housing_interests['fgts']]
         self.central.set_interest(*values)
 

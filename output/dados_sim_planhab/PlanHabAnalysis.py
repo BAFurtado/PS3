@@ -47,6 +47,9 @@ if __name__ == '__main__':
     final_stats = main('stats')
     regional_stats = main('regional')
 
+    final_stats.to_csv('final_stats.csv', index=False)
+    regional_stats.to_csv('regional_stats.csv', index=False)
+
     out = final_stats.groupby(by=['processing_acps', 'policy_mcmv', 'policy_melhorias', 'interest'], as_index=False)[
         ['pop', 'price_index', 'gdp_index',
          'unemployment', 'median_workers', 'families_median_wealth',
