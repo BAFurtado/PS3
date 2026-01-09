@@ -70,11 +70,11 @@ TOTAL_TARGETING_POLICY = False
 HOUSING_POLICY = 'baseline'
 # HOUSING_INTEREST now set with different datasets, but with the same reference as interests (alta, media, baixa)
 # Quantiles for families to be included in the different programs
-INCOME_MODALIDADES = {'faixa1': .1,
-                      'rural': .1,
-                      'melhorias': .2,
-                      'fgts': .6,
-                      'sbpe': .8
+INCOME_MODALIDADES = {'faixa1': .38,
+                      'rural': .38,
+                      'melhorias': .38,
+                      'fgts': .65,
+                      'sbpe': .85
                       }
 POLICY_MELHORIAS = True
 UPGRADE_COST = .2
@@ -97,7 +97,7 @@ LOAN_PAYMENT_TO_PERMANENT_INCOME = 0.07
 # Refers to the maximum loan monthly payment to total wealth
 # MAX_LOAN_PAYMENT_TO_WEALTH=.4
 # Refers to the maximum rate of the loan on the value of the estate
-MAX_LOAN_TO_VALUE = 0.35
+MAX_LOAN_TO_VALUE = 0.43
 # This parameter refers to the total amount of resources available at the bank.
 MAX_LOAN_BANK_PERCENT = 0.6
 
