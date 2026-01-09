@@ -11,8 +11,8 @@ PRODUCTIVITY_MAGNITUDE_DIVISOR = .4 #.4
 # Order of magnitude parameter of input into municipality investment
 MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.00001
 # INTEREST. Choose either: 'nominal', 'real' or 'fixed'. Default 'real'
-# FOR CENARIOS PLANHAB, choose either: 'alta', 'media' ou 'baixa'
-### Assumption. Mortgage assumed at 80% of regular economy interest rates.
+# FOR CENARIOS PLANHAB, choose either interests: 'alta', 'media' ou 'baixa'
+# Assumption. Mortgage assumed lower than SELIC (general rate).
 INTEREST = "media"
 # By how much percentage to increase prices
 MARKUP = 0.07
@@ -68,7 +68,7 @@ TOTAL_TARGETING_POLICY = False
 
 # HOUSING_POLICY can be ('baseline', ) and indicates the amount
 HOUSING_POLICY = 'baseline'
-HOUSING_INTEREST = 'baseline'
+# HOUSING_INTEREST now set with different datasets, but with the same reference as interests (alta, media, baixa)
 # Quantiles for families to be included in the different programs
 INCOME_MODALIDADES = {'faixa1': .1,
                       'rural': .1,
