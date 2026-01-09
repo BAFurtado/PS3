@@ -213,16 +213,16 @@ class HousingMarket:
                 else:
                     price = (savings_with_mortgage + p) / 2
                 # Get loan to make up the difference
-                loan_amount = max(0,price - savings)
+                loan_amount = max(0, price - savings)
                 # Check macroprudencial policy. If loan to value is above set value, no loan, leave the market.
                 if (loan_amount / price) > sim.PARAMS['MAX_LOAN_TO_VALUE']:
                     return
                 # Attempt to actually get the loan from the bank
-                success = sim.central.request_loan(family, house, loan_amount, sim.clock.year)
+                success, amount = sim.central.request_loan(family, house, loan_amount, sim.clock.year)
                 if not success:
                     # Just one shot at getting a loan
                     return
-                cash += loan_amount
+                cash += amount
             elif savings / p > sim.PARAMS['CAPPED_LOW_VALUE']:
                 if sim.seed_np.rand() < vacancy:
                     price = savings
