@@ -381,9 +381,6 @@ class Simulation:
         self.labor_market.assign_post(current_unemployment, wage_deciles, self.PARAMS)
 
         # Initiating Real Estate Market
-        #self.logger.logger.info(
-        #    f"Available licenses: {sum([r.licenses for r in self.regions.values()]):,.0f}"
-        #)
         # Tax transaction taxes (ITBI) when selling house
         # Property tax (IPTU) collected. One twelfth per month
         # self.central.calculate_monthly_mortgage_rate()
@@ -407,9 +404,8 @@ class Simulation:
         # Separate funds for region index update and separate for the policy case. Also, buy from intermediate market
         self.funds.invest_taxes(self.clock.year, bank_taxes)
 
-        # Apply policies if percentage is different from 0
-        if self.PARAMS["POLICY_COEFFICIENT"]:
-            self.funds.apply_policies()
+        # Apply policies (when they are tested)
+        self.funds.apply_policies()
 
         # Pass monthly information to be stored in Statistics
         self.output.save_stats_report(self, bank_taxes, affordability_decis)
