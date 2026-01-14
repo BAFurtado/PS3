@@ -146,17 +146,7 @@ OUTPUT_DATA_SPEC = {
                     'licenses',
                     'affordability_ratio',
                     'median_wealth',
-                    'median_affordability',
-                    'affordability_p10',
-                    'affordability_p20',
-                    'affordability_p30',
-                    'affordability_p40',
-                    'affordability_p50',
-                    'affordability_p60',
-                    'affordability_p70',
-                    'affordability_p80',
-                    'affordability_p90',
-                    'affordability_p100',]
+                    'median_affordability']
     },
     'neighbourhood': {
         'avg': {
