@@ -229,14 +229,11 @@ class Family:
         Family general consumption depends on its permanent income, based on members wages, working life expectancy
         and real estate and savings interest
         """
-        total_consumption = defaultdict(float)
         # Decision on how much money to consume or save
         money_to_spend = self.decision_on_consumption(central, central.interest, year, month, params, regions)
-        # Reset monthly's family consumption
-        self.average_utility = 0
 
         if money_to_spend is None:
-            return total_consumption
+            return defaultdict(float)
 
         # Picks SIZE_MARKET number of firms at seed and choose the closest or the cheapest
         # Consumes from each product the chosen firm offers
@@ -244,37 +241,51 @@ class Family:
         # Construction and Government are 0 in the table. Specific construction market apply
         size_market = int(params['SIZE_MARKET'])
         tax_consumption = int(params['TAX_CONSUMPTION'])
+
         household_demand = regional_market.final_demand['HouseholdConsumption']
-        sectors = regional_market.final_demand.index
-        for sector in sectors:
-            sector_share = household_demand.get(sector, 0)
+        total_consumption = defaultdict(float)
+        savings = self.savings
+        avg_utility = 0.0
+        house = self.house
+
+        for sector, sector_share in household_demand.items():
             if sector_share <= 0:
                 continue
 
             money_this_sector = money_to_spend * sector_share
-            sector_firms = firms_by_sector.get(sector, [])
+            if money_this_sector <= 0:
+                continue
 
+            sector_firms = firms_by_sector.get(sector)
             if not sector_firms:
                 continue
 
-            market = seed.sample(sector_firms, min(size_market, len(sector_firms)))
-            if not market:
-                continue
+            n_firms = len(sector_firms)
+
+            if n_firms <= size_market:
+                market = sector_firms
+            else:
+                market = seed.sample(sector_firms, size_market)
 
             firm_strategy = seed.choice(['Price', 'Distance'])
-            chosen_firm = min(
-                market,
-                key=(lambda f: f.prices if firm_strategy == 'Price' else self.house.distance_to_firm(f))
-            )
+            if firm_strategy == 'Price':
+                chosen_firm = min(market, key=lambda f: f.prices)
+            else:
+                dist = house.distance_to_firm
+                chosen_firm = min(market, key=dist)
 
             change = chosen_firm.sale(
                 money_this_sector, regions, tax_consumption,
                 self.region_id, if_origin
             )
-            self.savings += change
+
+            savings += change
             utility_gain = money_this_sector - change
-            self.average_utility += utility_gain
+            avg_utility += utility_gain
             total_consumption[sector] += utility_gain
+
+        self.savings = savings
+        self.average_utility = avg_utility
 
         return total_consumption
 
