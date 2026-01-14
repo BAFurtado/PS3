@@ -728,7 +728,7 @@ class ConstructionFirm(Firm):
             return
 
         # Building in any profitable region
-        region = sim.seed.choice([r[0] for r in regions])
+        region = sim.seed.choice(profitable_regions)
         idx = max(self.building) + 1 if self.building else 0
         self.building[idx]["region"] = region.id
         self.building[idx]["size"] = building_size
