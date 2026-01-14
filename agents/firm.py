@@ -670,23 +670,30 @@ class ConstructionFirm(Firm):
         building_quality = seed_np.choice([1, 2, 3, 4], p=[1 - (b + c + d), b, c, d])
 
         # Get information about regions' house prices
-        region_ids = [r.id for r in regions]
         region_prices = defaultdict(list)
-        for region_id in region_ids:
+        for r in regions:
             for h in houses:
                 # In correct region
                 # within 100 size units,
                 # within 2 quality
-                if (
-                        h.region_id in region_id
-                        and abs(h.size - building_size) <= 100
-                        and abs(h.quality - building_quality) < 2
-                ):
-                    region_prices[h.region_id].append(h.price)
-                    # Only take a sample
-                    if len(region_prices[region_id]) > 100:
-                        break
-            if len(region_prices[region_id]) == 0:
+                region_id = r.id
+                prices = region_prices[region_id]
+                size_diff = abs(h.size - building_size)
+                if size_diff > 100:
+                    continue
+
+                quality_diff = abs(h.quality - building_quality)
+                if quality_diff >= 2:
+                    continue
+
+                if h.region_id != region_id:
+                    continue
+
+                prices.append(h.price)
+                if len(prices) >= 100:
+                    break
+
+            if not prices:
                 region_prices.pop(region_id)
 
         # Number of product quantities needed for the house
@@ -708,15 +715,16 @@ class ConstructionFirm(Firm):
             median_prices = 0
         else:
             median_prices = np.median(list(region_mean_prices.values()))
-        region_profitability = [
-            region_mean_prices.get(r.id, median_prices)
-            - (r.license_price * building_cost * (1 + params["LOT_COST"]))
-            for r in regions
-        ]
-        regions = [(r, p) for r, p in zip(regions, region_profitability) if p > 0]
+        profitable_regions = []
+        for r in regions:
+            profit = (
+                    region_mean_prices.get(r.id, median_prices)
+                    - (r.license_price * building_cost * (1 + params["LOT_COST"]))
+            )
+            if profit > 0:
+                profitable_regions.append(r)
 
-        # No profitable regions
-        if not regions:
+        if not profitable_regions:
             return
 
         # Building in any profitable region
