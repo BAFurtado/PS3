@@ -71,12 +71,8 @@ class Statistics(object):
         }
         logger.info(f"Firm stats - Median wealth: {results['median_wealth']:.2f}, "
                     f"Median wages: {results['median_wages']:.2f}, "
-                    f"Eco Efficiency: {results['eco_efficiency']:.3f}, "
-                    f"Emissions: {results['emissions']:.2f}, "
                     f"Median stock: {results['median_stock']:.2f}, "
                     f"Median workers: {results['workers']:.2f}, "
-                    f"Aggregate profits: {results['aggregate_profits']:.2f},"
-                    f"Mean investment: {results['innovation_investment']:.4f}"
                     )
 
         return results
@@ -184,8 +180,7 @@ class Statistics(object):
     def update_unemployment(self, agents, global_u=False, log=False):
         employable = [m for m in agents if 16 < m.age < 70]
         temp = len([m for m in employable if m.firm_id is None]) / len(employable) if employable else 0
-        if log:
-            logger.info(f'Unemployment rate: {temp * 100:.2f}')
+        logger.info(f'Unemployment rate: {temp * 100:.2f}')
         if global_u:
             self.global_unemployment_rate = temp
         return temp
@@ -263,8 +258,8 @@ class Statistics(object):
             x, sorted_income, n, index = 0, 0, 0, 0
 
         gini = (np.sum((2 * index - n - 1) * sorted_income) / (n * np.sum(sorted_income))) if n > 0 else 0
-        logger.info(f"Family stats - Zero consumption: {zero_consumption_ratio:.2f}, "
-                    f"Family stats - Median wealth: {median_wealth:.2f}, ")
+        logger.info(f"Zero consumption: {zero_consumption_ratio:.2f}, "
+                    f"Gini: {gini:.4f}, ")
         return {
             "affordability_ratio": affordability_ratio,
             "median_wealth": median_wealth,
