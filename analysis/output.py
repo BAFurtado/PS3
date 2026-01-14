@@ -232,47 +232,54 @@ class Output:
         # External
         ext_amount_sold = sim.external.get_external_amount_sold()
 
-        report = f"{sim.clock.days};" \
-                 f"{pop:d};" \
-                 f"{price_index:.2f};" \
-                 f"{gdp_index:.2f};" \
-                 f"{gdp_growth:.2f};" \
-                 f"{unemployment:.2f};" \
-                 f"{firm_results['workers']:.2f};" \
-                 f"{families_results['median_wealth']:.2f};" \
-                 f"{families_results['median_wages']:.2f};" \
-                 f"{commuting:.3f};" \
-                 f"{families_results['total_savings']:.2f};" \
-                 f"{families_helped:.0f};" \
-                 f"{amount_subsidised:.3f};" \
-                 f"{firm_results['aggregate_profits']:.2f};" \
-                 f"{firm_results['median_stock']:.2f};" \
-                 f"{firm_results['eco_efficiency']:.4f};" \
-                 f"{firm_results['median_wages']:.2f};" \
-                 f"{firm_results['innovation_investment']:.4f};" \
-                 f"{firm_results['emissions']:.2f};" \
-                 f"{families_results['gini']:.3f};" \
-                 f"{families_results['avg_utility']:.2f};" \
-                 f"{families_results['zero_consumption_ratio']:.2f};" \
-                 f"{families_results['rent_default_ratio']:.4f};" \
-                 f"{inflation:.4f};" \
-                 f"{average_qli:.3f};" \
-                 f"{house_results['vacancy_rate']:.2f};" \
-                 f"{house_results['average_house_price']:.2f};" \
-                 f"{house_results['average_rent_price']:.2f};" \
-                 f"{families_results['affordability_ratio']:.2f};" \
-                 f"{p_delinquent:.4f};" \
-                 f"{mun_applied_treasure['equally']:.4f};" \
-                 f"{mun_applied_treasure['locally']:.4f};" \
-                 f"{mun_applied_treasure['fpm']:.4f};" \
-                 f"{mun_applied_treasure['bank']:.4f};" \
-                 f"{emissions_fund:.4f};" \
-                 f"{ext_amount_sold:.2f};" \
-                 f"{affordability_decis_values};" \
-                 f"{families_results['median_affordability']:.2f}\n"
+        stats_row = {
+            "month": sim.clock.days,
+            "pop": pop,
+            "price_index": price_index,
+            "gdp_index": gdp_index,
+            "gdp_growth": gdp_growth,
+            "unemployment": unemployment,
+            "median_workers": firm_results["workers"],
+            "families_median_wealth": families_results["median_wealth"],
+            "families_wages_received": families_results["median_wages"],
+            "families_commuting": commuting,
+            "families_savings": families_results["total_savings"],
+            "families_helped": families_helped,
+            "amount_subsidised": amount_subsidised,
+            "firms_profit": firm_results["aggregate_profits"],
+            "firms_median_stock": firm_results["median_stock"],
+            "firms_avg_eco_eff": firm_results["eco_efficiency"],
+            "firms_median_wage_paid": firm_results["median_wages"],
+            "firms_median_innovation_investment": firm_results["innovation_investment"],
+            "emissions": firm_results["emissions"],
+            "gini_index": families_results["gini"],
+            "average_utility": families_results["avg_utility"],
+            "pct_zero_consumption": families_results["zero_consumption_ratio"],
+            "rent_default": families_results["rent_default_ratio"],
+            "inflation": inflation,
+            "average_qli": average_qli,
+            "house_vacancy": house_results["vacancy_rate"],
+            "house_price": house_results["average_house_price"],
+            "house_rent": house_results["average_rent_price"],
+            "affordable": families_results["affordability_ratio"],
+            "p_delinquent": p_delinquent,
+            "equally": mun_applied_treasure["equally"],
+            "locally": mun_applied_treasure["locally"],
+            "fpm": mun_applied_treasure["fpm"],
+            "bank": mun_applied_treasure["bank"],
+            "emissions_fund": emissions_fund,
+            "ext_amount_sold": ext_amount_sold,
+            "affordability_median": families_results["median_affordability"],
+        }
 
-        with open(self.stats_path, 'a') as f:
-            f.write(report)
+        for i, v in enumerate(affordability_decis, start=1):
+            stats_row[f"affordability_decis_{i}"] = v
+
+        columns = OUTPUT_DATA_SPEC["stats"]["columns"]
+        row = ";".join(str(stats_row[c]) for c in columns) + "\n"
+
+        with open(self.stats_path, "a") as f:
+            f.write(row)
 
     def save_regional_report(self, sim):
         reports = []
