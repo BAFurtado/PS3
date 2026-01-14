@@ -223,7 +223,7 @@ class Output:
         mun_applied_treasure = defaultdict(int)
         mun_applied_treasure['bank'] = bank_taxes
         families_helped = sim.funds.families_subsided
-        amount_subsided = sim.funds.money_applied_policy
+        amount_subsidised = sim.funds.money_applied_policy
         # Reset for monthly (not cumulative) statistics
         sim.funds.families_subsided, sim.funds.money_applied_policy = 0, 0
         for k in ['equally', 'locally', 'fpm']:
@@ -244,7 +244,7 @@ class Output:
                  f"{commuting:.3f};" \
                  f"{families_results['total_savings']:.2f};" \
                  f"{families_helped:.0f};" \
-                 f"{amount_subsided:.3f};" \
+                 f"{amount_subsidised:.3f};" \
                  f"{firm_results['aggregate_profits']:.2f};" \
                  f"{firm_results['median_stock']:.2f};" \
                  f"{firm_results['eco_efficiency']:.4f};" \
