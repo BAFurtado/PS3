@@ -24,7 +24,7 @@ class Funds:
             self.policy_money = defaultdict(float)
             self.policy_families = defaultdict(list)
             self.temporary_houses = defaultdict(list)
-        if sim.PARAMS['POLICY_MCMV']:
+        if sim.PARAMS['POLICY_MCMV'] or sim.PARAMS['POLICY_MELHORIAS']:
             # Collect money from exogenous funding
             self.mcmv = MCMV(sim)
 

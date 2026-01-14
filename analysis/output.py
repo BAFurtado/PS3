@@ -326,7 +326,7 @@ class Output:
             mun_qli = sum(r.index for r in regions) / len(regions)
 
             reports.append(
-                '%s;%s;%.3f;%d;%.3f;%.4f;%.3f;%.4f;%.5f;%.3f;%.6f;%.6f;%.6f;%.6f;%s;%.6f;%.6f;%.6f;%.6f;%.6f;%.6f;%.6f;%.6f;%.6f;%.6f;%.6f;%.6f;%.6f \n'
+                '%s;%s;%.3f;%d;%.3f;%.4f;%.3f;%.4f;%.5f;%.3f;%.6f;%.6f;%.6f;%.6f;%s;%.6f;%.6f;%.6f'
                 % (sim.clock.days, mun_id, commuting, mun_pop, mun_gdp, mun_gini, mun_house_values,
                    mun_unemployment, mun_qli, GDP_mun_capita, mun_cumulative_treasure,
                    mun_applied_treasure['equally'],
@@ -336,16 +336,6 @@ class Output:
                    families_regional_metrics['affordability_ratio'],
                    families_regional_metrics['median_wealth'],
                    families_regional_metrics['median_affordability'],
-                   families_regional_metrics['affordability_p10'],
-                   families_regional_metrics['affordability_p20'],
-                   families_regional_metrics['affordability_p30'],
-                   families_regional_metrics['affordability_p40'],
-                   families_regional_metrics['affordability_p50'],
-                   families_regional_metrics['affordability_p60'],
-                   families_regional_metrics['affordability_p70'],
-                   families_regional_metrics['affordability_p80'],
-                   families_regional_metrics['affordability_p90'],
-                   families_regional_metrics['affordability_p100']
                    ))
 
         with open(self.regional_path, 'a') as f:
