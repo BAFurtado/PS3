@@ -342,16 +342,21 @@ class Simulation:
         # Probability depends (strongly) on market supply
         if self.PARAMS["OFFER_SIZE_ON_PRICE"]:
             vacancy = self.stats.vacancy_rate
+        else:
+            vacancy = .1
         construction_firms = [f for f in self.firms.values() if f.sector == 'Construction']
+
+        # Pre compute region stats
+        region_price_stats = compute_region_price_stats(self.houses.values())
         for firm in construction_firms:
             # See if firm can build a house
             firm.plan_house(
                 self.regions.values(),
-                self.houses.values(),
                 self.PARAMS,
                 self,
                 self.seed_np,
                 vacancy,
+                region_price_stats
             )
             # See whether a house has been completed. If so, register. Else, continue
             house = firm.build_house(self.regions, self.generator)
@@ -425,3 +430,28 @@ class Simulation:
     def yearly(self):
         if conf.RUN["SAVE_DATA_PERIDIOCITY"] == "ANNUALLY":
             self.output.save_data(self)
+
+
+def compute_region_price_stats(houses):
+    """
+    Precompute approximate region-level housing prices.
+    Returns:
+        dict: region_id -> dict with summary stats
+    """
+    prices_per_size_by_region = defaultdict(list)
+
+    for h in houses:
+        prices_per_size_by_region[h.region_id].append(h.price / h.size)
+
+    region_stats = {}
+    for region_id, prices_per_size in prices_per_size_by_region.items():
+        if prices_per_size:
+            region_stats[region_id] = {
+                "median": np.median(prices_per_size),
+            }
+        else:
+            region_stats[region_id] = {
+                "median": 0.0,
+            }
+
+    return region_stats

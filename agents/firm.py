@@ -635,66 +635,38 @@ class ConstructionFirm(Firm):
         self.monthly_planned_revenue = list()
         self.productivity = 0
 
-    def plan_house(self, regions, houses, params, sim, seed_np, vacancy):
+    def plan_house(self, regions, params, sim, seed_np, vacancy, region_price_stats):
         """Decide where to build with which attributes"""
         # Probability depends on size of market
-        if vacancy:
-            if seed_np.rand() < vacancy:
-                return
+        if vacancy and seed_np.rand() < vacancy:
+            return
 
         # Check whether production capacity does not exceed hired construction
         # for the next construction cash flow period
         monthly_productivity_capacity = self.total_qualification(params["PRODUCTIVITY_EXPONENT"])
         if monthly_productivity_capacity == 0:
             self.increase_production = True
+
         if not self.building and not self.houses_for_sale:
             # Start building plan
             self.increase_production = True
-            pass
-        elif len(self.houses_for_sale) <= params['MAX_HOUSE_STOCK']:
-            pass
-        else:
+
+        elif len(self.houses_for_sale) > params['MAX_HOUSE_STOCK']:
             return
 
         # Candidate regions for licenses and check of funds to buy license
         regions = [
-            r
-            for r in regions
-            if r.licenses > 0 and self.total_balance > r.license_price
+            r for r in regions
+            if r.licenses > 0
+            and self.total_balance > r.license_price
         ]
         if not regions:
             return
+
         # Targets
         building_size = seed_np.lognormal(4.96, 0.5)
         b, c, d = 0.38, 0.3, 0.1
         building_quality = seed_np.choice([1, 2, 3, 4], p=[1 - (b + c + d), b, c, d])
-
-        # Get information about regions' house prices
-        region_prices = defaultdict(list)
-        for r in regions:
-            for h in houses:
-                # In correct region
-                # within 100 size units,
-                # within 2 quality
-                region_id = r.id
-                prices = region_prices[region_id]
-                size_diff = abs(h.size - building_size)
-                if size_diff > 100:
-                    continue
-
-                quality_diff = abs(h.quality - building_quality)
-                if quality_diff >= 2:
-                    continue
-
-                if h.region_id != region_id:
-                    continue
-
-                prices.append(h.price)
-                if len(prices) >= 100:
-                    break
-
-            if not prices:
-                region_prices.pop(region_id)
 
         # Number of product quantities needed for the house
         gross_cost = building_size * building_quality
@@ -706,21 +678,14 @@ class ConstructionFirm(Firm):
         building_cost = gross_cost * self.productivity
 
         # Choose region where construction is most profitable
-        # There might not be samples for all regions, so fallback to price of 0
-        region_mean_prices = {
-            r_id: sum(vs) / len(vs) for r_id, vs in region_prices.items()
-        }
-        # Using median prices for regions without price information
-        if not region_mean_prices.values():
-            median_prices = 0
-        else:
-            median_prices = np.median(list(region_mean_prices.values()))
         profitable_regions = []
         for r in regions:
-            profit = (
-                    region_mean_prices.get(r.id, median_prices)
-                    - (r.license_price * building_cost * (1 + params["LOT_COST"]))
+            price_per_size = region_price_stats.get(r.id, {"median": 0})["median"]
+            expected_price = price_per_size * building_size
+            profit = expected_price - (
+                    r.license_price * building_cost * (1 + params["LOT_COST"])
             )
+
             if profit > 0:
                 profitable_regions.append(r)
 
@@ -733,7 +698,6 @@ class ConstructionFirm(Firm):
         self.building[idx]["region"] = region.id
         self.building[idx]["size"] = building_size
         self.building[idx]["quality"] = building_quality
-
         # Product.quantity increases as construction moves forward and is deducted at once
         self.building[idx]["cost"] = building_cost * region.license_price
 
