@@ -214,8 +214,8 @@ class Funds:
     def distribute_fpm(self, value, regions, pop_t, pop_mun_t, year):
         """Calculate proportion of FPM per region, in relation to the total of all regions.
         Value is the total value of FPM to distribute"""
-        if float(year) > 2016:
-            year = str(2016)
+        if float(year) >= 2024:
+            year = str(2024)
 
         # Dictionary that keeps actual FPM received to be used as a proportion parameter
         # to simulated FPM to be distributed
