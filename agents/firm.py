@@ -257,100 +257,107 @@ class Firm:
 
     def buy_inputs(self, desired_quantity, regional_market, firms, seed,
                    technical_matrix, external_technical_matrix):
-        """
-        Buys inputs according to the technical coefficients.
-        In fact, this is the intermediate consumer market (firms buying from firms)
-        """
-        # Reset input cost
+
         self.input_cost = 0
-        if self.total_balance > 0:
-            sectors = regional_market.technical_matrix.index
-            # First the firm checks how much it needs to buy
-            params = regional_market.sim.PARAMS
-            freight_cost = 1 + params['REGIONAL_FREIGHT_COST']
+        if self.total_balance <= 0:
+            return
 
-            # The input ratio accounts for the need to buy inputs from other regions
-            input_ratio = np.divide(technical_matrix.loc[:, self.sector],
-                                    technical_matrix.loc[:, self.sector] +
-                                    external_technical_matrix.loc[:, self.sector])
-            input_quantities_needed = (desired_quantity *
-                                       (technical_matrix.loc[:, self.sector] +
-                                        external_technical_matrix.loc[:, self.sector]))
-            input_quantities_needed -= pd.Series(self.input_inventory)
-            input_quantities_needed = np.clip(input_quantities_needed, 0, None)
-            local_input_quantities_needed = np.multiply(input_ratio,
-                                                        input_quantities_needed)
-            external_input_quantities_needed = input_quantities_needed - local_input_quantities_needed
-            # Choose the firm to buy inputs from
-            chosen_firms_per_sector = self.choose_firm_per_sector(regional_market, firms, seed,
-                                                                  params['INTERMEDIATE_SIZE_MARKET'])
-            money_local_inputs = sum([local_input_quantities_needed[sector] * chosen_firms_per_sector[sector][0].prices
-                                      for sector in sectors
-                                      if chosen_firms_per_sector[sector]])
+        params = regional_market.sim.PARAMS
+        freight_cost = 1.0 + params['REGIONAL_FREIGHT_COST']
+        sectors = regional_market.technical_matrix.index
 
-            # External buying of inputs includes an ADDITIONAL FREIGHT COST!
-            money_external_inputs = sum([external_input_quantities_needed[sector] * chosen_firms_per_sector[
-                sector][0].prices * freight_cost
-                                        for sector in sectors
-                                        if chosen_firms_per_sector[sector]])
+        # --- Technical coefficients cached only once
+        local_tc = technical_matrix.loc[:, self.sector]
+        external_tc = external_technical_matrix.loc[:, self.sector]
+        total_tc = local_tc + external_tc
 
-            # The reduction factor is used to account for the firm having LESS MONEY than needed
-            if money_local_inputs + money_external_inputs > 0:
-                reduction_factor = min(self.total_balance,
-                                       money_local_inputs + money_external_inputs) / (
-                                           money_local_inputs + money_external_inputs)
+        input_ratio = np.divide(local_tc, total_tc)
+
+        # --- Quantities needed
+        inventory_series = pd.Series(self.input_inventory)
+
+        gross_needed = desired_quantity * total_tc
+        net_needed = gross_needed - inventory_series
+        net_needed_clipped = np.clip(net_needed, 0, None)
+
+        local_needed = input_ratio * net_needed_clipped
+        external_needed = net_needed_clipped - local_needed
+
+        # --- Firm selection
+        chosen_firms = self.choose_firm_per_sector(
+            regional_market, firms, seed,
+            params['INTERMEDIATE_SIZE_MARKET']
+        )
+
+        # --- Compute total money needed
+        money_local_inputs = 0.0
+        money_external_inputs = 0.0
+
+        for sector in sectors:
+            firms_sector = chosen_firms[sector]
+            if not firms_sector:
+                continue
+
+            price = firms_sector[0].prices
+            money_local_inputs += local_needed[sector] * price
+            money_external_inputs += external_needed[sector] * price * freight_cost
+
+        total_money_needed = money_local_inputs + money_external_inputs
+
+        if total_money_needed > 0:
+            reduction_factor = min(self.total_balance, total_money_needed) / total_money_needed
+        else:
+            reduction_factor = 1.0
+
+        self.total_balance -= reduction_factor * total_money_needed
+
+        # --- Purchase loop
+        for sector in sectors:
+            firms_sector = chosen_firms[sector]
+
+            if firms_sector:
+                price = firms_sector[0].prices
             else:
-                reduction_factor = 1
+                price = regional_market.sim.avg_prices
 
-            # Withdraw all the necessary money. If no inputs are available, change is returned
-            self.total_balance -= reduction_factor * (money_local_inputs + money_external_inputs)
+            money_local = reduction_factor * local_needed[sector] * price
+            money_external = reduction_factor * external_needed[sector] * price * freight_cost
 
-            # First buy inputs locally. Pay cheapest firm prices
-            for sector in sectors:
-                if chosen_firms_per_sector[sector]:
-                    prices = chosen_firms_per_sector[sector][0].prices
-                else:
-                    prices = regional_market.sim.avg_prices
-                money_this_sector = (reduction_factor *
-                                     local_input_quantities_needed[sector] *
-                                     prices)
+            if money_local == 0 and money_external == 0:
+                continue
 
-                # External money includes FREIGHT
-                # TODO. Check flow consistency, where does FREIGHT MONEY GOES?
-                external_money_this_sector = (reduction_factor * external_input_quantities_needed[sector] *
-                                              prices *
-                                              freight_cost)
+            # Local purchases
+            if firms_sector:
+                change = 0.0
+                per_firm_money = money_local / len(firms_sector)
+                for firm in firms_sector:
+                    change += regional_market.intermediate_consumption(
+                        per_firm_money, firm
+                    )
+            else:
+                change = money_local
 
-                if money_this_sector == 0 and external_money_this_sector == 0:
-                    continue
-                # Uses regional market to access intermediate consumption and each firm sale function
-                # Returns change, if any
-                if chosen_firms_per_sector[sector]:
-                    change = 0
-                    # Buy inputs from all selected firms (from 1 to 3)
-                    money_this_sector_this_firm = money_this_sector / len(chosen_firms_per_sector[sector])
-                    for firm in chosen_firms_per_sector[sector]:
-                        change += regional_market.intermediate_consumption(money_this_sector_this_firm,
-                                                                           firm)
+            # Freight adjustment
+            freight_extra = (freight_cost - 1.0) * change
+            if self.total_balance > freight_extra:
+                self.total_balance -= freight_extra
+                money_external += freight_cost * change
+            else:
+                money_external += self.total_balance
+                self.total_balance = 0.0
 
-                else:
-                    change = money_this_sector
-                # Check whether there was change and buy the rest from the external sector
-                #  so that firms won't consistently buy less than needed while having money
-                if self.total_balance > (freight_cost - 1) * change:
-                    self.total_balance -= (freight_cost - 1) * change
-                    external_money_this_sector += freight_cost * change
-                else:
-                    external_money_this_sector += self.total_balance
-                    self.total_balance = 0
-                # Go for external market which has full supply
-                regional_market.sim.external.intermediate_consumption(external_money_this_sector,
-                                                                      prices *
-                                                                      freight_cost)
-                self.input_inventory[sector] += ((money_this_sector - change) / prices +
-                                                 external_money_this_sector / (prices *
-                                                                               freight_cost))
-                self.input_cost += money_this_sector - change + external_money_this_sector
+            # External purchase
+            regional_market.sim.external.intermediate_consumption(
+                money_external, price * freight_cost
+            )
+
+            # Inventory + cost update
+            self.input_inventory[sector] += (
+                    (money_local - change) / price +
+                    money_external / (price * freight_cost)
+            )
+
+            self.input_cost += money_local - change + money_external
 
     def update_product_quantity(self, prod_exponent, prod_divisor, regional_market, firms, seed):
         """
