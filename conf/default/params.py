@@ -3,10 +3,10 @@ import datetime
 # MODEL PARAMETERS
 
 # FIRMS #########################################################
-# Production function, labour with decaying exponent, Alpha for K. [0, 1]
-PRODUCTIVITY_EXPONENT = .7
+# Production function, labor with decaying exponent, Alpha for K. [0, 1]
+PRODUCTIVITY_EXPONENT = .5
 # Order of magnitude correction of production. Production divided by parameter
-PRODUCTIVITY_MAGNITUDE_DIVISOR = .4 #.4
+PRODUCTIVITY_MAGNITUDE_DIVISOR = 1
 # GENERAL CALIBRATION PARAMETERS
 # Order of magnitude parameter of input into municipality investment
 MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.00001
@@ -30,7 +30,7 @@ LABOR_MARKET = 0.8
 # Percentage of employees' firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
-RELEVANCE_UNEMPLOYMENT_SALARIES = 4
+RELEVANCE_UNEMPLOYMENT_SALARIES = 3
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 20
 
@@ -76,7 +76,7 @@ INCOME_MODALIDADES = {'faixa1': .38,
                       'fgts': .65,
                       'sbpe': .85
                       }
-POLICY_MELHORIAS = True
+POLICY_MELHORIAS = False
 UPGRADE_COST = .2
 POLICY_DAYS = 360
 # Size of the poorest families to be helped
@@ -86,7 +86,7 @@ POLICY_QUANTILE = 0.2
 TAX_ON_ORIGIN = True
 # BNDES test with (True) and without (False) TRANSPORT investments.
 # Variation in time_travel implemented in labor market decisions -- BNDES test
-TRANSPORT_TIME = False#True
+TRANSPORT_TIME = False
 # LOANS ##############################################################################
 # Maximum age of borrower at the end of the contract
 MAX_LOAN_AGE = 70
@@ -135,7 +135,7 @@ LOT_COST = 0.15
 HOUSE_VACANCY = 0.1
 # MAX_NUMBER OF HOUSES IN STOCK
 MAX_HOUSE_STOCK = 12
-# Old house categories. TODO. Update to use input quali_house dd from generator
+# Categories of submarkets for the housing markets
 PERC_HOUSE_CATEGORIES = [0.4, 0.3, 0.2, 0.1]
 # HOW LARGER IS CONSTRUCTION FIRMS PROFIT RELATIVE TO USUAL MARKUP (firms' productivity, given current prices)
 CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 10
