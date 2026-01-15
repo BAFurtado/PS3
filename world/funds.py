@@ -178,35 +178,37 @@ class Funds:
             self.temporary_houses[mun] = sorted(self.temporary_houses[mun], key=lambda h: h.price)
             # Exclude families who own any house. Exclusively for renters
             self.policy_families[mun] = [f for f in self.policy_families[mun] if not f.owned_houses]
-            if len(self.policy_families[mun]) > 0:
-                for house in self.temporary_houses[mun]:
-                    # While money is good.
-                    if self.policy_money[mun] > 0 and house.price < self.policy_money[mun]:
-                        # Getting poorest family first, given permanent income
-                        family = self.policy_families[mun].pop(0)
-                        # Transaction taxes help reduce the price of the bulk buying by the municipality
-                        taxes = house.price * self.sim.PARAMS['TAX_ESTATE_TRANSACTION']
-                        self.sim.regions[house.region_id].collect_taxes(taxes, 'transaction')
-                        # Register subsidies
-                        self.money_applied_policy += house.price
-                        self.families_subsided += 1
-                        # Pay construction company
-                        self.sim.firms[house.owner_id].update_balance(house.price - taxes,
-                                                                      self.sim.PARAMS['CONSTRUCTION_ACC_CASH_FLOW'],
-                                                                      self.sim.clock.days)
-                        # Deduce from municipality fund
-                        self.policy_money[mun] -= house.price
-                        # Transfer ownership
-                        self.sim.firms[house.owner_id].houses_for_sale.remove(house)
-                        # Finish notarial procedures
-                        house.owner_id = family.id
-                        house.family_owner = True
-                        family.owned_houses.append(house)
-                        house.on_market = 0
-                        # Move out. Move in
-                        HousingMarket.make_move(family, house, self.sim)
-                    else:
-                        break
+
+            for house in self.temporary_houses[mun]:
+                # While families to receive houses
+                if not self.policy_families[mun]:
+                    break
+                # While money is good.
+                if self.policy_money[mun] <= 0 or house.price >= self.policy_money[mun]:
+                    break
+                # Getting poorest family first, given permanent income
+                family = self.policy_families[mun].pop(0)
+                # Transaction taxes help reduce the price of the bulk buying by the municipality
+                taxes = house.price * self.sim.PARAMS['TAX_ESTATE_TRANSACTION']
+                self.sim.regions[house.region_id].collect_taxes(taxes, 'transaction')
+                # Register subsidies
+                self.money_applied_policy += house.price
+                self.families_subsided += 1
+                # Pay construction company
+                self.sim.firms[house.owner_id].update_balance(house.price - taxes,
+                                                              self.sim.PARAMS['CONSTRUCTION_ACC_CASH_FLOW'],
+                                                              self.sim.clock.days)
+                # Deduce from municipality fund
+                self.policy_money[mun] -= house.price
+                # Transfer ownership
+                self.sim.firms[house.owner_id].houses_for_sale.remove(house)
+                # Finish notarial procedures
+                house.owner_id = family.id
+                house.family_owner = True
+                family.owned_houses.append(house)
+                house.on_market = 0
+                # Move out. Move in
+                HousingMarket.make_move(family, house, self.sim)
 
         # Clean up list for next month
         self.temporary_houses = defaultdict(list)
