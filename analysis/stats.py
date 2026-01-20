@@ -161,6 +161,7 @@ class Statistics(object):
         # Logging (if enabled)
         logger.info(f'Vacant houses {np.sum(is_vacant):,.0f}')
         logger.info(f'Total houses {n_houses:,.0f}')
+        logger.info(f'Average house prices {avg_house_price:,.2f}')
 
         return {
             "average_house_price": avg_house_price,
@@ -175,6 +176,7 @@ class Statistics(object):
             dummy_gdp_capita = dummy_gdp / mun_pop
         else:
             dummy_gdp_capita = dummy_gdp
+        logger.info(f'Pop. municipal {mun_pop:.0f}')
         return dummy_gdp_capita
 
     def update_unemployment(self, agents, global_u=False, log=False):
