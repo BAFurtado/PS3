@@ -43,7 +43,9 @@ class Family:
         self.rent_voucher = 0
         self.average_utility = 0
         self.last_permanent_income = list()
-        self.affordability_ratio = 1
+        self.permanent_income = 1
+        self.affordability_ratio = 10e6
+        self.last_permanent_window = 24
 
         # Previous region id
         if house is not None:
@@ -122,19 +124,31 @@ class Family:
         return sum(member.last_wage for member in self.members.values() if member.last_wage is not None)
 
     def get_permanent_income(self):
-        return sum(self.last_permanent_income) / len(self.last_permanent_income) if self.last_permanent_income else 0
+        return self.permanent_income
 
-    def permanent_income(self, bank, r):
-        # Equals Consumption (Bielefeld, 2018, pp.13-14)
-        # Using last wage available as base for permanent income calculus: total_wage = Human Capital
+    def update_affordability(self):
+        # Update affordability only
+        if self.permanent_income > 0 and self.house:
+            self.affordability_ratio = self.house.price / self.permanent_income
+
+    def update_permanent_income(self, bank, r):
         t0 = self.total_wage()
-        r_1_r = r / (1 + r)
-        # Calculated as "discounted sum of current income and expected future income" plus "financial wealth"
-        # Perpetuity of income is a fraction (r_1_r) of income t0 divided by interest r
-        self.last_permanent_income.append(r_1_r * t0 + r_1_r * (t0 / r) + self.get_wealth(bank) * r)
-        value = self.get_permanent_income()
-        # Update affordability
-        self.affordability_ratio = self.house.price / value if value else np.nan
+        EPS = 1e-4
+        r_eff = max(r, EPS)
+        wealth = self.get_wealth(bank)
+        # Permanent income (Dawid-consistent)
+        current_pi = t0 + r_eff * wealth
+        self.last_permanent_income.append(current_pi)
+        # Keep only last 24 months
+        if len(self.last_permanent_income) > self.last_permanent_window:
+            self.last_permanent_income = self.last_permanent_income[-self.last_permanent_window:]
+        # Average without artificial zerollasts
+        value = (
+            current_pi if len(self.last_permanent_income) == 1
+            else np.mean(self.last_permanent_income)
+        )
+        self.permanent_income = value
+        self.update_affordability()
         return value
 
     def prob_employed(self):
@@ -174,7 +188,7 @@ class Family:
         self.space_constraint = self.num_members / self.house.size * 3.5  # To approximate value to a range 0, 1
         return self.is_renting + prob_employed + self.space_constraint
 
-    def decision_on_consumption(self, central, r, year, month, params, regions):
+    def decision_on_consumption(self, central, year, month, params, regions):
         """ Family consumes its permanent income, based on members' wages, real estate assets, and savings.
         A. Separate expenses for renting, banking loans, goods' consumption, and investments in that order.
          """
@@ -182,7 +196,7 @@ class Family:
         # This can only be called once due to transport deduction
         money = sum(m.grab_money(params, regions) for m in self.members.values())
         # 2. Calculate permanent income
-        permanent_income = self.permanent_income(central, r)
+        permanent_income = self.get_permanent_income()
         # Having loans will impact on a lower long-run permanent income consumption and on a monthly reduction on
         # consumption. However, the price of the house may be appreciating in the market.
         # 3. Total spending equals permanent income.
@@ -230,7 +244,7 @@ class Family:
         and real estate and savings interest
         """
         # Decision on how much money to consume or save
-        money_to_spend = self.decision_on_consumption(central, central.interest, year, month, params, regions)
+        money_to_spend = self.decision_on_consumption(central, year, month, params, regions)
 
         if money_to_spend is None:
             return defaultdict(float)

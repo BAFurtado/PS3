@@ -278,6 +278,8 @@ class Simulation:
             firm.present = self.clock
 
         # FAMILIES CONSUMPTION -- using payment received from previous month
+        for family in self.families.values():
+            family.update_permanent_income(self.central, self.central.interest)
         # Equalize money within family members
         # Tax consumption when doing sales are realized
         self.regional_market.consume()
