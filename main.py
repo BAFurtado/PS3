@@ -265,6 +265,9 @@ def sensitivity(ctx, params):
         elif param == 'INTEREST':
             p_name = param
             p_vals = ['real', 'nominal', 'fixed']
+        elif param == 'INTEREST_LEVEL':
+            p_name = 'INTEREST'
+            p_vals = ['baixa', 'media', 'alta']
         elif '-' in param:
             p_name = 'PROCESSING_ACPS'
             p_vals = [[i] for i in param.split('-')[1:]]
