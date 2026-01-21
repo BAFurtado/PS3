@@ -300,7 +300,11 @@ class Funds:
             gov_firms_here = [f for f in gov_firms if f.region_id[:7] == mun_code]
             firms_num_employees = [f.num_employees() for f in gov_firms_here]
             total_employment = sum(firms_num_employees)
-            [f.assign_proportion(i / total_employment) for f, i in zip(gov_firms_here, firms_num_employees)]
+            if total_employment > 0:
+                for f, i in zip(gov_firms_here, firms_num_employees):
+                    f.assign_proportion(i / total_employment)
+            else:
+                f.assign_proportion(0)
             self.mun_gov_firms[mun_code] = gov_firms_here
 
         # Collect and UPDATE pop_t-1 and pop_t
@@ -310,12 +314,14 @@ class Funds:
         pop_mun_t = defaultdict(int)
         treasure = defaultdict(dict)
         for id, region in regions.items():
-            pop_t_minus_1[id] = region.pop
-            pop_mun_minus[id[:7]] += region.pop
+            prev_pop = region.pop
+            pop_t_minus_1[id] = prev_pop
+            pop_mun_minus[id[:7]] += prev_pop
             # Update
-            region.pop = self.sim.reg_pops[id]
-            pop_t[id] = region.pop
-            pop_mun_t[id[:7]] += region.pop
+            new_pop = self.sim.reg_pops.get(id, 0)
+            region.pop = new_pop
+            pop_t[id] = new_pop
+            pop_mun_t[id[:7]] += new_pop
 
             # BRING treasure from regions to municipalities
             treasure[id] = region.transfer_treasure()
@@ -323,16 +329,19 @@ class Funds:
         # Update proportion of index coming from population variation
         for id, region in regions.items():
             m_id = id[:7]
-            # TODO: Check for zero divisions here
-            if pop_mun_t[m_id] == 0:
-                continue
-            region.update_index_pop(pop_mun_minus[m_id]/pop_mun_t[m_id])
+            denom = pop_mun_t[m_id]
+            if denom > 0:
+                ratio = pop_mun_minus[m_id] / denom
+            else:
+                ratio = 0
+            region.update_index_pop(ratio)
 
-        v_local = defaultdict(int)
+        v_local = defaultdict(float)
         # Every month taxes to distribute start from 0
-        v_equal = 0
+        v_equal = 0.0
         # All taxes charged from other regions return back to the metropolis
         v_equal += self.sim.external.collect_transfer_consumption_tax()
+
         if self.sim.PARAMS['ALTERNATIVE0']:
             # Dividing proportion of consumption into equal and local (state, municipality)
             # And adding local part of consumption plus transaction and property to local
