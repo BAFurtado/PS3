@@ -26,7 +26,11 @@ def extract_metadata(stats_path: Path) -> dict:
 
 
 def main(base='stats'):
-    path_base = Path('.')
+    HERE = Path(__file__).resolve().parent
+    PROJECT_ROOT = HERE.parents[1]
+
+    path_base = PROJECT_ROOT / 'output'
+
     stats_files = list(path_base.rglob(f'{base}.csv'))
     stats_cols = OUTPUT_DATA_SPEC[base]['columns']
 
