@@ -79,8 +79,6 @@ if __name__ == '__main__':
 
     c7 = f'python main.py -c 1 -n 1 run'
 
-    main(c7)
-
     # for each in [c6, c0, c1, c2]:
     #     main(each)
     #
@@ -89,9 +87,9 @@ if __name__ == '__main__':
     # sensitivity(alt=['.1', '.3'], default='.2', txt='POLICY_QUANTILE = ')
     #
 
-    c8 = f'python main.py -c 8 -n 20 sensitivity "PROCESSING_ACPS-BRASILIA-CAMPINAS-FORTALEZA-BELO HORIZONTE-PORTO ALEGRE"'
+    c8 = f'python main.py -c 9 -n 3 sensitivity "PROCESSING_ACPS-RECIFE-SAO LUIS-TERESINA-VITORIA"'
     #
-    # main(c7)
+    main(c8)
     #
     # for each in [c6, c0, c1, c2]:
     #     main(each)

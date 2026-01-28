@@ -300,11 +300,12 @@ class Funds:
             gov_firms_here = [f for f in gov_firms if f.region_id[:7] == mun_code]
             firms_num_employees = [f.num_employees() for f in gov_firms_here]
             total_employment = sum(firms_num_employees)
-            if total_employment > 0:
+            if total_employment == 0:
+                for f in gov_firms_here:
+                    f.assign_proportion(0)
+            else:
                 for f, i in zip(gov_firms_here, firms_num_employees):
                     f.assign_proportion(i / total_employment)
-            else:
-                f.assign_proportion(0)
             self.mun_gov_firms[mun_code] = gov_firms_here
 
         # Collect and UPDATE pop_t-1 and pop_t
@@ -313,6 +314,7 @@ class Funds:
         pop_mun_minus = defaultdict(int)
         pop_mun_t = defaultdict(int)
         treasure = defaultdict(dict)
+
         for id, region in regions.items():
             prev_pop = region.pop
             pop_t_minus_1[id] = prev_pop
@@ -333,7 +335,8 @@ class Funds:
             if denom > 0:
                 ratio = pop_mun_minus[m_id] / denom
             else:
-                ratio = 0
+                # Ratio is multiplicative, thus 1 (neutral value)
+                ratio = 1
             region.update_index_pop(ratio)
 
         v_local = defaultdict(float)
