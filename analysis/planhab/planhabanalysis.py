@@ -31,7 +31,10 @@ def main(base='stats'):
 
     path_base = PROJECT_ROOT / 'output'
 
-    stats_files = list(path_base.rglob(f'{base}.csv'))
+    stats_files = [
+        p for p in path_base.rglob(f'{base}.csv')
+        if p.parent.name != 'avg'
+    ]
     stats_cols = OUTPUT_DATA_SPEC[base]['columns']
 
     dfs = []
