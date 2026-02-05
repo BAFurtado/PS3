@@ -35,7 +35,7 @@ class Funds:
                 or self.sim.PARAMS.get('POLICY_MELHORIAS')
         )
 
-    def update_policy_families(self):
+    def update_policy_families(self, quantile):
         today = self.sim.clock.days
         # Skip if within grace period
         if today < self.sim.PARAMS['STARTING_DAY'] + datetime.timedelta(360):
