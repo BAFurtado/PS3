@@ -8,8 +8,6 @@ PRODUCTIVITY_EXPONENT = .5
 # Order of magnitude correction of production. Production divided by parameter
 PRODUCTIVITY_MAGNITUDE_DIVISOR = 1
 # GENERAL CALIBRATION PARAMETERS
-# Order of magnitude parameter of input into municipality investment
-MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.00001
 # INTEREST. Choose either: 'nominal', 'real' or 'fixed'. Default 'real'
 # FOR CENARIOS PLANHAB, choose either interests: 'alta', 'media' ou 'baixa'
 # Assumption. Mortgage assumed lower than SELIC (general rate).
@@ -76,7 +74,7 @@ INCOME_MODALIDADES = {'faixa1': .38,
                       'fgts': .65,
                       'sbpe': .85
                       }
-POLICY_MELHORIAS = False
+POLICY_MELHORIAS = True
 UPGRADE_COST = .2
 POLICY_DAYS = 360
 # Size of the poorest families to be helped
@@ -195,6 +193,9 @@ REGIONAL_FREIGHT_COST = .3
 # Percentage of actual population to run the simulation
 # Minimum value to run depends on the size of municipality 0,001 is recommended minimum
 PERCENTAGE_ACTUAL_POP = 0.005
+
+# Order of magnitude parameter of input into municipality investment
+MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.00001 * PERCENTAGE_ACTUAL_POP
 
 # Write exactly like the list below
 PROCESSING_ACPS = ["BELO HORIZONTE"]

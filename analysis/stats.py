@@ -25,6 +25,7 @@ class Statistics(object):
         self.vacancy_rate = params['HOUSE_VACANCY']
         self.head_rate = defaultdict(lambda: defaultdict(int))
         self.class_ranges = self._generate_class_ranges()
+        self.population_factor = 1 / params['PERCENTAGE_ACTUAL_POP']
 
     def _generate_class_ranges(self):
         """Creates a dictionary mapping age to the correct class range."""
@@ -98,7 +99,7 @@ class Statistics(object):
         """Calculate GDP and Eco-Efficiency for all regions using NumPy arrays for maximum efficiency."""
 
         total_gdp = 0
-        previous_total_gdp = sum(self.last_gdp.values()) # Retrieve previous GDP
+        previous_total_gdp = sum(self.last_gdp.values())  # Retrieve previous GDP
         self.last_gdp.clear()
         n_firms = len(firms)
 
@@ -119,7 +120,7 @@ class Statistics(object):
 
             region.gdp = np.sum(firm_revenues[mask]) if np.any(mask) else 0
             region.avg_eco_eff = np.mean(firm_eco_efficiencies[mask]) if np.any(mask) else 0
-            self.last_gdp[int(region.id[:6])] += region.gdp
+            self.last_gdp[int(region.id[:6])] += region.gdp * self.population_factor
             total_gdp += region.gdp
 
         # Compute GDP growth
