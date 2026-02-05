@@ -297,8 +297,8 @@ class Funds:
         # Updating dictionary of government firms
         gov_firms = [f for f in self.sim.firms.values() if f.sector == 'Government']
         for mun_code in self.sim.geo.mun_codes:
-            gov_firms_here = [f for f in gov_firms if f.region_id[:7] == mun_code]
-            firms_num_employees = [f.num_employees() for f in gov_firms_here]
+            gov_firms_here = [f for f in gov_firms if f.region_id[:7] == str(mun_code)]
+            firms_num_employees = [f.num_employees for f in gov_firms_here]
             total_employment = sum(firms_num_employees)
             if total_employment == 0:
                 for f in gov_firms_here:
