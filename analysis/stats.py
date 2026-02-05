@@ -101,26 +101,32 @@ class Statistics(object):
         total_gdp = 0
         previous_total_gdp = sum(self.last_gdp.values())  # Retrieve previous GDP
         self.last_gdp.clear()
-        n_firms = len(firms)
 
-        # Preallocate arrays for firm revenues and eco-efficiencies, mapped to region IDs
-        firm_revenues = np.zeros(n_firms)
-        firm_eco_efficiencies = np.zeros(n_firms, dtype=np.float32)
-        firm_region_ids = np.zeros(n_firms, dtype='U13')
+        # Accumulators per region
+        region_revenue_sum = defaultdict(float)
+        region_eco_eff_sum = defaultdict(float)
+        region_firm_count = defaultdict(int)
 
-        # SINGLE loop through firms to populate arrays
-        for i, firm in enumerate(firms.values()):
-            firm_revenues[i] = firm.revenue
-            firm_eco_efficiencies[i] = firm.env_efficiency
-            firm_region_ids[i] = str(firm.region_id)
+        # SINGLE loop through firms
+        for firm in firms.values():
+            rid = str(firm.region_id)
 
-        # Compute metrics for each region
+            region_revenue_sum[rid] += firm.revenue
+            region_eco_eff_sum[rid] += firm.env_efficiency
+            region_firm_count[rid] += 1
+
         for region in regions.values():
-            mask = firm_region_ids == region.id  # Efficient NumPy filtering
+            rid = region.id
+            count = region_firm_count.get(rid, 0)
 
-            region.gdp = np.sum(firm_revenues[mask]) if np.any(mask) else 0
-            region.avg_eco_eff = np.mean(firm_eco_efficiencies[mask]) if np.any(mask) else 0
-            self.last_gdp[int(region.id[:6])] += region.gdp * self.population_factor
+            if count:
+                region.gdp = region_revenue_sum[rid]
+                region.avg_eco_eff = region_eco_eff_sum[rid] / count
+            else:
+                region.gdp = 0
+                region.avg_eco_eff = 0
+
+            self.last_gdp[int(rid[:6])] += region.gdp * self.population_factor
             total_gdp += region.gdp
 
         # Compute GDP growth

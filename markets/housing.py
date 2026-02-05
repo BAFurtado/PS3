@@ -3,7 +3,7 @@ This module is where the real estate market takes effect.
 Definitions on ownership and actual living residence is made.
 """
 from collections import defaultdict
-
+import heapq
 import numpy as np
 from numpy import median
 from copy import deepcopy
@@ -60,11 +60,20 @@ class HousingMarket:
         # Criteria (family.py) include space, renting, jobs, enough savings
         threshold = round(len(sim.families) * sim.PARAMS['PERCENTAGE_ENTERING_ESTATE_MARKET'])
         # Looking now is a tuple with family in position 0 and score of entering the house market 1
-        looking = [(f, f.decision_enter_house_market(sim, house_price_quantiles)) for f in sim.families.values()]
-        looking = [s for s in looking if s[1] > 0]
-        looking = sorted(looking, key=lambda score: score[1], reverse=True)
-        looking = [score[0] for score in looking]
-        looking = looking[:threshold]
+
+        scored = []
+        for f in sim.families.values():
+            score = f.decision_enter_house_market(sim, house_price_quantiles)
+            if score > 0:
+                scored.append((score, f))
+
+        looking = [
+            f for score, f in heapq.nlargest(
+                threshold,
+                scored,
+                key=lambda x: x[0]
+            )
+        ]
         regions = np.unique([int(region[0:6]) for region in sim.regions.keys()])
         if sim.clock.year > self.policy_year:
             self.policy_year = sim.clock.year

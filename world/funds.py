@@ -35,15 +35,13 @@ class Funds:
                 or self.sim.PARAMS.get('POLICY_MELHORIAS')
         )
 
-    def update_policy_families(self, quantile=0):
+    def update_policy_families(self):
         today = self.sim.clock.days
         # Skip if within grace period
         if today < self.sim.PARAMS['STARTING_DAY'] + datetime.timedelta(360):
             return
 
         families = list(self.sim.families.values())
-        if not quantile:
-            quantile = self.sim.PARAMS['POLICY_QUANTILE']
 
         # Cache incomes
         family_incomes = {f: f.get_permanent_income() for f in families}
@@ -73,7 +71,8 @@ class Funds:
             ]
             if self.sim.PARAMS['TOTAL_TARGETING_POLICY']:
                 filtered.sort(key=lambda f: family_incomes.get(f, f.get_permanent_income()))
-            self.policy_families[mun] = list(dict.fromkeys(filtered))
+            seen = set()
+            self.policy_families[mun] = [f for f in filtered if not (f.id in seen or seen.add(f.id))]
 
     def apply_policies(self):
         if not self.needs_policy_funding():
@@ -107,7 +106,7 @@ class Funds:
             self.apply_house_upgrade()
 
         if self.sim.PARAMS['POLICY_COEFFICIENT']:
-            self.update_policy_families()
+            self.update_policy_families(self.sim.PARAMS['POLICY_COEFFICIENT'])
             if self.sim.PARAMS['POLICIES'] == 'buy':
                 self.buy_houses_give_to_families()
             elif self.sim.PARAMS['POLICIES'] == 'rent':
