@@ -4,7 +4,7 @@ import datetime
 
 # FIRMS #########################################################
 # Production function, labor with decaying exponent, Alpha for K. [0, 1]
-PRODUCTIVITY_EXPONENT = .6
+PRODUCTIVITY_EXPONENT = .5
 # Order of magnitude correction of production. Production divided by parameter
 PRODUCTIVITY_MAGNITUDE_DIVISOR = 1
 # GENERAL CALIBRATION PARAMETERS
@@ -61,7 +61,7 @@ POLICIES = "no_policy"
 
 # POLICY_MCMV indicates whether MCMV is active
 POLICY_MCMV = True
-POLICY_MCMV_PERCENTAGE = 0.001
+POLICY_MCMV_PERCENTAGE = 0.01
 MODEL_MONETARY_SCALING = 1000
 TOTAL_TARGETING_POLICY = False
 
@@ -92,11 +92,11 @@ MAX_LOAN_AGE = 70
 # Used to calculate monthly payment for the families, thus limiting maximum loan by number of months and age
 # Because permanent income includes wealth, it should be just a small percentage,
 # otherwise compromises monthly consumption.
-LOAN_PAYMENT_TO_PERMANENT_INCOME = 0.07
+LOAN_PAYMENT_TO_PERMANENT_INCOME = 0.35
 # Refers to the maximum loan monthly payment to total wealth
 # MAX_LOAN_PAYMENT_TO_WEALTH=.4
 # Refers to the maximum rate of the loan on the value of the estate
-MAX_LOAN_TO_VALUE = 0.43
+MAX_LOAN_TO_VALUE = 0.8
 # This parameter refers to the total amount of resources available at the bank.
 MAX_LOAN_BANK_PERCENT = 0.6
 
@@ -196,7 +196,7 @@ REGIONAL_FREIGHT_COST = .3
 PERCENTAGE_ACTUAL_POP = 0.005
 
 # Order of magnitude parameter of input into municipality investment
-MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.00001
+MUNICIPAL_EFFICIENCY_MANAGEMENT = 1e-07
 
 # Write exactly like the list below
 PROCESSING_ACPS = ["BELO HORIZONTE"]
