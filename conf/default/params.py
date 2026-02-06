@@ -4,7 +4,7 @@ import datetime
 
 # FIRMS #########################################################
 # Production function, labor with decaying exponent, Alpha for K. [0, 1]
-PRODUCTIVITY_EXPONENT = .5
+PRODUCTIVITY_EXPONENT = .6
 # Order of magnitude correction of production. Production divided by parameter
 PRODUCTIVITY_MAGNITUDE_DIVISOR = 1
 # GENERAL CALIBRATION PARAMETERS
@@ -133,11 +133,11 @@ LOT_COST = 0.15
 # Initial percentage of vacant houses
 HOUSE_VACANCY = 0.1
 # MAX_NUMBER OF HOUSES IN STOCK
-MAX_HOUSE_STOCK = 12
+MAX_HOUSE_STOCK = 36
 # Categories of submarkets for the housing markets
 PERC_HOUSE_CATEGORIES = [0.4, 0.3, 0.2, 0.1]
 # HOW LARGER IS CONSTRUCTION FIRMS PROFIT RELATIVE TO USUAL MARKUP (firms' productivity, given current prices)
-CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 10
+CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 6
 
 # POPULATION AND DEMOGRAPHY
 # Families run parameters (on average) for year 2000, or no information. 2010 uses APs average data
