@@ -61,7 +61,8 @@ POLICIES = "no_policy"
 
 # POLICY_MCMV indicates whether MCMV is active
 POLICY_MCMV = True
-POLICY_MCMV_PERCENTAGE = 0.01
+POLICY_MCMV_PERCENTAGE = 0.001
+MODEL_MONETARY_SCALING = 1000
 TOTAL_TARGETING_POLICY = False
 
 # HOUSING_POLICY can be ('baseline', ) and indicates the amount
@@ -195,7 +196,7 @@ REGIONAL_FREIGHT_COST = .3
 PERCENTAGE_ACTUAL_POP = 0.005
 
 # Order of magnitude parameter of input into municipality investment
-MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.00001 * PERCENTAGE_ACTUAL_POP
+MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.00001
 
 # Write exactly like the list below
 PROCESSING_ACPS = ["BELO HORIZONTE"]

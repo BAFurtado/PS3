@@ -25,7 +25,6 @@ class Statistics(object):
         self.vacancy_rate = params['HOUSE_VACANCY']
         self.head_rate = defaultdict(lambda: defaultdict(int))
         self.class_ranges = self._generate_class_ranges()
-        self.population_factor = 1 / params['PERCENTAGE_ACTUAL_POP']
 
     def _generate_class_ranges(self):
         """Creates a dictionary mapping age to the correct class range."""
@@ -96,43 +95,54 @@ class Statistics(object):
         return average_price, inflation
 
     def calculate_gdp_and_eco_efficiency(self, firms, regions):
-        """Calculate GDP and Eco-Efficiency for all regions using NumPy arrays for maximum efficiency."""
+        """
+        Calculate model GDP (unscaled) and eco-efficiency.
+        GDP is kept in model units. Any monetary scaling must be applied elsewhere.
+        """
 
-        total_gdp = 0
-        previous_total_gdp = sum(self.last_gdp.values())  # Retrieve previous GDP
+        # --- Previous GDP (model units) ---
+        previous_total_gdp = sum(self.last_gdp.values())
+
+        # Reset stored GDP
         self.last_gdp.clear()
+
+        total_gdp = 0.0
 
         # Accumulators per region
         region_revenue_sum = defaultdict(float)
         region_eco_eff_sum = defaultdict(float)
         region_firm_count = defaultdict(int)
 
-        # SINGLE loop through firms
+        # Aggregate firm data
         for firm in firms.values():
-            rid = str(firm.region_id)
-
+            rid = firm.region_id
             region_revenue_sum[rid] += firm.revenue
             region_eco_eff_sum[rid] += firm.env_efficiency
             region_firm_count[rid] += 1
 
+        # Compute regional GDP and eco-efficiency
         for region in regions.values():
             rid = region.id
             count = region_firm_count.get(rid, 0)
 
-            if count:
+            if count > 0:
                 region.gdp = region_revenue_sum[rid]
                 region.avg_eco_eff = region_eco_eff_sum[rid] / count
             else:
-                region.gdp = 0
-                region.avg_eco_eff = 0
+                region.gdp = 0.0
+                region.avg_eco_eff = 0.0
 
-            self.last_gdp[int(rid[:6])] += region.gdp * self.population_factor
+            # Store MODEL GDP only (no scaling)
+            self.last_gdp[int(rid[:6])] += region.gdp
             total_gdp += region.gdp
 
-        # Compute GDP growth
-        gdp_growth = ((total_gdp - previous_total_gdp) / total_gdp) * 100 if total_gdp != 0 else 1
-        logger.info(f'GDP index variation: {gdp_growth:.2f}%')
-        # self.last_gdp = total_gdp # Update GDP
+        # --- GDP growth (percentage) ---
+        if previous_total_gdp > 0:
+            gdp_growth = ((total_gdp - previous_total_gdp) / previous_total_gdp)
+        else:
+            gdp_growth = 0.0
+
+        logger.info(f'GDP growth: {gdp_growth * 100:.2f}%')
 
         return total_gdp, gdp_growth
 
