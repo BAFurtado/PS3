@@ -4,7 +4,7 @@ import datetime
 
 
 def replace_in_file(file_path, search_text, new_text):
-    with fileinput.input(file_path, inplace = True) as f:
+    with fileinput.input(file_path, inplace=True) as f:
         for line in f:
             new_line = line.replace(search_text, new_text)
             print(new_line, end='')
