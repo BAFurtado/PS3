@@ -22,22 +22,30 @@ CAPITAIS = [
     'ARACAJU',
     'BELEM',
     'BELO HORIZONTE',
+    'BOA VISTA',
     'BRASILIA',
     'CAMPO GRANDE',
     'CUIABA',
     'CURITIBA',
     'FORTALEZA',
+    'FLORIANOPOLIS',
     'GOIANIA',
+    'JOAO PESSOA'
     'MACAPA',
     'MACEIO',
     'MANAUS',
     'NATAL',
+    'PALMAS',
     'PORTO ALEGRE',
+    'PORTO VELHO',
     'RECIFE',
+    'RIO BRANCO',
     'SAO LUIS',
+    'SALVADOR',
     'TERESINA',
     'VITORIA'
 ]
+
 
 # Optional: policy / interest slicing at runner level
 POLICY_MCMV = [True, False]
@@ -77,8 +85,8 @@ def run_city(city):
         with open(log_file, "w") as log:
             subprocess.run(
                 cmd,
-                stdout=log,
-                stderr=log,
+                stdout=subprocess.DEVNULL,  # discard stdout
+                stderr=log,  # keep errors only
                 check=True
             )
         return city, "OK"
