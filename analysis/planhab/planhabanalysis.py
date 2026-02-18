@@ -5,6 +5,26 @@ import pandas as pd
 from analysis.output import OUTPUT_DATA_SPEC
 
 
+def build_simulation_id(stats_path: Path) -> str:
+    """
+    Gera um ID único baseado no caminho completo da simulação
+    """
+    # pasta que contém INTEREST=...
+    config_folder = next(
+        p.name for p in stats_path.parents
+        if '=' in p.name
+    )
+
+    # timestamp folder (um nível acima)
+    timestamp_folder = stats_path.parents[
+        [p.name for p in stats_path.parents].index(config_folder) + 1
+    ].name
+
+    sim_number = stats_path.parent.name  # 0,1,2
+
+    return f"{timestamp_folder}__{config_folder}__{sim_number}"
+
+
 def extract_metadata(stats_path: Path) -> dict:
     # parent of "0", i.e. the folder with INTEREST=... etc
     config_dir = next(
@@ -40,11 +60,15 @@ def main(base='stats'):
     dfs = []
 
     for path in stats_files:
+
         df = pd.read_csv(path, sep=';')
         df.columns = stats_cols
         meta = extract_metadata(path)
         for key, value in meta.items():
             df[key] = value
+        df["simulation_id"] = (
+                path.parents[2].name + "__" + path.parent.name
+        )
         dfs.append(df)
     final = pd.concat(dfs, ignore_index=True)
     return final
