@@ -30,7 +30,7 @@ CAPITAIS = [
     'FORTALEZA',
     'FLORIANOPOLIS',
     'GOIANIA',
-    'JOAO PESSOA'
+    'JOAO PESSOA',
     'MACAPA',
     'MACEIO',
     'MANAUS',
