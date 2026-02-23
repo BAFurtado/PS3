@@ -16,6 +16,7 @@ ALLOWED_TO_VARY = {
     "POLICY_MCMV",
     "POLICY_MELHORIAS",
     "INTEREST",
+    "SEED"
 }
 
 
