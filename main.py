@@ -277,8 +277,13 @@ def sensitivity(ctx, params):
             # Such as 'param1+param2*1+2*10+20'.
             # Thus producing the dict: {'param1': ['10', '20'], 'param2': ['10', '20']}
             ps = param.split('*')[0]
-            my_dict = {ps.split('+')[i]: [float(f) for f in param.split('*')[i + 1].split('+')]
-                       for i in range(len(ps.split('+')))}
+            my_dict = {}
+            for i, key in enumerate(ps.split('+')):
+                raw_vals = param.split('*')[i + 1].split('+')
+                if key == 'PROCESSING_ACPS':
+                    my_dict[key] = [[v] for v in raw_vals]
+                else:
+                    my_dict[key] = [float(v) for v in raw_vals]
             keys, values = zip(*my_dict.items())
             permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
         # Else, assume boolean
