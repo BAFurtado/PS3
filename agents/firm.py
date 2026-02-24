@@ -645,7 +645,9 @@ class ConstructionFirm(Firm):
     def plan_house(self, regions, params, sim, seed_np, vacancy, region_price_stats):
         """Decide where to build with which attributes"""
         # Probability depends on size of market
-        if vacancy and seed_np.rand() < vacancy:
+        # Construction responds more strongly to vacancy
+        build_sensitivity = params['BUILD_VACANCY_SENSITIVITY']
+        if seed_np.rand() < min(vacancy * build_sensitivity, 1):
             return
 
         # Check whether production capacity does not exceed hired construction

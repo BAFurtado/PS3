@@ -112,6 +112,8 @@ OFFER_SIZE_ON_PRICE = 2
 ON_MARKET_DECAY_FACTOR = -0.02
 # LOWER BOUND, THAT IS, AT LEAST 50% PERCENT OF VALUE WILL REMAIN AT END OF PERIOD, IF PARAMETER IS .5
 MAX_OFFER_DISCOUNT = 0.6
+# How strong construction firms respond to vacancy
+BUILD_VACANCY_SENSITIVITY = 3
 # Percentage of households pursuing new location (on average families move about once every 20 years)
 PERCENTAGE_ENTERING_ESTATE_MARKET = 0.05
 NEIGHBORHOOD_EFFECT = 2
