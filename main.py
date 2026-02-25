@@ -36,6 +36,23 @@ logger = logging.getLogger('main')
 logging.basicConfig(level=logging.INFO)
 
 
+def ensure_population_exists(params, path):
+    """
+    Ensure the population file exists BEFORE parallel execution.
+    This runs serially.
+    """
+    os.makedirs(path, exist_ok=True)
+
+    sim = Simulation(params, path)
+    save_file = f"{sim.output.save_name}.agents"
+
+    if not os.path.isfile(save_file) or conf.RUN["FORCE_NEW_POPULATION"]:
+        logger.info("Pre-generating shared population...")
+        sim.generate()   # <-- runs ONCE
+    else:
+        logger.info("Population already exists. Skipping generation.")
+
+
 def single_run(params, path):
     """Run a simulation once for given parameters"""
     if conf.RUN['PRINT_STATISTICS_AND_RESULTS_DURING_PROCESS']:
@@ -61,11 +78,6 @@ def multiple_runs(overrides, runs, cpus, output_dir, fix_seeds=None):
     # overrides is a list of dictionaries with parameter name and value
     logger.info('Running simulation {} times'.format(len(overrides) * runs))
 
-    # if fix_seeds:
-    #     seeds = [secrets.randbelow(2 ** 32) for _ in range(runs)]
-    # else:
-    #     seeds = []
-
     # calculate output paths and params with overrides
     paths = [os.path.join(output_dir, main_plotting.conf_to_str(o))
              for o in overrides]
@@ -74,6 +86,10 @@ def multiple_runs(overrides, runs, cpus, output_dir, fix_seeds=None):
         p = copy.deepcopy(conf.PARAMS)
         p.update(o)
         params.append(p)
+
+    for p, path in zip(params, paths):
+        # use base path, not per-run path
+        ensure_population_exists(p, path)
 
     # run simulations in parallel
     if cpus == 1:

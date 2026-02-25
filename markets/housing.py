@@ -202,7 +202,7 @@ class HousingMarket:
         # If family has enough funds, or successfully gets a loan, it buys the first house of the stack.
         # Only houses that are within savings or savings plus loan compose each family individual market
         # Otherwise, it tries another one.
-off        # Cache parameters locally (avoid repeated dict lookups)
+        # Cache parameters locally (avoid repeated dict lookups)
         params = sim.PARAMS
         offer_size = params['OFFER_SIZE_ON_PRICE']
         max_discount = params['MAX_OFFER_DISCOUNT']
