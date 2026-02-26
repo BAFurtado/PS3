@@ -4,14 +4,14 @@ import datetime
 
 # FIRMS #########################################################
 # Production function, labor with decaying exponent, Alpha for K. [0, 1]
-PRODUCTIVITY_EXPONENT = .5
+PRODUCTIVITY_EXPONENT = .6
 # Order of magnitude correction of production. Production divided by parameter
-PRODUCTIVITY_MAGNITUDE_DIVISOR = 1
+PRODUCTIVITY_MAGNITUDE_DIVISOR = .85
 # GENERAL CALIBRATION PARAMETERS
 # INTEREST. Choose either: 'nominal', 'real' or 'fixed'. Default 'real'
 # FOR CENARIOS PLANHAB, choose either interests: 'alta', 'media' ou 'baixa'
 # Assumption. Mortgage assumed lower than SELIC (general rate).
-INTEREST = "media"
+INTEREST = "baixa"
 # By how much percentage to increase prices
 MARKUP = 0.07
 # Frequency firms change prices. Probability < than parameter
@@ -129,7 +129,7 @@ EXPECTED_LICENSES_PER_REGION = 2
 # PERCENT_CONSTRUCTION_FIRMS = 0.07 This has been deprecated with the introduction of sectors
 # Months that construction firm will divide its income into monthly revenue installments.
 # Although prices are accounted for at once.
-CONSTRUCTION_ACC_CASH_FLOW = 24
+CONSTRUCTION_ACC_CASH_FLOW = 12
 # Cost of lot in PERCENTAGE of construction
 LOT_COST = 0.15
 # Initial percentage of vacant houses
@@ -171,7 +171,7 @@ TAXES_STRUCTURE = {"consumption_equal": 0.1875, "fpm": 0.235}
 # log(U) = α log_qualification + β log_commuting + γ log_wages
 # GAMMA is 1 - alpha - beta
 # Emphasizes qualification and wages (0.4) equally, with lesser weight (0.2) on commuting time.
-CB_QUALIFICATION = .4
+CB_QUALIFICATION = .35
 CB_COMMUTING = .2
 
 WAGE_TO_CAR_OWNERSHIP_QUANTILES = [
@@ -207,7 +207,7 @@ PROCESSING_ACPS = ["FORTALEZA"]
 STARTING_DAY = datetime.date(2010, 1, 1)
 
 # The Maximum running time (restrained by official data) is 30 years,
-TOTAL_DAYS = (datetime.date(2045, 1, 1) - STARTING_DAY).days
+TOTAL_DAYS = (datetime.date(2040, 1, 1) - STARTING_DAY).days
 
 # Select the possible ACPs (Population Concentration Areas) from the list below.
 # Actually, they are URBAN CONCENTRATION AREAS FROM IBGE, 2022
