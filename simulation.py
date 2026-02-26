@@ -88,7 +88,7 @@ class Simulation:
         interest = pd.read_csv(f"input/interest_{self.PARAMS['INTEREST']}.csv")
         interest.date = pd.to_datetime(interest.date)
         self.interest = interest.set_index("date")
-        housing_interest = pd.read_csv(f"input/planhab_funds/interest_housing_{self.PARAMS['HOUSING_INTEREST']}.csv")
+        housing_interest = pd.read_csv(f"input/planhab_funds/interest_housing_{self.PARAMS['INTEREST']}.csv")
         housing_interest.date = pd.to_datetime(housing_interest.date)
         self.housing_interest = housing_interest.set_index("date")
 
@@ -213,8 +213,10 @@ class Simulation:
         # Set interest rates
         interests = self.interest[
             self.interest.index.date == self.clock.days][['interest', 'mortgage', ]].iloc[0]
-        housing_interests = self.housing_interest[self.housing_interest.index.date == self.clock.days][['sbpe', 'fgts']].iloc[0]
-        values = [interests['interest'] , interests['mortgage'], housing_interests['sbpe'], housing_interests['fgts']]  
+        mask = self.housing_interest.index.normalize() == pd.to_datetime(self.clock.days)
+        housing_interests = self.housing_interest.loc[mask, ['sbpe', 'fgts']].iloc[0]
+
+        values = [interests['interest'], interests['mortgage'], housing_interests['sbpe'], housing_interests['fgts']]
         self.central.set_interest(*values)
 
         current_unemployment = self.stats.global_unemployment_rate
@@ -276,6 +278,8 @@ class Simulation:
             firm.present = self.clock
 
         # FAMILIES CONSUMPTION -- using payment received from previous month
+        for family in self.families.values():
+            family.update_permanent_income(self.central, self.central.interest)
         # Equalize money within family members
         # Tax consumption when doing sales are realized
         self.regional_market.consume()
@@ -340,16 +344,21 @@ class Simulation:
         # Probability depends (strongly) on market supply
         if self.PARAMS["OFFER_SIZE_ON_PRICE"]:
             vacancy = self.stats.vacancy_rate
+        else:
+            vacancy = .1
         construction_firms = [f for f in self.firms.values() if f.sector == 'Construction']
+
+        # Pre compute region stats
+        region_price_stats = compute_region_price_stats(self.houses.values())
         for firm in construction_firms:
             # See if firm can build a house
             firm.plan_house(
                 self.regions.values(),
-                self.houses.values(),
                 self.PARAMS,
                 self,
                 self.seed_np,
                 vacancy,
+                region_price_stats
             )
             # See whether a house has been completed. If so, register. Else, continue
             house = firm.build_house(self.regions, self.generator)
@@ -379,9 +388,6 @@ class Simulation:
         self.labor_market.assign_post(current_unemployment, wage_deciles, self.PARAMS)
 
         # Initiating Real Estate Market
-        self.logger.logger.info(
-            f"Available licenses: {sum([r.licenses for r in self.regions.values()]):,.0f}"
-        )
         # Tax transaction taxes (ITBI) when selling house
         # Property tax (IPTU) collected. One twelfth per month
         # self.central.calculate_monthly_mortgage_rate()
@@ -405,13 +411,11 @@ class Simulation:
         # Separate funds for region index update and separate for the policy case. Also, buy from intermediate market
         self.funds.invest_taxes(self.clock.year, bank_taxes)
 
-        # Apply policies if percentage is different from 0
-        if self.PARAMS["POLICY_COEFFICIENT"]:
-            self.funds.apply_policies()
+        # Apply policies (when they are tested)
+        self.funds.apply_policies()
 
         # Pass monthly information to be stored in Statistics
         self.output.save_stats_report(self, bank_taxes, affordability_decis)
-
         # Getting regional GDP
         self.output.save_regional_report(self)
 
@@ -428,3 +432,28 @@ class Simulation:
     def yearly(self):
         if conf.RUN["SAVE_DATA_PERIDIOCITY"] == "ANNUALLY":
             self.output.save_data(self)
+
+
+def compute_region_price_stats(houses):
+    """
+    Precompute approximate region-level housing prices.
+    Returns:
+        dict: region_id -> dict with summary stats
+    """
+    prices_per_size_by_region = defaultdict(list)
+
+    for h in houses:
+        prices_per_size_by_region[h.region_id].append(h.price / h.size)
+
+    region_stats = {}
+    for region_id, prices_per_size in prices_per_size_by_region.items():
+        if prices_per_size:
+            region_stats[region_id] = {
+                "median": np.median(prices_per_size),
+            }
+        else:
+            region_stats[region_id] = {
+                "median": 0.0,
+            }
+
+    return region_stats

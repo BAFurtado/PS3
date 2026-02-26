@@ -72,8 +72,7 @@ class Firm:
         # Firms makes existing products from class Products.
         # Products produced are stored by product_id in the inventory
         self.inventory = {}
-        self.input_inventory, self.external_input_inventory = (copy.deepcopy(initial_input_sectors),
-                                                               copy.deepcopy(initial_input_sectors))
+        self.input_inventory = copy.deepcopy(initial_input_sectors)
         # Amount monthly sold by the firm
         self.amount_sold = amount_sold
         self.product_index = product_index
@@ -162,7 +161,7 @@ class Firm:
         eco_investment, paid_subsidies = self.decision_on_eco_efficiency(regional_market)
 
         # Check if firm has enough balance
-        if self.total_balance >= eco_investment:
+        if self.total_balance >= eco_investment and self.total_balance > 0:
             self.total_balance -= eco_investment
         else:
             eco_investment = self.total_balance
@@ -257,100 +256,107 @@ class Firm:
 
     def buy_inputs(self, desired_quantity, regional_market, firms, seed,
                    technical_matrix, external_technical_matrix):
-        """
-        Buys inputs according to the technical coefficients.
-        In fact, this is the intermediate consumer market (firms buying from firms)
-        """
-        # Reset input cost
+
         self.input_cost = 0
-        if self.total_balance > 0:
-            sectors = regional_market.technical_matrix.index
-            # First the firm checks how much it needs to buy
-            params = regional_market.sim.PARAMS
-            freight_cost = 1 + params['REGIONAL_FREIGHT_COST']
+        if self.total_balance <= 0:
+            return
 
-            # The input ratio accounts for the need to buy inputs from other regions
-            input_ratio = np.divide(technical_matrix.loc[:, self.sector],
-                                    technical_matrix.loc[:, self.sector] +
-                                    external_technical_matrix.loc[:, self.sector])
-            input_quantities_needed = (desired_quantity *
-                                       (technical_matrix.loc[:, self.sector] +
-                                        external_technical_matrix.loc[:, self.sector]))
-            input_quantities_needed -= pd.Series(self.input_inventory)
-            input_quantities_needed = np.clip(input_quantities_needed, 0, None)
-            local_input_quantities_needed = np.multiply(input_ratio,
-                                                        input_quantities_needed)
-            external_input_quantities_needed = input_quantities_needed - local_input_quantities_needed
-            # Choose the firm to buy inputs from
-            chosen_firms_per_sector = self.choose_firm_per_sector(regional_market, firms, seed,
-                                                                  params['INTERMEDIATE_SIZE_MARKET'])
-            money_local_inputs = sum([local_input_quantities_needed[sector] * chosen_firms_per_sector[sector][0].prices
-                                      for sector in sectors
-                                      if chosen_firms_per_sector[sector]])
+        params = regional_market.sim.PARAMS
+        freight_cost = 1.0 + params['REGIONAL_FREIGHT_COST']
+        sectors = regional_market.technical_matrix.index
 
-            # External buying of inputs includes an ADDITIONAL FREIGHT COST!
-            money_external_inputs = sum([external_input_quantities_needed[sector] * chosen_firms_per_sector[
-                sector][0].prices * freight_cost
-                                        for sector in sectors
-                                        if chosen_firms_per_sector[sector]])
+        # --- Technical coefficients cached only once
+        local_tc = technical_matrix.loc[:, self.sector]
+        external_tc = external_technical_matrix.loc[:, self.sector]
+        total_tc = local_tc + external_tc
 
-            # The reduction factor is used to account for the firm having LESS MONEY than needed
-            if money_local_inputs + money_external_inputs > 0:
-                reduction_factor = min(self.total_balance,
-                                       money_local_inputs + money_external_inputs) / (
-                                           money_local_inputs + money_external_inputs)
+        input_ratio = np.divide(local_tc, total_tc)
+
+        # --- Quantities needed
+        inventory_series = pd.Series(self.input_inventory)
+
+        gross_needed = desired_quantity * total_tc
+        net_needed = gross_needed - inventory_series
+        net_needed_clipped = np.clip(net_needed, 0, None)
+
+        local_needed = input_ratio * net_needed_clipped
+        external_needed = net_needed_clipped - local_needed
+
+        # --- Firm selection
+        chosen_firms = self.choose_firm_per_sector(
+            regional_market, firms, seed,
+            params['INTERMEDIATE_SIZE_MARKET']
+        )
+
+        # --- Compute total money needed
+        money_local_inputs = 0.0
+        money_external_inputs = 0.0
+
+        for sector in sectors:
+            firms_sector = chosen_firms[sector]
+            if not firms_sector:
+                continue
+
+            price = firms_sector[0].prices
+            money_local_inputs += local_needed[sector] * price
+            money_external_inputs += external_needed[sector] * price * freight_cost
+
+        total_money_needed = money_local_inputs + money_external_inputs
+
+        if total_money_needed > 0:
+            reduction_factor = min(self.total_balance, total_money_needed) / total_money_needed
+        else:
+            reduction_factor = 1.0
+
+        self.total_balance -= reduction_factor * total_money_needed
+
+        # --- Purchase loop
+        for sector in sectors:
+            firms_sector = chosen_firms[sector]
+
+            if firms_sector:
+                price = firms_sector[0].prices
             else:
-                reduction_factor = 1
+                price = regional_market.sim.avg_prices
 
-            # Withdraw all the necessary money. If no inputs are available, change is returned
-            self.total_balance -= reduction_factor * (money_local_inputs + money_external_inputs)
+            money_local = reduction_factor * local_needed[sector] * price
+            money_external = reduction_factor * external_needed[sector] * price * freight_cost
 
-            # First buy inputs locally. Pay cheapest firm prices
-            for sector in sectors:
-                if chosen_firms_per_sector[sector]:
-                    prices = chosen_firms_per_sector[sector][0].prices
-                else:
-                    prices = regional_market.sim.avg_prices
-                money_this_sector = (reduction_factor *
-                                     local_input_quantities_needed[sector] *
-                                     prices)
+            if money_local == 0 and money_external == 0:
+                continue
 
-                # External money includes FREIGHT
-                # TODO. Check flow consistency, where does FREIGHT MONEY GOES?
-                external_money_this_sector = (reduction_factor * external_input_quantities_needed[sector] *
-                                              prices *
-                                              freight_cost)
+            # Local purchases
+            if firms_sector:
+                change = 0.0
+                per_firm_money = money_local / len(firms_sector)
+                for firm in firms_sector:
+                    change += regional_market.intermediate_consumption(
+                        per_firm_money, firm
+                    )
+            else:
+                change = money_local
 
-                if money_this_sector == 0 and external_money_this_sector == 0:
-                    continue
-                # Uses regional market to access intermediate consumption and each firm sale function
-                # Returns change, if any
-                if chosen_firms_per_sector[sector]:
-                    change = 0
-                    # Buy inputs from all selected firms (from 1 to 3)
-                    money_this_sector_this_firm = money_this_sector / len(chosen_firms_per_sector[sector])
-                    for firm in chosen_firms_per_sector[sector]:
-                        change += regional_market.intermediate_consumption(money_this_sector_this_firm,
-                                                                           firm)
+            # Freight adjustment
+            freight_extra = (freight_cost - 1.0) * change
+            if self.total_balance > freight_extra:
+                self.total_balance -= freight_extra
+                money_external += freight_cost * change
+            else:
+                money_external += self.total_balance
+                self.total_balance = 0.0
 
-                else:
-                    change = money_this_sector
-                # Check whether there was change and buy the rest from the external sector
-                #  so that firms won't consistently buy less than needed while having money
-                if self.total_balance > (freight_cost - 1) * change:
-                    self.total_balance -= (freight_cost - 1) * change
-                    external_money_this_sector += freight_cost * change
-                else:
-                    external_money_this_sector += self.total_balance
-                    self.total_balance = 0
-                # Go for external market which has full supply
-                regional_market.sim.external.intermediate_consumption(external_money_this_sector,
-                                                                      prices *
-                                                                      freight_cost)
-                self.input_inventory[sector] += ((money_this_sector - change) / prices +
-                                                 external_money_this_sector / (prices *
-                                                                               freight_cost))
-                self.input_cost += money_this_sector - change + external_money_this_sector
+            # External purchase
+            regional_market.sim.external.intermediate_consumption(
+                money_external, price * freight_cost
+            )
+
+            # Inventory + cost update
+            self.input_inventory[sector] += (
+                    (money_local - change) / price +
+                    money_external / (price * freight_cost)
+            )
+
+            self.input_cost += money_local - change + money_external
 
     def update_product_quantity(self, prod_exponent, prod_divisor, regional_market, firms, seed):
         """
@@ -373,7 +379,7 @@ class Firm:
             technical_matrix = regional_market.technical_matrix
             external_technical_matrix = regional_market.ext_local_matrix
 
-            # Buy inputs fills up input_inventory and external_input_inventory
+            # Buy inputs fills up input_inventory
             # Env efficiency reduces the amount of inputs needed, so the firms buys less
             self.buy_inputs(self.env_efficiency * desired_quantity, regional_market, firms, seed,
                             technical_matrix, external_technical_matrix)
@@ -635,59 +641,40 @@ class ConstructionFirm(Firm):
         self.monthly_planned_revenue = list()
         self.productivity = 0
 
-    def plan_house(self, regions, houses, params, sim, seed_np, vacancy):
+    def plan_house(self, regions, params, sim, seed_np, vacancy, region_price_stats):
         """Decide where to build with which attributes"""
         # Probability depends on size of market
-        if vacancy:
-            if seed_np.rand() < vacancy:
-                return
+        # Construction responds more strongly to vacancy
+        build_sensitivity = params['BUILD_VACANCY_SENSITIVITY']
+        if seed_np.rand() < min(vacancy * build_sensitivity, 1):
+            return
 
         # Check whether production capacity does not exceed hired construction
         # for the next construction cash flow period
         monthly_productivity_capacity = self.total_qualification(params["PRODUCTIVITY_EXPONENT"])
         if monthly_productivity_capacity == 0:
             self.increase_production = True
+
         if not self.building and not self.houses_for_sale:
             # Start building plan
             self.increase_production = True
-            pass
-        elif len(self.houses_for_sale) <= params['MAX_HOUSE_STOCK']:
-            pass
-        else:
+
+        elif len(self.houses_for_sale) > params['MAX_HOUSE_STOCK']:
             return
 
         # Candidate regions for licenses and check of funds to buy license
         regions = [
-            r
-            for r in regions
-            if r.licenses > 0 and self.total_balance > r.license_price
+            r for r in regions
+            if r.licenses > 0
+            and self.total_balance > r.license_price
         ]
         if not regions:
             return
+
         # Targets
         building_size = seed_np.lognormal(4.96, 0.5)
         b, c, d = 0.38, 0.3, 0.1
         building_quality = seed_np.choice([1, 2, 3, 4], p=[1 - (b + c + d), b, c, d])
-
-        # Get information about regions' house prices
-        region_ids = [r.id for r in regions]
-        region_prices = defaultdict(list)
-        for region_id in region_ids:
-            for h in houses:
-                # In correct region
-                # within 100 size units,
-                # within 2 quality
-                if (
-                        h.region_id in region_id
-                        and abs(h.size - building_size) <= 100
-                        and abs(h.quality - building_quality) < 2
-                ):
-                    region_prices[h.region_id].append(h.price)
-                    # Only take a sample
-                    if len(region_prices[region_id]) > 100:
-                        break
-            if len(region_prices[region_id]) == 0:
-                region_prices.pop(region_id)
 
         # Number of product quantities needed for the house
         gross_cost = building_size * building_quality
@@ -699,33 +686,26 @@ class ConstructionFirm(Firm):
         building_cost = gross_cost * self.productivity
 
         # Choose region where construction is most profitable
-        # There might not be samples for all regions, so fallback to price of 0
-        region_mean_prices = {
-            r_id: sum(vs) / len(vs) for r_id, vs in region_prices.items()
-        }
-        # Using median prices for regions without price information
-        if not region_mean_prices.values():
-            median_prices = 0
-        else:
-            median_prices = np.median(list(region_mean_prices.values()))
-        region_profitability = [
-            region_mean_prices.get(r.id, median_prices)
-            - (r.license_price * building_cost * (1 + params["LOT_COST"]))
-            for r in regions
-        ]
-        regions = [(r, p) for r, p in zip(regions, region_profitability) if p > 0]
+        profitable_regions = []
+        for r in regions:
+            price_per_size = region_price_stats.get(r.id, {"median": 0})["median"]
+            expected_price = price_per_size * building_size
+            profit = expected_price - (
+                    r.license_price * building_cost * (1 + params["LOT_COST"])
+            )
 
-        # No profitable regions
-        if not regions:
+            if profit > 0:
+                profitable_regions.append(r)
+
+        if not profitable_regions:
             return
 
         # Building in any profitable region
-        region = sim.seed.choice([r[0] for r in regions])
+        region = sim.seed.choice(profitable_regions)
         idx = max(self.building) + 1 if self.building else 0
         self.building[idx]["region"] = region.id
         self.building[idx]["size"] = building_size
         self.building[idx]["quality"] = building_quality
-
         # Product.quantity increases as construction moves forward and is deducted at once
         self.building[idx]["cost"] = building_cost * region.license_price
 

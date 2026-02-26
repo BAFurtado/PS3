@@ -3,7 +3,7 @@ This module is where the real estate market takes effect.
 Definitions on ownership and actual living residence is made.
 """
 from collections import defaultdict
-
+import heapq
 import numpy as np
 from numpy import median
 from copy import deepcopy
@@ -60,11 +60,20 @@ class HousingMarket:
         # Criteria (family.py) include space, renting, jobs, enough savings
         threshold = round(len(sim.families) * sim.PARAMS['PERCENTAGE_ENTERING_ESTATE_MARKET'])
         # Looking now is a tuple with family in position 0 and score of entering the house market 1
-        looking = [(f, f.decision_enter_house_market(sim, house_price_quantiles)) for f in sim.families.values()]
-        looking = [s for s in looking if s[1] > 0]
-        looking = sorted(looking, key=lambda score: score[1], reverse=True)
-        looking = [score[0] for score in looking]
-        looking = looking[:threshold]
+
+        scored = []
+        for f in sim.families.values():
+            score = f.decision_enter_house_market(sim, house_price_quantiles)
+            if score > 0:
+                scored.append((score, f))
+
+        looking = [
+            f for score, f in heapq.nlargest(
+                threshold,
+                scored,
+                key=lambda x: x[0]
+            )
+        ]
         regions = np.unique([int(region[0:6]) for region in sim.regions.keys()])
         if sim.clock.year > self.policy_year:
             self.policy_year = sim.clock.year
@@ -193,52 +202,75 @@ class HousingMarket:
         # If family has enough funds, or successfully gets a loan, it buys the first house of the stack.
         # Only houses that are within savings or savings plus loan compose each family individual market
         # Otherwise, it tries another one.
+        # Cache parameters locally (avoid repeated dict lookups)
+        params = sim.PARAMS
+        offer_size = params['OFFER_SIZE_ON_PRICE']
+        max_discount = params['MAX_OFFER_DISCOUNT']
+        capped_top_value = params['CAPPED_TOP_VALUE']
+        max_loan_to_value = params['MAX_LOAN_TO_VALUE']
+        capped_low_value = params['CAPPED_LOW_VALUE']
+
         for house in my_market:
             cash = 0
             p = house.price
             # A large empty market makes those selling ask for a lower price
-            if sim.PARAMS['OFFER_SIZE_ON_PRICE']:
-                p = p * (1 - vacancy)
+            if offer_size:
+                vacancy_value = 1 - (vacancy * offer_size)
+                if vacancy_value < max_discount:
+                    vacancy_value = max_discount
+                p *= vacancy_value
+
             # If savings is enough, then price is established as the average of the two
             if savings > p:
                 # Restrict OFFERs to a maximum of 30% threshold
-                if savings / p > sim.PARAMS['CAPPED_TOP_VALUE']:
-                    price = p * sim.PARAMS['CAPPED_TOP_VALUE'] / 2
+                if savings / p > capped_top_value:
+                    price = p * capped_top_value / 2
                 else:
                     price = (savings + p) / 2
+
             # If not, check whether loan can help
             elif savings_with_mortgage > p:
-                if savings_with_mortgage / p > sim.PARAMS['CAPPED_TOP_VALUE']:
-                    price = p * sim.PARAMS['CAPPED_TOP_VALUE'] / 2
+                if savings_with_mortgage / p > capped_top_value:
+                    price = p * capped_top_value / 2
                 else:
                     price = (savings_with_mortgage + p) / 2
+
                 # Get loan to make up the difference
-                loan_amount = max(0,price - savings)
+                loan_amount = max(0, price - savings)
+
                 # Check macroprudencial policy. If loan to value is above set value, no loan, leave the market.
-                if (loan_amount / price) > sim.PARAMS['MAX_LOAN_TO_VALUE']:
+                if (loan_amount / price) > max_loan_to_value:
                     return
+
                 # Attempt to actually get the loan from the bank
-                success = sim.central.request_loan(family, house, loan_amount, sim.clock.year)
+                success, amount = sim.central.request_loan(
+                    family, house, loan_amount, sim.clock.year
+                )
                 if not success:
                     # Just one shot at getting a loan
                     return
-                cash += loan_amount
-            elif savings / p > sim.PARAMS['CAPPED_LOW_VALUE']:
+
+                cash += amount
+
+            elif savings / p > capped_low_value:
                 if sim.seed_np.rand() < vacancy:
                     price = savings
                 else:
                     continue
             else:
                 continue
+
             # Withdraw the money of buying family from the bank and from savings
             cash += family.grab_savings(sim.central, sim.clock.year, sim.clock.months)
             change = round(cash - price, 2)
 
             # Register the transaction, collect taxes and consider moving
             self.notarial_procedures(family, house, price, change, sim)
+
             # if the procedures have come this far, it means loan or price have being agreed upon.
             # Clean for_sale list.
             self.for_sale[:] = [h for h in for_sale if h is not house]
+
             # Having bought a house, then it can move on to the next family
             return
 

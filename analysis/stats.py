@@ -71,12 +71,8 @@ class Statistics(object):
         }
         logger.info(f"Firm stats - Median wealth: {results['median_wealth']:.2f}, "
                     f"Median wages: {results['median_wages']:.2f}, "
-                    f"Eco Efficiency: {results['eco_efficiency']:.3f}, "
-                    f"Emissions: {results['emissions']:.2f}, "
                     f"Median stock: {results['median_stock']:.2f}, "
                     f"Median workers: {results['workers']:.2f}, "
-                    f"Aggregate profits: {results['aggregate_profits']:.2f},"
-                    f"Mean investment: {results['innovation_investment']:.4f}"
                     )
 
         return results
@@ -99,37 +95,54 @@ class Statistics(object):
         return average_price, inflation
 
     def calculate_gdp_and_eco_efficiency(self, firms, regions):
-        """Calculate GDP and Eco-Efficiency for all regions using NumPy arrays for maximum efficiency."""
+        """
+        Calculate model GDP (unscaled) and eco-efficiency.
+        GDP is kept in model units. Any monetary scaling must be applied elsewhere.
+        """
 
-        total_gdp = 0
-        previous_total_gdp = sum(self.last_gdp.values()) # Retrieve previous GDP
+        # --- Previous GDP (model units) ---
+        previous_total_gdp = sum(self.last_gdp.values())
+
+        # Reset stored GDP
         self.last_gdp.clear()
-        n_firms = len(firms)
 
-        # Preallocate arrays for firm revenues and eco-efficiencies, mapped to region IDs
-        firm_revenues = np.zeros(n_firms)
-        firm_eco_efficiencies = np.zeros(n_firms, dtype=np.float32)
-        firm_region_ids = np.zeros(n_firms, dtype='U13')
+        total_gdp = 0.0
 
-        # SINGLE loop through firms to populate arrays
-        for i, firm in enumerate(firms.values()):
-            firm_revenues[i] = firm.revenue
-            firm_eco_efficiencies[i] = firm.env_efficiency
-            firm_region_ids[i] = str(firm.region_id)
+        # Accumulators per region
+        region_revenue_sum = defaultdict(float)
+        region_eco_eff_sum = defaultdict(float)
+        region_firm_count = defaultdict(int)
 
-        # Compute metrics for each region
+        # Aggregate firm data
+        for firm in firms.values():
+            rid = firm.region_id
+            region_revenue_sum[rid] += firm.revenue
+            region_eco_eff_sum[rid] += firm.env_efficiency
+            region_firm_count[rid] += 1
+
+        # Compute regional GDP and eco-efficiency
         for region in regions.values():
-            mask = firm_region_ids == region.id  # Efficient NumPy filtering
+            rid = region.id
+            count = region_firm_count.get(rid, 0)
 
-            region.gdp = np.sum(firm_revenues[mask]) if np.any(mask) else 0
-            region.avg_eco_eff = np.mean(firm_eco_efficiencies[mask]) if np.any(mask) else 0
-            self.last_gdp[int(region.id[:6])] += region.gdp
+            if count > 0:
+                region.gdp = region_revenue_sum[rid]
+                region.avg_eco_eff = region_eco_eff_sum[rid] / count
+            else:
+                region.gdp = 0.0
+                region.avg_eco_eff = 0.0
+
+            # Store MODEL GDP only (no scaling)
+            self.last_gdp[int(rid[:6])] += region.gdp
             total_gdp += region.gdp
 
-        # Compute GDP growth
-        gdp_growth = ((total_gdp - previous_total_gdp) / total_gdp) * 100 if total_gdp != 0 else 1
-        logger.info(f'GDP index variation: {gdp_growth:.2f}%')
-        # self.last_gdp = total_gdp # Update GDP
+        # --- GDP growth (percentage) ---
+        if previous_total_gdp > 0:
+            gdp_growth = ((total_gdp - previous_total_gdp) / previous_total_gdp)
+        else:
+            gdp_growth = 0.0
+
+        logger.info(f'GDP growth: {gdp_growth * 100:.2f}%')
 
         return total_gdp, gdp_growth
 
@@ -165,6 +178,7 @@ class Statistics(object):
         # Logging (if enabled)
         logger.info(f'Vacant houses {np.sum(is_vacant):,.0f}')
         logger.info(f'Total houses {n_houses:,.0f}')
+        logger.info(f'Average house prices {avg_house_price:,.2f}')
 
         return {
             "average_house_price": avg_house_price,
@@ -179,13 +193,13 @@ class Statistics(object):
             dummy_gdp_capita = dummy_gdp / mun_pop
         else:
             dummy_gdp_capita = dummy_gdp
+        logger.info(f'Pop. municipal {mun_pop:.0f}')
         return dummy_gdp_capita
 
     def update_unemployment(self, agents, global_u=False, log=False):
         employable = [m for m in agents if 16 < m.age < 70]
         temp = len([m for m in employable if m.firm_id is None]) / len(employable) if employable else 0
-        if log:
-            logger.info(f'Unemployment rate: {temp * 100:.2f}')
+        logger.info(f'Unemployment rate em perc.: {temp * 100:.2f}')
         if global_u:
             self.global_unemployment_rate = temp
         return temp
@@ -236,7 +250,6 @@ class Statistics(object):
         total_renting = np.sum(renting)
         total_voucher = np.sum(has_rent_voucher)
         affordable = np.sum((renting & ~has_rent_voucher & (permanent_income > 0) & (rent_ratio < 0.3)))
-
         affordability_ratio = (affordable + total_voucher) / total_renting if total_renting > 0 else 0
         median_wealth = np.median(permanent_income)
         median_affordability = np.median(rent_ratio[renting]) if total_renting > 0 else 0
@@ -254,15 +267,18 @@ class Statistics(object):
 
         # GINI calculation
         x = np.array(permanent_income)
-        x = x - np.min(x) + 1e-6  # shift to ensure all positive
+        try:
+            x = x - np.min(x) + 1e-6  # shift to ensure all positive
+            sorted_income = np.sort(x)
+            n = sorted_income.size
+            index = np.arange(1, n + 1)
 
-        sorted_income = np.sort(x)
-        n = sorted_income.size
-        index = np.arange(1, n + 1)
+        except ValueError:
+            x, sorted_income, n, index = 0, 0, 0, 0
 
         gini = (np.sum((2 * index - n - 1) * sorted_income) / (n * np.sum(sorted_income))) if n > 0 else 0
-        logger.info(f"Family stats - Zero consumption: {zero_consumption_ratio:.2f}, "
-                    f"Family stats - Median wealth: {median_wealth:.2f}, ")
+        logger.info(f"Zero consumption: {zero_consumption_ratio:.2f}, "
+                    f"Gini: {gini:.4f}, ")
         return {
             "affordability_ratio": affordability_ratio,
             "median_wealth": median_wealth,
@@ -272,7 +288,7 @@ class Statistics(object):
             "rent_default_ratio": rent_default_ratio,
             "zero_consumption_ratio": zero_consumption_ratio,
             "avg_utility": avg_utility,
-            "gini": gini,
+            'gini': gini,
         }
 
     def calculate_regional_gini(self, families):

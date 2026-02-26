@@ -24,7 +24,7 @@ class Funds:
             self.policy_money = defaultdict(float)
             self.policy_families = defaultdict(list)
             self.temporary_houses = defaultdict(list)
-        if sim.PARAMS['POLICY_MCMV']:
+        if sim.PARAMS['POLICY_MCMV'] or sim.PARAMS['POLICY_MELHORIAS']:
             # Collect money from exogenous funding
             self.mcmv = MCMV(sim)
 
@@ -35,15 +35,13 @@ class Funds:
                 or self.sim.PARAMS.get('POLICY_MELHORIAS')
         )
 
-    def update_policy_families(self, quantile=0):
+    def update_policy_families(self, quantile):
         today = self.sim.clock.days
         # Skip if within grace period
         if today < self.sim.PARAMS['STARTING_DAY'] + datetime.timedelta(360):
             return
 
         families = list(self.sim.families.values())
-        if not quantile:
-            quantile = self.sim.PARAMS['POLICY_QUANTILE']
 
         # Cache incomes
         family_incomes = {f: f.get_permanent_income() for f in families}
@@ -73,7 +71,8 @@ class Funds:
             ]
             if self.sim.PARAMS['TOTAL_TARGETING_POLICY']:
                 filtered.sort(key=lambda f: family_incomes.get(f, f.get_permanent_income()))
-            self.policy_families[mun] = list(dict.fromkeys(filtered))
+            seen = set()
+            self.policy_families[mun] = [f for f in filtered if not (f.id in seen or seen.add(f.id))]
 
     def apply_policies(self):
         if not self.needs_policy_funding():
@@ -107,7 +106,7 @@ class Funds:
             self.apply_house_upgrade()
 
         if self.sim.PARAMS['POLICY_COEFFICIENT']:
-            self.update_policy_families()
+            self.update_policy_families(self.sim.PARAMS['POLICY_COEFFICIENT'])
             if self.sim.PARAMS['POLICIES'] == 'buy':
                 self.buy_houses_give_to_families()
             elif self.sim.PARAMS['POLICIES'] == 'rent':
@@ -178,35 +177,37 @@ class Funds:
             self.temporary_houses[mun] = sorted(self.temporary_houses[mun], key=lambda h: h.price)
             # Exclude families who own any house. Exclusively for renters
             self.policy_families[mun] = [f for f in self.policy_families[mun] if not f.owned_houses]
-            if len(self.policy_families[mun]) > 0:
-                for house in self.temporary_houses[mun]:
-                    # While money is good.
-                    if self.policy_money[mun] > 0 and house.price < self.policy_money[mun]:
-                        # Getting poorest family first, given permanent income
-                        family = self.policy_families[mun].pop(0)
-                        # Transaction taxes help reduce the price of the bulk buying by the municipality
-                        taxes = house.price * self.sim.PARAMS['TAX_ESTATE_TRANSACTION']
-                        self.sim.regions[house.region_id].collect_taxes(taxes, 'transaction')
-                        # Register subsidies
-                        self.money_applied_policy += house.price
-                        self.families_subsided += 1
-                        # Pay construction company
-                        self.sim.firms[house.owner_id].update_balance(house.price - taxes,
-                                                                      self.sim.PARAMS['CONSTRUCTION_ACC_CASH_FLOW'],
-                                                                      self.sim.clock.days)
-                        # Deduce from municipality fund
-                        self.policy_money[mun] -= house.price
-                        # Transfer ownership
-                        self.sim.firms[house.owner_id].houses_for_sale.remove(house)
-                        # Finish notarial procedures
-                        house.owner_id = family.id
-                        house.family_owner = True
-                        family.owned_houses.append(house)
-                        house.on_market = 0
-                        # Move out. Move in
-                        HousingMarket.make_move(family, house, self.sim)
-                    else:
-                        break
+
+            for house in self.temporary_houses[mun]:
+                # While families to receive houses
+                if not self.policy_families[mun]:
+                    break
+                # While money is good.
+                if self.policy_money[mun] <= 0 or house.price >= self.policy_money[mun]:
+                    break
+                # Getting poorest family first, given permanent income
+                family = self.policy_families[mun].pop(0)
+                # Transaction taxes help reduce the price of the bulk buying by the municipality
+                taxes = house.price * self.sim.PARAMS['TAX_ESTATE_TRANSACTION']
+                self.sim.regions[house.region_id].collect_taxes(taxes, 'transaction')
+                # Register subsidies
+                self.money_applied_policy += house.price
+                self.families_subsided += 1
+                # Pay construction company
+                self.sim.firms[house.owner_id].update_balance(house.price - taxes,
+                                                              self.sim.PARAMS['CONSTRUCTION_ACC_CASH_FLOW'],
+                                                              self.sim.clock.days)
+                # Deduce from municipality fund
+                self.policy_money[mun] -= house.price
+                # Transfer ownership
+                self.sim.firms[house.owner_id].houses_for_sale.remove(house)
+                # Finish notarial procedures
+                house.owner_id = family.id
+                house.family_owner = True
+                family.owned_houses.append(house)
+                house.on_market = 0
+                # Move out. Move in
+                HousingMarket.make_move(family, house, self.sim)
 
         # Clean up list for next month
         self.temporary_houses = defaultdict(list)
@@ -214,8 +215,8 @@ class Funds:
     def distribute_fpm(self, value, regions, pop_t, pop_mun_t, year):
         """Calculate proportion of FPM per region, in relation to the total of all regions.
         Value is the total value of FPM to distribute"""
-        if float(year) > 2016:
-            year = str(2016)
+        if float(year) >= 2024:
+            year = str(2024)
 
         # Dictionary that keeps actual FPM received to be used as a proportion parameter
         # to simulated FPM to be distributed
@@ -295,10 +296,15 @@ class Funds:
         # Updating dictionary of government firms
         gov_firms = [f for f in self.sim.firms.values() if f.sector == 'Government']
         for mun_code in self.sim.geo.mun_codes:
-            gov_firms_here = [f for f in gov_firms if f.region_id[:7] == mun_code]
-            firms_num_employees = [f.num_employees() for f in gov_firms_here]
+            gov_firms_here = [f for f in gov_firms if f.region_id[:7] == str(mun_code)]
+            firms_num_employees = [f.num_employees for f in gov_firms_here]
             total_employment = sum(firms_num_employees)
-            [f.assign_proportion(i / total_employment) for f, i in zip(gov_firms_here, firms_num_employees)]
+            if total_employment == 0:
+                for f in gov_firms_here:
+                    f.assign_proportion(0)
+            else:
+                for f, i in zip(gov_firms_here, firms_num_employees):
+                    f.assign_proportion(i / total_employment)
             self.mun_gov_firms[mun_code] = gov_firms_here
 
         # Collect and UPDATE pop_t-1 and pop_t
@@ -307,13 +313,16 @@ class Funds:
         pop_mun_minus = defaultdict(int)
         pop_mun_t = defaultdict(int)
         treasure = defaultdict(dict)
+
         for id, region in regions.items():
-            pop_t_minus_1[id] = region.pop
-            pop_mun_minus[id[:7]] += region.pop
+            prev_pop = region.pop
+            pop_t_minus_1[id] = prev_pop
+            pop_mun_minus[id[:7]] += prev_pop
             # Update
-            region.pop = self.sim.reg_pops[id]
-            pop_t[id] = region.pop
-            pop_mun_t[id[:7]] += region.pop
+            new_pop = self.sim.reg_pops.get(id, 0)
+            region.pop = new_pop
+            pop_t[id] = new_pop
+            pop_mun_t[id[:7]] += new_pop
 
             # BRING treasure from regions to municipalities
             treasure[id] = region.transfer_treasure()
@@ -321,13 +330,20 @@ class Funds:
         # Update proportion of index coming from population variation
         for id, region in regions.items():
             m_id = id[:7]
-            region.update_index_pop(pop_mun_minus[m_id]/pop_mun_t[m_id])
+            denom = pop_mun_t[m_id]
+            if denom > 0:
+                ratio = pop_mun_minus[m_id] / denom
+            else:
+                # Ratio is multiplicative, thus 1 (neutral value)
+                ratio = 1
+            region.update_index_pop(ratio)
 
-        v_local = defaultdict(int)
+        v_local = defaultdict(float)
         # Every month taxes to distribute start from 0
-        v_equal = 0
+        v_equal = 0.0
         # All taxes charged from other regions return back to the metropolis
         v_equal += self.sim.external.collect_transfer_consumption_tax()
+
         if self.sim.PARAMS['ALTERNATIVE0']:
             # Dividing proportion of consumption into equal and local (state, municipality)
             # And adding local part of consumption plus transaction and property to local

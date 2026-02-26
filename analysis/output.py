@@ -129,10 +129,24 @@ OUTPUT_DATA_SPEC = {
             'groupings': ['month', 'mun_id'],
             'columns': 'ALL'
         },
-        'columns': ['month', 'mun_id', 'commuting', 'pop', 'gdp_region',
-                    'regional_gini', 'regional_house_values', 'regional_unemployment',
-                    'qli_index', 'gdp_percapita', 'treasure', 'equally', 'locally', 'fpm',
-                    'licenses']
+        'columns': ['month',
+                    'mun_id',
+                    'commuting',
+                    'pop',
+                    'gdp_region',
+                    'regional_gini',
+                    'regional_house_values',
+                    'regional_unemployment',
+                    'qli_index',
+                    'gdp_percapita',
+                    'treasure',
+                    'equally',
+                    'locally',
+                    'fpm',
+                    'licenses',
+                    'affordability_ratio',
+                    'median_wealth',
+                    'median_affordability']
     },
     'neighbourhood': {
         'avg': {
@@ -199,7 +213,7 @@ class Output:
         mun_applied_treasure = defaultdict(int)
         mun_applied_treasure['bank'] = bank_taxes
         families_helped = sim.funds.families_subsided
-        amount_subsided = sim.funds.money_applied_policy
+        amount_subsidised = sim.funds.money_applied_policy
         # Reset for monthly (not cumulative) statistics
         sim.funds.families_subsided, sim.funds.money_applied_policy = 0, 0
         for k in ['equally', 'locally', 'fpm']:
@@ -208,47 +222,54 @@ class Output:
         # External
         ext_amount_sold = sim.external.get_external_amount_sold()
 
-        report = f"{sim.clock.days};" \
-                 f"{pop:d};" \
-                 f"{price_index:.2f};" \
-                 f"{gdp_index:.2f};" \
-                 f"{gdp_growth:.2f};" \
-                 f"{unemployment:.2f};" \
-                 f"{firm_results['workers']:.2f};" \
-                 f"{families_results['median_wealth']:.2f};" \
-                 f"{families_results['median_wages']:.2f};" \
-                 f"{commuting:.3f};" \
-                 f"{families_results['total_savings']:.2f};" \
-                 f"{families_helped:.0f};" \
-                 f"{amount_subsided:.3f};" \
-                 f"{firm_results['aggregate_profits']:.2f};" \
-                 f"{firm_results['median_stock']:.2f};" \
-                 f"{firm_results['eco_efficiency']:.4f};" \
-                 f"{firm_results['median_wages']:.2f};" \
-                 f"{firm_results['innovation_investment']:.4f};" \
-                 f"{firm_results['emissions']:.2f};" \
-                 f"{families_results['gini']:.3f};" \
-                 f"{families_results['avg_utility']:.2f};" \
-                 f"{families_results['zero_consumption_ratio']:.2f};" \
-                 f"{families_results['rent_default_ratio']:.4f};" \
-                 f"{inflation:.4f};" \
-                 f"{average_qli:.3f};" \
-                 f"{house_results['vacancy_rate']:.2f};" \
-                 f"{house_results['average_house_price']:.2f};" \
-                 f"{house_results['average_rent_price']:.2f};" \
-                 f"{families_results['affordability_ratio']:.2f};" \
-                 f"{p_delinquent:.4f};" \
-                 f"{mun_applied_treasure['equally']:.4f};" \
-                 f"{mun_applied_treasure['locally']:.4f};" \
-                 f"{mun_applied_treasure['fpm']:.4f};" \
-                 f"{mun_applied_treasure['bank']:.4f};" \
-                 f"{emissions_fund:.4f};" \
-                 f"{ext_amount_sold:.2f};" \
-                 f"{affordability_decis_values};" \
-                 f"{families_results['median_affordability']:.2f}\n"
+        stats_row = {
+            "month": sim.clock.days,
+            "pop": pop,
+            "price_index": price_index,
+            "gdp_index": gdp_index,
+            "gdp_growth": gdp_growth,
+            "unemployment": unemployment,
+            "median_workers": firm_results["workers"],
+            "families_median_wealth": families_results["median_wealth"],
+            "families_wages_received": families_results["median_wages"],
+            "families_commuting": commuting,
+            "families_savings": families_results["total_savings"],
+            "families_helped": families_helped,
+            "amount_subsidised": amount_subsidised,
+            "firms_profit": firm_results["aggregate_profits"],
+            "firms_median_stock": firm_results["median_stock"],
+            "firms_avg_eco_eff": firm_results["eco_efficiency"],
+            "firms_median_wage_paid": firm_results["median_wages"],
+            "firms_median_innovation_investment": firm_results["innovation_investment"],
+            "emissions": firm_results["emissions"],
+            "gini_index": families_results["gini"],
+            "average_utility": families_results["avg_utility"],
+            "pct_zero_consumption": families_results["zero_consumption_ratio"],
+            "rent_default": families_results["rent_default_ratio"],
+            "inflation": inflation,
+            "average_qli": average_qli,
+            "house_vacancy": house_results["vacancy_rate"],
+            "house_price": house_results["average_house_price"],
+            "house_rent": house_results["average_rent_price"],
+            "affordable": families_results["affordability_ratio"],
+            "p_delinquent": p_delinquent,
+            "equally": mun_applied_treasure["equally"],
+            "locally": mun_applied_treasure["locally"],
+            "fpm": mun_applied_treasure["fpm"],
+            "bank": mun_applied_treasure["bank"],
+            "emissions_fund": emissions_fund,
+            "ext_amount_sold": ext_amount_sold,
+            "affordability_median": families_results["median_affordability"],
+        }
 
-        with open(self.stats_path, 'a') as f:
-            f.write(report)
+        for i, v in enumerate(affordability_decis, start=1):
+            stats_row[f"affordability_decis_{i}"] = v
+
+        columns = OUTPUT_DATA_SPEC["stats"]["columns"]
+        row = ";".join(str(stats_row[c]) for c in columns) + "\n"
+
+        with open(self.stats_path, "a") as f:
+            f.write(row)
 
     def save_regional_report(self, sim):
         reports = []
@@ -259,7 +280,12 @@ class Output:
             agents_by_mun[mun_id].append(agent)
 
         for family in sim.families.values():
-            families_by_mun[mun_id].append(family)
+            # TODO: sometimes family.region_id is None?
+            if family.region_id:
+                mun_id = family.region_id[:7]
+                families_by_mun[mun_id].append(family)
+            else:
+                families_by_mun[family.region_id].append(family)
 
         # aggregate regions into municipalities,
         # in case they are APs
@@ -278,6 +304,10 @@ class Output:
             mun_gini = sim.stats.calculate_regional_gini(mun_families)
             mun_house_values = sim.stats.calculate_avg_regional_house_price(mun_families)
             mun_unemployment = sim.stats.update_unemployment(mun_agents)
+            region.total_commute = commuting
+
+            families_regional_metrics = sim.stats.calculate_families_metrics(
+                {i: mun_families[i] for i in range(len(mun_families))})
 
             mun_cumulative_treasure = 0
             licenses = 0
@@ -292,13 +322,18 @@ class Output:
             # average QLI of regions
             mun_qli = sum(r.index for r in regions) / len(regions)
 
-            reports.append('%s;%s;%.3f;%d;%.3f;%.4f;%.3f;%.4f;%.5f;%.3f;%.6f;%.6f;%.6f;%.6f;%s'
-                           % (sim.clock.days, mun_id, commuting, mun_pop, mun_gdp, mun_gini, mun_house_values,
-                              mun_unemployment, mun_qli, GDP_mun_capita, mun_cumulative_treasure,
-                              mun_applied_treasure['equally'],
-                              mun_applied_treasure['locally'],
-                              mun_applied_treasure['fpm'],
-                              licenses))
+            reports.append(
+                '%s;%s;%.3f;%d;%.3f;%.4f;%.3f;%.4f;%.5f;%.3f;%.6f;%.6f;%.6f;%.6f;%s;%.6f;%.6f;%.6f'
+                % (sim.clock.days, mun_id, commuting, mun_pop, mun_gdp, mun_gini, mun_house_values,
+                   mun_unemployment, mun_qli, GDP_mun_capita, mun_cumulative_treasure,
+                   mun_applied_treasure['equally'],
+                   mun_applied_treasure['locally'],
+                   mun_applied_treasure['fpm'],
+                   licenses,
+                   families_regional_metrics['affordability_ratio'],
+                   families_regional_metrics['median_wealth'],
+                   families_regional_metrics['median_affordability'],
+                   ))
 
         with open(self.regional_path, 'a') as f:
             f.write('\n' + '\n'.join(reports))
@@ -316,16 +351,23 @@ class Output:
             self.sim.regions[r].total_commute = commute_value
             neighbourhood_commute[r] = commute_value
         with open(self.neighbourhood_path, 'a') as f:
-            [f.write('%s; %s; %s; %d; %.3f; %.3f; %.3f; %.3f \n' %
-                     (sim.clock.days, region.id[:7], region.id, region.pop, region.gdp,
-                      region.gdp / region.pop, neighbourhood_commute[region.id],
-                      neighbourhood_gini[region.id]))
-             for region in sim.regions.values()]
+            try:
+                [f.write('%s; %s; %s; %d; %.3f; %.3f; %.3f; %.3f \n' %
+                         (sim.clock.days, region.id[:7], region.id, region.pop, region.gdp,
+                          region.gdp / region.pop, neighbourhood_commute[region.id],
+                          neighbourhood_gini[region.id]))
+                 for region in sim.regions.values()]
+            except KeyError:
+                [f.write('%s; %s; %s; %d; %.3f; %.3f; %.3f; %.3f \n' %
+                         (sim.clock.days, region.id[:7], region.id, region.pop, region.gdp,
+                          region.gdp / region.pop, 0,
+                          0))
+                 for region in sim.regions.values()]
 
     def save_data(self, sim):
         # firms data is necessary for plots,
         # so always save
-        self.save_banks_data(sim)
+        # self.save_banks_data(sim)
 
         for each in conf.RUN['SAVE_DATA']:
             # Skip b/c they are saved anyway above

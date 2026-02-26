@@ -156,10 +156,8 @@ class Plotter:
                 'average_utility', 'pct_zero_consumption', 'rent_default', 'inflation', 'average_qli', 'house_vacancy',
                 'house_price', 'house_rent', 'affordable', 'p_delinquent', 'equally', 'locally', 'fpm', 'bank',
                 'emissions_fund',
-                'affordability_decis_median',
-                'ext_amount_sold',
-
-                ]
+                'affordability_median',
+                'ext_amount_sold']
         titles = ['Total population', 'Average goods and services prices\' level', 'GDP absolute value',
                   'GDP growth in monthly perc.',
                   'Unemployment',

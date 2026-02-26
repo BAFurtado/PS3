@@ -1,7 +1,7 @@
 # THE ROOT OUTPUT DATA LOCATION #######################################################################################
 # Change your output directory as necessary
 # OUTPUT_PATH = 'output'
-OUTPUT_PATH = r'output'
+OUTPUT_PATH = r'output_sensitivity'
 
 KEEP_RANDOM_SEED = True
 
@@ -9,7 +9,7 @@ KEEP_RANDOM_SEED = True
 DESCRIPTIVE_STATS_CHOICE = False
 
 # Logging
-PRINT_STATISTICS_AND_RESULTS_DURING_PROCESS = True
+PRINT_STATISTICS_AND_RESULTS_DURING_PROCESS = False
 PRINT_FINAL_STATISTICS_ABOUT_AGENTS = False
 
 # Inform numbers in percentage of the period
@@ -22,18 +22,18 @@ SAVE_PLOTS_FIGURES = True
 # If plots should be generated separately for each simulation run or just aggregated
 # When PLOT_EACH_RUN is True, DATA for banks, construction, firms, regional, stats are also SAVED
 #                       ***be aware of their sizes***
-PLOT_EACH_RUN = True
+PLOT_EACH_RUN = False
 # Spatial plots only works when PLOT_EACH_RUN is True
 SAVE_SPATIAL_PLOTS = False
 # 'png' or 'eps'
 PLOT_FORMAT = 'png'
-PLOT_REGIONAL = True
+PLOT_REGIONAL = False
 
 # Plot DPI. Lower ones will plot faster
 PLOT_DPI = 200
 
 # Save Agents data 'MONTHLY' or 'QUARTERLY', 'ANNUALLY', or None
-SAVE_DATA_PERIDIOCITY = 'MONTHLY'
+SAVE_DATA_PERIDIOCITY = 'QUARTERLY'
 
 # What extra CSV data (i.e. not necessary plotting) to save
 # 'stats' data are always saved,
@@ -43,7 +43,7 @@ SAVE_DATA_PERIDIOCITY = 'MONTHLY'
 # 'head' refers to the need to calculate head of family rates for household projections and monitoring
 # Can include: ['agents', 'grave', 'house', 'family', 'head', 'neighbourhood']
 # If None, set to empty list: []
-SAVE_DATA = ['neighbourhood']
+SAVE_DATA = []
 # SAVE_DATA = ['agents', 'house', 'family']
 
 # What data to average across all runs.
@@ -53,7 +53,7 @@ SAVE_DATA = ['neighbourhood']
 # Options: ['families', 'houses', 'agents]
 # You need to INCLUDE STATS to generate SPATIAL PLOTS. 'stats' also refer to general averaged plots
 # YOU MAY INCLUDE 'regional'
-AVERAGE_DATA = ['stats', 'regional']
+AVERAGE_DATA = ['stats', 'regional'] # 'regional'
 # 'median' or 'mean'
 AVERAGE_TYPE = 'mean'
 

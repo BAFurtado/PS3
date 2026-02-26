@@ -43,7 +43,9 @@ class Family:
         self.rent_voucher = 0
         self.average_utility = 0
         self.last_permanent_income = list()
-        self.affordability_ratio = 1
+        self.permanent_income = 1
+        self.affordability_ratio = 10e6
+        self.last_permanent_window = 24
 
         # Previous region id
         if house is not None:
@@ -122,19 +124,31 @@ class Family:
         return sum(member.last_wage for member in self.members.values() if member.last_wage is not None)
 
     def get_permanent_income(self):
-        return sum(self.last_permanent_income) / len(self.last_permanent_income) if self.last_permanent_income else 0
+        return self.permanent_income
 
-    def permanent_income(self, bank, r):
-        # Equals Consumption (Bielefeld, 2018, pp.13-14)
-        # Using last wage available as base for permanent income calculus: total_wage = Human Capital
+    def update_affordability(self):
+        # Update affordability only
+        if self.permanent_income > 0 and self.house:
+            self.affordability_ratio = self.house.price / self.permanent_income
+
+    def update_permanent_income(self, bank, r):
         t0 = self.total_wage()
-        r_1_r = r / (1 + r)
-        # Calculated as "discounted sum of current income and expected future income" plus "financial wealth"
-        # Perpetuity of income is a fraction (r_1_r) of income t0 divided by interest r
-        self.last_permanent_income.append(r_1_r * t0 + r_1_r * (t0 / r) + self.get_wealth(bank) * r)
-        value = self.get_permanent_income()
-        # Update affordability
-        self.affordability_ratio = self.house.price / value if value else np.nan
+        EPS = 1e-4
+        r_eff = max(r, EPS)
+        wealth = self.get_wealth(bank)
+        # Permanent income (Dawid-consistent)
+        current_pi = t0 + r_eff * wealth
+        self.last_permanent_income.append(current_pi)
+        # Keep only last 24 months
+        if len(self.last_permanent_income) > self.last_permanent_window:
+            self.last_permanent_income = self.last_permanent_income[-self.last_permanent_window:]
+        # Average without artificial zerollasts
+        value = (
+            current_pi if len(self.last_permanent_income) == 1
+            else np.mean(self.last_permanent_income)
+        )
+        self.permanent_income = value
+        self.update_affordability()
         return value
 
     def prob_employed(self):
@@ -174,7 +188,7 @@ class Family:
         self.space_constraint = self.num_members / self.house.size * 3.5  # To approximate value to a range 0, 1
         return self.is_renting + prob_employed + self.space_constraint
 
-    def decision_on_consumption(self, central, r, year, month, params, regions):
+    def decision_on_consumption(self, central, year, month, params, regions):
         """ Family consumes its permanent income, based on members' wages, real estate assets, and savings.
         A. Separate expenses for renting, banking loans, goods' consumption, and investments in that order.
          """
@@ -182,7 +196,7 @@ class Family:
         # This can only be called once due to transport deduction
         money = sum(m.grab_money(params, regions) for m in self.members.values())
         # 2. Calculate permanent income
-        permanent_income = self.permanent_income(central, r)
+        permanent_income = self.get_permanent_income()
         # Having loans will impact on a lower long-run permanent income consumption and on a monthly reduction on
         # consumption. However, the price of the house may be appreciating in the market.
         # 3. Total spending equals permanent income.
@@ -229,14 +243,11 @@ class Family:
         Family general consumption depends on its permanent income, based on members wages, working life expectancy
         and real estate and savings interest
         """
-        total_consumption = defaultdict(float)
         # Decision on how much money to consume or save
-        money_to_spend = self.decision_on_consumption(central, central.interest, year, month, params, regions)
-        # Reset monthly's family consumption
-        self.average_utility = 0
+        money_to_spend = self.decision_on_consumption(central, year, month, params, regions)
 
         if money_to_spend is None:
-            return total_consumption
+            return defaultdict(float)
 
         # Picks SIZE_MARKET number of firms at seed and choose the closest or the cheapest
         # Consumes from each product the chosen firm offers
@@ -244,37 +255,51 @@ class Family:
         # Construction and Government are 0 in the table. Specific construction market apply
         size_market = int(params['SIZE_MARKET'])
         tax_consumption = int(params['TAX_CONSUMPTION'])
+
         household_demand = regional_market.final_demand['HouseholdConsumption']
-        sectors = regional_market.final_demand.index
-        for sector in sectors:
-            sector_share = household_demand.get(sector, 0)
+        total_consumption = defaultdict(float)
+        savings = self.savings
+        avg_utility = 0.0
+        house = self.house
+
+        for sector, sector_share in household_demand.items():
             if sector_share <= 0:
                 continue
 
             money_this_sector = money_to_spend * sector_share
-            sector_firms = firms_by_sector.get(sector, [])
+            if money_this_sector <= 0:
+                continue
 
+            sector_firms = firms_by_sector.get(sector)
             if not sector_firms:
                 continue
 
-            market = seed.sample(sector_firms, min(size_market, len(sector_firms)))
-            if not market:
-                continue
+            n_firms = len(sector_firms)
+
+            if n_firms <= size_market:
+                market = sector_firms
+            else:
+                market = seed.sample(sector_firms, size_market)
 
             firm_strategy = seed.choice(['Price', 'Distance'])
-            chosen_firm = min(
-                market,
-                key=(lambda f: f.prices if firm_strategy == 'Price' else self.house.distance_to_firm(f))
-            )
+            if firm_strategy == 'Price':
+                chosen_firm = min(market, key=lambda f: f.prices)
+            else:
+                dist = house.distance_to_firm
+                chosen_firm = min(market, key=dist)
 
             change = chosen_firm.sale(
                 money_this_sector, regions, tax_consumption,
                 self.region_id, if_origin
             )
-            self.savings += change
+
+            savings += change
             utility_gain = money_this_sector - change
-            self.average_utility += utility_gain
+            avg_utility += utility_gain
             total_consumption[sector] += utility_gain
+
+        self.savings = savings
+        self.average_utility = avg_utility
 
         return total_consumption
 

@@ -3,15 +3,15 @@ import datetime
 # MODEL PARAMETERS
 
 # FIRMS #########################################################
-# Production function, labour with decaying exponent, Alpha for K. [0, 1]
-PRODUCTIVITY_EXPONENT = .8
+# Production function, labor with decaying exponent, Alpha for K. [0, 1]
+PRODUCTIVITY_EXPONENT = .6
 # Order of magnitude correction of production. Production divided by parameter
-PRODUCTIVITY_MAGNITUDE_DIVISOR = .2
+PRODUCTIVITY_MAGNITUDE_DIVISOR = .85
 # GENERAL CALIBRATION PARAMETERS
-# Order of magnitude parameter of input into municipality investment
-MUNICIPAL_EFFICIENCY_MANAGEMENT = 0.00001
 # INTEREST. Choose either: 'nominal', 'real' or 'fixed'. Default 'real'
-INTEREST = "real"
+# FOR CENARIOS PLANHAB, choose either interests: 'alta', 'media' ou 'baixa'
+# Assumption. Mortgage assumed lower than SELIC (general rate).
+INTEREST = "baixa"
 # By how much percentage to increase prices
 MARKUP = 0.07
 # Frequency firms change prices. Probability < than parameter
@@ -24,11 +24,11 @@ SIZE_MARKET = 15
 # Number of firms to buy from in the INTERMEDIATE market
 INTERMEDIATE_SIZE_MARKET = 15
 # Frequency firms enter the market
-LABOR_MARKET = 0.3
+LABOR_MARKET = 0.8
 # Percentage of employees' firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
-RELEVANCE_UNEMPLOYMENT_SALARIES = 4
+RELEVANCE_UNEMPLOYMENT_SALARIES = 3
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 20
 
@@ -58,19 +58,22 @@ POLICY_COEFFICIENT = 0
 # Policies alternatives may include: 'buy', 'rent' or 'wage' or 'no_policy'. For no policy set to empty strings ''
 # POLICY_COEFFICIENT needs to be > 0.
 POLICIES = "no_policy"
+
+# POLICY_MCMV indicates whether MCMV is active
 POLICY_MCMV = True
 POLICY_MCMV_PERCENTAGE = 0.01
+MODEL_MONETARY_SCALING = 1000
 TOTAL_TARGETING_POLICY = False
 
-# HOUSING_POLICY can be ('baseline', )
+# HOUSING_POLICY can be ('baseline', ) and indicates the amount
 HOUSING_POLICY = 'baseline'
-HOUSING_INTEREST = 'baseline'
+# HOUSING_INTEREST now set with different datasets, but with the same reference as interests (alta, media, baixa)
 # Quantiles for families to be included in the different programs
-INCOME_MODALIDADES = {'faixa1': .1,
-                      'rural': .1,
-                      'melhorias': .2,
-                      'fgts': .6,
-                      'sbpe': .8
+INCOME_MODALIDADES = {'faixa1': .38,
+                      'rural': .38,
+                      'melhorias': .38,
+                      'fgts': .65,
+                      'sbpe': .85
                       }
 POLICY_MELHORIAS = True
 UPGRADE_COST = .2
@@ -82,18 +85,18 @@ POLICY_QUANTILE = 0.2
 TAX_ON_ORIGIN = True
 # BNDES test with (True) and without (False) TRANSPORT investments.
 # Variation in time_travel implemented in labor market decisions -- BNDES test
-TRANSPORT_TIME = True
+TRANSPORT_TIME = False
 # LOANS ##############################################################################
 # Maximum age of borrower at the end of the contract
 MAX_LOAN_AGE = 70
 # Used to calculate monthly payment for the families, thus limiting maximum loan by number of months and age
 # Because permanent income includes wealth, it should be just a small percentage,
 # otherwise compromises monthly consumption.
-LOAN_PAYMENT_TO_PERMANENT_INCOME = 0.07
+LOAN_PAYMENT_TO_PERMANENT_INCOME = 0.35
 # Refers to the maximum loan monthly payment to total wealth
 # MAX_LOAN_PAYMENT_TO_WEALTH=.4
 # Refers to the maximum rate of the loan on the value of the estate
-MAX_LOAN_TO_VALUE = 0.35
+MAX_LOAN_TO_VALUE = 0.8
 # This parameter refers to the total amount of resources available at the bank.
 MAX_LOAN_BANK_PERCENT = 0.6
 
@@ -109,6 +112,8 @@ OFFER_SIZE_ON_PRICE = 2
 ON_MARKET_DECAY_FACTOR = -0.02
 # LOWER BOUND, THAT IS, AT LEAST 50% PERCENT OF VALUE WILL REMAIN AT END OF PERIOD, IF PARAMETER IS .5
 MAX_OFFER_DISCOUNT = 0.6
+# How strong construction firms respond to vacancy
+BUILD_VACANCY_SENSITIVITY = 3
 # Percentage of households pursuing new location (on average families move about once every 20 years)
 PERCENTAGE_ENTERING_ESTATE_MARKET = 0.05
 NEIGHBORHOOD_EFFECT = 2
@@ -124,17 +129,18 @@ EXPECTED_LICENSES_PER_REGION = 2
 # PERCENT_CONSTRUCTION_FIRMS = 0.07 This has been deprecated with the introduction of sectors
 # Months that construction firm will divide its income into monthly revenue installments.
 # Although prices are accounted for at once.
-CONSTRUCTION_ACC_CASH_FLOW = 24
+CONSTRUCTION_ACC_CASH_FLOW = 12
 # Cost of lot in PERCENTAGE of construction
 LOT_COST = 0.15
 # Initial percentage of vacant houses
 HOUSE_VACANCY = 0.1
 # MAX_NUMBER OF HOUSES IN STOCK
-MAX_HOUSE_STOCK = 12
-# HOW LARGER IS CONSTRUCTION FIRMS PROFIT RELATIVE TO USUAL MARKUP (firms' productivity, given current prices)
-CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 10
-# Old house categories. TODO. Update to use input quali_house dd from generator
+MAX_HOUSE_STOCK = 36
+# Categories of submarkets for the housing markets
 PERC_HOUSE_CATEGORIES = [0.4, 0.3, 0.2, 0.1]
+# HOW LARGER IS CONSTRUCTION FIRMS PROFIT RELATIVE TO USUAL MARKUP (firms' productivity, given current prices)
+CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 6
+
 # POPULATION AND DEMOGRAPHY
 # Families run parameters (on average) for year 2000, or no information. 2010 uses APs average data
 EXOGENOUS_HEAD_RATE = False
@@ -165,7 +171,7 @@ TAXES_STRUCTURE = {"consumption_equal": 0.1875, "fpm": 0.235}
 # log(U) = α log_qualification + β log_commuting + γ log_wages
 # GAMMA is 1 - alpha - beta
 # Emphasizes qualification and wages (0.4) equally, with lesser weight (0.2) on commuting time.
-CB_QUALIFICATION = .4
+CB_QUALIFICATION = .35
 CB_COMMUTING = .2
 
 WAGE_TO_CAR_OWNERSHIP_QUANTILES = [
@@ -191,14 +197,17 @@ REGIONAL_FREIGHT_COST = .3
 # Minimum value to run depends on the size of municipality 0,001 is recommended minimum
 PERCENTAGE_ACTUAL_POP = 0.01
 
+# Order of magnitude parameter of input into municipality investment
+MUNICIPAL_EFFICIENCY_MANAGEMENT = 1e-07
+
 # Write exactly like the list below
-PROCESSING_ACPS = ["IPATINGA"]
+PROCESSING_ACPS = ["FORTALEZA"]
 
 # Selecting the starting year to build the Agents can be: 1991, 2000 or 2010
 STARTING_DAY = datetime.date(2010, 1, 1)
 
 # The Maximum running time (restrained by official data) is 30 years,
-TOTAL_DAYS = (datetime.date(2020, 1, 1) - STARTING_DAY).days
+TOTAL_DAYS = (datetime.date(2040, 1, 1) - STARTING_DAY).days
 
 # Select the possible ACPs (Population Concentration Areas) from the list below.
 # Actually, they are URBAN CONCENTRATION AREAS FROM IBGE, 2022

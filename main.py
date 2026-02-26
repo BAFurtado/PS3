@@ -36,6 +36,23 @@ logger = logging.getLogger('main')
 logging.basicConfig(level=logging.INFO)
 
 
+def ensure_population_exists(params, path):
+    """
+    Ensure the population file exists BEFORE parallel execution.
+    This runs serially.
+    """
+    os.makedirs(path, exist_ok=True)
+
+    sim = Simulation(params, path)
+    save_file = f"{sim.output.save_name}.agents"
+
+    if not os.path.isfile(save_file) or conf.RUN["FORCE_NEW_POPULATION"]:
+        logger.info("Pre-generating shared population...")
+        sim.generate()   # <-- runs ONCE
+    else:
+        logger.info("Population already exists. Skipping generation.")
+
+
 def single_run(params, path):
     """Run a simulation once for given parameters"""
     if conf.RUN['PRINT_STATISTICS_AND_RESULTS_DURING_PROCESS']:
@@ -61,11 +78,6 @@ def multiple_runs(overrides, runs, cpus, output_dir, fix_seeds=None):
     # overrides is a list of dictionaries with parameter name and value
     logger.info('Running simulation {} times'.format(len(overrides) * runs))
 
-    # if fix_seeds:
-    #     seeds = [secrets.randbelow(2 ** 32) for _ in range(runs)]
-    # else:
-    #     seeds = []
-
     # calculate output paths and params with overrides
     paths = [os.path.join(output_dir, main_plotting.conf_to_str(o))
              for o in overrides]
@@ -74,6 +86,10 @@ def multiple_runs(overrides, runs, cpus, output_dir, fix_seeds=None):
         p = copy.deepcopy(conf.PARAMS)
         p.update(o)
         params.append(p)
+
+    for p, path in zip(params, paths):
+        # use base path, not per-run path
+        ensure_population_exists(p, path)
 
     # run simulations in parallel
     if cpus == 1:
@@ -206,6 +222,56 @@ def sensitivity(ctx, params):
             p_vals = [round(v, 8) for v in p_vals]
         # TODO: Fix plots for starting-day sensitivity analysis.
         #  Yearly information refers to 2010-2020. Should go the whole period.
+        elif "PLANHAB" in param:
+            # The PLANHAB sensitivity configuration follows the structure:
+            # python main.py -n x -c x sensitivity PLANHAB-ACP_1-ACP2...
+            # TODO: Add ACP groups as (Capital or all)
+            flag = True
+            capitais = ['ARACAJU',
+                        'BELEM',
+                        'BELO HORIZONTE',
+                        #'BOA VISTA',
+                        'BRASILIA',
+                        'CAMPO GRANDE',
+                        'CUIABA',
+                        'CURITIBA',
+                        #'FLORIANOPOLIS',
+                        'FORTALEZA',
+                        'GOIANIA',
+                        #'JOAO PESSOA',
+                        'MACAPA',
+                        'MACEIO',
+                        'MANAUS',
+                        'NATAL',
+                        #'PALMAS',
+                        'PORTO ALEGRE',
+                        #'PORTO VELHO',
+                        'RECIFE',
+                        #'RIO BRANCO',
+                        #'RIO DE JANEIRO',
+                        #'SALVADOR',
+                        'SAO LUIS',
+                        #'SAO PAULO',
+                        'TERESINA',
+                        'VITORIA'
+                        ]
+            # Define MCMV scenarios and define available interest values
+            my_dict = {'POLICY_MCMV': [False, True],
+                       'POLICY_MELHORIAS': [False, True],
+                       'INTEREST': ['baixa', 'media', 'alta'],
+                       'PROCESSING_ACPS': [[i] for i in param.split('-')[1:]]}
+            ps = list(my_dict.keys())
+            if my_dict['PROCESSING_ACPS'][0][0] == 'capitais':
+                my_dict['PROCESSING_ACPS'] = [[c] for c in capitais]
+            keys, values = zip(*my_dict.items())
+            all_permutations = [dict(zip(keys, v)) for v in itertools.product(*values)]
+            # Filter so that if POLICY_MCMV is False, the use only INTEREST='media'
+            for p in all_permutations:
+                if p['POLICY_MCMV'] == False and p['INTEREST'] != 'media':
+                    pass
+                    #continue
+                #It's a valid combination
+                permutations_dicts.append(p)
         elif param == 'STARTING_DAY':
             p_name = param
             p_vals = [datetime.date(2000, 1, 1), datetime.date(2010, 1, 1)]
@@ -215,6 +281,9 @@ def sensitivity(ctx, params):
         elif param == 'INTEREST':
             p_name = param
             p_vals = ['real', 'nominal', 'fixed']
+        elif param == 'INTEREST_LEVEL':
+            p_name = 'INTEREST'
+            p_vals = ['baixa', 'media', 'alta']
         elif '-' in param:
             p_name = 'PROCESSING_ACPS'
             p_vals = [[i] for i in param.split('-')[1:]]
@@ -224,8 +293,16 @@ def sensitivity(ctx, params):
             # Such as 'param1+param2*1+2*10+20'.
             # Thus producing the dict: {'param1': ['10', '20'], 'param2': ['10', '20']}
             ps = param.split('*')[0]
-            my_dict = {ps.split('+')[i]: [float(f) for f in param.split('*')[i + 1].split('+')]
-                       for i in range(len(ps.split('+')))}
+            my_dict = {}
+            keys = ps.split('+')
+            for i, key in enumerate(keys):
+                raw_vals = param.split('*')[i + 1].split('+')
+
+                if key == 'PROCESSING_ACPS':
+                    my_dict[key] = [[v] for v in raw_vals]
+                else:
+                    my_dict[key] = [float(v) for v in raw_vals]
+
             keys, values = zip(*my_dict.items())
             permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
         # Else, assume boolean
