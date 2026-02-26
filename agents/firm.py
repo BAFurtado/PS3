@@ -161,11 +161,13 @@ class Firm:
         eco_investment, paid_subsidies = self.decision_on_eco_efficiency(regional_market)
 
         # Check if firm has enough balance
-        if self.total_balance >= eco_investment and self.total_balance > 0:
+        if self.total_balance >= eco_investment:
             self.total_balance -= eco_investment
-        else:
+        elif self.total_balance > 0:
             eco_investment = self.total_balance
             self.total_balance = 0
+        else:
+            eco_investment = 0
 
         params = regional_market.sim.PARAMS
         # Stochastic process to actually reduce firm-level parameter
