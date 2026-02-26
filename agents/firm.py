@@ -72,8 +72,7 @@ class Firm:
         # Firms makes existing products from class Products.
         # Products produced are stored by product_id in the inventory
         self.inventory = {}
-        self.input_inventory, self.external_input_inventory = (copy.deepcopy(initial_input_sectors),
-                                                               copy.deepcopy(initial_input_sectors))
+        self.input_inventory = copy.deepcopy(initial_input_sectors)
         # Amount monthly sold by the firm
         self.amount_sold = amount_sold
         self.product_index = product_index
@@ -162,7 +161,7 @@ class Firm:
         eco_investment, paid_subsidies = self.decision_on_eco_efficiency(regional_market)
 
         # Check if firm has enough balance
-        if self.total_balance >= eco_investment:
+        if self.total_balance >= eco_investment and self.total_balance > 0:
             self.total_balance -= eco_investment
         else:
             eco_investment = self.total_balance
@@ -380,7 +379,7 @@ class Firm:
             technical_matrix = regional_market.technical_matrix
             external_technical_matrix = regional_market.ext_local_matrix
 
-            # Buy inputs fills up input_inventory and external_input_inventory
+            # Buy inputs fills up input_inventory
             # Env efficiency reduces the amount of inputs needed, so the firms buys less
             self.buy_inputs(self.env_efficiency * desired_quantity, regional_market, firms, seed,
                             technical_matrix, external_technical_matrix)
