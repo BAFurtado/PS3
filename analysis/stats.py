@@ -25,6 +25,10 @@ class Statistics(object):
         self.vacancy_rate = params['HOUSE_VACANCY']
         self.head_rate = defaultdict(lambda: defaultdict(int))
         self.class_ranges = self._generate_class_ranges()
+        self.new_families = 0
+
+    def update_new_families(self, number):
+        self.new_families = number
 
     def _generate_class_ranges(self):
         """Creates a dictionary mapping age to the correct class range."""
@@ -66,6 +70,7 @@ class Statistics(object):
             "emissions": np.sum(firm_emissions) if firm_emissions.size > 0 else 0,
             "median_stock": np.median(firm_stocks) if firm_stocks.size > 0 else 0,
             "workers": np.median(firm_workers) if firm_workers.size > 0 else 0,
+            "num_workers": np.sum(firm_workers) if firm_workers.size > 0 else 0,
             "aggregate_profits": np.sum(firm_profits) if firm_profits.size > 0 else 0,
             "innovation_investment": np.mean(firm_inno_inv) if firm_inno_inv.size > 0 else 0
         }
@@ -189,6 +194,7 @@ class Statistics(object):
             "average_rent_price": avg_rent_price,
             "vacancy_rate": vacancy_rate,
             "median_quality": median_quality,
+            "numero_domicilios": n_houses,
         }
 
     def update_GDP_capita(self, firms, mun_id, mun_pop):
@@ -294,6 +300,7 @@ class Statistics(object):
             "zero_consumption_ratio": zero_consumption_ratio,
             "avg_utility": avg_utility,
             'gini': gini,
+            'new_families': self.new_families
         }
 
     def calculate_regional_gini(self, families):
