@@ -21,6 +21,7 @@ import click
 import matplotlib
 import numpy as np
 import pandas as pd
+from pathlib import Path
 from joblib import Parallel, delayed
 
 import conf
@@ -208,6 +209,12 @@ def sensitivity(ctx, params):
     Continuous param syntax: NAME:MIN:MAX:STEP
     Boolean param syntax: NAME
     """
+    # Generate ONE timestamp for this entire sensitivity call
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    # Base output directory
+    base_output = Path(gen_output_dir(ctx.command.name))
+    base_output.mkdir(parents=True, exist_ok=True)
+
     my_dict, permutations_dicts = dict(), list()
     p_name, p_vals = None, None
     for param in params:
@@ -221,11 +228,10 @@ def sensitivity(ctx, params):
             # round to 8 decimal places
             p_vals = [round(v, 8) for v in p_vals]
         # TODO: Fix plots for starting-day sensitivity analysis.
-        #  Yearly information refers to 2010-2020. Should go the whole period.
+
         elif "PLANHAB" in param:
             # The PLANHAB sensitivity configuration follows the structure:
             # python main.py -n x -c x sensitivity PLANHAB-ACP_1-ACP2...
-            # TODO: Add ACP groups as (Capital or all)
             flag = True
             capitais = ['ARACAJU',
                         'BELEM',
@@ -235,10 +241,10 @@ def sensitivity(ctx, params):
                         'CAMPO GRANDE',
                         'CUIABA',
                         'CURITIBA',
-                        #'FLORIANOPOLIS',
+                        'FLORIANOPOLIS',
                         'FORTALEZA',
                         'GOIANIA',
-                        #'JOAO PESSOA',
+                        'JOAO PESSOA',
                         'MACAPA',
                         'MACEIO',
                         'MANAUS',
@@ -249,7 +255,7 @@ def sensitivity(ctx, params):
                         'RECIFE',
                         #'RIO BRANCO',
                         #'RIO DE JANEIRO',
-                        #'SALVADOR',
+                        'SALVADOR',
                         'SAO LUIS',
                         #'SAO PAULO',
                         'TERESINA',
@@ -258,20 +264,16 @@ def sensitivity(ctx, params):
             # Define MCMV scenarios and define available interest values
             my_dict = {'POLICY_MCMV': [False, True],
                        'POLICY_MELHORIAS': [False, True],
-                       'INTEREST': ['baixa', 'media', 'alta'],
+                       'INTEREST': ['baixa'],
                        'PROCESSING_ACPS': [[i] for i in param.split('-')[1:]]}
             ps = list(my_dict.keys())
             if my_dict['PROCESSING_ACPS'][0][0] == 'capitais':
                 my_dict['PROCESSING_ACPS'] = [[c] for c in capitais]
             keys, values = zip(*my_dict.items())
-            all_permutations = [dict(zip(keys, v)) for v in itertools.product(*values)]
-            # Filter so that if POLICY_MCMV is False, the use only INTEREST='media'
-            for p in all_permutations:
-                if p['POLICY_MCMV'] == False and p['INTEREST'] != 'media':
-                    pass
-                    #continue
-                #It's a valid combination
-                permutations_dicts.append(p)
+            permutations_dicts = [
+                dict(zip(keys, v))
+                for v in itertools.product(*values)
+            ]
         elif param == 'STARTING_DAY':
             p_name = param
             p_vals = [datetime.date(2000, 1, 1), datetime.date(2010, 1, 1)]
@@ -310,24 +312,28 @@ def sensitivity(ctx, params):
             p_name = param
             p_vals = [True, False]
         if not flag:
-            ctx.obj['output_dir'] = ctx.obj['output_dir'].replace('sensitivity', p_name)
+            folder_name = f"{p_name}_{timestamp}"
             confs = [{p_name: v} for v in p_vals]
         else:
-            p_name = ps
-            p_vals = my_dict.values()
-            ctx.obj['output_dir'] = ctx.obj['output_dir'].replace('sensitivity', '_'.join(k for k in keys))
+            folder_name = f"{'_'.join(keys)}_{timestamp}"
             confs = permutations_dicts.copy()
+        output_dir = base_output / folder_name
+        output_dir.mkdir(parents=True, exist_ok=True)
+
         # Fix the same seed for each run
         # conf.RUN['KEEP_RANDOM_SEED'] = True
         # conf.RUN['FORCE_NEW_POPULATION'] = False # Ideally this is True, but it slows things down a lot
-
         logger.info('Sensitivity run over {} for values: {}, {} run(s) each'.format(p_name,
                                                                                     p_vals, ctx.obj['runs']))
         if conf.RUN.get('KEEP_RANDOM_SEED', False):
             fixed_seeds = [secrets.randbelow(2 ** 32) for _ in range(ctx.obj['runs'])]
         else:
             fixed_seeds = []
-        multiple_runs(confs, ctx.obj['runs'], ctx.obj['cpus'], ctx.obj['output_dir'], fix_seeds=fixed_seeds)
+        multiple_runs(confs,
+                      ctx.obj['runs'],
+                      ctx.obj['cpus'],
+                      ctx.obj['output_dir'],
+                      fix_seeds=fixed_seeds)
 
 
 @main.command()
