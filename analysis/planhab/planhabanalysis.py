@@ -86,7 +86,7 @@ if __name__ == '__main__':
          'unemployment', 'median_workers', 'families_median_wealth',
          'gini_index',
          'pct_zero_consumption', 'rent_default', 'inflation',
-         'average_qli', 'house_vacancy', 'house_price', 'house_rent',
+         'average_qli', 'house_vacancy', 'house_price', 'house_rent', "house_quality",
          'affordable', 'p_delinquent', ]].median(numeric_only=True)
 
 

@@ -1,7 +1,7 @@
 # THE ROOT OUTPUT DATA LOCATION #######################################################################################
 # Change your output directory as necessary
 # OUTPUT_PATH = 'output'
-OUTPUT_PATH = r'output_sensitivity'
+OUTPUT_PATH = r'output'
 
 KEEP_RANDOM_SEED = True
 
@@ -9,7 +9,7 @@ KEEP_RANDOM_SEED = True
 DESCRIPTIVE_STATS_CHOICE = False
 
 # Logging
-PRINT_STATISTICS_AND_RESULTS_DURING_PROCESS = False
+PRINT_STATISTICS_AND_RESULTS_DURING_PROCESS = True
 PRINT_FINAL_STATISTICS_ABOUT_AGENTS = False
 
 # Inform numbers in percentage of the period

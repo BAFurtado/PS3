@@ -37,7 +37,7 @@ OUTPUT_DATA_SPEC = {
                     'firms_median_innovation_investment', 'emissions', 'gini_index',
                     'average_utility', 'pct_zero_consumption', 'rent_default',
                     'inflation', 'average_qli', 'house_vacancy', 'house_price',
-                    'house_rent', 'affordable', 'p_delinquent', 'equally',
+                    'house_rent', 'house_quality', 'affordable', 'p_delinquent', 'equally',
                     'locally', 'fpm', 'bank', 'emissions_fund',
                     'ext_amount_sold', 'affordability_median']
     }

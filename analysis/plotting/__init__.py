@@ -154,7 +154,8 @@ class Plotter:
                 'firms_median_innovation_investment', 'emissions',
                 'gini_index',
                 'average_utility', 'pct_zero_consumption', 'rent_default', 'inflation', 'average_qli', 'house_vacancy',
-                'house_price', 'house_rent', 'affordable', 'p_delinquent', 'equally', 'locally', 'fpm', 'bank',
+                'house_price', 'house_rent', 'house_quality', 'affordable', 'p_delinquent',
+                'equally', 'locally', 'fpm', 'bank',
                 'emissions_fund',
                 'affordability_median',
                 'ext_amount_sold']
@@ -173,6 +174,7 @@ class Plotter:
                   'Average families\' utility', 'Percentual families zero consumption',
                   'Percentual default among renting families', 'Monthly goods and services inflation',
                   'Average QLI index value', 'House vacancies', 'House prices', 'House rent prices',
+                  'Median house qualities',
                   'Affordable rent (less than 30% permanent income)',
                   'Percentual of delinquent loans', 'Taxes invested equally', 'Taxes invested locally',
                   'Taxes invested via FPM', 'Taxes paid by the banks on top of interests',
