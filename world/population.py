@@ -84,7 +84,7 @@ def immigration(sim):
     """Adjust population for immigration"""
     year = str(sim.clock.year)
     pop_pct = sim.PARAMS['PERCENTAGE_ACTUAL_POP']
-    new_families = 0
+    number_new_families = 0
 
     for mun_code, pop in sim.mun_pops.items():
         estimated_pop = pop_estimates.at[str(mun_code), year]
@@ -134,7 +134,7 @@ def immigration(sim):
 
             # Only keep families that have houses
             families = [f for f in families if f.house is not None]
-            new_families += len(families)
+            number_new_families += len(families)
             for f in families:
                 sim.families[f.id] = f
 
@@ -153,7 +153,7 @@ def immigration(sim):
             while agents_to_remove:
                 terminal = agents_to_remove.pop()
                 sim.demographics.die(sim, terminal)
-    sim.stats.update_new_families(new_families)
+    sim.stats.update_new_families(number_new_families)
 
 
 class HouseholdsHeads:

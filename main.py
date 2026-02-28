@@ -291,22 +291,34 @@ def sensitivity(ctx, params):
             p_vals = [[i] for i in param.split('-')[1:]]
         elif '*' in param:
             flag = True
-            # One should include first the params, separated by '+', then '*' and then the list of values also '+'
-            # Such as 'param1+param2*1+2*10+20'.
-            # Thus producing the dict: {'param1': ['10', '20'], 'param2': ['10', '20']}
-            ps = param.split('*')[0]
-            my_dict = {}
-            keys = ps.split('+')
-            for i, key in enumerate(keys):
-                raw_vals = param.split('*')[i + 1].split('+')
 
-                if key == 'PROCESSING_ACPS':
-                    my_dict[key] = [[v] for v in raw_vals]
+            parts = param.split('*')
+            keys = parts[0].split('+')
+            value_blocks = parts[1:]
+
+            my_dict = {}
+
+            for key, block in zip(keys, value_blocks):
+                raw_vals = block.split('+')
+
+                # Parameters that are strings
+                if key in ['PROCESSING_ACPS', 'INTEREST', 'POLICIES']:
+                    if key == 'PROCESSING_ACPS':
+                        my_dict[key] = [[v] for v in raw_vals]
+                    else:
+                        my_dict[key] = raw_vals
+
+                # Everything else is numeric
                 else:
                     my_dict[key] = [float(v) for v in raw_vals]
 
             keys, values = zip(*my_dict.items())
-            permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
+            permutations_dicts = [
+                dict(zip(keys, v))
+                for v in itertools.product(*values)
+            ]
+            p_name = "_".join(keys)
+            p_vals = list(my_dict.values())
         # Else, assume boolean
         else:
             p_name = param
