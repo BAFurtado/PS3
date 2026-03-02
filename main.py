@@ -209,106 +209,47 @@ def sensitivity(ctx, params):
     Continuous param syntax: NAME:MIN:MAX:STEP
     Boolean param syntax: NAME
     """
-    # Generate ONE timestamp for this entire sensitivity call
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    # Base output directory
-    base_output = Path(gen_output_dir(ctx.command.name))
+
+    # Create unique experiment directory (NO command prefix)
+    run_id = datetime.datetime.now().isoformat().replace(':', '_')
+    base_output = Path(conf.RUN['OUTPUT_PATH']) / run_id
     base_output.mkdir(parents=True, exist_ok=True)
 
-    my_dict, permutations_dicts = dict(), list()
-    p_name, p_vals = None, None
     for param in params:
-        flag = None
-        ctx.obj['output_dir'] = gen_output_dir(ctx.command.name)
-        # if ':' present, assume continuous param
+
+        flag = False
+        my_dict = {}
+        permutations_dicts = []
+        p_name, p_vals = None, None
+
+        # ----------------------------
+        # PARAM PARSING
+        # ----------------------------
+
         if ':' in param:
             p_name, p_min, p_max, p_step = param.split(':')
             p_min, p_max = float(p_min), float(p_max)
             p_vals = np.linspace(p_min, p_max, int(p_step))
-            # round to 8 decimal places
             p_vals = [round(v, 8) for v in p_vals]
-        # TODO: Fix plots for starting-day sensitivity analysis.
 
-        elif "PLANHAB" in param:
-            # The PLANHAB sensitivity configuration follows the structure:
-            # python main.py -n x -c x sensitivity PLANHAB-ACP_1-ACP2...
-            flag = True
-            capitais = ['ARACAJU',
-                        'BELEM',
-                        'BELO HORIZONTE',
-                        #'BOA VISTA',
-                        'BRASILIA',
-                        'CAMPO GRANDE',
-                        'CUIABA',
-                        'CURITIBA',
-                        'FLORIANOPOLIS',
-                        'FORTALEZA',
-                        'GOIANIA',
-                        'JOAO PESSOA',
-                        'MACAPA',
-                        'MACEIO',
-                        'MANAUS',
-                        'NATAL',
-                        #'PALMAS',
-                        'PORTO ALEGRE',
-                        #'PORTO VELHO',
-                        'RECIFE',
-                        #'RIO BRANCO',
-                        #'RIO DE JANEIRO',
-                        'SALVADOR',
-                        'SAO LUIS',
-                        #'SAO PAULO',
-                        'TERESINA',
-                        'VITORIA'
-                        ]
-            # Define MCMV scenarios and define available interest values
-            my_dict = {'POLICY_MCMV': [False, True],
-                       'POLICY_MELHORIAS': [False, True],
-                       'INTEREST': ['baixa'],
-                       'PROCESSING_ACPS': [[i] for i in param.split('-')[1:]]}
-            ps = list(my_dict.keys())
-            if my_dict['PROCESSING_ACPS'][0][0] == 'capitais':
-                my_dict['PROCESSING_ACPS'] = [[c] for c in capitais]
-            keys, values = zip(*my_dict.items())
-            permutations_dicts = [
-                dict(zip(keys, v))
-                for v in itertools.product(*values)
-            ]
-        elif param == 'STARTING_DAY':
-            p_name = param
-            p_vals = [datetime.date(2000, 1, 1), datetime.date(2010, 1, 1)]
-        elif param == 'POLICIES':
-            p_name = param
-            p_vals = ['buy', 'rent', 'wage', 'no_policy']
-        elif param == 'INTEREST':
-            p_name = param
-            p_vals = ['real', 'nominal', 'fixed']
-        elif param == 'INTEREST_LEVEL':
-            p_name = 'INTEREST'
-            p_vals = ['baixa', 'media', 'alta']
         elif '-' in param:
             p_name = 'PROCESSING_ACPS'
             p_vals = [[i] for i in param.split('-')[1:]]
+
         elif '*' in param:
             flag = True
-
             parts = param.split('*')
             keys = parts[0].split('+')
             value_blocks = parts[1:]
 
-            my_dict = {}
-
             for key, block in zip(keys, value_blocks):
                 raw_vals = block.split('+')
 
-                # Parameters that are strings
                 if key in ['PROCESSING_ACPS', 'INTEREST', 'POLICIES']:
                     if key == 'PROCESSING_ACPS':
                         my_dict[key] = [[v] for v in raw_vals]
                     else:
                         my_dict[key] = raw_vals
-
-                # Everything else is numeric
                 else:
                     my_dict[key] = [float(v) for v in raw_vals]
 
@@ -317,35 +258,45 @@ def sensitivity(ctx, params):
                 dict(zip(keys, v))
                 for v in itertools.product(*values)
             ]
+
             p_name = "_".join(keys)
             p_vals = list(my_dict.values())
-        # Else, assume boolean
+
         else:
             p_name = param
             p_vals = [True, False]
+
+        # ----------------------------
+        # BUILD CONFIGURATIONS
+        # ----------------------------
+
         if not flag:
-            folder_name = f"{p_name}_{timestamp}"
             confs = [{p_name: v} for v in p_vals]
         else:
-            folder_name = f"{'_'.join(keys)}_{timestamp}"
             confs = permutations_dicts.copy()
-        output_dir = base_output / folder_name
-        output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Fix the same seed for each run
-        # conf.RUN['KEEP_RANDOM_SEED'] = True
-        # conf.RUN['FORCE_NEW_POPULATION'] = False # Ideally this is True, but it slows things down a lot
-        logger.info('Sensitivity run over {} for values: {}, {} run(s) each'.format(p_name,
-                                                                                    p_vals, ctx.obj['runs']))
+        ctx.obj['output_dir'] = str(base_output)
+
+        logger.info(
+            f"Sensitivity run over {p_name} for values: {p_vals}, "
+            f"{ctx.obj['runs']} run(s) each"
+        )
+
         if conf.RUN.get('KEEP_RANDOM_SEED', False):
-            fixed_seeds = [secrets.randbelow(2 ** 32) for _ in range(ctx.obj['runs'])]
+            fixed_seeds = [
+                secrets.randbelow(2 ** 32)
+                for _ in range(ctx.obj['runs'])
+            ]
         else:
             fixed_seeds = []
-        multiple_runs(confs,
-                      ctx.obj['runs'],
-                      ctx.obj['cpus'],
-                      ctx.obj['output_dir'],
-                      fix_seeds=fixed_seeds)
+
+        multiple_runs(
+            confs,
+            ctx.obj['runs'],
+            ctx.obj['cpus'],
+            ctx.obj['output_dir'],
+            fix_seeds=fixed_seeds
+        )
 
 
 @main.command()
