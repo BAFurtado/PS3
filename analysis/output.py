@@ -41,6 +41,7 @@ OUTPUT_DATA_SPEC = {
                     'families_helped',
                     'new_families',
                     'amount_subsidised',
+                    'perc_policy_money_spent',
                     'firms_profit',
                     'firms_median_stock',
                     'firms_avg_eco_eff',
@@ -218,6 +219,7 @@ class Output:
         mun_applied_treasure['bank'] = bank_taxes
         families_helped = sim.funds.families_subsided
         amount_subsidised = sim.funds.money_applied_policy
+        perc_policy_money_spent = sim.funds.perc_policy_money_spent
         # Reset for monthly (not cumulative) statistics
         sim.funds.families_subsided, sim.funds.money_applied_policy = 0, 0
         for k in ['equally', 'locally', 'fpm']:
@@ -242,6 +244,7 @@ class Output:
             "families_helped": families_helped,
             'new_families': families_results["new_families"],
             "amount_subsidised": amount_subsidised,
+            "perc_policy_money_spent": perc_policy_money_spent,
             "firms_profit": firm_results["aggregate_profits"],
             "firms_median_stock": firm_results["median_stock"],
             "firms_avg_eco_eff": firm_results["eco_efficiency"],

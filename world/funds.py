@@ -24,6 +24,8 @@ class Funds:
             self.policy_money = defaultdict(float)
             self.policy_families = defaultdict(list)
             self.temporary_houses = defaultdict(list)
+            self.allocated_money = 0
+            self.perc_policy_money_spent = 0
         if sim.PARAMS['POLICY_MCMV'] or sim.PARAMS['POLICY_MELHORIAS']:
             # Collect money from exogenous funding
             self.mcmv = MCMV(sim)
@@ -87,18 +89,20 @@ class Funds:
         if self.sim.PARAMS['POLICY_MCMV']:
             # MCMV FAIXA 1
             self.policy_money = self.mcmv.update_policy_money(self.sim.clock.year, 'faixa1')
+            self.allocated_money += sum(self.policy_money.values())
             quantile = self.sim.PARAMS['INCOME_MODALIDADES']['faixa1']
             self.update_policy_families(quantile)
             self.buy_houses_give_to_families()
             # RURAL
-            self.policy_money = self.mcmv.update_policy_money(self.sim.clock.year, 'rural')
-            quantile = self.sim.PARAMS['INCOME_MODALIDADES']['rural']
-            self.update_policy_families(quantile)
-            for mun in self.policy_families.keys():
-                self.policy_families[mun] = [f for f in self.policy_families[mun] if f.house.rural]
-            self.buy_houses_give_to_families()
+            # self.policy_money = self.mcmv.update_policy_money(self.sim.clock.year, 'rural')
+            # quantile = self.sim.PARAMS['INCOME_MODALIDADES']['rural']
+            # self.update_policy_families(quantile)
+            # for mun in self.policy_families.keys():
+            #     self.policy_families[mun] = [f for f in self.policy_families[mun] if f.house.rural]
+            # self.buy_houses_give_to_families()
         if self.sim.PARAMS['POLICY_MELHORIAS']:
             self.policy_money = self.mcmv.update_policy_money(self.sim.clock.year, 'melhorias')
+            self.allocated_money += sum(self.policy_money.values())
             quantile = self.sim.PARAMS['INCOME_MODALIDADES']['melhorias']
             self.update_policy_families(quantile)
             for mun in self.policy_families.keys():
@@ -113,7 +117,11 @@ class Funds:
                 self.pay_families_rent()
             elif self.sim.PARAMS['POLICIES'] == 'wage':
                 self.distribute_funds_to_families()
+
+        if self.allocated_money:
+            self.perc_policy_money_spent = (self.allocated_money - self.money_applied_policy) / self.allocated_money
         # Resetting lists for next month
+        self.allocated_money = 0
         self.policy_families = defaultdict(list)
         self.temporary_houses = defaultdict(list)
 
