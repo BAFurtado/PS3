@@ -179,7 +179,7 @@ class Statistics(object):
         # Compute metrics using NumPy
         avg_house_price = np.mean(house_prices)
         avg_rent_price = np.mean(rent_prices[has_rent_data]) if np.any(has_rent_data) else 0
-        median_quality = np.median(house_qualities) if n_houses > 0 else 0
+        mean_quality = np.mean(house_qualities) if n_houses > 0 else 0
         vacancy_rate = np.sum(is_vacant) / n_houses if n_houses > 0 else 0
         self.vacancy_rate = vacancy_rate
 
@@ -187,14 +187,14 @@ class Statistics(object):
         logger.info(f'Vacant houses {np.sum(is_vacant):,.0f}')
         logger.info(f'Total houses {n_houses:,.0f}')
         logger.info(f'Average house prices {avg_house_price:,.2f}')
-        logger.info(f'Median house quality {median_quality:,.2f}')
+        logger.info(f'Mean house quality {mean_quality:,.2f}')
 
         return {
             "average_house_price": avg_house_price,
             "average_rent_price": avg_rent_price,
             "vacancy_rate": vacancy_rate,
-            "median_quality": median_quality,
-            "numero_domicilios": n_houses,
+            "mean_quality": mean_quality,
+            "number_domiciles": n_houses,
         }
 
     def update_GDP_capita(self, firms, mun_id, mun_pop):
