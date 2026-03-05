@@ -301,7 +301,8 @@ class Simulation:
         # Accessing dictionary parameters outside the loop for performance
         tax_labor = self.PARAMS["TAX_LABOR"]
         tax_firm = self.PARAMS["TAX_FIRM"]
-        tax_emission = self.PARAMS["TAX_EMISSION"]
+        is_policy_active = self.clock.days > self.PARAMS['STARTING_DAY'] + datetime.timedelta(self.PARAMS['ECO_POLICY_DAYS'])
+        tax_emission = self.PARAMS["TAX_EMISSION"] if is_policy_active else 0
         relevance_unemployment = self.PARAMS["RELEVANCE_UNEMPLOYMENT_SALARIES"]
         sticky = self.PARAMS["STICKY_PRICES"]
         markup = self.PARAMS["MARKUP"]

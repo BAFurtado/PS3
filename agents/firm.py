@@ -161,14 +161,11 @@ class Firm:
         eco_investment, paid_subsidies = self.decision_on_eco_efficiency(regional_market)
 
         # Check if firm has enough balance
-        if self.total_balance >= eco_investment and self.total_balance > 0:
-            self.total_balance -= eco_investment
-        else:
-            eco_investment = self.total_balance
-            self.total_balance = 0
+        eco_investment = max(0, min(self.total_balance, eco_investment))
+        self.total_balance -= eco_investment
 
-        params = regional_market.sim.PARAMS
         # Stochastic process to actually reduce firm-level parameter
+        params = regional_market.sim.PARAMS
         p_success = self.probability_success(eco_investment,params['ECO_INVESTMENT_LAMBDA']) #regional_market.
         random_value = seed_np.rand()
         if p_success>random_value:
@@ -187,6 +184,7 @@ class Firm:
         Also accounts for possible environmental policies
         """
         params = regional_market.sim.PARAMS
+        today = regional_market.sim.clock.days
         ## Calculate expected emission cost with adaptative expectations
         # Tax cost
         tax_cost = self.emission_taxes_paid
@@ -200,9 +198,13 @@ class Firm:
         # TODO: Define wether costs are linear or not: we can make any function over total_emission and have
         # expected_cost_reduction = cost(last_emissions)-cost((1-delta)*last_emissions)
         expected_cost_reduction = (1-params['ENVIRONMENTAL_EFFICIENCY_STEP']) * total_cost
-
+        # Skip if within grace period
+        is_policy_active = today > params['STARTING_DAY'] + datetime.timedelta(params['ECO_POLICY_DAYS'])
+        eco_lambda = params['ECO_INVESTMENT_LAMBDA']
+        subsidies = params['ECO_INVESTMENT_SUBSIDIES'] if is_policy_active else 0
+          
+            
         # Profit maximization formula yields the formula below
-        eco_lambda, subsidies = params['ECO_INVESTMENT_LAMBDA'], params['ECO_INVESTMENT_SUBSIDIES']
         if self.wages_paid>0:
             investment_per_wages_paid = (np.log(
                                             eco_lambda*expected_cost_reduction/((1-subsidies)*self.wages_paid))*
