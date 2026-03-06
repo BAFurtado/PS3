@@ -77,7 +77,9 @@ OUTPUT_DATA_SPEC = {
                     'affordability_decis_8',
                     'affordability_decis_9',
                     'affordability_decis_10',
-                    'affordability_median'
+                    'affordability_median',
+                    'perc_fgts_used',
+                    'perc_sbpe_used'
                     ]
     },
     'families': {
@@ -225,6 +227,11 @@ class Output:
         for k in ['equally', 'locally', 'fpm']:
             mun_applied_treasure[k] = sum(r.applied_treasure[k] for r in sim.regions.values())
         emissions_fund = sum(r.cumulative_treasure['emissions'] for r in sim.regions.values())
+        perc_fgts, perc_sbpe = sim.central.funding_usage_month(
+            sim.clock.year,
+            sim.clock.months,
+            sim.regions.values()
+        )
         # External
         ext_amount_sold = sim.external.get_external_amount_sold()
 
@@ -271,6 +278,8 @@ class Output:
             "emissions_fund": emissions_fund,
             "ext_amount_sold": ext_amount_sold,
             "affordability_median": families_results["median_affordability"],
+            "perc_fgts_used": perc_fgts,
+            "perc_sbpe_used": perc_sbpe,
         }
 
         for i, v in enumerate(affordability_decis, start=1):

@@ -167,7 +167,10 @@ class Plotter:
                 'equally', 'locally', 'fpm', 'bank',
                 'emissions_fund',
                 'affordability_median',
-                'ext_amount_sold']
+                'ext_amount_sold',
+                'perc_fgts_used',
+                'perc_sbpe_used'
+                ]
         titles = ['Total population', 'Average goods and services prices\' level', 'GDP absolute value',
                   'GDP growth in monthly perc.',
                   'Unemployment',
@@ -198,6 +201,8 @@ class Plotter:
                   'Fund from taxes on emissions and subsidies on innovation efficiency',
                   'Affordability median',
                   'Total amount of intermediate goods sold by other metropolis',
+                  'Percentual of FGTS used',
+                  'Percentual of SBPE used'
                   ]
 
         # General plotting

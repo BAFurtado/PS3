@@ -77,15 +77,34 @@ class Central:
         self.i_fgts = 0
         self._outstanding_loans = 0
         # IBGE codes got only 6 digits
-        funding_data = pd.read_csv('input/planhab_funds/fgts_sbpe_pct_{scenario}.csv'.format(scenario=conf.PARAMS['HOUSING_POLICY']))
+        funding_data = pd.read_csv(f'input/planhab_funds/fgts_sbpe_pct_{conf.PARAMS['HOUSING_POLICY']}.csv')
         self.funding = (funding_data.set_index(['ano', 'cod_ibge'])[['recursos_sbpe', 'recursos_fgts']]
                         .to_dict(orient='index'))
+        self.monthly_funding_available = defaultdict(float)
+        self.monthly_funding_used = defaultdict(float)
         self.tax_firm = conf.PARAMS['TAX_FIRM']
 
         self.loan_to_income = conf.PARAMS['LOAN_PAYMENT_TO_PERMANENT_INCOME']
 
         # Track remaining loan balances
         self.loans = defaultdict(list)
+
+    def funding_usage_month(self, year, month, regions):
+        fgts_used = 0
+        fgts_avail = 0
+        sbpe_used = 0
+        sbpe_avail = 0
+        for r in regions:
+            fgts_used += self.monthly_funding_used.get((year, month, int(r.id[:6]), 'recursos_fgts'), 0)
+            fgts_avail += self.monthly_funding_available.get((year, month, int(r.id[:6]), 'recursos_fgts'), 0)
+
+            sbpe_used += self.monthly_funding_used.get((year, month, int(r.id[:6]), 'recursos_sbpe'), 0)
+            sbpe_avail += self.monthly_funding_available.get((year, month, int(r.id[:6]), 'recursos_sbpe'), 0)
+
+        perc_fgts = fgts_used / fgts_avail if fgts_avail > 0 else 0
+        perc_sbpe = sbpe_used / sbpe_avail if sbpe_avail > 0 else 0
+
+        return perc_fgts, perc_sbpe
 
     def set_interest(self, interest, mortgage, sbpe, fgts):
         self.interest, self.mortgage_rate, self.i_sbpe, self.i_fgts = interest, mortgage, sbpe, fgts
@@ -184,7 +203,7 @@ class Central:
             return min(amounts), max(amounts), mean
         return 0, 0, 0
 
-    def request_loan(self, family, house, amount, ano):
+    def request_loan(self, family, house, amount, ano, month):
         # Bank endogenous criteria
         # Can't loan more than on hand
         # Returns SUCCESS in Loan, adds loan and returns authorized value.
@@ -231,8 +250,11 @@ class Central:
         if family.loan_rate == 'market':
             self.balance -= amount
         else:
+            region = int(house.region_id[:6])
             loan_type = 'recursos_'+family.loan_rate
-            self.funding[(ano, int(house.region_id[:6]))][loan_type] -= amount
+            self.funding[(ano, region)][loan_type] -= amount
+            # Register money loaned from fund
+            self.monthly_funding_used[(ano, month, region, loan_type)] += amount
         self._outstanding_loans += amount
         return True, amount
 

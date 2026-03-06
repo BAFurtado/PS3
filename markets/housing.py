@@ -82,10 +82,11 @@ class HousingMarket:
         # Update funding
         for r in regions:
             for loan_type in ['recursos_fgts', 'recursos_sbpe',]:
-                sim.central.funding[(sim.clock.year,
-                                     r)][loan_type] = max(0,
-                                                          self.policy_percentages[(sim.clock.year, r)][loan_type]
-                                                          * sim.stats.last_gdp[r])
+                value = max(0,
+                            self.policy_percentages[(sim.clock.year, r)][loan_type]
+                            * sim.stats.last_gdp[r])
+                sim.central.funding[(sim.clock.year, r)][loan_type] = value
+                sim.central.monthly_funding_available[(sim.clock.year, sim.clock.months, r, loan_type)] = value
 
         # Update prices of all houses in the simulation and status 'on_market' or not
         self.update_for_sale(sim)
@@ -244,7 +245,7 @@ class HousingMarket:
 
                 # Attempt to actually get the loan from the bank
                 success, amount = sim.central.request_loan(
-                    family, house, loan_amount, sim.clock.year
+                    family, house, loan_amount, sim.clock.year, sim.clock.months
                 )
                 if not success:
                     # Just one shot at getting a loan
