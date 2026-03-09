@@ -262,6 +262,35 @@ def sensitivity(ctx, params):
             p_name = "_".join(keys)
             p_vals = list(my_dict.values())
 
+        elif "PLANHAB" in param:
+            flag = True
+            cities = param.split('-')[1:]
+            capitais = [
+                'ARACAJU', 'BELEM', 'BELO HORIZONTE', 'BRASILIA', 'CAMPO GRANDE',
+                'CUIABA', 'CURITIBA', 'FLORIANOPOLIS', 'FORTALEZA', 'GOIANIA',
+                'JOAO PESSOA', 'MACAPA', 'MACEIO', 'MANAUS', 'NATAL',
+                'PORTO ALEGRE', 'RECIFE', 'SALVADOR', 'SAO LUIS', 'TERESINA', 'VITORIA'
+            ]
+            if cities[0].lower() == "capitais":
+                cities = capitais
+            my_dict = {
+                "PROCESSING_ACPS": [[c] for c in cities],
+                "POLICY_MCMV": [True, False],
+                "POLICY_MELHORIAS": [True, False],
+                "FUNDING_AVAILABILITY": [
+                    "pessimista",
+                    "tendencial",
+                    "otimista"
+                ]
+            }
+
+            keys, values = zip(*my_dict.items())
+            permutations_dicts = [
+                dict(zip(keys, v))
+                for v in itertools.product(*values)
+            ]
+            p_name = "PLANHAB"
+            p_vals = list(my_dict.values())
         else:
             p_name = param
             p_vals = [True, False]
