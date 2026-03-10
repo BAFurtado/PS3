@@ -16,6 +16,8 @@ class Funds:
         self.money_applied_policy = 0
         self.mun_gov_firms = defaultdict(list)
         self.gov_consumption_parameter = self.sim.regional_market.final_demand['GovernmentConsumption']['Government']
+        self.perc_policy_money_spent = 0
+        self.allocated_money = 0
         if sim.PARAMS['FPM_DISTRIBUTION']:
             self.fpm = {
                 state: pd.read_csv('input/fpm/%s.csv' % state, sep=',', header=0, decimal='.', encoding='latin1')
@@ -24,8 +26,7 @@ class Funds:
             self.policy_money = defaultdict(float)
             self.policy_families = defaultdict(list)
             self.temporary_houses = defaultdict(list)
-            self.allocated_money = 0
-            self.perc_policy_money_spent = 0
+
         if sim.PARAMS['POLICY_MCMV'] or sim.PARAMS['POLICY_MELHORIAS']:
             # Collect money from exogenous funding
             self.mcmv = MCMV(sim)
