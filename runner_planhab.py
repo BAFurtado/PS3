@@ -11,9 +11,9 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 PYTHON = "python"
 MAIN = "main.py"
 
-RUNS = 5
-CPUS_PER_RUN = 6         # internal parallelism inside main.py
-MAX_PARALLEL_RUNS = 3     # number of simultaneous OS processes
+RUNS = 1
+CPUS_PER_RUN = 1         # internal parallelism inside main.py
+MAX_PARALLEL_RUNS = 14     # number of simultaneous OS processes
 
 LOG_DIR = pathlib.Path("logs/planhab")
 LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -22,7 +22,7 @@ CAPITAIS = [
     'ARACAJU',
     'BELEM',
     'BELO HORIZONTE',
-    'BOA VISTA',
+    # 'BOA VISTA',
     'BRASILIA',
     'CAMPO GRANDE',
     'CUIABA',

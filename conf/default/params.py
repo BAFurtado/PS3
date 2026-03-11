@@ -11,7 +11,7 @@ PRODUCTIVITY_MAGNITUDE_DIVISOR = .85
 # INTEREST. Choose either: 'nominal', 'real' or 'fixed'. Default 'real'
 # FOR CENARIOS PLANHAB, choose either interests: 'alta', 'media' ou 'baixa'
 # Assumption. Mortgage assumed lower than SELIC (general rate).
-INTEREST = "baixa"
+INTEREST = "media"
 # By how much percentage to increase prices
 MARKUP = 0.07
 # Frequency firms change prices. Probability < than parameter
@@ -65,10 +65,8 @@ POLICY_MCMV_PERCENTAGE = 0.01
 MODEL_MONETARY_SCALING = 1000
 TOTAL_TARGETING_POLICY = False
 
-# HOUSING_POLICY can be ('baseline', ) and indicates the amount
-HOUSING_POLICY = 'baseline'
-# HOUSING_INTEREST now set with different datasets, but with the same reference as interests (alta, media, baixa)
-# Quantiles for families to be included in the different programs
+# FUNDS AVAILABILITY can be 'otimista', 'tendencial' or 'pessimista' [positive, tendencial or negative perspectives]
+FUNDS_AVAILABILITY = 'tendencial'
 INCOME_MODALIDADES = {'faixa1': .38,
                       'rural': .38,
                       'melhorias': .38,

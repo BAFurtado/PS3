@@ -77,7 +77,7 @@ class Central:
         self.i_fgts = 0
         self._outstanding_loans = 0
         # IBGE codes got only 6 digits
-        funding_data = pd.read_csv(f'input/planhab_funds/fgts_sbpe_pct_{conf.PARAMS['HOUSING_POLICY']}.csv')
+        funding_data = pd.read_csv(f'input/planhab_funds/fgts_sbpe_pct_{conf.PARAMS['FUNDS_AVAILABILITY']}.csv')
         self.funding = (funding_data.set_index(['ano', 'cod_ibge'])[['recursos_sbpe', 'recursos_fgts']]
                         .to_dict(orient='index'))
         self.monthly_funding_available = defaultdict(float)
