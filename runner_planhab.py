@@ -11,11 +11,11 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 PYTHON = "python"
 MAIN = "main.py"
 
-RUNS = 1
-CPUS_PER_RUN = 1         # internal parallelism inside main.py
-MAX_PARALLEL_RUNS = 14     # number of simultaneous OS processes
+RUNS = 3
+CPUS_PER_RUN = 3         # internal parallelism inside main.py
+MAX_PARALLEL_RUNS = 3     # number of simultaneous OS processes
 
-LOG_DIR = pathlib.Path("logs/planhab")
+LOG_DIR = pathlib.Path("logs/processing_acps")
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 CAPITAIS = [
@@ -67,7 +67,8 @@ def build_command(city):
         "-n", str(RUNS),
         "-c", str(CPUS_PER_RUN),
         "sensitivity",
-        f"PLANHAB-{city}"
+        # f"PLANHAB-{city}",
+        f"PROCESSING_ACP-{city}"
     ]
 
 # ---------------------------------------------------------------------

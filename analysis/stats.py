@@ -146,6 +146,7 @@ class Statistics(object):
             gdp_month = total_gdp - previous_total_gdp
             gdp_growth = ((total_gdp - previous_total_gdp) / previous_total_gdp)
         else:
+            gdp_month = 0
             gdp_growth = 0.0
 
         logger.info(f'GDP growth: {gdp_growth * 100:.2f}%')
