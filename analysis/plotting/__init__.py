@@ -147,7 +147,12 @@ class Plotter:
                 dats_q3 = [self._prepare_data(os.path.join(temp_path, 'q3_stats.csv'),
                                               dats[0].columns).set_index('month')]
 
-        cols = ['pop', 'price_index', 'gdp_index', 'gdp_growth', 'unemployment', 'median_workers',
+        cols = ['pop', 'price_index',
+                'gdp_index',
+                'gdp_growth',
+                'gdp_month',
+                'unemployment',
+                'median_workers',
                 'num_workers',
                 'families_median_wealth',
                 'families_wages_received',
@@ -160,7 +165,8 @@ class Plotter:
                 'firms_profit', 'firms_median_stock', 'firms_avg_eco_eff', 'firms_median_wage_paid',
                 'firms_median_innovation_investment', 'emissions',
                 'gini_index',
-                'average_utility', 'pct_zero_consumption', 'rent_default', 'inflation', 'average_qli', 'house_vacancy',
+                'average_utility',
+                'pct_zero_consumption', 'rent_default', 'inflation', 'average_qli', 'house_vacancy',
                 'house_price', 'house_rent', 'house_quality',
                 'number_domiciles',
                 'affordable', 'p_delinquent',
@@ -171,8 +177,10 @@ class Plotter:
                 'perc_fgts_used',
                 'perc_sbpe_used'
                 ]
-        titles = ['Total population', 'Average goods and services prices\' level', 'GDP absolute value',
+        titles = ['Total population', 'Average goods and services prices\' level',
+                  'GDP absolute value',
                   'GDP growth in monthly perc.',
+                  'Metropolitan region monthly GDP',
                   'Unemployment',
                   'Average workers per firm',
                   'Number of workers',

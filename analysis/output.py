@@ -31,6 +31,7 @@ OUTPUT_DATA_SPEC = {
                     'price_index',
                     'gdp_index',
                     'gdp_growth',
+                    'gdp_month',
                     'unemployment',
                     'median_workers',
                     "num_workers",
@@ -207,7 +208,7 @@ class Output:
 
         firm_results = sim.stats.calculate_firms_metrics(sim.firms)
         price_index, inflation = sim.stats.update_price(sim.firms)
-        gdp_index, gdp_growth = sim.stats.calculate_gdp_and_eco_efficiency(sim.firms, sim.regions)
+        gdp_index, gdp_growth, gdp_month = sim.stats.calculate_gdp_and_eco_efficiency(sim.firms, sim.regions)
         unemployment = sim.stats.update_unemployment(sim.agents.values(), True, True)
 
         families_results = sim.stats.calculate_families_metrics(sim.families)
@@ -241,6 +242,7 @@ class Output:
             "price_index": price_index,
             "gdp_index": gdp_index,
             "gdp_growth": gdp_growth,
+            "gdp_month": gdp_month,
             "unemployment": unemployment,
             "median_workers": firm_results["workers"],
             "num_workers": firm_results["num_workers"],

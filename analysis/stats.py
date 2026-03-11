@@ -143,13 +143,14 @@ class Statistics(object):
 
         # --- GDP growth (percentage) ---
         if previous_total_gdp > 0:
+            gdp_month = total_gdp - previous_total_gdp
             gdp_growth = ((total_gdp - previous_total_gdp) / previous_total_gdp)
         else:
             gdp_growth = 0.0
 
         logger.info(f'GDP growth: {gdp_growth * 100:.2f}%')
 
-        return total_gdp, gdp_growth
+        return total_gdp, gdp_growth, gdp_month
 
     def calculate_avg_regional_house_price(self, regional_families):
         if regional_families:
