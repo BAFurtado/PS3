@@ -34,9 +34,14 @@ def safe_ratio(num, den):
     return r.replace([np.inf, -np.inf], np.nan)
 
 
-def compute_indicators(df):
+def compute_indicators(df, month_cut_off='2025-01-01'):
 
     results = {}
+    df["month"] = pd.to_datetime(df["month"])
+
+    if month_cut_off:
+        cutoff = pd.Timestamp("2025-01-01")
+        df = df[df["month"] < cutoff]
 
     # -------------------------------------------------
     # GDP LEVEL (reconstruct from monthly change)
@@ -80,8 +85,8 @@ def compute_indicators(df):
         wage_per_worker
     )
 
-    results["price_wage_min"] = price_wage.min()
-    results["price_wage_max"] = price_wage.max()
+    results["price_wage_p10"] = price_wage.quantile(0.10)
+    results["price_wage_p90"] = price_wage.quantile(0.90)
     results["price_wage_median"] = price_wage.median()
 
     # -------------------------------------------------
@@ -138,20 +143,22 @@ def aggregate_runs(results_list):
     return df.mean()
 
 
-def write_csv(summary):
+def write_csv(summary, suffix=""):
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
     out = summary.reset_index()
     out.columns = ["indicator", "value"]
 
-    path = OUT_DIR / "housing_validation_results.csv"
+    filename = f"housing_validation_results{suffix}.csv"
+    path = OUT_DIR / filename
+
     out.to_csv(path, index=False)
 
     return path
 
 
-def write_latex(summary):
+def write_latex(summary, suffix=""):
 
     table = f"""
 \\begin{{tabular}}{{lcc}}
@@ -159,17 +166,18 @@ def write_latex(summary):
 Indicador & Modelo & Brasil (aprox.) \\\\
 \\hline
 Estoque imobiliário / PIB & {summary['housing_stock_gdp_mean']:.2f} & 1.5--2.5 \\\\
-Preço / salário mensal (trabalhador) & {summary['price_wage_min']:.0f}--{summary['price_wage_max']:.0f} & 40--90 \\\\
+Preço / salário mensal (trabalhador) & {summary['price_wage_p10']:.0f}--{summary['price_wage_p90']:.0f} & 40--90 \\\\
 Preço / renda anual familiar & {summary['price_income_mean']:.2f} & 6--12 \\\\
 Produção habitacional (por 1000 hab) & {summary['housing_production_per_1000_mean']:.2f} & 2--4 \\\\
 Consumo / PIB & {summary['consumption_gdp_mean']:.2f} & 0.55--0.65 \\\\
 Vacância habitacional & {summary['vacancy_mean']:.2f} & 0.08--0.12 \\\\
-Estoque imobiliário / renda das famílias & {summary['housing_stock_income_mean']:.2f} & --- \\\\
+Estoque imobiliário / renda das famílias & {summary['housing_stock_income_mean']:.2f} & 5--8 \\\\
 \\hline
 \\end{{tabular}}
 """
 
-    path = OUT_DIR / "housing_validation_table.tex"
+    filename = f"housing_validation_table{suffix}.tex"
+    path = OUT_DIR / filename
 
     with open(path, "w") as f:
         f.write(table)
@@ -177,7 +185,7 @@ Estoque imobiliário / renda das famílias & {summary['housing_stock_income_mean
     return path
 
 
-def main():
+def main(month_cut_off=None, suffix=""):
 
     files = find_stats_files()
     if not files:
@@ -187,13 +195,13 @@ def main():
 
     for f in files:
         df = load_stats(f)
-        indicators = compute_indicators(df)
+        indicators = compute_indicators(df, month_cut_off)
         results.append(indicators)
 
     summary = aggregate_runs(results)
 
-    csv_path = write_csv(summary)
-    tex_path = write_latex(summary)
+    csv_path = write_csv(summary, suffix)
+    tex_path = write_latex(summary, suffix)
 
     print("\nHousing validation summary\n")
     print(summary)
@@ -204,4 +212,12 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+
+    cut_off = "2025-01-01"
+
+    print("\nRunning FULL sample validation\n")
+    main(month_cut_off=None, suffix="_full")
+
+    print("\nRunning PRE-2025 validation\n")
+    main(month_cut_off=cut_off, suffix="_pre_2025")
+
