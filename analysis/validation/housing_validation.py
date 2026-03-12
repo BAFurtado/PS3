@@ -72,7 +72,7 @@ def compute_indicators(df):
 
     wage_per_worker = safe_ratio(
         df["firms_median_wage_paid"],
-        df["firms_median_workers"]
+        df["workers"]
     )
 
     price_wage = safe_ratio(
