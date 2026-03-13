@@ -175,7 +175,13 @@ class Plotter:
                 'affordability_median',
                 'ext_amount_sold',
                 'perc_fgts_used',
-                'perc_sbpe_used'
+                'perc_sbpe_used',
+                "active_loans",
+                "loan_requested",
+                "loan_approved",
+                "loan_approval_rate",
+                "credit_stock",
+                "bank_balance",
                 ]
         titles = ['Total population', 'Average goods and services prices\' level',
                   'GDP absolute value',
@@ -210,7 +216,13 @@ class Plotter:
                   'Affordability median',
                   'Total amount of intermediate goods sold by other metropolis',
                   'Percentual of FGTS used',
-                  'Percentual of SBPE used'
+                  'Percentual of SBPE used',
+                  "Active number of loans",
+                  "Number of loans requested",
+                  "Number of loans approved",
+                  "Loans approval rate",
+                  "Amount of credit loaned (outstanding loans)",
+                  "Bank balance",
                   ]
 
         # General plotting

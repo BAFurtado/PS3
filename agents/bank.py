@@ -75,6 +75,7 @@ class Central:
         self.mortgage_rate = 0
         self.i_sbpe = 0
         self.i_fgts = 0
+        self.loan_stats = defaultdict(int)
         self._outstanding_loans = 0
         # IBGE codes got only 6 digits
         funding_data = pd.read_csv(f'input/planhab_funds/fgts_sbpe_pct_{conf.PARAMS['FUNDS_AVAILABILITY']}.csv')
@@ -204,39 +205,50 @@ class Central:
         return 0, 0, 0
 
     def request_loan(self, family, house, amount, ano, month):
+
+        # register loan request
+        self.loan_stats["requested"] += 1
+
         # Bank endogenous criteria
-        # Can't loan more than on hand
-        # Returns SUCCESS in Loan, adds loan and returns authorized value.
         if family.loan_rate == 'market':
             if amount > self.balance:
+                self.loan_stats["denied_balance"] += 1
                 return False, None
         else:
             loan_type = "recursos_" + family.loan_rate
             region = int(house.region_id[:6])
             try:
                 if amount > self.funding[(ano, region)][loan_type]:
+                    self.loan_stats[f"denied_{loan_type}"] += 1
                     return False, None
             except KeyError:
+                self.loan_stats["denied_funding_keyerror"] += 1
                 return False, None
+
         # If they have outstanding loans, don't lend
         if self.loans[family.id]:
+            self.loan_stats["denied_existing_loan"] += 1
             return False, None
 
         # Can't loan more than x% of total balance
         if self._outstanding_loans + amount > self.balance * conf.PARAMS['MAX_LOAN_BANK_PERCENT']:
+            self.loan_stats["denied_bank_limit"] += 1
             return False, None
 
         # Get info considering family
         max_amount, max_months = self.max_loan(family, flag=family.loan_rate)
         amount = min(amount, max_amount)
-        # Criteria related to consumer. Check payments fit last months' paycheck
+
+        # Criteria related to consumer
         monthly_payment = self._max_monthly_payment(family)
-        # Probability of giving loan depends on amount compared to family wealth. Credit check
+
         if amount / max_months > monthly_payment:
+            self.loan_stats["denied_affordability"] += 1
             return False, None
 
-        # Add loan balance
-        # Create a new loan for the family
+        # --- loan approved ---
+        self.loan_stats["approved"] += 1
+
         rate = {
             'market': self.mortgage_rate,
             'sbpe': self.i_sbpe,
@@ -251,11 +263,14 @@ class Central:
             self.balance -= amount
         else:
             region = int(house.region_id[:6])
-            loan_type = 'recursos_'+family.loan_rate
+            loan_type = 'recursos_' + family.loan_rate
             self.funding[(ano, region)][loan_type] -= amount
+
             # Register money loaned from fund
             self.monthly_funding_used[(ano, month, region, loan_type)] += amount
+
         self._outstanding_loans += amount
+
         return True, amount
 
     def _max_monthly_payment(self, family):

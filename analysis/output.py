@@ -80,7 +80,13 @@ OUTPUT_DATA_SPEC = {
                     'affordability_decis_10',
                     'affordability_median',
                     'perc_fgts_used',
-                    'perc_sbpe_used'
+                    'perc_sbpe_used',
+                    "active_loans",
+                    "loan_requested",
+                    "loan_approved",
+                    "loan_approval_rate",
+                    "credit_stock",
+                    "bank_balance",
                     ]
     },
     'families': {
@@ -282,6 +288,13 @@ class Output:
             "affordability_median": families_results["median_affordability"],
             "perc_fgts_used": perc_fgts,
             "perc_sbpe_used": perc_sbpe,
+            "active_loans": n_active,
+            "loan_requested": bank.loan_stats["requested"],
+            "loan_approved": bank.loan_stats["approved"],
+            "loan_approval_rate": bank.loan_stats["approved"] / bank.loan_stats["requested"] if bank.loan_stats[
+                "requested"] else 0,
+            "credit_stock": bank._outstanding_loans,
+            "bank_balance": bank.balance,
         }
 
         for i, v in enumerate(affordability_decis, start=1):
