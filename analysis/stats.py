@@ -115,6 +115,7 @@ class Statistics(object):
 
         # Accumulators per region
         region_revenue_sum = defaultdict(float)
+        region_input_sum = defaultdict(float)
         region_eco_eff_sum = defaultdict(float)
         region_firm_count = defaultdict(int)
 
@@ -122,6 +123,7 @@ class Statistics(object):
         for firm in firms.values():
             rid = firm.region_id
             region_revenue_sum[rid] += firm.revenue
+            region_input_sum[rid] += firm.input_cost
             region_eco_eff_sum[rid] += firm.env_efficiency
             region_firm_count[rid] += 1
 
@@ -131,7 +133,7 @@ class Statistics(object):
             count = region_firm_count.get(rid, 0)
 
             if count > 0:
-                region.gdp = region_revenue_sum[rid]
+                region.gdp = region_revenue_sum[rid] - region_input_sum[rid]
                 region.avg_eco_eff = region_eco_eff_sum[rid] / count
             else:
                 region.gdp = 0.0
