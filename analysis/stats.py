@@ -139,7 +139,7 @@ class Statistics(object):
                 region.gdp = 0.0
                 region.avg_eco_eff = 0.0
 
-            # Store MODEL GDP only (no scaling)
+            # Store GDP
             self.last_gdp[int(rid[:6])] += region.gdp
             total_gdp += region.gdp
 

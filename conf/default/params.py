@@ -6,7 +6,7 @@ import datetime
 # Production function, labor with decaying exponent, Alpha for K. [0, 1]
 PRODUCTIVITY_EXPONENT = .6
 # Order of magnitude correction of production. Production divided by parameter
-PRODUCTIVITY_MAGNITUDE_DIVISOR = .7
+PRODUCTIVITY_MAGNITUDE_DIVISOR = .8
 # GENERAL CALIBRATION PARAMETERS
 # INTEREST. Choose either: 'nominal', 'real' or 'fixed'. Default 'real'
 # FOR CENARIOS PLANHAB, choose either interests: 'alta', 'media' ou 'baixa'
@@ -200,7 +200,7 @@ PERCENTAGE_ACTUAL_POP = 0.01
 MUNICIPAL_EFFICIENCY_MANAGEMENT = 1e-07
 
 # Write exactly like the list below
-PROCESSING_ACPS = ["IPATINGA"]
+PROCESSING_ACPS = ["FORTALEZA"]
 
 # Selecting the starting year to build the Agents can be: 1991, 2000 or 2010
 STARTING_DAY = datetime.date(2010, 1, 1)
