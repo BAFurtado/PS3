@@ -271,9 +271,8 @@ def sensitivity(ctx, params):
                 cities = capitais
             my_dict = {
                 "PROCESSING_ACPS": [[c] for c in cities],
-                "POLICY_MCMV": [True, False],
                 "POLICY_MELHORIAS": [True, False],
-                "FUNDING_AVAILABILITY": [
+                "FUNDS_AVAILABILITY": [
                     "pessimista",
                     "tendencial",
                     "otimista"

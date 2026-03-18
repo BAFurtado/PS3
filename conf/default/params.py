@@ -64,7 +64,8 @@ POLICY_MCMV = True
 OGU_INVESTMENT = {'otimista': .25,
                   'tendencial': .09,
                   'pessimista': .04}
-# FUNDS AVAILABILITY can be 'otimista', 'tendencial' or 'pessimista' [positive, tendencial or negative perspectives]
+# FUNDS AVAILABILITY can be 'otimista', 'tendencial' or 'pessimista' [positive, tendencial or negative perspectives].
+# NOTICE: It interferes on both OGU investment and FGTS AND SBPE investments
 FUNDS_AVAILABILITY = 'tendencial'
 INCOME_MODALIDADES = {'faixa1': .38,
                       # 'rural': .38,
