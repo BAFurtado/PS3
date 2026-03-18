@@ -61,18 +61,18 @@ POLICIES = "no_policy"
 
 # POLICY_MCMV indicates whether MCMV is active
 POLICY_MCMV = True
-POLICY_MCMV_PERCENTAGE = 0.01
-MODEL_MONETARY_SCALING = 1000
-TOTAL_TARGETING_POLICY = False
-
+OGU_INVESTMENT = {'otimista': .25,
+                  'tendencial': .09,
+                  'pessimista': .04}
 # FUNDS AVAILABILITY can be 'otimista', 'tendencial' or 'pessimista' [positive, tendencial or negative perspectives]
 FUNDS_AVAILABILITY = 'tendencial'
 INCOME_MODALIDADES = {'faixa1': .38,
-                      'rural': .38,
+                      # 'rural': .38,
                       'melhorias': .38,
                       'fgts': .65,
                       'sbpe': .85
                       }
+TOTAL_TARGETING_POLICY = False
 POLICY_MELHORIAS = True
 UPGRADE_COST = .2
 POLICY_DAYS = 360

@@ -81,9 +81,9 @@ class Funds:
         if not self.needs_policy_funding():
             # Baseline scenario. Do nothing!
             return
-        # Implement policies only after first year of simulation run
-        if self.sim.clock.days < self.sim.PARAMS['STARTING_DAY'] + datetime.timedelta(360):
-            return
+        # Implement policies only after first year of simulation run. Commented for MCMV policy. Existed in 2010.
+        # if self.sim.clock.days < self.sim.PARAMS['STARTING_DAY'] + datetime.timedelta(360):
+        #     return
         # Reset indicator every month to reflect subside in a given month, mun_pops not cumulatively
         self.families_subsided = 0
 
