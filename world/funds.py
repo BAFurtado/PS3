@@ -89,7 +89,7 @@ class Funds:
 
         if self.sim.PARAMS['POLICY_MCMV']:
             # MCMV FAIXA 1
-            self.policy_money = self.mcmv.update_policy_money(self.sim.clock.year, 'faixa1')
+            self.policy_money = self.mcmv.update_policy_money(self.sim.clock.year)
             self.allocated_money += sum(self.policy_money.values())
             quantile = self.sim.PARAMS['INCOME_MODALIDADES']['faixa1']
             self.update_policy_families(quantile)
@@ -102,7 +102,7 @@ class Funds:
             #     self.policy_families[mun] = [f for f in self.policy_families[mun] if f.house.rural]
             # self.buy_houses_give_to_families()
         if self.sim.PARAMS['POLICY_MELHORIAS']:
-            self.policy_money = self.mcmv.update_policy_money(self.sim.clock.year, 'melhorias')
+            self.policy_money = self.mcmv.update_policy_money(self.sim.clock.year)
             self.allocated_money += sum(self.policy_money.values())
             quantile = self.sim.PARAMS['INCOME_MODALIDADES']['melhorias']
             self.update_policy_families(quantile)
