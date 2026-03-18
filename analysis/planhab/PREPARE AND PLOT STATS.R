@@ -460,7 +460,7 @@ prep_x <- prepare_acps_runs(
 plot_acps_policy_scenarios_prepared(
   prepared_data = prep_x,
   acps = c("ARACAJU"), #acps to plot, may plot multiple, use unique(x$processing_acps) to plot all
-  vars = c("gini_index", "unemployment", "gdp_index"), #vars to plot
+  vars = c("gini_index", "unemployment", "gdp_level"), #vars to plot
   policies_filter = c("mcmv=0,melh=0", "mcmv=1,melh=1"), #policy bundles to plot
   smoothing = list(method = "ma", k = 7), #methods: ma (use param k) or lowess (use param f. f usually around 2/3)
   policy_stats_pos = "topright"

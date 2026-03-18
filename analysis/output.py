@@ -28,13 +28,13 @@ OUTPUT_DATA_SPEC = {
         },
         'columns': ['month',
                     'pop',
-                    'price_index',
-                    'gdp_index',
-                    'gdp_growth',
-                    'gdp_month',
+                    'price_level',
+                    'gdp_level',
+                    'gdp_growth_rate',
+                    'gdp_change',
                     'unemployment',
-                    'median_workers',
-                    "num_workers",
+                    'firms_median_employment',
+                    "firms_total_employment",
                     'families_median_wealth',
                     'families_wages_received',
                     'families_commuting',
@@ -43,7 +43,7 @@ OUTPUT_DATA_SPEC = {
                     'new_families',
                     'amount_subsidised',
                     'perc_policy_money_spent',
-                    'firms_profit',
+                    'firms_total_profit',
                     'firms_median_stock',
                     'firms_avg_eco_eff',
                     'firms_median_wage_paid',
@@ -213,8 +213,8 @@ class Output:
         p_delinquent = len(bank.delinquent_loans()) / n_active if n_active else 0
 
         firm_results = sim.stats.calculate_firms_metrics(sim.firms)
-        price_index, inflation = sim.stats.update_price(sim.firms)
-        gdp_index, gdp_growth, gdp_month = sim.stats.calculate_gdp_and_eco_efficiency(sim.firms, sim.regions)
+        price_level, inflation = sim.stats.update_price(sim.firms)
+        gdp_level, gdp_growth_rate, gdp_change = sim.stats.calculate_gdp_and_eco_efficiency(sim.firms, sim.regions)
         unemployment = sim.stats.update_unemployment(sim.agents.values(), True, True)
 
         families_results = sim.stats.calculate_families_metrics(sim.families)
@@ -245,13 +245,13 @@ class Output:
         stats_row = {
             "month": sim.clock.days,
             "pop": pop,
-            "price_index": price_index,
-            "gdp_index": gdp_index,
-            "gdp_growth": gdp_growth,
-            "gdp_month": gdp_month,
+            "price_level": price_level,
+            "gdp_level": gdp_level,
+            "gdp_growth_rate": gdp_growth_rate,
+            "gdp_change": gdp_change,
             "unemployment": unemployment,
-            "median_workers": firm_results["workers"],
-            "num_workers": firm_results["num_workers"],
+            "firms_median_employment": firm_results["workers"],
+            "firms_total_employment": firm_results["firms_total_employment"],
             "families_median_wealth": families_results["median_wealth"],
             "families_wages_received": families_results["median_wages"],
             "families_commuting": commuting,
@@ -260,7 +260,7 @@ class Output:
             'new_families': families_results["new_families"],
             "amount_subsidised": amount_subsidised,
             "perc_policy_money_spent": perc_policy_money_spent,
-            "firms_profit": firm_results["aggregate_profits"],
+            "firms_total_profit": firm_results["aggregate_profits"],
             "firms_median_stock": firm_results["median_stock"],
             "firms_avg_eco_eff": firm_results["eco_efficiency"],
             "firms_median_wage_paid": firm_results["median_wages"],

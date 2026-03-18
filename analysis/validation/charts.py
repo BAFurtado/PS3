@@ -52,7 +52,7 @@ if __name__ == '__main__':
     initial_date ='2019-01-01'
     plot_variable_distribution(data,'emissions',initial_month=initial_date,save_path='PS3/analysis/validation/results/dist_emission')
     plot_variable_distribution(data,'families_wages_received',initial_month=initial_date,save_path='PS3/analysis/validation/results/dist_wages')
-    plot_variable_distribution(data,'gdp_index',initial_month=initial_date,save_path='PS3/analysis/validation/results/dist_gdp')#unemployment
+    plot_variable_distribution(data,'gdp_level',initial_month=initial_date,save_path='PS3/analysis/validation/results/dist_gdp')#unemployment
     plot_variable_distribution(data,'gini_index',initial_month=initial_date,save_path='PS3/analysis/validation/results/dist_gini')
     #plot_variable_distribution(data,'inflation',initial_month=initial_date)
 
@@ -63,7 +63,7 @@ if __name__ == '__main__':
     #                        title="Real vs. Simulated Economic Indicators",
     #                        xlabel="Economic Indicator",ylabel="Value")
     #plot_dual_variable_distribution(data,'emissions','families_wages_received',bins=10,initial_month=initial_date)
-    #plot_dual_variable_distribution(data,'emissions','gdp_index',bins=10,initial_month=initial_date)
+    #plot_dual_variable_distribution(data,'emissions','gdp_level',bins=10,initial_month=initial_date)
 
     #plot_dual_variable_distribution(data,'emissions','unemployment',bins=10,initial_month=initial_date)
 

@@ -6,23 +6,23 @@ import datetime
 # Production function, labor with decaying exponent, Alpha for K. [0, 1]
 PRODUCTIVITY_EXPONENT = .6
 # Order of magnitude correction of production. Production divided by parameter
-PRODUCTIVITY_MAGNITUDE_DIVISOR = .85
+PRODUCTIVITY_MAGNITUDE_DIVISOR = .7
 # GENERAL CALIBRATION PARAMETERS
 # INTEREST. Choose either: 'nominal', 'real' or 'fixed'. Default 'real'
 # FOR CENARIOS PLANHAB, choose either interests: 'alta', 'media' ou 'baixa'
 # Assumption. Mortgage assumed lower than SELIC (general rate).
 INTEREST = "media"
 # By how much percentage to increase prices
-MARKUP = 0.07
+MARKUP = 0.1
 # Frequency firms change prices. Probability < than parameter
-STICKY_PRICES = .9
+STICKY_PRICES = .7
 # Price ruggedness a positive value (below 1) that multiplies the magnitude of price reduction
 # Reflects a reluctance of businesses to lower prices. Amount estimated for reduction multiplied by parameter
 PRICE_RUGGEDNESS = 0.1
 # Number of firms consulted before consumption
-SIZE_MARKET = 15
+SIZE_MARKET = 5
 # Number of firms to buy from in the INTERMEDIATE market
-INTERMEDIATE_SIZE_MARKET = 15
+INTERMEDIATE_SIZE_MARKET = 10
 # Frequency firms enter the market
 LABOR_MARKET = 0.8
 # Percentage of employees' firms hired by distance
@@ -104,7 +104,7 @@ CAPPED_TOP_VALUE = 1.3
 CAPPED_LOW_VALUE = 0.7
 # Influence of vacancy size on house prices
 # It can be True or 1 or if construction companies consider vacancy strongly it might be 2 [1 - (vacancy * VALUE)]
-OFFER_SIZE_ON_PRICE = 2
+OFFER_SIZE_ON_PRICE = 3
 # TOO LONG ON THE MARKET:
 # value=(1 - MAX_OFFER_DISCOUNT) * e ** (ON_MARKET_DECAY_FACTOR * MONTHS ON MARKET) + MAX_OFFER_DISCOUNT
 # AS SUCH (-.02) DECAY OF 1% FIRST MONTH, 10% FIRST YEAR. SET TO 0 TO ELIMINATE EFFECT
@@ -114,7 +114,7 @@ MAX_OFFER_DISCOUNT = 0.6
 # How strong construction firms respond to vacancy
 BUILD_VACANCY_SENSITIVITY = 3
 # Percentage of households pursuing new location (on average families move about once every 20 years)
-PERCENTAGE_ENTERING_ESTATE_MARKET = 0.05
+PERCENTAGE_ENTERING_ESTATE_MARKET = 0.03
 NEIGHBORHOOD_EFFECT = 2
 
 # RENTAL #######################

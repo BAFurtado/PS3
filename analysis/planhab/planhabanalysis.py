@@ -82,8 +82,8 @@ if __name__ == '__main__':
     regional_stats.to_csv('regional_stats.csv', index=False)
 
     out = final_stats.groupby(by=['processing_acps', 'policy_mcmv', 'policy_melhorias', 'interest'], as_index=False)[
-        ['pop', 'price_index', 'gdp_index',
-         'unemployment', 'median_workers', 'families_median_wealth',
+        ['pop', 'price_level', 'gdp_level',
+         'unemployment', 'firms_median_employment', 'families_median_wealth',
          'gini_index',
          'pct_zero_consumption', 'rent_default', 'inflation',
          'average_qli', 'house_vacancy', 'house_price', 'house_rent', "house_quality",

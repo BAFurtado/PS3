@@ -16,11 +16,11 @@ DATA_ROOT_DIRECTORIES = [
 ]
 # List your five outcome variables here
 OUTCOME_VARIABLES_TO_PLOT = [
-    'gdp_growth',
+    'gdp_growth_rate',
     'firms_median_stock',
     'unemployment', 
-    'gdp_index',
-    'price_index',
+    'gdp_level',
+    'price_level',
     'house_price',
     'inflation'
 ]
@@ -29,10 +29,10 @@ OUTCOME_VARIABLES_TO_PLOT = [
 # Column names for the header-less stats.csv files.
 OUTPUT_DATA_SPEC = {
     'stats': {
-        'columns': ['month', 'pop', 'price_index', 'gdp_index', 'gdp_growth',
-                    'unemployment', 'median_workers', 'families_median_wealth',
+        'columns': ['month', 'pop', 'price_level', 'gdp_level', 'gdp_growth_rate',
+                    'unemployment', 'firms_median_employment', 'families_median_wealth',
                     'families_wages_received', 'families_commuting', 'families_savings',
-                    'families_helped', 'amount_subsidised', 'firms_profit',
+                    'families_helped', 'amount_subsidised', 'firms_total_profit',
                     'firms_median_stock', 'firms_avg_eco_eff', 'firms_median_wage_paid',
                     'firms_median_innovation_investment', 'emissions', 'gini_index',
                     'average_utility', 'pct_zero_consumption', 'rent_default',

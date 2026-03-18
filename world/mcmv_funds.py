@@ -27,6 +27,6 @@ class MCMV:
         muns = {int(str(mun)[:6]) for mun in self.sim.geo.mun_codes}
 
         for mun in muns:
-            self.policy_money[str(mun)] += (value * self.sim.stats.last_gdp[mun])
+            self.policy_money[str(mun)] += (value * self.sim.stats.last_gdp[mun] / 12)
 
         return self.policy_money

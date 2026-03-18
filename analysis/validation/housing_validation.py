@@ -47,7 +47,7 @@ def compute_indicators(df, month_cut_off='2025-01-01'):
     # GDP LEVEL (reconstruct from monthly change)
     # -------------------------------------------------
 
-    gdp_level = df["gdp_month"].cumsum()
+    gdp_level = df["gdp_change"]
 
     # -------------------------------------------------
     # Housing stock value
@@ -55,7 +55,7 @@ def compute_indicators(df, month_cut_off='2025-01-01'):
 
     housing_stock_value = df["number_domiciles"] * df["house_price"]
 
-    housing_to_gdp = safe_ratio(housing_stock_value, gdp_level)
+    housing_to_gdp = safe_ratio(housing_stock_value, gdp_level * 12)
 
     results["housing_stock_gdp_mean"] = housing_to_gdp.mean()
     results["housing_stock_gdp_median"] = housing_to_gdp.median()
@@ -65,7 +65,7 @@ def compute_indicators(df, month_cut_off='2025-01-01'):
     # (since model variable is income not wealth)
     # -------------------------------------------------
 
-    family_income = df["families_median_wealth"] * df["number_domiciles"]
+    family_income = df["families_median_wealth"] * 12 * df["number_domiciles"]
 
     housing_income_ratio = safe_ratio(housing_stock_value, family_income)
 
@@ -77,7 +77,7 @@ def compute_indicators(df, month_cut_off='2025-01-01'):
 
     wage_per_worker = safe_ratio(
         df["firms_median_wage_paid"],
-        df["median_workers"]
+        df["firms_median_employment"]
     )
 
     price_wage = safe_ratio(
