@@ -102,7 +102,9 @@ class Family:
         """Withdraws total available balance of the family"""
         s = self.savings
         self.savings = 0
-        s += bank.withdraw(self, y, m)
+        if bank.wallet.get(self):
+            self.bank_savings = 0
+            s += bank.withdraw(self, y, m)
         return s
 
     def get_wealth(self, bank):
@@ -214,14 +216,14 @@ class Family:
 
         # Guard the cases that family expenses exceed resources
         if money >= permanent_income:
-            consumption = permanent_income - rent - loan
+            consumption = max(0, permanent_income - rent - loan)
         # Getting extra funds
         else:
             # If not enough, grab reserve money, savings which are not in the bank.
             money += self.savings
             self.savings = 0
             if money >= permanent_income - rent - loan:
-                consumption = permanent_income - rent - loan
+                consumption = max(0, permanent_income - rent - loan)
             else:
                 # If still not enough, grab actual savings in the bank.
                 if central.wallet[self]:
@@ -234,7 +236,7 @@ class Family:
         # If we grabbed more than planned
         if money > consumption + rent + loan:
             # Deposit money above that of expenses
-            self.savings += (money - consumption)
+            self.savings += max(0, money - consumption - rent - loan)
         return consumption
 
     def consume(self, regional_market, seed, central, regions, params, year, month, if_origin,

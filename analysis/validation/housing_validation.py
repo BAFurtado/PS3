@@ -12,7 +12,7 @@ from analysis.output import OUTPUT_DATA_SPEC
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
-OUTPUT_DIR = BASE_DIR / "output/run__2026-03-18T17_23_20.110738"
+OUTPUT_DIR = BASE_DIR / "output"
 OUT_DIR = BASE_DIR / "analysis" / "validation"
 
 

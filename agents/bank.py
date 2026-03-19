@@ -130,6 +130,11 @@ class Central:
         tax = interest * self.tax_firm
         self.taxes += tax
         self.balance -= interest - tax
+        if self.balance < 0:
+            raise RuntimeError(
+                f"Negative bank balance after paying deposit interest: balance={self.balance}, "
+                f"client={getattr(client, 'id', None)}, year={y}, month={m}"
+            )
         return interest - tax
 
     def collect_taxes(self):
@@ -150,9 +155,12 @@ class Central:
         """
         interest = self.pay_interest(client, y, m)
         amount = self.sum_deposits(client)
+        payout = amount + interest
+
         del self.wallet[client]
+
         self.balance -= amount
-        return amount + interest
+        return payout
 
     def sum_deposits(self, client):
         return np.sum(amount for amount, _ in self.wallet[client])
