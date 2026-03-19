@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from collections import defaultdict
 
@@ -305,6 +306,9 @@ class Output:
 
         with open(self.stats_path, "a") as f:
             f.write(row)
+
+        logger = (logging.getLogger('bank'))
+        logger.info(dict(sim.central.loan_stats))
 
     def save_regional_report(self, sim):
         reports = []

@@ -241,15 +241,15 @@ class HousingMarket:
 
                 # Check macroprudencial policy. If loan to value is above set value, no loan, leave the market.
                 if (loan_amount / price) > max_loan_to_value:
-                    return
+                    continue
 
                 # Attempt to actually get the loan from the bank
                 success, amount = sim.central.request_loan(
                     family, house, loan_amount, sim.clock.year, sim.clock.months
                 )
                 if not success:
-                    # Just one shot at getting a loan
-                    return
+                    continue
+
 
                 cash += amount
 
