@@ -13,7 +13,7 @@ import conf
 
 
 class Loan:
-    def __init__(self, principal, mortgage_rate, months, house):
+    def __init__(self, principal, mortgage_rate, months, house, loan_type='market'):
         self.age = 0
         self.months = months
         self.principal = principal
@@ -24,6 +24,7 @@ class Loan:
         self.collateral = house
         self.paid_off = False
         self.delinquent = False
+        self.loan_type = loan_type
 
     def balance(self):
         return sum(self.payment)
@@ -38,7 +39,10 @@ class Loan:
             balance -= amortiza
 
     def current_collateral(self):
-        return min(self.collateral.price / sum(self.payment), 1 + self.my_mortgage_rate)
+        bal = sum(self.payment)
+        if bal <= 0:
+            return 1 + self.my_mortgage_rate
+        return min(self.collateral.price / bal, 1 + self.my_mortgage_rate)
 
     def pay(self, amount):
         for i in range(len(self.payment)):
@@ -196,7 +200,7 @@ class Central:
             return
         self.mortgage_rate = (1 + self.mortgage_rate - default * self.mean_collateral_rate()) / (1 - default) - 1
 
-    def loan_stats(self):
+    def loan_stats_summary(self):
         loans = self.active_loans()
         amounts = [l.principal for l in loans]
         if amounts:
@@ -205,15 +209,45 @@ class Central:
         return 0, 0, 0
 
     def request_loan(self, family, house, amount, ano, month):
-
         # register loan request
         self.loan_stats["requested"] += 1
 
-        # Bank endogenous criteria
+        # If they have outstanding loans, don't lend
+        if self.loans[family.id]:
+            self.loan_stats["denied_existing_loan"] += 1
+            return False, None
+
+        # Family-side cap
+        max_amount, max_months = self.max_loan(family, flag=family.loan_rate)
+        if max_months <= 0:
+            self.loan_stats["denied_invalid_term"] += 1
+            return False, None
+
+        amount = min(amount, max_amount)
+
+        if amount <= 0:
+            self.loan_stats["denied_zero_capped_amount"] += 1
+            return False, None
+
+        # Criteria related to consumer
+        monthly_payment = self._max_monthly_payment(family)
+        if amount / max_months > monthly_payment:
+            self.loan_stats["denied_affordability"] += 1
+            return False, None
+
+        # Source-of-funds checks
         if family.loan_rate == 'market':
-            if amount > self.balance:
-                self.loan_stats["denied_balance"] += 1
+            required_reserve = conf.PARAMS['BANK_DEPOSIT_RESERVE'] * self.total_deposits()
+            available_cash = self.balance - required_reserve
+
+            if amount > available_cash:
+                self.loan_stats["denied_liquidity_reserve"] += 1
                 return False, None
+
+            if self._outstanding_loans + amount > self.balance * conf.PARAMS['MAX_LOAN_BANK_PERCENT']:
+                self.loan_stats["denied_bank_limit"] += 1
+                return False, None
+
         else:
             loan_type = "recursos_" + family.loan_rate
             region = int(house.region_id[:6])
@@ -225,28 +259,7 @@ class Central:
                 self.loan_stats["denied_funding_keyerror"] += 1
                 return False, None
 
-        # If they have outstanding loans, don't lend
-        if self.loans[family.id]:
-            self.loan_stats["denied_existing_loan"] += 1
-            return False, None
-
-        # Can't loan more than x% of total balance
-        if self._outstanding_loans + amount > self.balance * conf.PARAMS['MAX_LOAN_BANK_PERCENT']:
-            self.loan_stats["denied_bank_limit"] += 1
-            return False, None
-
-        # Get info considering family
-        max_amount, max_months = self.max_loan(family, flag=family.loan_rate)
-        amount = min(amount, max_amount)
-
-        # Criteria related to consumer
-        monthly_payment = self._max_monthly_payment(family)
-
-        if amount / max_months > monthly_payment:
-            self.loan_stats["denied_affordability"] += 1
-            return False, None
-
-        # --- loan approved ---
+        # Approve
         self.loan_stats["approved"] += 1
 
         rate = {
@@ -255,21 +268,16 @@ class Central:
             'fgts': self.i_fgts
         }.get(family.loan_rate, self.mortgage_rate)
 
-        # Create and register loan
-        self.loans[family.id].append(Loan(amount, rate, max_months, house))
+        self.loans[family.id].append(Loan(amount, rate, max_months, house, loan_type=family.loan_rate))
 
-        # Deduct from appropriate balance
         if family.loan_rate == 'market':
             self.balance -= amount
+            self._outstanding_loans += amount
         else:
             region = int(house.region_id[:6])
             loan_type = 'recursos_' + family.loan_rate
             self.funding[(ano, region)][loan_type] -= amount
-
-            # Register money loaned from fund
             self.monthly_funding_used[(ano, month, region, loan_type)] += amount
-
-        self._outstanding_loans += amount
 
         return True, amount
 
@@ -283,14 +291,19 @@ class Central:
         max_years = conf.PARAMS['MAX_LOAN_AGE'] - max([m.age for m in family.members.values()])
         # Longest possible mortgage period is limited to 30 years (360 months).
         max_months = min(max_years * 12, 360)
+        if max_months <= 0:
+            return 0, 0
         max_total = income * max_months
         rate = {
             'market': self.mortgage_rate,
             'sbpe': self.i_sbpe,
             'fgts': self.i_fgts
         }.get(flag, self.mortgage_rate)
+
+        max_total = income * max_months
         max_principal = max_total / (1 + rate)
-        return min(max_principal, self.balance), max_months
+
+        return max_principal, max_months
 
     def collect_loan_payments(self, sim):
         for family_id, loans in self.loans.items():
@@ -312,12 +325,23 @@ class Central:
 
                 # Add to bank balance
                 self.balance += payment
-                self._outstanding_loans -= payment
 
                 # Remove loans that are paid off
                 if not done:
                     remaining_loans.append(loan)
             self.loans[family_id] = remaining_loans
+        self.recompute_outstanding_market_loans()
+
+    def recompute_outstanding_market_loans(self):
+        total = 0
+        for loans in self.loans.values():
+            for loan in loans:
+                if not loan.paid_off and loan.loan_type == 'market':
+                    total += loan.balance()
+        self._outstanding_loans = total
+
+    def total_deposits(self):
+        return sum(sum(amount for amount, _ in deposits) for deposits in self.wallet.values())
 
 
 class Bank(Central):

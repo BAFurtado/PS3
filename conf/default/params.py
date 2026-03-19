@@ -98,6 +98,7 @@ LOAN_PAYMENT_TO_PERMANENT_INCOME = 0.35
 MAX_LOAN_TO_VALUE = 0.8
 # This parameter refers to the total amount of resources available at the bank.
 MAX_LOAN_BANK_PERCENT = 0.6
+BANK_DEPOSIT_RESERVE = .2
 
 # HOUSING AND REAL ESTATE MARKET #############################################################
 CAPPED_TOP_VALUE = 1.3

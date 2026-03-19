@@ -511,7 +511,7 @@ class Output:
             n_active = len(active)
             mean_age = sum(l.age for l in active) / n_active if n_active else 0
             p_delinquent = len(bank.delinquent_loans()) / n_active if n_active else 0
-            mn, mx, avg = bank.loan_stats()
+            mn, mx, avg = bank.loan_stats_summary()
             f.write(f"{sim.clock.days};{bank.balance:.3f};{n_active:.2f};"
                     f"{bank.mortgage_rate:.6f};"
                     f"{p_delinquent:.3f};{mean_age:.3f};{mn:.3f};{mx:.3f};{avg:.3f}\n")
