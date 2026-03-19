@@ -405,6 +405,8 @@ class Simulation:
         for fam in self.families.values():
             fam.invest(self.central, self.clock.year, self.clock.months)
 
+        # Remunerate central bank idel liquid assets
+        self.central.remunerate_liquid_balance()
         # Using all collected taxes to improve public services
         bank_taxes = self.central.collect_taxes()
 

@@ -130,12 +130,13 @@ class Central:
         tax = interest * self.tax_firm
         self.taxes += tax
         self.balance -= interest - tax
-        if self.balance < 0:
-            raise RuntimeError(
-                f"Negative bank balance after paying deposit interest: balance={self.balance}, "
-                f"client={getattr(client, 'id', None)}, year={y}, month={m}"
-            )
+
         return interest - tax
+
+    def remunerate_liquid_balance(self):
+        # Remunerate idle capital at economy's basic rate
+        if self.balance > 0:
+            self.balance += self.balance * self.interest
 
     def collect_taxes(self):
         """ This function withdraws monthly collected taxes from investments, at tax firm rates and
