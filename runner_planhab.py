@@ -1,5 +1,5 @@
 import subprocess
-import itertools
+
 import pathlib
 import datetime
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -40,21 +40,13 @@ CAPITAIS = [
     'PORTO VELHO',
     'RECIFE',
     'RIO BRANCO',
+    'RIO DE JANEIRO',
     'SAO LUIS',
+    'SAO PAULO',
     'SALVADOR',
     'TERESINA',
     'VITORIA'
 ]
-
-
-# Optional: policy / interest slicing at runner level
-POLICY_MCMV = [True, False]
-POLICY_MELHORIAS = [True, False]
-INTEREST = ['baixa', 'media', 'alta']
-
-# ---------------------------------------------------------------------
-# Command builder
-# ---------------------------------------------------------------------
 
 
 def build_command(city):
@@ -67,8 +59,8 @@ def build_command(city):
         "-n", str(RUNS),
         "-c", str(CPUS_PER_RUN),
         "sensitivity",
-        # f"PLANHAB-{city}",
-        f"PROCESSING_ACP-{city}"
+        f"PLANHAB-{city}",
+        # f"PROCESSING_ACP-{city}"
     ]
 
 # ---------------------------------------------------------------------

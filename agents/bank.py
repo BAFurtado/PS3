@@ -160,7 +160,7 @@ class Central:
 
         del self.wallet[client]
 
-        self.balance -= amount
+        self.balance -= payout
         return payout
 
     def sum_deposits(self, client):
