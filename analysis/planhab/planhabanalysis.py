@@ -1,6 +1,10 @@
 
 from pathlib import Path
 import pandas as pd
+import sys
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.append(str(ROOT))
 
 from analysis.output import OUTPUT_DATA_SPEC
 
@@ -39,7 +43,6 @@ def extract_metadata(stats_path: Path) -> dict:
         meta[key.lower()] = value
 
     # normalize types
-    meta["policy_mcmv"] = meta["policy_mcmv"] == "True"
     meta["policy_melhorias"] = meta["policy_melhorias"] == "True"
 
     return meta
@@ -81,7 +84,7 @@ if __name__ == '__main__':
     final_stats.to_csv('final_stats.csv', index=False)
     regional_stats.to_csv('regional_stats.csv', index=False)
 
-    out = final_stats.groupby(by=['processing_acps', 'policy_mcmv', 'policy_melhorias', 'interest'], as_index=False)[
+    out = final_stats.groupby(by=['processing_acps', 'funds_availability', 'policy_melhorias'], as_index=False)[
         ['pop', 'price_level', 'gdp_level',
          'unemployment', 'firms_median_employment', 'families_median_wealth',
          'gini_index',
