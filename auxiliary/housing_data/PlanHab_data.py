@@ -2,7 +2,8 @@ import pandas as pd
 import numpy as np
 import os
 
-os.chdir('auxiliary\\housing_data')
+os.chdir('auxiliary/housing_data')
+print(os.getcwd())
 
 # 1. Tratamento dos Totais Nacionais (Histórico ABECIP)
 df_totals = pd.read_excel("inputs/FINANCIAMENTO_UNID_E_VALORES_ABECIP_20.xlsx", sheet_name='resumo').dropna()
@@ -76,9 +77,12 @@ for cenario in df_pivot["cenario"].unique():
     
     # Cálculo Final: Proporção do Financiamento em relação ao PIB
     df_export["recursos_fgts"] /= df_export["gdp"]
+    # Recurso do SBPE está em milhares
+    df_export.loc[df_export['ano']>=2026,"recursos_sbpe"] *=1000
     df_export["recursos_sbpe"] /= df_export["gdp"]
     
     filename = f"outputs/fgts_sbpe_pct_{cenario.lower()}.csv"
+    df_export[['recursos_fgts',"recursos_sbpe"]] = df_export[['recursos_fgts',"recursos_sbpe"]].fillna(0).apply( lambda x:np.clip(x,0,100))
     df_export[['cod_ibge','ano','recursos_fgts','recursos_sbpe']].to_csv(filename, index=False)
 
 pass

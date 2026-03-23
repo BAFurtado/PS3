@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 
-os.chdir('auxiliary\\housing_data')
+os.chdir('auxiliary/housing_data')
 df = pd.read_csv("inputs/tabela_municipio_juros_emprestimo.csv")
 
 df["ano"] = df['ano_assinatura']

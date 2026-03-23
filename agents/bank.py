@@ -164,17 +164,17 @@ class Central:
         return payout
 
     def sum_deposits(self, client):
-        return np.sum(amount for amount, _ in self.wallet[client])
+        return sum(amount for amount, _ in self.wallet[client])
 
     def loan_balance(self, family_id):
         """Get total loan balance for a family"""
-        return np.sum(l.balance() for l in self.loans.get(family_id, []))
+        return sum(l.balance() for l in self.loans.get(family_id, []))
 
     def n_loans(self):
-        return np.sum(len(ls) for ls in self.loans.values())
+        return sum(len(ls) for ls in self.loans.values())
 
     def outstanding_loan_balance(self):
-        return np.sum(l.balance() for l in self.all_loans())
+        return sum(l.balance() for l in self.all_loans())
 
     def all_loans(self):
         for ls in self.loans.values():
