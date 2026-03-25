@@ -125,7 +125,7 @@ INITIAL_RENTAL_PRICE = 0.002
 # CONSTRUCTION #################################################################################
 # LICENSES ARE URBANIZED LOTS AVAILABLE FOR CONSTRUCTION PER NEIGHBORHOOD PER MONTH.
 # Expected number of NEW licenses created monthly by region (neighborhood). Set to 0 for no licenses.
-EXPECTED_LICENSES_PER_REGION = 1
+EXPECTED_LICENSES_PER_REGION = 3
 # PERCENT_CONSTRUCTION_FIRMS = 0.07 This has been deprecated with the introduction of sectors
 # Months that construction firm will divide its income into monthly revenue installments.
 # Although prices are accounted for at once.
@@ -139,7 +139,7 @@ MAX_HOUSE_STOCK = 36
 # Categories of submarkets for the housing markets
 PERC_HOUSE_CATEGORIES = [0.4, 0.3, 0.2, 0.1]
 # HOW LARGER IS CONSTRUCTION FIRMS PROFIT RELATIVE TO USUAL MARKUP (firms' productivity, given current prices)
-CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 6
+CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 8
 
 # POPULATION AND DEMOGRAPHY
 # Families run parameters (on average) for year 2000, or no information. 2010 uses APs average data
@@ -201,7 +201,7 @@ PERCENTAGE_ACTUAL_POP = 0.01
 MUNICIPAL_EFFICIENCY_MANAGEMENT = 1e-07
 
 # Write exactly like the list below
-PROCESSING_ACPS = ["FORTALEZA"]
+PROCESSING_ACPS = ["BRASILIA"]
 
 # Selecting the starting year to build the Agents can be: 1991, 2000 or 2010
 STARTING_DAY = datetime.date(2010, 1, 1)

@@ -50,32 +50,58 @@ class Funds:
         family_incomes = {f: f.get_permanent_income() for f in families}
         quantile_value = np.quantile(list(family_incomes.values()), quantile)
 
+        # Group families by region
+        families_by_region = defaultdict(list)
+        for f in families:
+            families_by_region[f.house.region_id].append(f)
+
         # Register low-income families by region
         for region in self.sim.regions.values():
             eligible = [
-                f for f in families
-                if family_incomes[f] < quantile_value and f.house.region_id == region.id
+                f for f in families_by_region[region.id]
+                if family_incomes[f] < quantile_value
             ]
             region.registry[today].extend(eligible)
 
-        # Add to policy list
         window_start = today - datetime.timedelta(self.sim.PARAMS['POLICY_DAYS'])
-        for region in self.sim.regions.values():
-            for key in list(region.registry.keys()):
-                if key > window_start:
-                    self.policy_families[region.id[:6]].extend(region.registry[key])
 
+        # Prune old registry entries
+        for region in self.sim.regions.values():
+            keys_to_delete = [k for k in region.registry if k <= window_start]
+            for k in keys_to_delete:
+                del region.registry[k]
+
+        # Build policy families
+        temp_policy = defaultdict(dict)
+
+        for region in self.sim.regions.values():
+            mun = region.id[:6]
+            for key, fams in region.registry.items():
+                if key > window_start:
+                    for f in fams:
+                        temp_policy[mun][f.id] = f
+
+        # Convert back to expected structure
+        self.policy_families = {
+            mun: list(fams.values())
+            for mun, fams in temp_policy.items()
+        }
+
+        #  Final filtering
         valid_families = self.sim.families.keys()
+
         for mun in self.policy_families:
-            # Filter, deduplicate, sort
             filtered = [
                 f for f in self.policy_families[mun]
                 if f.id in valid_families and f.house.region_id[:6] == mun
             ]
+
             if self.sim.PARAMS['TOTAL_TARGETING_POLICY']:
-                filtered.sort(key=lambda f: family_incomes.get(f, f.get_permanent_income()))
-            seen = set()
-            self.policy_families[mun] = [f for f in filtered if not (f.id in seen or seen.add(f.id))]
+                filtered.sort(
+                    key=lambda f: family_incomes.get(f, f.get_permanent_income())
+                )
+
+            self.policy_families[mun] = filtered
 
     def apply_policies(self):
         if not self.needs_policy_funding():
