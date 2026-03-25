@@ -82,10 +82,11 @@ class Funds:
                         temp_policy[mun][f.id] = f
 
         # Convert back to expected structure
-        self.policy_families = {
-            mun: list(fams.values())
-            for mun, fams in temp_policy.items()
-        }
+        # Convert back to expected structure (SAFE VERSION)
+        self.policy_families = defaultdict(list)
+
+        for mun, fams in temp_policy.items():
+            self.policy_families[mun] = list(fams.values())
 
         #  Final filtering
         valid_families = self.sim.families.keys()
