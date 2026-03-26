@@ -234,66 +234,106 @@ class Statistics(object):
 
     def calculate_families_metrics(self, families):
         """Compute various family-level metrics efficiently."""
-        n_families = len(families)
+
+        if isinstance(families, dict):
+            families_iter = families.values()
+            n_families = len(families)
+        else:
+            families_iter = families
+            n_families = len(families)  # assumes list-like
+
         # Initialize NumPy arrays
-        renting = np.zeros(n_families, dtype=bool)
         permanent_income = np.zeros(n_families)
         rent_ratio = np.zeros(n_families)
-        has_rent_voucher = np.zeros(n_families, dtype=bool)
-        savings = np.zeros(n_families)
         wages = np.zeros(n_families)
         utility = np.zeros(n_families)
-        rent_default = np.zeros(n_families, dtype=bool)
         num_members = np.zeros(n_families, dtype=int)
 
         # Fill arrays
-        for i, family in enumerate(families.values()):
-            renting[i] = family.is_renting
-            permanent_income[i] = family.get_permanent_income()
-            savings[i] = family.savings
+        total_renting = 0
+        total_voucher = 0
+        affordable = 0
+        total_savings = 0
+        rent_default_count = 0
+        utility_sum = 0
+        valid_utility_count = 0
+        zero_consumption_count = 0
+
+        for i, family in enumerate(families_iter):
+
+            pi = family.get_permanent_income()
+            permanent_income[i] = pi
+
             wages[i] = family.total_wage()
             utility[i] = family.average_utility
-            rent_default[i] = family.rent_default == 1 and family.is_renting
             num_members[i] = family.num_members
-            head_family = max(family.members.values(), key=lambda x: x.last_wage)
-            head_family.set_head_family()
-            if family.is_renting:
-                has_rent_voucher[i] = family.rent_voucher
-                rent_ratio[i] = family.house.rent_data[0] / (permanent_income[i] if permanent_income[i] > 0 else 1)
 
-        # Compute metrics using NumPy
-        total_renting = np.sum(renting)
-        total_voucher = np.sum(has_rent_voucher)
-        affordable = np.sum((renting & ~has_rent_voucher & (permanent_income > 0) & (rent_ratio < 0.3)))
+            total_savings += family.savings
+
+            if family.is_renting:
+                total_renting += 1
+                if family.rent_voucher:
+                    total_voucher += 1
+
+                rr = family.house.rent_data[0] / (pi if pi > 0 else 1)
+                rent_ratio[i] = rr
+                if (not family.rent_voucher) and pi > 0 and rr < 0.3:
+                    affordable += 1
+            else:
+                rent_ratio[i] = 0
+
+            if family.rent_default == 1 and family.is_renting:
+                rent_default_count += 1
+
+            if utility[i] == 0:
+                zero_consumption_count += 1
+
+            if num_members[i] > 0:
+                utility_sum += utility[i]
+                valid_utility_count += 1
+
+            # head_family = max(family.members.values(), key=lambda x: x.last_wage)
+            # head_family.set_head_family()
+
         affordability_ratio = (affordable + total_voucher) / total_renting if total_renting > 0 else 0
         median_wealth = np.median(permanent_income)
-        median_affordability = np.median(rent_ratio[renting]) if total_renting > 0 else 0
         median_wages = np.median(wages)
-        total_savings = np.sum(savings)
-        rent_default_ratio = np.sum(rent_default) / (total_renting - total_voucher) \
+        median_affordability = np.median(rent_ratio[rent_ratio > 0]) if total_renting > 0 else 0
+
+        rent_default_ratio = (
+            rent_default_count / (total_renting - total_voucher)
             if total_renting > total_voucher else 0
-        zero_consumption_ratio = np.sum(utility == 0) / n_families if n_families > 0 else 0
-        mask = num_members > 0
-        vals = utility[mask]
-        if vals.size == 0 or np.sum(vals) == 0:
+        )
+
+        zero_consumption_ratio = zero_consumption_count / n_families if n_families > 0 else 0
+        if valid_utility_count == 0 or utility_sum == 0:
             avg_utility = 0
         else:
-            avg_utility = np.average(vals)
+            avg_utility = utility_sum / valid_utility_count
 
-        # GINI calculation
-        x = np.array(permanent_income)
-        try:
-            x = x - np.min(x) + 1e-6  # shift to ensure all positive
+        # GINI
+        x = permanent_income
+        if n_families > 0:
+            min_x = np.min(x)
+            if min_x < 0:
+                x = x - min_x  # shift only if needed
+            x = x + 1e-6  # avoid zeros
             sorted_income = np.sort(x)
             n = sorted_income.size
-            index = np.arange(1, n + 1)
+            cumindex = np.arange(1, n + 1)
+            total = np.sum(sorted_income)
+            if total > 0:
+                gini = np.sum((2 * cumindex - n - 1) * sorted_income) / (n * total)
+            else:
+                gini = 0
+        else:
+            gini = 0
 
-        except ValueError:
-            x, sorted_income, n, index = 0, 0, 0, 0
+        logger.info(
+            f"Zero consumption: {zero_consumption_ratio:.2f}, "
+            f"Gini: {gini:.4f}, "
+        )
 
-        gini = (np.sum((2 * index - n - 1) * sorted_income) / (n * np.sum(sorted_income))) if n > 0 else 0
-        logger.info(f"Zero consumption: {zero_consumption_ratio:.2f}, "
-                    f"Gini: {gini:.4f}, ")
         return {
             "affordability_ratio": affordability_ratio,
             "median_wealth": median_wealth,
@@ -303,8 +343,8 @@ class Statistics(object):
             "rent_default_ratio": rent_default_ratio,
             "zero_consumption_ratio": zero_consumption_ratio,
             "avg_utility": avg_utility,
-            'gini': gini,
-            'new_families': self.new_families
+            "gini": gini,
+            "new_families": self.new_families,
         }
 
     def calculate_regional_gini(self, families):
@@ -314,11 +354,20 @@ class Statistics(object):
         permanent_income = np.zeros(n_families)
         for i, family in enumerate(families):
             permanent_income[i] = family.get_permanent_income()
-        # GINI calculation
-        sorted_income = np.sort(permanent_income - np.min(permanent_income) + 1e-7)  # Avoid division by zero
+
+        x = permanent_income
+        min_x = np.min(x)
+        if min_x < 0:
+            x = x - min_x  # shift only if needed
+        x = x + 1e-7  # avoid zeros
+        sorted_income = np.sort(x)
         n = sorted_income.size
+        total = np.sum(sorted_income)
+        if total == 0:
+            return 0
         index = np.arange(1, n + 1)
-        gini = (np.sum((2 * index - n - 1) * sorted_income) / (n * np.sum(sorted_income))) if n > 0 else 0
+        gini = np.sum((2 * index - n - 1) * sorted_income) / (n * total)
+
         return gini
 
     def update_commuting(self, families):

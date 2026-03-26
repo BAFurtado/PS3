@@ -345,8 +345,7 @@ class Output:
             mun_unemployment = sim.stats.update_unemployment(mun_agents)
             region.total_commute = commuting
 
-            families_regional_metrics = sim.stats.calculate_families_metrics(
-                {i: mun_families[i] for i in range(len(mun_families))})
+            families_regional_metrics = sim.stats.calculate_families_metrics(mun_families)
 
             mun_cumulative_treasure = 0
             licenses = 0
