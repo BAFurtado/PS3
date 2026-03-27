@@ -79,7 +79,6 @@ def plot(input_paths, output_path, params, logger, avg=None, sim=None, only=None
         report.stats('')
 
     keys = ['general', 'firms',
-            'regional',
             'construction', 'houses',
             'families', 'banks']
     if only is not None:
