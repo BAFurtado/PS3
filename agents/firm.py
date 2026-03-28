@@ -129,7 +129,7 @@ class Firm:
     # ECOLOGICAL PROCEDURES ###########################################################################################
     def probability_success(self, eco_investment, eco_lambda):
         """ 
-        Returns the probability of success given the amount invested per wages paid (I/W)
+        Returns the probability of success given the amount invested per revenue (I/R)
         """
         return 1 - np.exp(np.clip(- eco_lambda * eco_investment, -700, 700))
 
@@ -166,7 +166,7 @@ class Firm:
 
         # Stochastic process to actually reduce firm-level parameter
         params = regional_market.sim.PARAMS
-        p_success = self.probability_success(eco_investment,params['ECO_INVESTMENT_LAMBDA']) #regional_market.
+        p_success = self.probability_success(eco_investment/self.revenue,params['ECO_INVESTMENT_LAMBDA']) #regional_market.
         random_value = seed_np.rand()
         if p_success>random_value:
             # Inovation was successful

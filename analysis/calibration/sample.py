@@ -35,21 +35,28 @@ logger = logging.getLogger('main')
 # ── FITNESS ───────────────────────────────────────────────────────────────────
 
 def calculate_fitness(sim_df: pd.DataFrame) -> float:
-    """Weighted MAD against observed BH targets over the burn-in window."""
+    """
+    Weighted distance between simulated and observed BH moments (mean, std)
+    over the burn-in window. Returns 999.0 on failure.
+    """
     settings = calibration_conf.CALIBRATION_SETTINGS
-    weights  = settings["fitness_weights"]
+    weights  = []#settings["fitness_weights"]
 
-    # TODO: replace scalars with observed BH time-series once data is wired
+    # TODO: replace with values computed from actual observed series
     OBSERVED = {
-        "gdp_growth":   0.035,
-        "unemployment": 0.090,
-        "gini":         0.540,
-        "inflation":    0.065,
+        "gdp_growth_mean":   0.125,
+        "gdp_growth_std":    0.018,
+        "unemployment_mean": 0.090,
+        "unemployment_std":  0.021,
+        "gini_mean":         0.540,
+        "gini_std":          0.018,
+        "inflation_mean":    0.065/12,
+        "inflation_std":     0.031/np.sqrt(12),
     }
 
-    if not set(OBSERVED).issubset(sim_df.columns):
+    required = {"gdp_growth", "unemployment", "gini_index", "inflation"}
+    if not required.issubset(sim_df.columns):
         return 999.0
-
     start, end = settings["target_start_year"], settings["target_end_year"]
     if "year" in sim_df.columns:
         df = sim_df[(sim_df["year"] >= start) & (sim_df["year"] <= end)]
@@ -59,15 +66,31 @@ def calculate_fitness(sim_df: pd.DataFrame) -> float:
     if df.empty:
         return 999.0
 
-    simulated = {
-        "gdp_growth":   (df["gdp_growth"].mean() + 1) ** 12 - 1,
-        "unemployment": df["unemployment"].mean(),
-        "gini":         df["gini"].mean(),
-        "inflation":    (df["inflation"].mean() + 1) ** 12 - 1,
+    SIMULATED = {
+        "gdp_growth_mean":   float((df["gdp_growth"].mean() + 1) ** 12 - 1),
+        "gdp_growth_std":    float(df["gdp_growth"].std())*np.sqrt(12),
+        "unemployment_mean": float(df["unemployment"].mean()),
+        "unemployment_std":  float(df["unemployment"].std()),
+        "gini_mean":         float(df["gini_index"].mean()),
+        "gini_std":          float(df["gini_index"].std()),
+        "inflation_mean":    float(df["inflation"].mean()),
+        "inflation_std":     float(df["inflation"].std()),
+    }
+
+    moment_weights = {
+        "gdp_growth_mean":  1 / 2,
+        "gdp_growth_std":    1 / 2,
+        "unemployment_mean": 1 / 2,
+        "unemployment_std":  1 / 2,
+        "gini_mean":         1/ 2,
+        "gini_std":          1 / 2,
+        "inflation_mean":    1 / 2,
+        "inflation_std":     1 / 2,
     }
 
     return sum(
-        weights[t] * abs(simulated[t] - OBSERVED[t]) for t in weights
+        moment_weights[m] * abs(SIMULATED[m] - OBSERVED[m])
+        for m in OBSERVED
     )
 
 

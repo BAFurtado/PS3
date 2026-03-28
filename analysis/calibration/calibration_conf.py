@@ -39,4 +39,5 @@ CALIBRATION_SETTINGS = {
     "sobol_calc_second_order": False,
     "sobol_seed":              42,
 
+    "observed_data_path":'analysis/calibration/data/observed_bh.csv'
 }
