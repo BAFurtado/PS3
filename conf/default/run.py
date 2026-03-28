@@ -6,7 +6,7 @@ OUTPUT_PATH = r'output_sensitivity'
 KEEP_RANDOM_SEED = True
 
 # Descriptive stats to plot evolution of age and qualification by municipality
-DESCRIPTIVE_STATS_CHOICE = False
+DESCRIPTIVE_STATS_CHOICE = True
 
 # Logging
 PRINT_STATISTICS_AND_RESULTS_DURING_PROCESS = False

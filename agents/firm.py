@@ -142,7 +142,7 @@ class Firm:
         # Using median from 2010.
         # Procedure: Apply endogenous salary amount to external ecoefficiency to find estimated output indicator
         if not self.no_emissions:
-            emissions_this_month = self.env_efficiency * self.wages_paid / self.emissions_base
+            emissions_this_month = self.env_efficiency * self.revenue / self.emissions_base
             self.last_emissions = emissions_this_month
             self.env_indicators['emissions'] += emissions_this_month
             emission_tax = emissions_this_month * tax_emission
@@ -205,18 +205,18 @@ class Firm:
           
             
         # Profit maximization formula yields the formula below
-        if self.wages_paid>0:
-            investment_per_wages_paid = (np.log(
-                                            eco_lambda*expected_cost_reduction/((1-subsidies)*self.wages_paid))*
-                                     (self.wages_paid/eco_lambda))
+        if self.revenue>0:
+            investment_per_revenue = (np.log(
+                                            eco_lambda*expected_cost_reduction/((1-subsidies)*self.revenue))*
+                                     (self.revenue/eco_lambda))
         else:
-            investment_per_wages_paid = 0
+            investment_per_revenue = 0
 
-        if investment_per_wages_paid < 0:
-            investment_per_wages_paid = 0
+        if investment_per_revenue < 0:
+            investment_per_revenue = 0
         # TODO: Can the government enter deficit?
-        paid_subsidies = subsidies*investment_per_wages_paid*self.wages_paid
-        return investment_per_wages_paid, paid_subsidies
+        paid_subsidies = subsidies*investment_per_revenue*self.revenue
+        return investment_per_revenue, paid_subsidies
 
     # PRODUCTION DEPARTMENT ###########################################################################################
     def choose_firm_per_sector(self, regional_market, firms, seed, market_size):
