@@ -142,7 +142,7 @@ class Firm:
         # Using median from 2010.
         # Procedure: Apply endogenous salary amount to external ecoefficiency to find estimated output indicator
         if not self.no_emissions:
-            emissions_this_month = self.env_efficiency * self.wages_paid / self.emissions_base
+            emissions_this_month = self.env_efficiency * self.revenue / self.emissions_base
             self.last_emissions = emissions_this_month
             self.env_indicators['emissions'] += emissions_this_month
             emission_tax = emissions_this_month * tax_emission
@@ -161,16 +161,11 @@ class Firm:
         eco_investment, paid_subsidies = self.decision_on_eco_efficiency(regional_market)
 
         # Check if firm has enough balance
-        if self.total_balance >= eco_investment:
-            self.total_balance -= eco_investment
-        elif self.total_balance > 0:
-            eco_investment = self.total_balance
-            self.total_balance = 0
-        else:
-            eco_investment = 0
+        eco_investment = max(0, min(self.total_balance, eco_investment))
+        self.total_balance -= eco_investment
 
-        params = regional_market.sim.PARAMS
         # Stochastic process to actually reduce firm-level parameter
+        params = regional_market.sim.PARAMS
         p_success = self.probability_success(eco_investment,params['ECO_INVESTMENT_LAMBDA']) #regional_market.
         random_value = seed_np.rand()
         if p_success>random_value:
@@ -189,6 +184,7 @@ class Firm:
         Also accounts for possible environmental policies
         """
         params = regional_market.sim.PARAMS
+        today = regional_market.sim.clock.days
         ## Calculate expected emission cost with adaptative expectations
         # Tax cost
         tax_cost = self.emission_taxes_paid
@@ -202,21 +198,25 @@ class Firm:
         # TODO: Define wether costs are linear or not: we can make any function over total_emission and have
         # expected_cost_reduction = cost(last_emissions)-cost((1-delta)*last_emissions)
         expected_cost_reduction = (1-params['ENVIRONMENTAL_EFFICIENCY_STEP']) * total_cost
+        # Skip if within grace period
+        is_policy_active = today > params['STARTING_DAY'] + datetime.timedelta(params['ECO_POLICY_DAYS'])
+        eco_lambda = params['ECO_INVESTMENT_LAMBDA']
+        subsidies = params['ECO_INVESTMENT_SUBSIDIES'] if is_policy_active else 0
+
 
         # Profit maximization formula yields the formula below
-        eco_lambda, subsidies = params['ECO_INVESTMENT_LAMBDA'], params['ECO_INVESTMENT_SUBSIDIES']
-        if self.wages_paid>0:
-            investment_per_wages_paid = (np.log(
-                                            eco_lambda*expected_cost_reduction/((1-subsidies)*self.wages_paid))*
-                                     (self.wages_paid/eco_lambda))
+        if self.revenue>0:
+            investment_per_revenue = (np.log(
+                                            eco_lambda*expected_cost_reduction/((1-subsidies)*self.revenue))*
+                                     (self.revenue/eco_lambda))
         else:
-            investment_per_wages_paid = 0
+            investment_per_revenue = 0
 
-        if investment_per_wages_paid < 0:
-            investment_per_wages_paid = 0
+        if investment_per_revenue < 0:
+            investment_per_revenue = 0
         # TODO: Can the government enter deficit?
-        paid_subsidies = subsidies*investment_per_wages_paid*self.wages_paid
-        return investment_per_wages_paid, paid_subsidies
+        paid_subsidies = subsidies*investment_per_revenue*self.revenue
+        return investment_per_revenue, paid_subsidies
 
     # PRODUCTION DEPARTMENT ###########################################################################################
     def choose_firm_per_sector(self, regional_market, firms, seed, market_size):

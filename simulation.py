@@ -134,16 +134,17 @@ class Simulation:
             self.mun_pops[mun_code] += 1
         return regions, agents, houses, families, firms, self.generator.central
 
-    def run(self):
+    def run(self,log=True):
         """Runs the simulation"""
         self.logger.logger.info("Starting run.")
         self.logger.logger.info("Output: {}".format(self.output.path))
-        self.logger.logger.info(
-            "Params: {}".format(json.dumps(self.PARAMS, indent=4, default=str))
-        )
-        self.logger.logger.info("Seed: {}".format(self._seed))
+        if log:
+            self.logger.logger.info(
+                "Params: {}".format(json.dumps(self.PARAMS, indent=4, default=str))
+            )
+            self.logger.logger.info("Seed: {}".format(self._seed))
 
-        self.logger.logger.info("Running...")
+            self.logger.logger.info("Running...")
         starting_day = self.PARAMS["STARTING_DAY"]
         total_days = self.PARAMS["TOTAL_DAYS"]
         while self.clock.days < starting_day + datetime.timedelta(days=total_days):
@@ -301,7 +302,8 @@ class Simulation:
         # Accessing dictionary parameters outside the loop for performance
         tax_labor = self.PARAMS["TAX_LABOR"]
         tax_firm = self.PARAMS["TAX_FIRM"]
-        tax_emission = self.PARAMS["TAX_EMISSION"]
+        is_policy_active = self.clock.days > self.PARAMS['STARTING_DAY'] + datetime.timedelta(self.PARAMS['ECO_POLICY_DAYS'])
+        tax_emission = self.PARAMS["TAX_EMISSION"] if is_policy_active else 0
         relevance_unemployment = self.PARAMS["RELEVANCE_UNEMPLOYMENT_SALARIES"]
         sticky = self.PARAMS["STICKY_PRICES"]
         markup = self.PARAMS["MARKUP"]

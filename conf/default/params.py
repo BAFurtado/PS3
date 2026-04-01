@@ -33,7 +33,7 @@ RELEVANCE_UNEMPLOYMENT_SALARIES = 3
 HIRING_SAMPLE_SIZE = 20
 
 # Reduction size in case of eco innovation success: multiplies firm parameters
-ENVIRONMENTAL_EFFICIENCY_STEP = 1
+ENVIRONMENTAL_EFFICIENCY_STEP = .99
 # Innovation process probability: 1 - exp(lambda * investment / wage_base)
 ECO_INVESTMENT_LAMBDA = 10
 # Adjustment factor for emissions within firms
@@ -77,6 +77,8 @@ TOTAL_TARGETING_POLICY = False
 POLICY_MELHORIAS = True
 UPGRADE_COST = .2
 POLICY_DAYS = 360
+# Days until environmental policies start
+ECO_POLICY_DAYS = 360*5
 # Size of the poorest families to be helped
 POLICY_QUANTILE = 0.2
 # Change of policy for collecting consumption tax at:
@@ -157,10 +159,10 @@ TAX_TRANSPORT = 0
 
 # EMISSIONS POLICIES ######################################################
 # Taxes on emission are given by tax * total_emissions. Roughly R$ * tonCO2. .1 is about R$10
-TAX_EMISSION = 0
+TAX_EMISSION = 1
 # Subsidies in (0,1) is the amount of investment paid by the gov(subsidies * total_invested)
 # 0 is none, 1 is full
-ECO_INVESTMENT_SUBSIDIES = 0
+ECO_INVESTMENT_SUBSIDIES = 0.2
 
 # Consumption_equal: ratio of consumption tax distributed at state level (equal)
 # Fpm: ratio of 'labor' and 'firm' taxes distributed per the fpm ruling
@@ -195,7 +197,7 @@ REGIONAL_FREIGHT_COST = .3
 # RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation
 # Minimum value to run depends on the size of municipality 0,001 is recommended minimum
-PERCENTAGE_ACTUAL_POP = 0.01
+PERCENTAGE_ACTUAL_POP = 0.005
 
 # Order of magnitude parameter of input into municipality investment
 MUNICIPAL_EFFICIENCY_MANAGEMENT = 1e-07
@@ -207,7 +209,7 @@ PROCESSING_ACPS = ["IPATINGA"]
 STARTING_DAY = datetime.date(2010, 1, 1)
 
 # The Maximum running time (restrained by official data) is 30 years,
-TOTAL_DAYS = (datetime.date(2040, 1, 1) - STARTING_DAY).days
+TOTAL_DAYS = (datetime.date(2020, 1, 1) - STARTING_DAY).days
 
 # Select the possible ACPs (Population Concentration Areas) from the list below.
 # Actually, they are URBAN CONCENTRATION AREAS FROM IBGE, 2022

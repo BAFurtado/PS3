@@ -1,0 +1,42 @@
+# calibration_conf.py
+
+# Parameters to calibrate: [lower_bound, upper_bound]
+# Behavioral parameters calibrated on anchor region only.
+# All other capitals inherit these values; only structural
+# data inputs (A' matrix, ε_s, distributions) vary by region.
+CALIBRATION_PARAMETERS = {
+
+    # MUST INCLUDE — high S_Ti expected (paper 1 Fig A.8c)
+    "PRODUCTIVITY_MAGNITUDE_DIVISOR": [0.1, 10.0],   # paper 1: 8.25
+    "ECO_INVESTMENT_LAMBDA":          [5.0, 20.0],   # paper 1: 10
+
+    # STRONG — moderate S_Ti expected
+    "MARKUP":                         [0.05, 0.25],  # paper 1: 0.1
+    "RELEVANCE_UNEMPLOYMENT_SALARIES":[1.0,   6.0],  # paper 1: 3.5
+
+    # CONSIDER — freeze at paper 1 value if S_Ti < threshold
+    "STICKY_PRICES":                  [0.3,   0.7],  # paper 1: 0.5
+    #"REGIONAL_FREIGHT_COST":          [0.1,   0.5],  # paper 1: 0.3
+
+}
+
+CALIBRATION_SETTINGS = {
+
+    # Sobol: N * (k + 2) total runs.
+    # k=7 (full set) → 128 * 9 = 1152 runs.
+    # Use samples=64 for scouting, 128 for production.
+    "samples":        128,
+    "runs_per_sample": 2,   # min 5 for stable stochastic estimates
+
+    # Burn-in window — policy triggers after target_end_year
+    "target_start_year": 2000,
+    "target_end_year":   2010,
+
+    # Anchor region for calibration
+    "calibration_region": "BELO HORIZONTE",
+
+    # Sobol / SALib settings
+    "sobol_calc_second_order": False,
+    "sobol_seed":              42,
+
+}

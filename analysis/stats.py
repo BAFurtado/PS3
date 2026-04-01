@@ -165,7 +165,7 @@ class Statistics(object):
         }
 
     def update_GDP_capita(self, firms, mun_id, mun_pop):
-        dummy_gdp = np.sum([firms[firm].revenue for firm in firms.keys()
+        dummy_gdp = np.sum([firms[firm].revenue-firms[firm].input_cost for firm in firms.keys()
                             if firms[firm].region_id[:7] == mun_id])
         if mun_pop > 0:
             dummy_gdp_capita = dummy_gdp / mun_pop
