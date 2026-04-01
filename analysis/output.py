@@ -1,9 +1,6 @@
 import json
-import logging
 import os
 from collections import defaultdict
-
-import pandas as pd
 
 import conf
 
@@ -16,8 +13,9 @@ if not os.path.exists(AGENTS_PATH):
 GENERATOR_PARAMS = [
     'MEMBERS_PER_FAMILY',
     'HOUSE_VACANCY',
+    'SIMPLIFY_POP_EVOLUTION',
     'PERCENTAGE_ACTUAL_POP',
-    'EXPECTED_LICENSES_PER_REGION',
+    'PERC_SUPPLY_SIZE_N_LICENSES_PER_REGION',
     'STARTING_DAY'
 ]
 
@@ -29,26 +27,24 @@ OUTPUT_DATA_SPEC = {
         },
         'columns': ['month',
                     'pop',
-                    'price_level',
-                    'gdp_level',
-                    'gdp_growth_rate',
-                    'gdp_change',
+                    'price_index',
+                    'gdp_index',
+                    'gdp_growth',
                     'unemployment',
-                    'firms_median_employment',
-                    "firms_total_employment",
+                    'median_workers',
                     'families_median_wealth',
                     'families_wages_received',
                     'families_commuting',
                     'families_savings',
                     'families_helped',
-                    'new_families',
                     'amount_subsidised',
-                    'perc_policy_money_spent',
-                    'firms_total_profit',
+                    'firms_profit',
                     'firms_median_stock',
                     'firms_avg_eco_eff',
                     'firms_median_wage_paid',
                     'firms_median_innovation_investment',
+                    'total_subsidies',
+                    'total_emission_tax',
                     'emissions',
                     'gini_index',
                     'average_utility',
@@ -59,8 +55,6 @@ OUTPUT_DATA_SPEC = {
                     'house_vacancy',
                     'house_price',
                     'house_rent',
-                    'house_quality',
-                    'number_domiciles',
                     'affordable',
                     'p_delinquent',
                     'equally',
@@ -69,25 +63,7 @@ OUTPUT_DATA_SPEC = {
                     'bank',
                     'emissions_fund',
                     'ext_amount_sold',
-                    'affordability_decis_1',
-                    'affordability_decis_2',
-                    'affordability_decis_3',
-                    'affordability_decis_4',
-                    'affordability_decis_5',
-                    'affordability_decis_6',
-                    'affordability_decis_7',
-                    'affordability_decis_8',
-                    'affordability_decis_9',
-                    'affordability_decis_10',
-                    'affordability_median',
-                    'perc_fgts_used',
-                    'perc_sbpe_used',
-                    "active_loans",
-                    "loan_requested",
-                    "loan_approved",
-                    "loan_approval_rate",
-                    "credit_stock",
-                    "bank_balance",
+                    'affordability_median'
                     ]
     },
     'families': {
@@ -124,8 +100,8 @@ OUTPUT_DATA_SPEC = {
         'columns': ['month', 'firm_id', 'region_id', 'mun_id',
                     'long', 'lat', 'total_balance$', 'number_employees',
                     'stocks', 'amount_produced', 'price', 'amount_sold',
-                    'revenue', 'profit', 'wages_paid', 'input_cost',
-                    'emissions', 'eco_eff', 'innov_investment', ' sector']
+                    'revenue', 'profit', 'wages_paid', 'input_cost', 
+                    'emissions', 'eco_eff', 'innov_investment', 'sector']
     },
     'construction': {
         'avg': {
@@ -144,32 +120,10 @@ OUTPUT_DATA_SPEC = {
             'groupings': ['month', 'mun_id'],
             'columns': 'ALL'
         },
-        'columns': ['month',
-                    'mun_id',
-                    'commuting',
-                    'pop',
-                    'gdp_region',
-                    'regional_gini',
-                    'regional_house_values',
-                    'regional_unemployment',
-                    'qli_index',
-                    'gdp_percapita',
-                    'treasure',
-                    'equally',
-                    'locally',
-                    'fpm',
-                    'licenses',
-                    'affordability_ratio',
-                    'median_wealth',
-                    'median_affordability']
-    },
-    'neighbourhood': {
-        'avg': {
-            'groupings': ['month', 'mun_id'],
-            'columns': 'ALL'
-        },
-        'columns': ['month', 'mun_id', 'neigh_id', 'pop', 'neighbourhood_gdp',
-                    'neighbourhood_gdp_percapita', 'neighbourhood_commuting', 'neighbourhood_gini']
+        'columns': ['month', 'mun_id', 'commuting', 'pop', 'gdp_region',
+                    'regional_gini', 'regional_house_values', 'regional_unemployment',
+                    'qli_index', 'gdp_percapita', 'treasure', 'equally', 'locally', 'fpm',
+                    'licenses']
     }
 }
 
@@ -179,8 +133,7 @@ class Output:
 
     def __init__(self, sim, output_path):
         files = ['stats', 'regional', 'time', 'firms', 'banks',
-                 'houses', 'agents', 'families', 'grave', 'construction',
-                 'head', 'neighbourhood']
+                 'houses', 'agents', 'families', 'grave', 'construction']
 
         self.sim = sim
         self.times = []
@@ -204,9 +157,8 @@ class Output:
             '_'.join(sim.geo.states_on_process),
             '_'.join(sim.geo.processing_acps_codes))
 
-    def save_stats_report(self, sim, bank_taxes, affordability_decis):
+    def save_stats_report(self, sim, bank_taxes):
         # Banks
-        affordability_decis_values = ";".join(f"{v:.2f}" for v in affordability_decis)
         bank = sim.central
         active = bank.active_loans()
         n_active = len(active)
@@ -214,8 +166,8 @@ class Output:
         p_delinquent = len(bank.delinquent_loans()) / n_active if n_active else 0
 
         firm_results = sim.stats.calculate_firms_metrics(sim.firms)
-        price_level, inflation = sim.stats.update_price(sim.firms)
-        gdp_level, gdp_growth_rate, gdp_change = sim.stats.calculate_gdp_and_eco_efficiency(sim.firms, sim.regions)
+        price_index, inflation = sim.stats.update_price(sim.firms)
+        gdp_index, gdp_growth = sim.stats.calculate_gdp_and_eco_efficiency(sim.firms, sim.regions)
         unemployment = sim.stats.update_unemployment(sim.agents.values(), True, True)
 
         families_results = sim.stats.calculate_families_metrics(sim.families)
@@ -228,87 +180,57 @@ class Output:
         mun_applied_treasure = defaultdict(int)
         mun_applied_treasure['bank'] = bank_taxes
         families_helped = sim.funds.families_subsided
-        amount_subsidised = sim.funds.money_applied_policy
-        perc_policy_money_spent = sim.funds.perc_policy_money_spent
+        amount_subsided = sim.funds.money_applied_policy
         # Reset for monthly (not cumulative) statistics
         sim.funds.families_subsided, sim.funds.money_applied_policy = 0, 0
         for k in ['equally', 'locally', 'fpm']:
             mun_applied_treasure[k] = sum(r.applied_treasure[k] for r in sim.regions.values())
         emissions_fund = sum(r.cumulative_treasure['emissions'] for r in sim.regions.values())
-        perc_fgts, perc_sbpe = sim.central.funding_usage_month(
-            sim.clock.year,
-            sim.clock.months,
-            sim.regions.values()
-        )
         # External
         ext_amount_sold = sim.external.get_external_amount_sold()
 
-        stats_row = {
-            "month": sim.clock.days,
-            "pop": pop,
-            "price_level": price_level,
-            "gdp_level": gdp_level,
-            "gdp_growth_rate": gdp_growth_rate,
-            "gdp_change": gdp_change,
-            "unemployment": unemployment,
-            "firms_median_employment": firm_results["workers"],
-            "firms_total_employment": firm_results["firms_total_employment"],
-            "families_median_wealth": families_results["median_wealth"],
-            "families_wages_received": families_results["median_wages"],
-            "families_commuting": commuting,
-            "families_savings": families_results["total_savings"],
-            "families_helped": families_helped,
-            'new_families': families_results["new_families"],
-            "amount_subsidised": amount_subsidised,
-            "perc_policy_money_spent": perc_policy_money_spent,
-            "firms_total_profit": firm_results["aggregate_profits"],
-            "firms_median_stock": firm_results["median_stock"],
-            "firms_avg_eco_eff": firm_results["eco_efficiency"],
-            "firms_median_wage_paid": firm_results["median_wages"],
-            "firms_median_innovation_investment": firm_results["innovation_investment"],
-            "emissions": firm_results["emissions"],
-            "gini_index": families_results["gini"],
-            "average_utility": families_results["avg_utility"],
-            "pct_zero_consumption": families_results["zero_consumption_ratio"],
-            "rent_default": families_results["rent_default_ratio"],
-            "inflation": inflation,
-            "average_qli": average_qli,
-            "house_vacancy": house_results["vacancy_rate"],
-            "house_price": house_results["average_house_price"],
-            "house_rent": house_results["average_rent_price"],
-            "house_quality": house_results["mean_quality"],
-            "number_domiciles": house_results['number_domiciles'],
-            "affordable": families_results["affordability_ratio"],
-            "p_delinquent": p_delinquent,
-            "equally": mun_applied_treasure["equally"],
-            "locally": mun_applied_treasure["locally"],
-            "fpm": mun_applied_treasure["fpm"],
-            "bank": mun_applied_treasure["bank"],
-            "emissions_fund": emissions_fund,
-            "ext_amount_sold": ext_amount_sold,
-            "affordability_median": families_results["median_affordability"],
-            "perc_fgts_used": perc_fgts,
-            "perc_sbpe_used": perc_sbpe,
-            "active_loans": n_active,
-            "loan_requested": bank.loan_stats["requested"],
-            "loan_approved": bank.loan_stats["approved"],
-            "loan_approval_rate": bank.loan_stats["approved"] / bank.loan_stats["requested"] if bank.loan_stats[
-                "requested"] else 0,
-            "credit_stock": bank._outstanding_loans,
-            "bank_balance": bank.balance,
-        }
+        report = f"{sim.clock.days};" \
+                 f"{pop:d};" \
+                 f"{price_index:.2f};" \
+                 f"{gdp_index:.2f};" \
+                 f"{gdp_growth:.2f};" \
+                 f"{unemployment:.2f};" \
+                 f"{firm_results['workers']:.2f};" \
+                 f"{families_results['median_wealth']:.2f};" \
+                 f"{families_results['total_wages']:.2f};" \
+                 f"{commuting:.3f};" \
+                 f"{families_results['total_savings']:.2f};" \
+                 f"{families_helped:.0f};" \
+                 f"{amount_subsided:.3f};" \
+                 f"{firm_results['aggregate_profits']:.2f};" \
+                 f"{firm_results['median_stock']:.2f};" \
+                 f"{firm_results['eco_efficiency']:.4f};" \
+                 f"{firm_results['median_wages']:.2f};" \
+                 f"{firm_results['innovation_investment']:.4f};" \
+                 f"{firm_results['total_subsidies']:.4f};" \
+                 f"{firm_results['total_emission_tax']:.4f};" \
+                 f"{firm_results['emissions']:.2f};" \
+                 f"{families_results['gini']:.3f};" \
+                 f"{families_results['avg_utility']:.2f};" \
+                 f"{families_results['zero_consumption_ratio']:.2f};" \
+                 f"{families_results['rent_default_ratio']:.4f};" \
+                 f"{inflation:.4f};" \
+                 f"{average_qli:.3f};" \
+                 f"{house_results['vacancy_rate']:.2f};" \
+                 f"{house_results['average_house_price']:.2f};" \
+                 f"{house_results['average_rent_price']:.2f};" \
+                 f"{families_results['affordability_ratio']:.2f};" \
+                 f"{p_delinquent:.4f};" \
+                 f"{mun_applied_treasure['equally']:.4f};" \
+                 f"{mun_applied_treasure['locally']:.4f};" \
+                 f"{mun_applied_treasure['fpm']:.4f};" \
+                 f"{mun_applied_treasure['bank']:.4f};" \
+                 f"{emissions_fund:.4f};" \
+                 f"{ext_amount_sold:.2f};" \
+                 f"{families_results['median_affordability']:.2f}\n"
 
-        for i, v in enumerate(affordability_decis, start=1):
-            stats_row[f"affordability_decis_{i}"] = v
-
-        columns = OUTPUT_DATA_SPEC["stats"]["columns"]
-        row = ";".join(str(stats_row[c]) for c in columns) + "\n"
-
-        with open(self.stats_path, "a") as f:
-            f.write(row)
-
-        logger = (logging.getLogger('bank'))
-        logger.info(dict(sim.central.loan_stats))
+        with open(self.stats_path, 'a') as f:
+            f.write(report)
 
     def save_regional_report(self, sim):
         reports = []
@@ -319,7 +241,7 @@ class Output:
             agents_by_mun[mun_id].append(agent)
 
         for family in sim.families.values():
-            # TODO: sometimes family.region_id is None?
+            # sometimes family.region_id is None?
             if family.region_id:
                 mun_id = family.region_id[:7]
                 families_by_mun[mun_id].append(family)
@@ -338,14 +260,12 @@ class Output:
             mun_gdp = sum(r.gdp for r in regions)
             mun_agents = agents_by_mun[mun_id]
             mun_families = families_by_mun[mun_id]
-            GDP_mun_capita = sim.stats.update_GDP_capita(sim.firms, mun_id, mun_pop)
+            GDP_mun_capita = mun_gdp / mun_pop if mun_pop > 0 else mun_gdp
             commuting = sim.stats.update_commuting(mun_families)
             mun_gini = sim.stats.calculate_regional_gini(mun_families)
             mun_house_values = sim.stats.calculate_avg_regional_house_price(mun_families)
             mun_unemployment = sim.stats.update_unemployment(mun_agents)
             region.total_commute = commuting
-
-            families_regional_metrics = sim.stats.calculate_families_metrics(mun_families)
 
             mun_cumulative_treasure = 0
             licenses = 0
@@ -360,58 +280,20 @@ class Output:
             # average QLI of regions
             mun_qli = sum(r.index for r in regions) / len(regions)
 
-            reports.append(
-                '%s;%s;%.3f;%d;%.3f;%.4f;%.3f;%.4f;%.5f;%.3f;%.6f;%.6f;%.6f;%.6f;%s;%.6f;%.6f;%.6f'
-                % (sim.clock.days, mun_id, commuting, mun_pop, mun_gdp, mun_gini, mun_house_values,
-                   mun_unemployment, mun_qli, GDP_mun_capita, mun_cumulative_treasure,
-                   mun_applied_treasure['equally'],
-                   mun_applied_treasure['locally'],
-                   mun_applied_treasure['fpm'],
-                   licenses,
-                   families_regional_metrics['affordability_ratio'],
-                   families_regional_metrics['median_wealth'],
-                   families_regional_metrics['median_affordability'],
-                   ))
+            reports.append('%s;%s;%.3f;%d;%.3f;%.4f;%.3f;%.4f;%.5f;%.3f;%.6f;%.6f;%.6f;%.6f;%s'
+                           % (sim.clock.days, mun_id, commuting, mun_pop, mun_gdp, mun_gini, mun_house_values,
+                              mun_unemployment, mun_qli, GDP_mun_capita, mun_cumulative_treasure,
+                              mun_applied_treasure['equally'],
+                              mun_applied_treasure['locally'],
+                              mun_applied_treasure['fpm'],
+                              licenses))
 
         with open(self.regional_path, 'a') as f:
             f.write('\n' + '\n'.join(reports))
 
-    def save_neighbourhood_data(self, sim):
-        neighbourhood_families = defaultdict(list)
-        neighbourhood_gini = dict()
-        neighbourhood_commute = dict()
-        for family in sim.families.values():
-            neighbourhood_families[family.region_id].append(family)
-        for r in neighbourhood_families.keys():
-            families = neighbourhood_families[r]
-            neighbourhood_gini[r] = sim.stats.calculate_regional_gini(families)
-            commute_value = sim.stats.update_commuting(families)
-            self.sim.regions[r].total_commute = commute_value
-            neighbourhood_commute[r] = commute_value
-        with open(self.neighbourhood_path, 'a') as f:
-            try:
-                [f.write('%s; %s; %s; %d; %.3f; %.3f; %.3f; %.3f \n' %
-                         (sim.clock.days, region.id[:7], region.id, region.pop, region.gdp,
-                          region.gdp / region.pop, neighbourhood_commute[region.id],
-                          neighbourhood_gini[region.id]))
-                 for region in sim.regions.values()]
-            except KeyError:
-                [f.write('%s; %s; %s; %d; %.3f; %.3f; %.3f; %.3f \n' %
-                         (sim.clock.days, region.id[:7], region.id, region.pop, region.gdp,
-                          region.gdp / region.pop, 0,
-                          0))
-                 for region in sim.regions.values()]
-
     def save_data(self, sim):
-        # firms data is necessary for plots,
-        # so always save
-        # self.save_banks_data(sim)
-
-        for each in conf.RUN['SAVE_DATA']:
-            # Skip b/c they are saved anyway above
-            if each == 'banks':
-                continue
-            save_fn = getattr(self, 'save_{}_data'.format(each))
+        for type in conf.RUN['SAVE_DATA']:
+            save_fn = getattr(self, 'save_{}_data'.format(type))
             save_fn(sim)
 
     def save_firms_data(self, sim):
@@ -420,7 +302,7 @@ class Output:
                      '%.3f;%.3f;%.3f;%.3f; %s \n' %
                      (sim.clock.days, firm.id, firm.region_id, firm.region_id[:7], firm.address.x,
                       firm.address.y, firm.total_balance, firm.num_employees,
-                      firm.total_quantity, firm.amount_produced, firm.prices,
+                      firm.get_total_quantity(), firm.amount_produced, firm.inventory[0].price,
                       firm.amount_sold, firm.revenue, firm.profit,
                       firm.wages_paid, firm.input_cost, firm.last_emissions, firm.env_efficiency,
                       firm.inno_inv, firm.sector))
@@ -490,23 +372,6 @@ class Output:
                                                           family.num_members))
              for family in sim.families.values()]
 
-    def prepare_dataframe(self, sim):
-        """Converts nested dictionary (class range → month → count) into a DataFrame."""
-        data = []
-        for class_range, months in sim.stats.head_rate.items():
-            for month, count in months.items():
-                data.append({"month": month, "class_range": class_range, "count": count})
-        df = pd.DataFrame(data)
-
-        # Ensure month sorting
-        df["month"] = pd.to_datetime(df["month"], errors='coerce').dt.month
-        df = df.sort_values("month")
-        return df
-
-    def save_head_data(self, sim):
-        data = self.prepare_dataframe(sim)
-        data.to_csv(self.head_path, index=False)
-
     def save_banks_data(self, sim):
         bank = sim.central
         with open(self.banks_path, 'a') as f:
@@ -514,7 +379,7 @@ class Output:
             n_active = len(active)
             mean_age = sum(l.age for l in active) / n_active if n_active else 0
             p_delinquent = len(bank.delinquent_loans()) / n_active if n_active else 0
-            mn, mx, avg = bank.loan_stats_summary()
+            mn, mx, avg = bank.loan_stats()
             f.write(f"{sim.clock.days};{bank.balance:.3f};{n_active:.2f};"
                     f"{bank.mortgage_rate:.6f};"
                     f"{p_delinquent:.3f};{mean_age:.3f};{mn:.3f};{mx:.3f};{avg:.3f}\n")
