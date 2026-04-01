@@ -266,7 +266,7 @@ class Simulation:
                 fertility,
             )
         # Calculate head_rate as input for immigration adjustments
-        self.stats.calculate_head_rate(self.families.values(), self.clock.days.strftime("%Y-%m-%d"))
+        # self.stats.calculate_head_rate(self.families.values(), self.clock.days.strftime("%Y-%m-%d"))
 
         # Adjust population for immigration
         population.immigration(self)
