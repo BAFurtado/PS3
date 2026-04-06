@@ -11,6 +11,7 @@ import sys
 import copy
 import json
 import logging
+import datetime
 from glob import glob
 from datetime import datetime
 
@@ -54,21 +55,24 @@ def calculate_fitness(sim_df: pd.DataFrame) -> float:
         "inflation_std":     0.031/np.sqrt(12),
     }
 
-    required = {"gdp_growth", "unemployment", "gini_index", "inflation"}
+    required = {"gdp_growth_rate", "unemployment", "gini_index", "inflation"}
+    print(sim_df.columns)
     if not required.issubset(sim_df.columns):
         return 999.0
     start, end = settings["target_start_year"], settings["target_end_year"]
-    if "year" in sim_df.columns:
+    if "month" in sim_df.columns:
+        df = sim_df[(sim_df["month"] >= start) & (sim_df["month"] <= end)]
+    elif "year" in sim_df.columns:
         df = sim_df[(sim_df["year"] >= start) & (sim_df["year"] <= end)]
     else:
-        df = sim_df.iloc[: (end - start + 1) * 12]
+        df = sim_df
 
     if df.empty:
         return 999.0
 
     SIMULATED = {
-        "gdp_growth_mean":   float((df["gdp_growth"].mean() + 1) ** 12 - 1),
-        "gdp_growth_std":    float(df["gdp_growth"].std())*np.sqrt(12),
+        "gdp_growth_mean":   float((df["gdp_growth_rate"].mean() + 1) ** 12 - 1),
+        "gdp_growth_std":    float(df["gdp_growth_rate"].std())*np.sqrt(12),
         "unemployment_mean": float(df["unemployment"].mean()),
         "unemployment_std":  float(df["unemployment"].std()),
         "gini_mean":         float(df["gini_index"].mean()),
@@ -78,14 +82,14 @@ def calculate_fitness(sim_df: pd.DataFrame) -> float:
     }
 
     moment_weights = {
-        "gdp_growth_mean":  1 / 2,
-        "gdp_growth_std":    1 / 2,
-        "unemployment_mean": 1 / 2,
-        "unemployment_std":  1 / 2,
-        "gini_mean":         1/ 2,
-        "gini_std":          1 / 2,
-        "inflation_mean":    1 / 2,
-        "inflation_std":     1 / 2,
+        "gdp_growth_mean":  1 / 8,
+        "gdp_growth_std":    1 / 8,
+        "unemployment_mean": 1 / 8,
+        "unemployment_std":  1 / 8,
+        "gini_mean":         1/ 8,
+        "gini_std":          1 / 8,
+        "inflation_mean":    1 / 8,
+        "inflation_std":     1 / 8,
     }
 
     return sum(
@@ -132,13 +136,18 @@ def run_sample(ctx, samples, cpus):
         N=n_samples,
         seed=settings["sobol_seed"],
     )
-    processing_acp = {"PROCESSING_ACPS":[calibration_conf.CALIBRATION_SETTINGS['calibration_region']]}
+    start_date = datetime.strptime(calibration_conf.CALIBRATION_SETTINGS['target_start_year'], '%Y-%m-%d').date()
+    end_date = datetime.strptime(calibration_conf.CALIBRATION_SETTINGS['target_end_year'], '%Y-%m-%d').date()   
+    processing_acp = {"PROCESSING_ACPS":[calibration_conf.CALIBRATION_SETTINGS['calibration_region']],
+                      "STARTING_DAY":start_date,
+                      "TOTAL_DAYS":(end_date-start_date).days}
     confs = [dict(zip(names, scaled_samples[i])) for i in range(len(scaled_samples))]
     for conf in confs: 
         conf.update(processing_acp)
+
     output_dir = gen_output_dir("calibration")
 
-    #_save_meta(output_dir, problem, n_samples, n_runs, settings)
+    _save_meta(output_dir, problem, n_samples, n_runs, settings)
     multiple_runs(confs, n_runs, cpus, output_dir)
 
     logger.info(f"Done. Results in: {output_dir}")
@@ -263,7 +272,7 @@ def compute_sensitivity(root_dir: str) -> pd.DataFrame:
 
     scores_path = os.path.join(root_dir, "calibration_scores.csv")
     if not os.path.exists(scores_path):
-        raise FileNotFoundError(f"calibration_scores.csv not found in {root_dir}.")
+        raise FileNotFoundError(f"calibration_scores.csv not found in {root_dir}. Run 'score' first.")
 
     problem   = meta["problem"]
     n_samples = meta["n_samples"]
@@ -314,8 +323,8 @@ def _save_meta(output_dir: str, problem: dict, n_samples: int,
         "timestamp": datetime.now().isoformat(),
         "settings":  {k: v for k, v in settings.items() if k != "fitness_weights"},
     }
+    os.makedirs(output_dir, exist_ok=True)
     with open(os.path.join(output_dir, "meta.json"), "w") as f:
-        f.parent.mkdir(parents=True, exist_ok=True)
         json.dump(meta, f, indent=4)
 
 

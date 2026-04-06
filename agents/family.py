@@ -237,8 +237,8 @@ class Family:
             self.savings += (money - consumption)
         return consumption
 
-    def consume(self, regional_market, seed, central, regions, params, year, month, if_origin,
-                firms_by_sector):
+    def consume(self, regional_market, seed, seed_np, central, regions, params, year, month,
+                if_origin, firms_by_sector):
         """Consumption from goods and services firms, based on criteria of price or distance.
         Family general consumption depends on its permanent income, based on members wages, working life expectancy
         and real estate and savings interest
@@ -249,10 +249,6 @@ class Family:
         if money_to_spend is None:
             return defaultdict(float)
 
-        # Picks SIZE_MARKET number of firms at seed and choose the closest or the cheapest
-        # Consumes from each product the chosen firm offers
-        # Here each sector to buy from are in the rows, and the buying column refer to HouseholdConsumption
-        # Construction and Government are 0 in the table. Specific construction market apply
         size_market = int(params['SIZE_MARKET'])
         tax_consumption = int(params['TAX_CONSUMPTION'])
 
@@ -261,6 +257,9 @@ class Family:
         savings = self.savings
         avg_utility = 0.0
         house = self.house
+        # Pre-extract house distance cache for inline lookups (avoids 49M method-call overheads)
+        house_addr = house.address
+        house_dist_cache = house._firm_distances
 
         for sector, sector_share in household_demand.items():
             if sector_share <= 0:
@@ -279,14 +278,27 @@ class Family:
             if n_firms <= size_market:
                 market = sector_firms
             else:
+                # Python random.sample is faster than numpy.choice for small n/k
+                # (numpy.choice without replacement calls numpy.prod internally, adding overhead)
                 market = seed.sample(sector_firms, size_market)
 
-            firm_strategy = seed.choice(['Price', 'Distance'])
-            if firm_strategy == 'Price':
-                chosen_firm = min(market, key=lambda f: f.prices)
+            if seed.randint(0, 1):
+                # Price strategy: direct inventory[0].price access avoids property dispatch
+                chosen_firm = min(market, key=lambda f: f.inventory[0].price)
             else:
-                dist = house.distance_to_firm
-                chosen_firm = min(market, key=dist)
+                # Distance strategy: inline cache lookup avoids per-call method dispatch
+                best_firm = None
+                best_dist = float('inf')
+                for f in market:
+                    fid = f.id
+                    d = house_dist_cache.get(fid)
+                    if d is None:
+                        d = house_addr.distance(f.address)
+                        house_dist_cache[fid] = d
+                    if d < best_dist:
+                        best_dist = d
+                        best_firm = f
+                chosen_firm = best_firm
 
             change = chosen_firm.sale(
                 money_this_sector, regions, tax_consumption,

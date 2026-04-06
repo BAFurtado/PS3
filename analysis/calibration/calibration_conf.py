@@ -6,15 +6,12 @@
 # data inputs (A' matrix, ε_s, distributions) vary by region.
 CALIBRATION_PARAMETERS = {
 
-    # MUST INCLUDE — high S_Ti expected (paper 1 Fig A.8c)
     "PRODUCTIVITY_MAGNITUDE_DIVISOR": [0.1, 10.0],   # paper 1: 8.25
-    "ECO_INVESTMENT_LAMBDA":          [5.0, 20.0],   # paper 1: 10
+    #"ECO_INVESTMENT_LAMBDA":          [5.0, 20.0],   # paper 1: 10
 
-    # STRONG — moderate S_Ti expected
-    "MARKUP":                         [0.05, 0.25],  # paper 1: 0.1
+    "MARKUP":                         [0.005, 0.1],  # paper 1: 0.1
     "RELEVANCE_UNEMPLOYMENT_SALARIES":[1.0,   6.0],  # paper 1: 3.5
 
-    # CONSIDER — freeze at paper 1 value if S_Ti < threshold
     "STICKY_PRICES":                  [0.3,   0.7],  # paper 1: 0.5
     #"REGIONAL_FREIGHT_COST":          [0.1,   0.5],  # paper 1: 0.3
 
@@ -29,8 +26,8 @@ CALIBRATION_SETTINGS = {
     "runs_per_sample": 2,   # min 5 for stable stochastic estimates
 
     # Burn-in window — policy triggers after target_end_year
-    "target_start_year": 2000,
-    "target_end_year":   2010,
+    "target_start_year": "2010-01-01",
+    "target_end_year":   "2015-01-01",
 
     # Anchor region for calibration
     "calibration_region": "BELO HORIZONTE",
@@ -39,5 +36,8 @@ CALIBRATION_SETTINGS = {
     "sobol_calc_second_order": False,
     "sobol_seed":              42,
 
-    "observed_data_path":'analysis/calibration/data/observed_bh.csv'
+    "observed_data_path": 'analysis/calibration/data/observed_bh.csv',
+
+    # Parameters with S_Ti (or |rho| in fallback mode) below this threshold are candidates to freeze
+    "freeze_threshold_sti": 0.05,
 }

@@ -234,11 +234,16 @@ class Simulation:
         prod_exponent = self.PARAMS["PRODUCTIVITY_EXPONENT"]
         prod_magnitude_divisor = self.PARAMS["PRODUCTIVITY_MAGNITUDE_DIVISOR"]
         [f.reset_amount_sold() for f in self.firms.values()]
+        # Build sector→firm map once per month instead of once per firm in choose_firm_per_sector
+        sector_firm_map = {}
+        for f in self.firms.values():
+            sector_firm_map.setdefault(f.sector, []).append(f)
         for firm in self.firms.values():
             firm.update_product_quantity(prod_exponent, prod_magnitude_divisor,
                                          self.regional_market,
                                          self.firms,
-                                         self.seed)
+                                         self.seed,
+                                         sector_firm_map)
 
         # Call demographics
         # Update agent life cycles

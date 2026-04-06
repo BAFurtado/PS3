@@ -88,20 +88,28 @@ class RegionalMarket:
         self.external_demand_multiplier = read_final_demand_matrix(sim.geo.processing_acps)
         self.monthly_hh_consumption = defaultdict(float)
         self.monthly_gov_consumption = defaultdict(float)
+        # Pre-compute numpy column arrays to avoid pandas.loc overhead in the per-firm hot loop
+        self._sector_order = list(self.technical_matrix.index)
+        self._tech_np = {s: self.technical_matrix[s].values.copy() for s in self._sector_order}
+        self._ext_local_np = {s: self.ext_local_matrix[s].values.copy() for s in self._sector_order}
 
     def consume(self):
         self.monthly_hh_consumption = defaultdict(float)
         # Household consumption
 
-        # Create sector-wise dictionary to reduce filtering within families
+        sector_map = {}
+        for f in self.sim.firms.values():
+            sector_map.setdefault(f.sector, []).append(f)
         firms_by_sector = {
-            sector: [f for f in self.sim.firms.values() if f.sector == sector and f.total_quantity > 0]
+            sector: [f for f in sector_map.get(sector, []) if f.inventory[0].quantity > 0]
             for sector in self.sim.regional_market.final_demand.index
         }
+        seed_np = self.sim.seed_np
         for family in self.sim.families.values():
             consumption = family.consume(
                 self,
                 self.sim.seed,
+                seed_np,
                 self.sim.central,
                 self.sim.regions,
                 self.sim.PARAMS,
