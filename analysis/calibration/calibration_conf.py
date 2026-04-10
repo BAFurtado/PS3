@@ -6,13 +6,13 @@
 # data inputs (A' matrix, ε_s, distributions) vary by region.
 CALIBRATION_PARAMETERS = {
 
-    "PRODUCTIVITY_MAGNITUDE_DIVISOR": [0.1, 10.0],   # paper 1: 8.25
+    "PRODUCTIVITY_MAGNITUDE_DIVISOR": [0.1, 2.0],   # paper 1: 8.25
     #"ECO_INVESTMENT_LAMBDA":          [5.0, 20.0],   # paper 1: 10
 
     "MARKUP":                         [0.005, 0.1],  # paper 1: 0.1
-    "RELEVANCE_UNEMPLOYMENT_SALARIES":[1.0,   6.0],  # paper 1: 3.5
+    "RELEVANCE_UNEMPLOYMENT_SALARIES":[1.0,   5.0],  # paper 1: 3.5
 
-    "STICKY_PRICES":                  [0.3,   0.7],  # paper 1: 0.5
+    "STICKY_PRICES":                  [0.05,   0.4],  # paper 1: 0.5
     #"REGIONAL_FREIGHT_COST":          [0.1,   0.5],  # paper 1: 0.3
 
 }
@@ -23,7 +23,7 @@ CALIBRATION_SETTINGS = {
     # k=7 (full set) → 128 * 9 = 1152 runs.
     # Use samples=64 for scouting, 128 for production.
     "samples":        128,
-    "runs_per_sample": 2,   # min 5 for stable stochastic estimates
+    "runs_per_sample": 1,   # min 5 for stable stochastic estimates
 
     # Burn-in window — policy triggers after target_end_year
     "target_start_year": "2010-01-01",

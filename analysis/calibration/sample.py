@@ -55,13 +55,12 @@ def calculate_fitness(sim_df: pd.DataFrame) -> float:
         "inflation_std":     0.031/np.sqrt(12),
     }
 
-    required = {"gdp_growth_rate", "unemployment", "gini_index", "inflation"}
-    print(sim_df.columns)
+    required = {"gdp_growth", "unemployment", "gini_index", "inflation"}
     if not required.issubset(sim_df.columns):
         return 999.0
-    start, end = settings["target_start_year"], settings["target_end_year"]
+    start, end = settings["target_start_year"],settings["target_end_year"]
     if "month" in sim_df.columns:
-        df = sim_df[(sim_df["month"] >= start) & (sim_df["month"] <= end)]
+        df = sim_df[(sim_df["month"]>= start) & (sim_df["month"] <= end)]
     elif "year" in sim_df.columns:
         df = sim_df[(sim_df["year"] >= start) & (sim_df["year"] <= end)]
     else:
@@ -71,8 +70,8 @@ def calculate_fitness(sim_df: pd.DataFrame) -> float:
         return 999.0
 
     SIMULATED = {
-        "gdp_growth_mean":   float((df["gdp_growth_rate"].mean() + 1) ** 12 - 1),
-        "gdp_growth_std":    float(df["gdp_growth_rate"].std())*np.sqrt(12),
+        "gdp_growth_mean":   float((df["gdp_growth"].mean() + 1) ** 12 - 1),
+        "gdp_growth_std":    float(df["gdp_growth"].std())*np.sqrt(12),
         "unemployment_mean": float(df["unemployment"].mean()),
         "unemployment_std":  float(df["unemployment"].std()),
         "gini_mean":         float(df["gini_index"].mean()),
@@ -129,7 +128,7 @@ def run_sample(ctx, samples, cpus):
     problem = {
         "num_vars": len(names),
         "names":    names,
-        "bounds":   list(zip(lbs, ubs)),
+        "bounds":   list(zip(lbs, ubs))
     }
     scaled_samples = sobol_sampler.sample(
         problem,

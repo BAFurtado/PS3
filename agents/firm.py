@@ -26,8 +26,6 @@ initial_input_sectors = {'Agriculture': 0,
                          }
 
 emissions = pd.read_csv('input/emissions_sectors.csv', dtype={'mun_code': str})
-print(emissions.head())
-
 
 class Firm:
     """

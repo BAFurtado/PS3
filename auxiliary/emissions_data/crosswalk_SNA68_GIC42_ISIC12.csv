@@ -1,0 +1,69 @@
+SNA_68_Code,SNA_68_Description,GIC_42_Code,ISIC_Section,Aggregation_12_Sectors
+0191,"Agriculture, including support for agriculture and postharvest",GIC_A 01,A,A - Agriculture
+0192,"Livestock, including support for livestock",GIC_A 01,A,A - Agriculture
+0280,Forest production; fisheries and aquaculture,GIC_A 01,A,A - Agriculture
+0680,"Extraction of oil and gas, including support activities",GIC_A 02,B,B - Mining
+0791,"Extraction of iron ore, including processing and agglomeration",GIC_A 03,B,B - Mining
+0580,Extraction of coal and non-metallic minerals,GIC_A 04,B,B - Mining
+0792,"Extraction of non-ferrous metal ores, including",GIC_A 04,B,B - Mining
+1091,"Slaughter and meat products, including dairy products and fishery products",GIC_A 05,C,C - Manufacturing
+1092,Manufacture and refining of sugar,GIC_A 05,C,C - Manufacturing
+1093,Other Food Products,GIC_A 05,C,C - Manufacturing
+1100,Manufacture of beverages,GIC_A 05,C,C - Manufacturing
+1200,Manufacture of tobacco products,GIC_A 06,C,C - Manufacturing
+1300,Manufacture of textiles,GIC_A 07,C,C - Manufacturing
+1400,Manufacture of wearing apparel and accessories,GIC_A 08,C,C - Manufacturing
+1500,Manufacture of footwear and leather goods,GIC_A 09,C,C - Manufacturing
+1600,Manufacture of wood products,GIC_A 10,C,C - Manufacturing
+1700,"Manufacture of pulp, paper and paper products",GIC_A 11,C,C - Manufacturing
+1800,Printing and reproduction of recordings,GIC_A 12,C,C - Manufacturing
+1991,Oil refining and coking plants,GIC_A 13,C,C - Manufacturing
+1992,Manufacture of biofuels,GIC_A 14,C,C - Manufacturing
+2091,"Manufacture of organic and inorganic chemicals, resins and elastomers",GIC_A 15,C,C - Manufacturing
+2100,Manufacture of pharmaceutical and pharmacokinetic products,GIC_A 16,C,C - Manufacturing
+2093,"Manufacture of cleaning products, cosmetics / perfumes and toilet preparations",GIC_A 17,C,C - Manufacturing
+2092,"Manufacture of pesticides, disinfectants, dyes and various chemicals",GIC_A 18,C,C - Manufacturing
+2200,Manufacture of rubber and plastic products,GIC_A 19,C,C - Manufacturing
+2300,Manufacture of non-metallic mineral products,GIC_A 20,C,C - Manufacturing
+2491,"Production of pig iron / ferrous alloys, steel and seamless steel tubes",GIC_A 21,C,C - Manufacturing
+2492,Metallurgy of non-ferrous metals and metal smelting,GIC_A 22,C,C - Manufacturing
+2500,"Manufacture of metal products, except machinery and equipment",GIC_A 23,C,C - Manufacturing
+2600,"Manufacture of computer, electronic and optical products",GIC_A 24,C,C - Manufacturing
+2800,Manufacture of machinery and mechanical equipment,GIC_A 24,C,C - Manufacturing
+3180,Manufacture of furniture and products of various industries,GIC_A 24,C,C - Manufacturing
+3300,"Maintenance, repair and installation of machinery and equipment",GIC_A 24,C,C - Manufacturing
+2700,Manufacture of electrical machinery and equipment,GIC_A 25,C,C - Manufacturing
+2991,"Manufacture of cars, trucks and buses, except parts",GIC_A 26,C,C - Manufacturing
+2992,Manufacture of parts and accessories for motor vehicles,GIC_A 27,C,C - Manufacturing
+3000,"Manufacture of other transport equipment, except motor vehicles",GIC_A 28,C,C - Manufacturing
+3500,"Electricity, natural gas and other utilities",GIC_A 29,D,D + E - Utilities
+3680,"Water, sewage and waste management",GIC_A 29,E,D + E - Utilities
+4180,Construction,GIC_A 30,F,F - Construction
+4500,Trade and repair of motor vehicles and motorcycles,GIC_A 31,G,G + I - Trade services
+4680,"Wholesale and retail trade, except motor vehicles",GIC_A 31,G,G + I - Trade services
+4900,Ground transportation,GIC_A 32,H,H - Transport services
+5000,Water transportation,GIC_A 32,H,H - Transport services
+5100,Air Transport,GIC_A 32,H,H - Transport services
+5280,"Storage, auxiliary transport and mail activities",GIC_A 32,H,H - Transport services
+5500,Accommodation,GIC_A 33,I,G + I - Trade services
+5600,Food services,GIC_A 33,I,G + I - Trade services
+5800,Print-integrated editing and editing,GIC_A 34,J,J + M + N - Business services
+5980,"Television, radio, cinema and sound / image recording / editing activities",GIC_A 34,J,J + M + N - Business services
+6100,Telecommunications,GIC_A 34,J,J + M + N - Business services
+6280,Development of systems and other information services,GIC_A 34,J,J + M + N - Business services
+6480,"Financial intermediation, insurance and supplementary pension plans",GIC_A 35,K,K - Financial services
+6800,Real estate activities,GIC_A 36,L,L - Real estate
+6980,"Legal, accounting, consulting and corporate headquarters activities",GIC_A 37,M,J + M + N - Business services
+7180,"Architectural, engineering, testing / technical analysis and R & D services",GIC_A 37,M,J + M + N - Business services
+7380,"Other professional, scientific and technical activities",GIC_A 37,M,J + M + N - Business services
+7700,Non-Real Estate Rentals and Management of Intellectual Property Assets,GIC_A 37,N,J + M + N - Business services
+7880,Other administrative activities and complementary services,GIC_A 37,N,J + M + N - Business services
+8000,"Surveillance, security and research activities",GIC_A 37,N,J + M + N - Business services
+9080,"Artistic, creative and entertainment activities",GIC_A 37,R,R + S + T + U - Other services
+9480,Associations and other personal services,GIC_A 37,S,R + S + T + U - Other services
+9700,Domestic services,GIC_A 37,T,R + S + T + U - Other services
+8400,"Public administration, defense and social security",GIC_A 38,O,O + P + Q - Govt services
+8591,Public education,GIC_A 39,P,O + P + Q - Govt services
+8592,Private education,GIC_A 40,P,O + P + Q - Govt services
+8691,Public health,GIC_A 41,Q,O + P + Q - Govt services
+8692,Private health,GIC_A 42,Q,O + P + Q - Govt services
