@@ -52,21 +52,30 @@ class Simulation:
         self.m_men, self.m_women, self.f = dict(), dict(), dict()
 
         for state in self.geo.states_on_process:
-            self.m_men[state] = pd.read_csv(
+            m_men = pd.read_csv(
                 "input/Demografia/2_Mortality/mortality_men_%s.csv" % state,
                 header=0,
                 decimal=".",
-            ).groupby("age")
-            self.m_women[state] = pd.read_csv(
+            ).set_index("age")
+            m_men.columns = m_men.columns.astype(str)
+            self.m_men[state] = m_men.to_dict('index')
+             
+            m_women = pd.read_csv(
                 "input/Demografia/2_Mortality/mortality_women_%s.csv" % state,
                 header=0,
                 decimal=".",
-            ).groupby("age")
-            self.f[state] = pd.read_csv(
+            ).set_index("age")
+            m_women.columns = m_women.columns.astype(str)
+            self.m_women[state] = m_women.to_dict('index')
+
+            f = pd.read_csv(
                 "input/Demografia/1_Fertility/fertility_%s.csv" % state,
                 header=0,
                 decimal=".",
-            ).groupby("age")
+            ).set_index("age")
+            f.columns = f.columns.astype(str)
+            self.f[state] = f.to_dict('index')
+        
         # Implement loop when other RMs ODs become available
         if 'DF' in self.geo.states_on_process:
             try:

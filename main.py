@@ -25,6 +25,7 @@ from joblib import Parallel, delayed
 
 import conf
 import main_plotting
+from checkpoint import save_jobs, pending_jobs
 from simulation import Simulation
 
 # from web import app
@@ -66,6 +67,7 @@ def single_run(params, path):
     sim = Simulation(params, path)
     sim.initialize()
     sim.run()
+    open(os.path.join(path, 'DONE'), 'w').close()
 
     if conf.RUN['PLOT_EACH_RUN']:
         logger.info('Plotting run...')
@@ -90,6 +92,13 @@ def multiple_runs(overrides, runs, cpus, output_dir, fix_seeds=None):
     for p, path in zip(params, paths):
         # use base path, not per-run path
         ensure_population_exists(p, path)
+
+    job_specs = [
+        {"path": os.path.join(path, str(i)), "params": p}
+        for p, path in zip(params, paths)
+        for i in range(runs)
+    ]
+    save_jobs(output_dir, job_specs, cpus)
 
     # run simulations in parallel
     if cpus == 1:
@@ -419,6 +428,29 @@ def make_plots(params):
                                    only=keys)
     else:
         print('To plot internal maps: enter True after output directory')
+
+
+@main.command()
+@click.argument('root_dir')
+@click.option('-c', '--cpus', default=1, help='Number of CPU cores to use')
+def resume(root_dir, cpus):
+    """Resume an interrupted run from root_dir/jobs.json."""
+    pending, cleaned = pending_jobs(root_dir)
+
+    if not pending:
+        logger.info('All jobs already completed — nothing to resume.')
+        return
+
+    logger.info(f'Cleaned {cleaned} partial run(s). Resuming {len(pending)} job(s)...')
+
+    if cpus == 1:
+        for job in pending:
+            single_run(job['params'], job['path'])
+    else:
+        jobs = [delayed(single_run)(job['params'], job['path']) for job in pending]
+        Parallel(n_jobs=cpus, prefer='processes', backend='multiprocessing', batch_size=1)(jobs)
+
+    logger.info('Finished.')
 
 
 # @main.command()

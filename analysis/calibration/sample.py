@@ -2,9 +2,22 @@
 Tier 1 Sobol Scouting: sample → score → sensitivity
 
 CLI:
+    # Run full parameter space sampling (power of 2 recommended for --samples)
     python -m analysis.calibration.sample run-sample --samples 64 --cpus 4
+
+    # Resume an interrupted run (cleans partial outputs, re-runs missing jobs)
+    python -m analysis.calibration.sample resume path/to/calibration_dir/
+
+    # Score a completed (or partially completed) results folder
     python -m analysis.calibration.sample score path/to/calibration_dir/
+
+    # Compute Total-Order Sobol Indices from scored results
     python -m analysis.calibration.sample sensitivity path/to/calibration_dir/
+
+Interruption recovery:
+    run-sample writes jobs.json to the output directory before dispatching.
+    Each completed run writes a DONE sentinel file. If execution is interrupted,
+    run resume to clean partial outputs and continue from where it left off.
 """
 import os
 import sys
@@ -29,6 +42,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import analysis.calibration.calibration_conf as calibration_conf
 import conf
+from checkpoint import save_jobs, pending_jobs
 from simulation import Simulation
 from main import gen_output_dir
 from analysis.output import OUTPUT_DATA_SPEC
@@ -48,7 +62,7 @@ def calculate_fitness(sim_df: pd.DataFrame) -> float:
 
     # TODO: replace with values computed from actual observed series
     OBSERVED = {
-        "gdp_growth_mean":   0.125,
+        "gdp_growth_mean":   0.10,
         "gdp_growth_std":    0.018,
         "unemployment_mean": 0.090,
         "unemployment_std":  0.021,
@@ -169,6 +183,24 @@ def sensitivity(root_dir):
     compute_sensitivity(root_dir)
 
 
+@main.command()
+@click.argument("root_dir")
+@click.option("-c", "--cpus", default=-1, help="Cores (-1 for all).")
+def resume(root_dir, cpus):
+    """Resume an interrupted calibration run from root_dir/jobs.json."""
+    try:
+        pending, cleaned = pending_jobs(root_dir)
+    except FileNotFoundError as e:
+        raise click.ClickException(str(e))
+
+    if not pending:
+        logger.info("All jobs already completed — nothing to resume.")
+        return
+
+    logger.info(f"Cleaned {cleaned} partial run(s). Resuming {len(pending)} job(s)...")
+    _dispatch(pending, cpus, desc="Resuming")
+
+
 # ── EXECUTION ─────────────────────────────────────────────────────────────────
 
 @contextmanager
@@ -197,16 +229,14 @@ def multiple_runs(overrides: list, runs: int, cpus: int, output_dir: str):
         p.update(o)
         param_list.append(p)
 
-    jobs = [
-        delayed(single_run)(copy.deepcopy(p), os.path.join(path, str(i)))
+    job_specs = [
+        {"path": os.path.join(path, str(i)), "params": p}
         for p, path in zip(param_list, paths)
         for i in range(runs)
     ]
+    save_jobs(output_dir, job_specs, cpus)
 
-    logger.info(f"Dispatching {len(jobs)} simulations...")
-    bar = tqdm.tqdm(total=len(jobs), desc="Sobol runs", unit="sim", dynamic_ncols=True)
-    with _tqdm_joblib(bar):
-        Parallel(n_jobs=cpus, backend="multiprocessing")(jobs)
+    _dispatch(job_specs, cpus, desc="Sobol runs")
     logger.info("All runs completed.")
 
 
@@ -215,9 +245,11 @@ def single_run(params: dict, path: str):
     os.makedirs(path, exist_ok=True)
     with open(os.path.join(path, "conf.json"), "w") as f:
         json.dump({"PARAMS": params}, f, indent=4, default=str)
+    
     sim = Simulation(params, path)
     sim.initialize()
     sim.run(log=False)
+    open(os.path.join(path, "DONE"), "w").close()
 
 
 # ── SCORING ───────────────────────────────────────────────────────────────────
@@ -333,6 +365,14 @@ def compute_sensitivity(root_dir: str) -> pd.DataFrame:
 
 
 # ── HELPERS ───────────────────────────────────────────────────────────────────
+
+def _dispatch(job_specs: list, cpus: int, desc: str):
+    """Run a list of {path, params} job specs in parallel with a progress bar."""
+    jobs = [delayed(single_run)(job["params"], job["path"]) for job in job_specs]
+    bar  = tqdm.tqdm(total=len(jobs), desc=desc, unit="sim", dynamic_ncols=True)
+    with _tqdm_joblib(bar):
+        Parallel(n_jobs=cpus, backend="multiprocessing")(jobs)
+
 
 def _save_meta(output_dir: str, problem: dict, n_samples: int,
                n_runs: int, settings: dict):
