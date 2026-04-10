@@ -16,8 +16,11 @@ from glob import glob
 from datetime import datetime
 
 import click
+import joblib
 import numpy as np
 import pandas as pd
+import tqdm
+from contextlib import contextmanager
 from joblib import Parallel, delayed
 from SALib.analyze import sobol as sobol_analyze
 from SALib.sample import sobol as sobol_sampler
@@ -168,6 +171,23 @@ def sensitivity(root_dir):
 
 # ── EXECUTION ─────────────────────────────────────────────────────────────────
 
+@contextmanager
+def _tqdm_joblib(tqdm_bar):
+    """Patch joblib's batch callback so tqdm updates after each completed job."""
+    class _Callback(joblib.parallel.BatchCompletionCallBack):
+        def __call__(self, *args, **kwargs):
+            tqdm_bar.update(n=self.batch_size)
+            return super().__call__(*args, **kwargs)
+
+    old = joblib.parallel.BatchCompletionCallBack
+    joblib.parallel.BatchCompletionCallBack = _Callback
+    try:
+        yield tqdm_bar
+    finally:
+        joblib.parallel.BatchCompletionCallBack = old
+        tqdm_bar.close()
+
+
 def multiple_runs(overrides: list, runs: int, cpus: int, output_dir: str):
     """Dispatch all (parameter set × Monte Carlo run) jobs in parallel."""
     paths      = [os.path.join(output_dir, str(n)) for n in range(len(overrides))]
@@ -184,7 +204,9 @@ def multiple_runs(overrides: list, runs: int, cpus: int, output_dir: str):
     ]
 
     logger.info(f"Dispatching {len(jobs)} simulations...")
-    Parallel(n_jobs=cpus, backend="multiprocessing")(jobs)
+    bar = tqdm.tqdm(total=len(jobs), desc="Sobol runs", unit="sim", dynamic_ncols=True)
+    with _tqdm_joblib(bar):
+        Parallel(n_jobs=cpus, backend="multiprocessing")(jobs)
     logger.info("All runs completed.")
 
 
