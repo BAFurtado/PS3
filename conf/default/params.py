@@ -163,6 +163,8 @@ TAX_EMISSION = 1
 # Subsidies in (0,1) is the amount of investment paid by the gov(subsidies * total_invested)
 # 0 is none, 1 is full
 ECO_INVESTMENT_SUBSIDIES = 0.2
+TARGETED_SUBSIDIES = False
+TAX_RECYCLING = False
 
 # Consumption_equal: ratio of consumption tax distributed at state level (equal)
 # Fpm: ratio of 'labor' and 'firm' taxes distributed per the fpm ruling

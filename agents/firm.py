@@ -141,7 +141,7 @@ class Firm:
         # Using median from 2010.
         # Procedure: Apply endogenous salary amount to external ecoefficiency to find estimated output indicator
         if not self.no_emissions:
-            emissions_this_month = self.env_efficiency * self.revenue / self.emissions_base
+            emissions_this_month = self.env_efficiency * self.revenue * self.emissions_base
             self.last_emissions = emissions_this_month
             self.env_indicators['emissions'] += emissions_this_month
             emission_tax = emissions_this_month * tax_emission
@@ -157,7 +157,7 @@ class Firm:
         Reduce overall emissions per wage employed.
         """
         # Decide how much to invest based on expected cost and benefit analysis
-        eco_investment, paid_subsidies = self.decision_on_eco_efficiency(regional_market)
+        eco_investment, paid_subsidies = self.decision_on_eco_efficiency(regional_market,regions)
 
         # Check if firm has enough balance
         eco_investment = max(0, min(self.total_balance, eco_investment))
@@ -177,7 +177,7 @@ class Firm:
         self.total_balance += paid_subsidies
         self.inno_inv = eco_investment
 
-    def decision_on_eco_efficiency(self,regional_market):
+    def decision_on_eco_efficiency(self,regional_market,regions):
         """ 
         Choose how much to invest based on expected emission cost (taxes, reputational costs and intrinsic cost)
         Also accounts for possible environmental policies
@@ -201,6 +201,12 @@ class Firm:
         is_policy_active = today > params['STARTING_DAY'] + datetime.timedelta(params['ECO_POLICY_DAYS'])
         eco_lambda = params['ECO_INVESTMENT_LAMBDA']
         subsidies = params['ECO_INVESTMENT_SUBSIDIES'] if is_policy_active else 0
+        if is_policy_active and subsidies and tax_cost>=0:
+            # Check if the government has money to provide subsidies
+            # Only checks if emissions taxes are being levied
+            if regions[self.region_id].treasure['emission'] <= 0:
+                subsidies=0
+                
           
             
         # Profit maximization formula yields the formula below

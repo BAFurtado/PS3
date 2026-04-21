@@ -5,9 +5,6 @@ CLI:
     # Run full parameter space sampling (power of 2 recommended for --samples)
     python -m analysis.calibration.sample run-sample --samples 64 --cpus 4
 
-    # Resume an interrupted run (cleans partial outputs, re-runs missing jobs)
-    python -m analysis.calibration.sample resume path/to/calibration_dir/
-
     # Score a completed (or partially completed) results folder
     python -m analysis.calibration.sample score path/to/calibration_dir/
 
