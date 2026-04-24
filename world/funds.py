@@ -14,6 +14,7 @@ class Funds:
         self.sim = sim
         self.families_subsided = 0
         self.money_applied_policy = 0
+        self.carbon_tax_recycled_money = 0
         self.mun_gov_firms = defaultdict(list)
         self.gov_consumption_parameter = self.sim.regional_market.final_demand['GovernmentConsumption']['Government']
         if sim.PARAMS['FPM_DISTRIBUTION']:
@@ -113,6 +114,8 @@ class Funds:
                 self.pay_families_rent()
             elif self.sim.PARAMS['POLICIES'] == 'wage':
                 self.distribute_funds_to_families()
+        if self.sim.PARAMS['CARBON_TAX_RECYCLING']:
+            self.recycle_carbon_tax(self.sim.regions)
         # Resetting lists for next month
         self.policy_families = defaultdict(list)
         self.temporary_houses = defaultdict(list)
@@ -326,6 +329,7 @@ class Funds:
 
             # BRING treasure from regions to municipalities
             treasure[id] = region.transfer_treasure()
+           
 
         # Update proportion of index coming from population variation
         for id, region in regions.items():
@@ -372,3 +376,34 @@ class Funds:
         # Taxes charged from interests paid by the bank are equally distributed
         v_equal += bank_taxes
         self.equally(v_equal, regions, pop_t, sum(pop_mun_t.values()))
+
+    def recycle_carbon_tax(self,regions):
+        # group families by municipality using existing regional structure
+        families_by_mun = defaultdict(list)
+        for f in self.sim.families.values():
+            families_by_mun[f.region_id[:7]].append(f)
+
+        for mun, region_ids in self.sim.mun_to_regions.items():
+            total_emissions = sum(regions[rid].treasure["emissions"] for rid in region_ids)
+            families = families_by_mun.get(mun, [])
+            if total_emissions <= 0 or not families:
+                continue
+
+            incomes = [f.permanent_income for f in families]
+            threshold = np.percentile(incomes, self.sim.PARAMS['CARBON_RECYCLING_QUANTILE'] * 100)
+            
+            recipients = [f for f in families if f.permanent_income <= threshold]
+            if not recipients:
+                continue
+
+            carbon_money = 0
+            for region_id in region_ids:
+                region_money = 0.8 * regions[region_id].treasure["emissions"]
+                carbon_money += region_money
+                regions[region_id].collect_taxes(-region_money, "emissions")
+
+            self.carbon_tax_recycled_money += carbon_money
+            amount = carbon_money / len(recipients)
+            for f in recipients:
+                f.update_balance(amount)
+            

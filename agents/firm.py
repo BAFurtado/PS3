@@ -141,7 +141,7 @@ class Firm:
         # Using median from 2010.
         # Procedure: Apply endogenous salary amount to external ecoefficiency to find estimated output indicator
         if not self.no_emissions:
-            emissions_this_month = self.env_efficiency * self.revenue * self.emissions_base
+            emissions_this_month = self.env_efficiency * self.emissions_base * (self.revenue-self.input_cost)
             self.last_emissions = emissions_this_month
             self.env_indicators['emissions'] += emissions_this_month
             emission_tax = emissions_this_month * tax_emission
@@ -200,11 +200,11 @@ class Firm:
         # Skip if within grace period
         is_policy_active = today > params['STARTING_DAY'] + datetime.timedelta(params['ECO_POLICY_DAYS'])
         eco_lambda = params['ECO_INVESTMENT_LAMBDA']
-        subsidies = params['ECO_INVESTMENT_SUBSIDIES'] if is_policy_active else 0
+        subsidies = params['ECO_INVESTMENT_SUBSIDIES'][self.sector] if is_policy_active else 0
         if is_policy_active and subsidies and tax_cost>=0:
             # Check if the government has money to provide subsidies
             # Only checks if emissions taxes are being levied
-            if regions[self.region_id].treasure['emission'] <= 0:
+            if regions[self.region_id].treasure['emissions'] <= 0:
                 subsidies=0
                 
           

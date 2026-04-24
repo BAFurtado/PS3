@@ -4,18 +4,18 @@ import datetime
 
 # FIRMS #########################################################
 # Production function, labor with decaying exponent, Alpha for K. [0, 1]
-PRODUCTIVITY_EXPONENT = .6
+PRODUCTIVITY_EXPONENT = .8
 # Order of magnitude correction of production. Production divided by parameter
-PRODUCTIVITY_MAGNITUDE_DIVISOR = .85
+PRODUCTIVITY_MAGNITUDE_DIVISOR = 1.85
 # GENERAL CALIBRATION PARAMETERS
 # INTEREST. Choose either: 'nominal', 'real' or 'fixed'. Default 'real'
 # FOR CENARIOS PLANHAB, choose either interests: 'alta', 'media' ou 'baixa'
 # Assumption. Mortgage assumed lower than SELIC (general rate).
 INTEREST = "baixa"
 # By how much percentage to increase prices
-MARKUP = 0.07
+MARKUP = 0.04 #0,038
 # Frequency firms change prices. Probability < than parameter
-STICKY_PRICES = .9
+STICKY_PRICES = .12
 # Price ruggedness a positive value (below 1) that multiplies the magnitude of price reduction
 # Reflects a reluctance of businesses to lower prices. Amount estimated for reduction multiplied by parameter
 PRICE_RUGGEDNESS = 0.1
@@ -28,7 +28,7 @@ LABOR_MARKET = 0.8
 # Percentage of employees' firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
-RELEVANCE_UNEMPLOYMENT_SALARIES = 3
+RELEVANCE_UNEMPLOYMENT_SALARIES = 3.88
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 20
 
@@ -79,7 +79,7 @@ POLICY_MELHORIAS = True
 UPGRADE_COST = .2
 POLICY_DAYS = 360
 # Days until environmental policies start
-ECO_POLICY_DAYS = 360*5
+ECO_POLICY_DAYS = 360 * 5
 # Size of the poorest families to be helped
 POLICY_QUANTILE = 0.2
 # Change of policy for collecting consumption tax at:
@@ -164,7 +164,9 @@ TAX_EMISSION = 1
 # 0 is none, 1 is full
 ECO_INVESTMENT_SUBSIDIES = 0.2
 TARGETED_SUBSIDIES = False
-TAX_RECYCLING = False
+TARGETED_SECTORS = ['Agriculture', 'Transport', 'Utilities']
+CARBON_TAX_RECYCLING = False
+CARBON_RECYCLING_QUANTILE = 0.25
 
 # Consumption_equal: ratio of consumption tax distributed at state level (equal)
 # Fpm: ratio of 'labor' and 'firm' taxes distributed per the fpm ruling

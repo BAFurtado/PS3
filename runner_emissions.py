@@ -1,30 +1,19 @@
 """
-Emissions policy runner: 5 scenarios × all Brazilian capitals.
+Emissions policy runner: 8 scenarios × all Brazilian capitals.
 
 The burn-in period (before ECO_POLICY_DAYS) serves as the implicit baseline
 for every run — no separate no-policy scenario is needed.
 
-Active scenarios
-----------------
-  TAX              — flat emission tax only          (TAX_EMISSION=10)
-  SUBSIDIES        — eco-investment subsidies only   (ECO_INVESTMENT_SUBSIDIES=0.2)
-  BOTH             — tax + subsidies combined
-
-Stubbed scenarios (implement before enabling)
----------------------------------------------
-  TARGETED_SUBSIDIES — sector-weighted subsidies proportional to emission
-                       intensity. Touch point: firm.decision_on_eco_efficiency()
-                       in agents/firm.py — replace the flat ECO_INVESTMENT_SUBSIDIES
-                       rate with a per-sector lookup derived from emissions_base.
-                       New param required: TARGETED_SUBSIDIES (bool).
-
-  TAX_RECYCLING      — emission tax revenue redistributed to regional households
-                       as a lump-sum transfer each month. Touch points:
-                       (1) simulation.py monthly loop — add redistribution step
-                           after create_externalities(), draining
-                           region.cumulative_treasure['emissions'] each month.
-                       (2) region.py or funds.py — add redistribution helper.
-                       New param required: TAX_RECYCLING (bool).
+Scenarios
+---------
+  TAX                          — flat emission tax only
+  SUBSIDIES                    — flat eco-investment subsidies only
+  TARGETED_SUBSIDIES           — sector-weighted subsidies (Agriculture, Transport, Utilities)
+  TAX + SUBSIDIES              — tax + flat subsidies
+  TAX + TARGETED_SUBSIDIES     — tax + sector-weighted subsidies
+  TAX_RECYCLING                — tax with revenue recycled to bottom-quartile households
+  TAX_RECYCLING + SUBSIDIES    — recycling + flat subsidies
+  TAX_RECYCLING + TARGETED     — recycling + sector-weighted subsidies
 
 Usage
 -----
@@ -32,7 +21,6 @@ Usage
 """
 import logging
 import pathlib
-import datetime
 
 from main import multiple_runs, gen_output_dir
 
@@ -41,7 +29,7 @@ logging.basicConfig(level=logging.INFO)
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-RUNS = 5
+RUNS = 15
 CPUS = 8
 
 LOG_DIR = pathlib.Path("logs/emissions")
@@ -75,16 +63,51 @@ CAPITAIS = [
     'VITORIA',
 ]
 
-SCENARIOS = {
-    'TAX':      {'TAX_EMISSION': 10, 'ECO_INVESTMENT_SUBSIDIES': 0},
-    'SUBSIDIES': {'TAX_EMISSION': 0,  'ECO_INVESTMENT_SUBSIDIES': 0.2},
-    'BOTH':     {'TAX_EMISSION': 10, 'ECO_INVESTMENT_SUBSIDIES': 0.2},
+# Each scenario explicitly sets all policy flags to avoid inheriting defaults.
+_BASE = {'TARGETED_SECTORS': ['Agriculture', 'Transport', 'Utilities'],
+         'CARBON_RECYCLING_QUANTILE': 0.25}
 
-    # Uncomment once implemented — see module docstring for touch points
-    # 'TARGETED_SUBSIDIES': {'TARGETED_SUBSIDIES': True, 'TAX_EMISSION': 0,
-    #                        'ECO_INVESTMENT_SUBSIDIES': 0.2},
-    # 'TAX_RECYCLING':      {'TAX_RECYCLING': True, 'TAX_EMISSION': 10,
-    #                        'ECO_INVESTMENT_SUBSIDIES': 0},
+SCENARIOS = {
+    'TAX': {
+        **_BASE,
+        'TAX_EMISSION': 10, 'ECO_INVESTMENT_SUBSIDIES': 0,
+        'TARGETED_SUBSIDIES': False, 'CARBON_TAX_RECYCLING': False,
+    },
+    'SUBSIDIES': {
+        **_BASE,
+        'TAX_EMISSION': 0, 'ECO_INVESTMENT_SUBSIDIES': 0.2,
+        'TARGETED_SUBSIDIES': False, 'CARBON_TAX_RECYCLING': False,
+    },
+    'TARGETED_SUBSIDIES': {
+        **_BASE,
+        'TAX_EMISSION': 0, 'ECO_INVESTMENT_SUBSIDIES': 0.2,
+        'TARGETED_SUBSIDIES': True,  'CARBON_TAX_RECYCLING': False,
+    },
+    'TAX_SUBSIDIES': {
+        **_BASE,
+        'TAX_EMISSION': 10, 'ECO_INVESTMENT_SUBSIDIES': 0.2,
+        'TARGETED_SUBSIDIES': False, 'CARBON_TAX_RECYCLING': False,
+    },
+    'TAX_TARGETED_SUBSIDIES': {
+        **_BASE,
+        'TAX_EMISSION': 10, 'ECO_INVESTMENT_SUBSIDIES': 0.2,
+        'TARGETED_SUBSIDIES': True,  'CARBON_TAX_RECYCLING': False,
+    },
+    'TAX_RECYCLING': {
+        **_BASE,
+        'TAX_EMISSION': 10, 'ECO_INVESTMENT_SUBSIDIES': 0,
+        'TARGETED_SUBSIDIES': False, 'CARBON_TAX_RECYCLING': True,
+    },
+    'TAX_RECYCLING_SUBSIDIES': {
+        **_BASE,
+        'TAX_EMISSION': 10, 'ECO_INVESTMENT_SUBSIDIES': 0.2,
+        'TARGETED_SUBSIDIES': False, 'CARBON_TAX_RECYCLING': True,
+    },
+    'TAX_RECYCLING_TARGETED': {
+        **_BASE,
+        'TAX_EMISSION': 10, 'ECO_INVESTMENT_SUBSIDIES': 0.2,
+        'TARGETED_SUBSIDIES': True,  'CARBON_TAX_RECYCLING': True,
+    },
 }
 
 # ── Runner ────────────────────────────────────────────────────────────────────

@@ -7,6 +7,7 @@ import random
 import sys
 import secrets
 from collections import defaultdict
+import copy
 
 import numpy as np
 import pandas as pd
@@ -23,7 +24,7 @@ from markets.goods import RegionalMarket, External
 
 class Simulation:
     def __init__(self, params, output_path):
-        self.PARAMS = params
+        self.PARAMS = copy.copy(params)
         self.geo = Geography(params, self.PARAMS["STARTING_DAY"].year)
         self.regional_market = RegionalMarket(self)
         self.clock = clock.Clock(self.PARAMS["STARTING_DAY"])
@@ -101,6 +102,19 @@ class Simulation:
         housing_interest.date = pd.to_datetime(housing_interest.date)
         self.housing_interest = housing_interest.set_index("date")
 
+        # Subsidies configuration
+        level = self.PARAMS['ECO_INVESTMENT_SUBSIDIES']
+        self.PARAMS['ECO_INVESTMENT_SUBSIDIES'] = defaultdict(lambda: level)
+        # Targeted sectors
+        if self.PARAMS['TARGETED_SUBSIDIES']:
+            sectors = pd.read_csv('input/emissions_sectors.csv', dtype={'mun_code': str}).isic_12
+            for sector in sectors:
+                if sector not in self.PARAMS['TARGETED_SECTORS']:
+                     self.PARAMS['ECO_INVESTMENT_SUBSIDIES'][sector] = 0
+
+
+
+        
     def update_pop(self, old_region_id, new_region_id):
         if old_region_id and new_region_id:
             # Agents are moving from the old to the new region
