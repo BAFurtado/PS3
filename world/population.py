@@ -8,13 +8,7 @@ def pop_age_data(pop, code, age, percent_pop):
     """Select and return the proportion value of population
     for a given municipality, gender and age"""
     n_pop = pop[pop['code'] == str(code)][age].iloc[0] * percent_pop
-    rounded = int(round(n_pop))
-
-    # for small `percent_pop`, sometimes we get 0
-    # when it's better to have at least 1 agent
-    if rounded == 0 and math.ceil(n_pop) == 1:
-        return 1
-    return rounded
+    return int(round(n_pop))
 
 
 def load_pops(mun_codes, params, year):
@@ -146,6 +140,8 @@ def immigration(sim):
         elif pop > estimated_pop:
             # Delete families
             on_the_roof = pop - int(estimated_pop)
+            on_the_roof *= 1 / 12
+            on_the_roof = int(on_the_roof)
             # Select agents to be removed
             agents_to_remove = list(sim.seed_np.choice(list(sim.agents.values()), replace=False, size=on_the_roof))
             while agents_to_remove:

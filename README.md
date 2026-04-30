@@ -47,6 +47,7 @@ additionally from being responsible for infrastructure and policy.
 37. Implementation of new official urban concentration areas from IBGE, updated in 2022--CONURBs. 
 Due to numerous mentions in the code, we will continue to use **ACPs despite them having been updated to CONURBs.**
 38. Percentage of firms per sectors are now read from the data (not parameters anymore)
+39. Carbon Emissions: Externalities now derived from Alvarenga Junior (2024)
 
 ------
 ``` python 3.12```
@@ -223,6 +224,20 @@ Example:
 python main.py -n 2 -c 2 acps
 ```
 
+#### Resuming interrupted runs
+
+If a run is interrupted, it can be resumed without losing completed work. Before
+dispatching any jobs, `run`, `sensitivity`, `distributions`, and `acps` all write
+a `jobs.json` manifest to the output directory. Each completed simulation writes a
+`DONE` sentinel file. To resume:
+
+```
+python main.py resume path/to/output_dir
+```
+
+Partial (incomplete) run directories are deleted and only the missing jobs are
+re-dispatched. The `-c` flag is available to control parallelization, same as other commands.
+
 #### Regenerating plots
 
 You can regenerate plots for a set of runs by using:
@@ -236,6 +251,25 @@ In Windows, make sure to use double quotes " " and backward slashes as in:
 ```
 python main.py make-plots
 "..\run__2017-11-01T11_59_59.240250_bh"
+```
+
+#### Parameter calibration
+
+The calibration module uses Sobol sequence sampling to map the fitness landscape
+over the parameter space defined in `analysis/calibration/calibration_conf.py`.
+
+```
+# Run Sobol sampling (power of 2 recommended for --samples)
+python -m analysis.calibration.sample run-sample --samples 64 --cpus 4
+
+# Resume an interrupted calibration run
+python -m analysis.calibration.sample resume path/to/calibration_dir/
+
+# Score a completed results folder
+python -m analysis.calibration.sample score path/to/calibration_dir/
+
+# Compute Total-Order Sobol Indices
+python -m analysis.calibration.sample sensitivity path/to/calibration_dir/
 ```
 
 ### Running the web interface

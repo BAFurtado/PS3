@@ -23,7 +23,6 @@ import json
 import logging
 import datetime
 from glob import glob
-from datetime import datetime
 
 import click
 import joblib
@@ -72,11 +71,12 @@ def calculate_fitness(sim_df: pd.DataFrame) -> float:
     required = {"gdp_growth", "unemployment", "gini_index", "inflation"}
     if not required.issubset(sim_df.columns):
         return 999.0
-    start, end = settings["target_start_year"],settings["target_end_year"]
+    burn_in_end = settings.get("burn_in_end", "2012-01-01")
+    end = settings["target_end_year"]
     if "month" in sim_df.columns:
-        df = sim_df[(sim_df["month"]>= start) & (sim_df["month"] <= end)]
+        df = sim_df[(sim_df["month"] >= burn_in_end) & (sim_df["month"] <= end)]
     elif "year" in sim_df.columns:
-        df = sim_df[(sim_df["year"] >= start) & (sim_df["year"] <= end)]
+        df = sim_df[(sim_df["year"] >= burn_in_end) & (sim_df["year"] <= end)]
     else:
         df = sim_df
 
