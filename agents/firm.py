@@ -25,8 +25,7 @@ initial_input_sectors = {'Agriculture': 0,
                          'Government': 0
                          }
 
-emissions = pd.read_csv('input/emissions_sector_average_years.csv', dtype={'mun_code': str})
-
+emissions = pd.read_csv('input/emissions_sectors.csv', dtype={'mun_code': str})
 
 class Firm:
     """
@@ -129,7 +128,7 @@ class Firm:
     # ECOLOGICAL PROCEDURES ###########################################################################################
     def probability_success(self, eco_investment, eco_lambda):
         """ 
-        Returns the probability of success given the amount invested per wages paid (I/W)
+        Returns the probability of success given the amount invested per revenue (I/R)
         """
         return 1 - np.exp(np.clip(- eco_lambda * eco_investment, -700, 700))
 
@@ -142,7 +141,7 @@ class Firm:
         # Using median from 2010.
         # Procedure: Apply endogenous salary amount to external ecoefficiency to find estimated output indicator
         if not self.no_emissions:
-            emissions_this_month = self.env_efficiency * self.revenue / self.emissions_base
+            emissions_this_month = self.env_efficiency * self.emissions_base * (self.revenue-self.input_cost)
             self.last_emissions = emissions_this_month
             self.env_indicators['emissions'] += emissions_this_month
             emission_tax = emissions_this_month * tax_emission
@@ -158,7 +157,7 @@ class Firm:
         Reduce overall emissions per wage employed.
         """
         # Decide how much to invest based on expected cost and benefit analysis
-        eco_investment, paid_subsidies = self.decision_on_eco_efficiency(regional_market)
+        eco_investment, paid_subsidies = self.decision_on_eco_efficiency(regional_market,regions)
 
         # Check if firm has enough balance
         eco_investment = max(0, min(self.total_balance, eco_investment))
@@ -178,7 +177,7 @@ class Firm:
         self.total_balance += paid_subsidies
         self.inno_inv = eco_investment
 
-    def decision_on_eco_efficiency(self,regional_market):
+    def decision_on_eco_efficiency(self,regional_market,regions):
         """ 
         Choose how much to invest based on expected emission cost (taxes, reputational costs and intrinsic cost)
         Also accounts for possible environmental policies
@@ -201,7 +200,12 @@ class Firm:
         # Skip if within grace period
         is_policy_active = today > params['STARTING_DAY'] + datetime.timedelta(params['ECO_POLICY_DAYS'])
         eco_lambda = params['ECO_INVESTMENT_LAMBDA']
-        subsidies = params['ECO_INVESTMENT_SUBSIDIES'] if is_policy_active else 0
+        subsidies = params['ECO_INVESTMENT_SUBSIDIES'][self.sector] if is_policy_active else 0
+        if is_policy_active and subsidies and tax_cost >= 0:
+            # Check if the government has money to provide subsidies
+            # Only checks if emissions taxes are being levied
+            if regions[self.region_id].treasure['emissions'] <= 0:
+                subsidies = 0
 
 
         # Profit maximization formula yields the formula below
@@ -219,45 +223,43 @@ class Firm:
         return investment_per_revenue, paid_subsidies
 
     # PRODUCTION DEPARTMENT ###########################################################################################
-    def choose_firm_per_sector(self, regional_market, firms, seed, market_size):
+    def choose_firm_per_sector(self, regional_market, firms, seed, market_size,
+                               prebuilt_sector_map=None):
         """
         Choose local firms to buy inputs from, optimizing firm selection per sector.
+        Accepts an optional prebuilt_sector_map (sector→list of firms) built once per month
+        at the simulation level to avoid rebuilding it for every firm call.
         """
-        params = regional_market.sim.PARAMS
-        size_market = int(params['SIZE_MARKET'])
         chosen_firms = {}
 
-        # Pre-group firms by sector, excluding self
-        sector_firm_map = {}
-        for firm in firms.values():
-            if firm.id != self.id:
-                sector_firm_map.setdefault(firm.sector, []).append(firm)
+        if prebuilt_sector_map is None:
+            # Fallback: build the map here (slow path)
+            sector_map = {}
+            for firm in firms.values():
+                if firm.id != self.id:
+                    sector_map.setdefault(firm.sector, []).append(firm)
+        else:
+            sector_map = prebuilt_sector_map
 
-        for sector in regional_market.technical_matrix.index:
-            eligible_firms = sector_firm_map.get(sector, [])
-
-            if not eligible_firms:
-                chosen_firms[sector] = None
-                continue
-
-            # Filter only those with positive quantity
-            available_firms = [f for f in eligible_firms if f.total_quantity > 0]
+        for sector in regional_market._sector_order:
+            # Filter by positive inventory and exclude self; direct inventory[0].quantity
+            # access avoids the property dispatch overhead on this hot path
+            available_firms = [f for f in sector_map.get(sector, [])
+                                if f.id != self.id and f.inventory[0].quantity > 0]
 
             if not available_firms:
                 chosen_firms[sector] = None
                 continue
 
-            # Sample up to size_market firms
-            sampled_firms = seed.sample(available_firms, min(len(available_firms), size_market))
-
-            # Sort by price and take top `market_size` firms
-            sampled_firms.sort(key=lambda f: f.prices)
-            chosen_firms[sector] = sampled_firms[:min(len(sampled_firms), int(market_size))]
+            sampled_firms = seed.sample(available_firms, min(len(available_firms), int(market_size)))
+            sampled_firms.sort(key=lambda f: f.inventory[0].price)
+            chosen_firms[sector] = sampled_firms[:int(market_size)]
 
         return chosen_firms
 
     def buy_inputs(self, desired_quantity, regional_market, firms, seed,
-                   technical_matrix, external_technical_matrix):
+                   technical_matrix, external_technical_matrix,
+                   prebuilt_sector_map=None):
 
         self.input_cost = 0
         if self.total_balance <= 0:
@@ -265,43 +267,39 @@ class Firm:
 
         params = regional_market.sim.PARAMS
         freight_cost = 1.0 + params['REGIONAL_FREIGHT_COST']
-        sectors = regional_market.technical_matrix.index
+        sectors = regional_market._sector_order
 
-        # --- Technical coefficients cached only once
-        local_tc = technical_matrix.loc[:, self.sector]
-        external_tc = external_technical_matrix.loc[:, self.sector]
+        # Use pre-computed numpy column arrays (avoids pandas.loc on every call)
+        local_tc = regional_market._tech_np[self.sector]       # shape (12,)
+        external_tc = regional_market._ext_local_np[self.sector]
         total_tc = local_tc + external_tc
+        input_ratio = np.where(total_tc > 0, local_tc / total_tc, 0.0)
 
-        input_ratio = np.divide(local_tc, total_tc)
-
-        # --- Quantities needed
-        inventory_series = pd.Series(self.input_inventory)
-
+        # Build inventory and quantity arrays without creating pd.Series
+        inv_arr = np.array([self.input_inventory[s] for s in sectors])
         gross_needed = desired_quantity * total_tc
-        net_needed = gross_needed - inventory_series
-        net_needed_clipped = np.clip(net_needed, 0, None)
-
+        net_needed_clipped = np.maximum(gross_needed - inv_arr, 0.0)
         local_needed = input_ratio * net_needed_clipped
         external_needed = net_needed_clipped - local_needed
 
-        # --- Firm selection
+        # Firm selection
         chosen_firms = self.choose_firm_per_sector(
             regional_market, firms, seed,
-            params['INTERMEDIATE_SIZE_MARKET']
+            params['INTERMEDIATE_SIZE_MARKET'],
+            prebuilt_sector_map
         )
 
-        # --- Compute total money needed
+        # Compute total money needed
         money_local_inputs = 0.0
         money_external_inputs = 0.0
 
-        for sector in sectors:
+        for i, sector in enumerate(sectors):
             firms_sector = chosen_firms[sector]
             if not firms_sector:
                 continue
-
-            price = firms_sector[0].prices
-            money_local_inputs += local_needed[sector] * price
-            money_external_inputs += external_needed[sector] * price * freight_cost
+            price = firms_sector[0].inventory[0].price
+            money_local_inputs += local_needed[i] * price
+            money_external_inputs += external_needed[i] * price * freight_cost
 
         total_money_needed = money_local_inputs + money_external_inputs
 
@@ -312,17 +310,17 @@ class Firm:
 
         self.total_balance -= reduction_factor * total_money_needed
 
-        # --- Purchase loop
-        for sector in sectors:
+        # Purchase loop
+        for i, sector in enumerate(sectors):
             firms_sector = chosen_firms[sector]
 
             if firms_sector:
-                price = firms_sector[0].prices
+                price = firms_sector[0].inventory[0].price
             else:
                 price = regional_market.sim.avg_prices
 
-            money_local = reduction_factor * local_needed[sector] * price
-            money_external = reduction_factor * external_needed[sector] * price * freight_cost
+            money_local = reduction_factor * local_needed[i] * price
+            money_external = reduction_factor * external_needed[i] * price * freight_cost
 
             if money_local == 0 and money_external == 0:
                 continue
@@ -360,23 +358,15 @@ class Firm:
 
             self.input_cost += money_local - change + money_external
 
-    def update_product_quantity(self, prod_exponent, prod_divisor, regional_market, firms, seed):
+    def update_product_quantity(self, prod_exponent, prod_divisor, regional_market, firms, seed,
+                               prebuilt_sector_map=None):
         """
         Based on the MIP sector, buys inputs to produce a given money output of the activity, creates externalities
         and creates a price based on cost.
         """
-        # """ Production equation = Labor * qualification ** alpha """
         quantity = 0
-        if self.sector == "Government":
-            pass
         if self.employees and self.inventory:
-            # Call get_sum_qualification below: sum([employee.qualification ** parameters.PRODUCTIVITY_EXPONENT
-            #                                   for employee in self.employees.values()])
-            # Divide production by an order of magnitude adjustment parameter
             desired_quantity = self.total_qualification(prod_exponent) / prod_divisor
-            # Currently, each firm has only a single product. If more products should be introduced, allocation of
-            # quantity per product should be adjusted accordingly
-            # Currently, the index for the single product is 0
 
             technical_matrix = regional_market.technical_matrix
             external_technical_matrix = regional_market.ext_local_matrix
@@ -384,19 +374,27 @@ class Firm:
             # Buy inputs fills up input_inventory
             # Env efficiency reduces the amount of inputs needed, so the firms buys less
             self.buy_inputs(self.env_efficiency * desired_quantity, regional_market, firms, seed,
-                            technical_matrix, external_technical_matrix)
-            input_quantities_needed = self.env_efficiency * desired_quantity * (
-                    technical_matrix.loc[:, self.sector] + external_technical_matrix.loc[:, self.sector])
-            # The following process would be a traditional Leontief production function
-            productive_constraint = np.divide(pd.Series(self.input_inventory),
-                                              input_quantities_needed)
-            productive_constraint = np.clip(productive_constraint, 0, 1)
-            # Check that we have enough inputs to produce desired quantity
-            productive_constraint_numeric = max(min(productive_constraint), 0)
+                            technical_matrix, external_technical_matrix, prebuilt_sector_map)
+
+            # Leontief production constraint using pre-computed numpy arrays
+            sectors = regional_market._sector_order
+            local_tc = regional_market._tech_np[self.sector]
+            external_tc = regional_market._ext_local_np[self.sector]
+            input_quantities_needed = self.env_efficiency * desired_quantity * (local_tc + external_tc)
+
+            inv_arr = np.array([self.input_inventory[s] for s in sectors])
+            productive_constraint = np.where(
+                input_quantities_needed > 0,
+                np.clip(inv_arr / input_quantities_needed, 0.0, 1.0),
+                1.0  # no input needed for this sector → no constraint
+            )
+            productive_constraint_numeric = max(float(productive_constraint.min()), 0.0)
+
             input_used = productive_constraint_numeric * input_quantities_needed
+            for i, sector in enumerate(sectors):
+                self.input_inventory[sector] -= input_used[i]
+
             quantity = productive_constraint_numeric * desired_quantity
-            for sector in regional_market.technical_matrix.index:
-                self.input_inventory[sector] -= input_used[sector]
             self.total_quantity += quantity
             self.amount_produced += quantity
         return quantity
@@ -445,55 +443,33 @@ class Firm:
         self.revenue = 0
 
     def sale(self, amount, regions, tax_consumption, consumer_region_id, if_origin, external=False):
-        """Sell max amount of products for a given amount of money"""
+        """Sell max amount of products for a given amount of money.
+        Each firm always carries exactly one product (inventory key 0), so the original
+        loop over inventory is replaced with a direct access.
+        """
         if amount > 0:
-            # For each product in this firms' inventory, spend amount proportionally
-            dummy_bought_quantity = 0
-            amount_per_product = amount / len(self.inventory)
+            product = self.inventory[0]
+            if product.quantity > 0:
+                bought_quantity = amount / product.price
+                actual_amount = amount
+                if bought_quantity > product.quantity:
+                    bought_quantity = product.quantity
+                    actual_amount = bought_quantity * product.price
 
-            # Add price of the unit, deduce it from consumers' amount
-            for key in list(self.inventory.keys()):
-                if self.inventory[key].quantity > 0:
-                    bought_quantity = amount_per_product / self.inventory[key].price
+                product.quantity -= bought_quantity
+                revenue = actual_amount * (1 - tax_consumption)
+                self.total_balance += revenue
+                self.revenue += revenue
 
-                    # Verifying if demand is within firms' available inventory
-                    if bought_quantity > self.inventory[key].quantity:
-                        bought_quantity = self.inventory[key].quantity
-                        amount_per_product = bought_quantity * self.inventory[key].price
+                if if_origin:
+                    regions[self.region_id].collect_taxes(actual_amount * tax_consumption, "consumption")
+                else:
+                    if not external:
+                        regions[consumer_region_id].collect_taxes(actual_amount * tax_consumption, "consumption")
 
-                    # Deducing from stock
-                    self.inventory[key].quantity -= bought_quantity
-
-                    # Tax deducted from firms' balance and value of sale added to the firm
-                    revenue = amount_per_product - (
-                            amount_per_product * tax_consumption
-                    )
-                    self.total_balance += revenue
-                    self.revenue += revenue
-
-                    # Tax added to region-specific government.
-                    # ATTENTION. this is the origin of consumption!
-                    # For the new REFORM change it to the region of CONSUMER
-                    if if_origin:
-                        # Standard tax system. Consumption charged at firms' address
-                        regions[self.region_id].collect_taxes(
-                            amount_per_product * tax_consumption, "consumption"
-                        )
-                    else:
-                        if external:
-                            pass
-                            # TODO: Add tax value to external region
-                        else:
-                            # Testing policy to charge consumption tax at consumers' address
-                            regions[consumer_region_id].collect_taxes(
-                                amount_per_product * tax_consumption, "consumption"
-                            )
-                    # Quantifying quantity sold
-                    dummy_bought_quantity += bought_quantity
-                    # Deducing money from clients upfront
-                    amount -= amount_per_product
-            self.amount_sold += dummy_bought_quantity
-        # Return change to consumer, if any. Note that if there is no quantity to sell, full amount is returned
+                self.amount_sold += bought_quantity
+                return amount - actual_amount  # change/refund to buyer
+        # No stock or zero amount: full refund
         return amount
 
     @property

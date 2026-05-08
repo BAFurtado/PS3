@@ -1,3 +1,4 @@
+import copy
 import datetime
 import json
 import math
@@ -23,7 +24,7 @@ from markets.goods import RegionalMarket, External
 
 class Simulation:
     def __init__(self, params, output_path):
-        self.PARAMS = params
+        self.PARAMS = copy.copy(params)
         self.geo = Geography(params, self.PARAMS["STARTING_DAY"].year)
         self.regional_market = RegionalMarket(self)
         self.clock = clock.Clock(self.PARAMS["STARTING_DAY"])
@@ -48,25 +49,34 @@ class Simulation:
         self.grave = list()
         self.mun_to_regions = defaultdict(set)
         self.od_matrix = None
-        # Read necessary files
+        # Read necessary files — loaded as dicts for fast O(1) lookup in demographics
         self.m_men, self.m_women, self.f = dict(), dict(), dict()
 
         for state in self.geo.states_on_process:
-            self.m_men[state] = pd.read_csv(
+            m_men = pd.read_csv(
                 "input/Demografia/2_Mortality/mortality_men_%s.csv" % state,
                 header=0,
                 decimal=".",
-            ).groupby("age")
-            self.m_women[state] = pd.read_csv(
+            ).set_index("age")
+            m_men.columns = m_men.columns.astype(str)
+            self.m_men[state] = m_men.to_dict('index')
+
+            m_women = pd.read_csv(
                 "input/Demografia/2_Mortality/mortality_women_%s.csv" % state,
                 header=0,
                 decimal=".",
-            ).groupby("age")
-            self.f[state] = pd.read_csv(
+            ).set_index("age")
+            m_women.columns = m_women.columns.astype(str)
+            self.m_women[state] = m_women.to_dict('index')
+
+            f = pd.read_csv(
                 "input/Demografia/1_Fertility/fertility_%s.csv" % state,
                 header=0,
                 decimal=".",
-            ).groupby("age")
+            ).set_index("age")
+            f.columns = f.columns.astype(str)
+            self.f[state] = f.to_dict('index')
+
         # Implement loop when other RMs ODs become available
         if 'DF' in self.geo.states_on_process:
             try:
@@ -91,6 +101,16 @@ class Simulation:
         housing_interest = pd.read_csv(f"input/planhab_funds/interest_housing_{self.PARAMS['INTEREST']}.csv")
         housing_interest.date = pd.to_datetime(housing_interest.date)
         self.housing_interest = housing_interest.set_index("date")
+
+        # Subsidies configuration: convert flat value to per-sector defaultdict
+        level = self.PARAMS['ECO_INVESTMENT_SUBSIDIES']
+        self.PARAMS['ECO_INVESTMENT_SUBSIDIES'] = defaultdict(lambda: level)
+        # Targeted sectors: zero out non-targeted sectors if enabled
+        if self.PARAMS['TARGETED_SUBSIDIES']:
+            sectors = pd.read_csv('input/emissions_sectors.csv', dtype={'mun_code': str}).isic_12
+            for sector in sectors:
+                if sector not in self.PARAMS['TARGETED_SECTORS']:
+                    self.PARAMS['ECO_INVESTMENT_SUBSIDIES'][sector] = 0
 
     def update_pop(self, old_region_id, new_region_id):
         if old_region_id and new_region_id:
@@ -134,7 +154,7 @@ class Simulation:
             self.mun_pops[mun_code] += 1
         return regions, agents, houses, families, firms, self.generator.central
 
-    def run(self,log=True):
+    def run(self, log=True):
         """Runs the simulation"""
         self.logger.logger.info("Starting run.")
         self.logger.logger.info("Output: {}".format(self.output.path))
@@ -199,9 +219,9 @@ class Simulation:
             actual = self.labor_market.num_candidates
         self.labor_market.reset()
 
-        # for i, family in enumerate( self.families.values()):
-        #     head_family = max(family.members.values(), key=lambda x: x.last_wage)
-        #     head_family.set_head_family()
+        for i, family in enumerate(self.families.values()):
+            head_family = max(family.members.values(), key=lambda x: x.last_wage)
+            head_family.set_head_family()
 
         # Update initial pop
         for region in self.regions.values():
@@ -234,11 +254,16 @@ class Simulation:
         prod_exponent = self.PARAMS["PRODUCTIVITY_EXPONENT"]
         prod_magnitude_divisor = self.PARAMS["PRODUCTIVITY_MAGNITUDE_DIVISOR"]
         [f.reset_amount_sold() for f in self.firms.values()]
+        # Build sector→firm map once per month and pass to update_product_quantity
+        sector_firm_map = {}
+        for f in self.firms.values():
+            sector_firm_map.setdefault(f.sector, []).append(f)
         for firm in self.firms.values():
             firm.update_product_quantity(prod_exponent, prod_magnitude_divisor,
                                          self.regional_market,
                                          self.firms,
-                                         self.seed)
+                                         self.seed,
+                                         sector_firm_map)
 
         # Call demographics
         # Update agent life cycles
@@ -265,8 +290,9 @@ class Simulation:
                 mortality_women,
                 fertility,
             )
+
         # Calculate head_rate as input for immigration adjustments
-        # self.stats.calculate_head_rate(self.families.values(), self.clock.days.strftime("%Y-%m-%d"))
+        self.stats.calculate_head_rate(self.families.values(), self.clock.days.strftime("%Y-%m-%d"))
 
         # Adjust population for immigration
         population.immigration(self)
@@ -391,14 +417,12 @@ class Simulation:
         # Initiating Real Estate Market
         # Tax transaction taxes (ITBI) when selling house
         # Property tax (IPTU) collected. One twelfth per month
-        # self.central.calculate_monthly_mortgage_rate()
         house_prices = [h.price for h in self.houses.values()]
         house_price_percentiles = np.percentile(house_prices, q=np.arange(10, 101, 10))
         house_price_quantiles = np.quantile(house_prices, q=np.cumsum(self.PARAMS["PERC_HOUSE_CATEGORIES"]).tolist())
         affordability_decis = house_price_percentiles / wage_deciles * 12  # annual income
 
         self.housing.housing_market(self, house_price_quantiles)
-        # (changed location) self.housing.process_monthly_rent(self)
         for house in self.houses.values():
             house.pay_property_tax(self)
 
@@ -406,7 +430,7 @@ class Simulation:
         for fam in self.families.values():
             fam.invest(self.central, self.clock.year, self.clock.months)
 
-        # Remunerate central bank idel liquid assets
+        # Remunerate central bank idle liquid assets
         self.central.remunerate_liquid_balance()
         # Using all collected taxes to improve public services
         bank_taxes = self.central.collect_taxes()

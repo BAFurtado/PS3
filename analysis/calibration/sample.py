@@ -2,21 +2,35 @@
 Tier 1 Sobol Scouting: sample → score → sensitivity
 
 CLI:
+    # Run full parameter space sampling (power of 2 recommended for --samples)
     python -m analysis.calibration.sample run-sample --samples 64 --cpus 4
+
+    # Score a completed (or partially completed) results folder
     python -m analysis.calibration.sample score path/to/calibration_dir/
+
+    # Compute Total-Order Sobol Indices from scored results
     python -m analysis.calibration.sample sensitivity path/to/calibration_dir/
+
+Interruption recovery:
+    run-sample writes jobs.json to the output directory before dispatching.
+    Each completed run writes a DONE sentinel file. If execution is interrupted,
+    run resume to clean partial outputs and continue from where it left off.
 """
 import os
 import sys
 import copy
 import json
 import logging
+import datetime
 from glob import glob
 from datetime import datetime
 
 import click
+import joblib
 import numpy as np
 import pandas as pd
+import tqdm
+from contextlib import contextmanager
 from joblib import Parallel, delayed
 from SALib.analyze import sobol as sobol_analyze
 from SALib.sample import sobol as sobol_sampler
@@ -25,6 +39,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import analysis.calibration.calibration_conf as calibration_conf
 import conf
+from checkpoint import save_jobs, pending_jobs
 from simulation import Simulation
 from main import gen_output_dir
 from analysis.output import OUTPUT_DATA_SPEC
@@ -35,39 +50,64 @@ logger = logging.getLogger('main')
 # ── FITNESS ───────────────────────────────────────────────────────────────────
 
 def calculate_fitness(sim_df: pd.DataFrame) -> float:
-    """Weighted MAD against observed BH targets over the burn-in window."""
+    """
+    Weighted distance between simulated and observed BH moments (mean, std)
+    over the burn-in window. Returns 999.0 on failure.
+    """
     settings = calibration_conf.CALIBRATION_SETTINGS
-    weights  = settings["fitness_weights"]
+    weights  = []#settings["fitness_weights"]
 
-    # TODO: replace scalars with observed BH time-series once data is wired
+    # TODO: replace with values computed from actual observed series
     OBSERVED = {
-        "gdp_growth":   0.035,
-        "unemployment": 0.090,
-        "gini":         0.540,
-        "inflation":    0.065,
+        "gdp_growth_mean":   0.10,
+        "gdp_growth_std":    0.018,
+        "unemployment_mean": 0.090,
+        "unemployment_std":  0.021,
+        "gini_mean":         0.540,
+        "gini_std":          0.018,
+        "inflation_mean":    0.065/12,
+        "inflation_std":     0.031/np.sqrt(12),
     }
 
-    if not set(OBSERVED).issubset(sim_df.columns):
+    required = {"gdp_growth", "unemployment", "gini_index", "inflation"}
+    if not required.issubset(sim_df.columns):
         return 999.0
-
-    start, end = settings["target_start_year"], settings["target_end_year"]
-    if "year" in sim_df.columns:
+    start, end = settings["target_start_year"],settings["target_end_year"]
+    if "month" in sim_df.columns:
+        df = sim_df[(sim_df["month"]>= start) & (sim_df["month"] <= end)]
+    elif "year" in sim_df.columns:
         df = sim_df[(sim_df["year"] >= start) & (sim_df["year"] <= end)]
     else:
-        df = sim_df.iloc[: (end - start + 1) * 12]
+        df = sim_df
 
     if df.empty:
         return 999.0
 
-    simulated = {
-        "gdp_growth":   (df["gdp_growth"].mean() + 1) ** 12 - 1,
-        "unemployment": df["unemployment"].mean(),
-        "gini":         df["gini"].mean(),
-        "inflation":    (df["inflation"].mean() + 1) ** 12 - 1,
+    SIMULATED = {
+        "gdp_growth_mean":   float((df["gdp_growth"].mean() + 1) ** 12 - 1),
+        "gdp_growth_std":    float(df["gdp_growth"].std())*np.sqrt(12),
+        "unemployment_mean": float(df["unemployment"].mean()),
+        "unemployment_std":  float(df["unemployment"].std()),
+        "gini_mean":         float(df["gini_index"].mean()),
+        "gini_std":          float(df["gini_index"].std()),
+        "inflation_mean":    float(df["inflation"].mean()),
+        "inflation_std":     float(df["inflation"].std()),
+    }
+
+    moment_weights = {
+        "gdp_growth_mean":  1 / 8,
+        "gdp_growth_std":    1 / 8,
+        "unemployment_mean": 1 / 8,
+        "unemployment_std":  1 / 8,
+        "gini_mean":         1/ 8,
+        "gini_std":          1 / 8,
+        "inflation_mean":    1 / 8,
+        "inflation_std":     1 / 8,
     }
 
     return sum(
-        weights[t] * abs(simulated[t] - OBSERVED[t]) for t in weights
+        moment_weights[m] * abs(SIMULATED[m] - OBSERVED[m])
+        for m in OBSERVED
     )
 
 
@@ -102,20 +142,25 @@ def run_sample(ctx, samples, cpus):
     problem = {
         "num_vars": len(names),
         "names":    names,
-        "bounds":   list(zip(lbs, ubs)),
+        "bounds":   list(zip(lbs, ubs))
     }
     scaled_samples = sobol_sampler.sample(
         problem,
         N=n_samples,
         seed=settings["sobol_seed"],
     )
-    processing_acp = {"PROCESSING_ACPS":[calibration_conf.CALIBRATION_SETTINGS['calibration_region']]}
+    start_date = datetime.strptime(calibration_conf.CALIBRATION_SETTINGS['target_start_year'], '%Y-%m-%d').date()
+    end_date = datetime.strptime(calibration_conf.CALIBRATION_SETTINGS['target_end_year'], '%Y-%m-%d').date()   
+    processing_acp = {"PROCESSING_ACPS":[calibration_conf.CALIBRATION_SETTINGS['calibration_region']],
+                      "STARTING_DAY":start_date,
+                      "TOTAL_DAYS":(end_date-start_date).days}
     confs = [dict(zip(names, scaled_samples[i])) for i in range(len(scaled_samples))]
     for conf in confs: 
         conf.update(processing_acp)
+
     output_dir = gen_output_dir("calibration")
 
-    #_save_meta(output_dir, problem, n_samples, n_runs, settings)
+    _save_meta(output_dir, problem, n_samples, n_runs, settings)
     multiple_runs(confs, n_runs, cpus, output_dir)
 
     logger.info(f"Done. Results in: {output_dir}")
@@ -135,7 +180,42 @@ def sensitivity(root_dir):
     compute_sensitivity(root_dir)
 
 
+@main.command()
+@click.argument("root_dir")
+@click.option("-c", "--cpus", default=-1, help="Cores (-1 for all).")
+def resume(root_dir, cpus):
+    """Resume an interrupted calibration run from root_dir/jobs.json."""
+    try:
+        pending, cleaned = pending_jobs(root_dir)
+    except FileNotFoundError as e:
+        raise click.ClickException(str(e))
+
+    if not pending:
+        logger.info("All jobs already completed — nothing to resume.")
+        return
+
+    logger.info(f"Cleaned {cleaned} partial run(s). Resuming {len(pending)} job(s)...")
+    _dispatch(pending, cpus, desc="Resuming")
+
+
 # ── EXECUTION ─────────────────────────────────────────────────────────────────
+
+@contextmanager
+def _tqdm_joblib(tqdm_bar):
+    """Patch joblib's batch callback so tqdm updates after each completed job."""
+    class _Callback(joblib.parallel.BatchCompletionCallBack):
+        def __call__(self, *args, **kwargs):
+            tqdm_bar.update(n=self.batch_size)
+            return super().__call__(*args, **kwargs)
+
+    old = joblib.parallel.BatchCompletionCallBack
+    joblib.parallel.BatchCompletionCallBack = _Callback
+    try:
+        yield tqdm_bar
+    finally:
+        joblib.parallel.BatchCompletionCallBack = old
+        tqdm_bar.close()
+
 
 def multiple_runs(overrides: list, runs: int, cpus: int, output_dir: str):
     """Dispatch all (parameter set × Monte Carlo run) jobs in parallel."""
@@ -146,14 +226,14 @@ def multiple_runs(overrides: list, runs: int, cpus: int, output_dir: str):
         p.update(o)
         param_list.append(p)
 
-    jobs = [
-        delayed(single_run)(copy.deepcopy(p), os.path.join(path, str(i)))
+    job_specs = [
+        {"path": os.path.join(path, str(i)), "params": p}
         for p, path in zip(param_list, paths)
         for i in range(runs)
     ]
+    save_jobs(output_dir, job_specs, cpus)
 
-    logger.info(f"Dispatching {len(jobs)} simulations...")
-    Parallel(n_jobs=cpus, backend="multiprocessing")(jobs)
+    _dispatch(job_specs, cpus, desc="Sobol runs")
     logger.info("All runs completed.")
 
 
@@ -162,9 +242,11 @@ def single_run(params: dict, path: str):
     os.makedirs(path, exist_ok=True)
     with open(os.path.join(path, "conf.json"), "w") as f:
         json.dump({"PARAMS": params}, f, indent=4, default=str)
+    
     sim = Simulation(params, path)
     sim.initialize()
     sim.run(log=False)
+    open(os.path.join(path, "DONE"), "w").close()
 
 
 # ── SCORING ───────────────────────────────────────────────────────────────────
@@ -240,7 +322,7 @@ def compute_sensitivity(root_dir: str) -> pd.DataFrame:
 
     scores_path = os.path.join(root_dir, "calibration_scores.csv")
     if not os.path.exists(scores_path):
-        raise FileNotFoundError(f"calibration_scores.csv not found in {root_dir}.")
+        raise FileNotFoundError(f"calibration_scores.csv not found in {root_dir}. Run 'score' first.")
 
     problem   = meta["problem"]
     n_samples = meta["n_samples"]
@@ -281,6 +363,14 @@ def compute_sensitivity(root_dir: str) -> pd.DataFrame:
 
 # ── HELPERS ───────────────────────────────────────────────────────────────────
 
+def _dispatch(job_specs: list, cpus: int, desc: str):
+    """Run a list of {path, params} job specs in parallel with a progress bar."""
+    jobs = [delayed(single_run)(job["params"], job["path"]) for job in job_specs]
+    bar  = tqdm.tqdm(total=len(jobs), desc=desc, unit="sim", dynamic_ncols=True)
+    with _tqdm_joblib(bar):
+        Parallel(n_jobs=cpus, backend="multiprocessing")(jobs)
+
+
 def _save_meta(output_dir: str, problem: dict, n_samples: int,
                n_runs: int, settings: dict):
     """Write meta.json required by compute_sensitivity."""
@@ -291,8 +381,8 @@ def _save_meta(output_dir: str, problem: dict, n_samples: int,
         "timestamp": datetime.now().isoformat(),
         "settings":  {k: v for k, v in settings.items() if k != "fitness_weights"},
     }
+    os.makedirs(output_dir, exist_ok=True)
     with open(os.path.join(output_dir, "meta.json"), "w") as f:
-        f.parent.mkdir(parents=True, exist_ok=True)
         json.dump(meta, f, indent=4)
 
 

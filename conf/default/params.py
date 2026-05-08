@@ -4,7 +4,7 @@ import datetime
 
 # FIRMS #########################################################
 # Production function, labor with decaying exponent, Alpha for K. [0, 1]
-PRODUCTIVITY_EXPONENT = .6
+PRODUCTIVITY_EXPONENT = .8
 # Order of magnitude correction of production. Production divided by parameter
 PRODUCTIVITY_MAGNITUDE_DIVISOR = 1
 # GENERAL CALIBRATION PARAMETERS
@@ -28,7 +28,7 @@ LABOR_MARKET = 0.8
 # Percentage of employees' firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
-RELEVANCE_UNEMPLOYMENT_SALARIES = 3
+RELEVANCE_UNEMPLOYMENT_SALARIES = 3.88
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 20
 
@@ -78,7 +78,7 @@ POLICY_MELHORIAS = True
 UPGRADE_COST = .2
 POLICY_DAYS = 360
 # Days until environmental policies start
-ECO_POLICY_DAYS = 360*5
+ECO_POLICY_DAYS = 360 * 5
 # Size of the poorest families to be helped
 POLICY_QUANTILE = 0.2
 # Change of policy for collecting consumption tax at:
@@ -163,6 +163,10 @@ TAX_EMISSION = 1
 # Subsidies in (0,1) is the amount of investment paid by the gov(subsidies * total_invested)
 # 0 is none, 1 is full
 ECO_INVESTMENT_SUBSIDIES = 0.2
+TARGETED_SUBSIDIES = False
+TARGETED_SECTORS = ['Agriculture', 'Transport', 'Utilities']
+CARBON_TAX_RECYCLING = False
+CARBON_RECYCLING_QUANTILE = 0.25
 
 # Consumption_equal: ratio of consumption tax distributed at state level (equal)
 # Fpm: ratio of 'labor' and 'firm' taxes distributed per the fpm ruling
@@ -197,7 +201,7 @@ REGIONAL_FREIGHT_COST = .3
 # RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation
 # Minimum value to run depends on the size of municipality 0,001 is recommended minimum
-PERCENTAGE_ACTUAL_POP = 0.005
+PERCENTAGE_ACTUAL_POP = 0.01
 
 # Order of magnitude parameter of input into municipality investment
 MUNICIPAL_EFFICIENCY_MANAGEMENT = 1e-07
