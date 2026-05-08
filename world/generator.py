@@ -127,7 +127,7 @@ class Generator:
                             "avg_num_people"
                         ]
                     )
-                except KeyError:
+                except (KeyError, IndexError):
                     num_families = int(
                         num_agents / self.sim.geo.avg_num_people[int(region_id[:7])][str(self.sim.geo.year)]
                     )
