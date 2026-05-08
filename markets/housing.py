@@ -27,10 +27,12 @@ class HousingMarket:
         # Using neighborhood_wealth effect as attractive for prices
         neighborhood_wealth = dict()
         if sim.PARAMS['NEIGHBORHOOD_EFFECT']:
-            for key in sim.regions.keys():
-                neighborhood_wealth[key] = median([f.get_permanent_income()
-                                                   for f in sim.families.values()
-                                                   if f.house.region_id == key])
+            # Single pass: group incomes by region, then compute medians
+            region_incomes = defaultdict(list)
+            for f in sim.families.values():
+                region_incomes[f.house.region_id].append(f.permanent_income)
+            neighborhood_wealth = {key: median(incomes) for key, incomes in region_incomes.items()}
+            del region_incomes
             _max, _min = max(neighborhood_wealth.values()), min(neighborhood_wealth.values())
             neighborhood_wealth = {k: (v - _min) / (_max - _min) for k, v in neighborhood_wealth.items()}
 

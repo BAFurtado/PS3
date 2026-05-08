@@ -388,19 +388,13 @@ class Output:
             commute_value = sim.stats.update_commuting(families)
             self.sim.regions[r].total_commute = commute_value
             neighbourhood_commute[r] = commute_value
-        with open(self.neighbourhood_path, 'a') as f:
-            try:
-                [f.write('%s; %s; %s; %d; %.3f; %.3f; %.3f; %.3f \n' %
+        with open(self.neighbourhood_path, 'a') as fp:
+            for region in sim.regions.values():
+                fp.write('%s; %s; %s; %d; %.3f; %.3f; %.3f; %.3f \n' %
                          (sim.clock.days, region.id[:7], region.id, region.pop, region.gdp,
-                          region.gdp / region.pop, neighbourhood_commute[region.id],
-                          neighbourhood_gini[region.id]))
-                 for region in sim.regions.values()]
-            except KeyError:
-                [f.write('%s; %s; %s; %d; %.3f; %.3f; %.3f; %.3f \n' %
-                         (sim.clock.days, region.id[:7], region.id, region.pop, region.gdp,
-                          region.gdp / region.pop, 0,
-                          0))
-                 for region in sim.regions.values()]
+                          region.gdp / region.pop,
+                          neighbourhood_commute.get(region.id, 0),
+                          neighbourhood_gini.get(region.id, 0)))
 
     def save_data(self, sim):
         # firms data is necessary for plots,
@@ -415,80 +409,82 @@ class Output:
             save_fn(sim)
 
     def save_firms_data(self, sim):
-        with open(self.firms_path, 'a') as f:
-            [f.write('%s; %s; %s; %s; %.3f; %.3f; %.3f; %s; %.3f; %.3f; %.3f ; %.3f; %.3f; %.3f; %.3f; '
-                     '%.3f;%.3f;%.3f;%.3f; %s \n' %
-                     (sim.clock.days, firm.id, firm.region_id, firm.region_id[:7], firm.address.x,
-                      firm.address.y, firm.total_balance, firm.num_employees,
-                      firm.total_quantity, firm.amount_produced, firm.prices,
-                      firm.amount_sold, firm.revenue, firm.profit,
-                      firm.wages_paid, firm.input_cost, firm.last_emissions, firm.env_efficiency,
-                      firm.inno_inv, firm.sector))
-             for firm in sim.firms.values()]
-        [f.reset_amount_sold() for f in sim.firms.values()]
+        with open(self.firms_path, 'a') as fp:
+            for firm in sim.firms.values():
+                fp.write('%s; %s; %s; %s; %.3f; %.3f; %.3f; %s; %.3f; %.3f; %.3f ; %.3f; %.3f; %.3f; %.3f; '
+                         '%.3f;%.3f;%.3f;%.3f; %s \n' %
+                         (sim.clock.days, firm.id, firm.region_id, firm.region_id[:7], firm.address.x,
+                          firm.address.y, firm.total_balance, firm.num_employees,
+                          firm.total_quantity, firm.amount_produced, firm.prices,
+                          firm.amount_sold, firm.revenue, firm.profit,
+                          firm.wages_paid, firm.input_cost, firm.last_emissions, firm.env_efficiency,
+                          firm.inno_inv, firm.sector))
+        for firm in sim.firms.values():
+            firm.reset_amount_sold()
 
-        with open(self.construction_path, 'a') as f:
-            [f.write('%s; %s; %s; %s; %.3f; %.3f; %.3f; %s; %.3f; %.3f; %.3f ; %.3f; %.3f; %.3f; %.3f \n' %
-                     (sim.clock.days, firm.id, firm.region_id, firm.region_id[:7], firm.address.x,
-                      firm.address.y, firm.total_balance, firm.num_employees,
-                      firm.total_quantity, len(firm.houses_built), firm.mean_house_price(),
-                      firm.n_houses_sold, firm.revenue, firm.profit,
-                      firm.wages_paid))
-             for firm in sim.firms.values()
-             if firm.sector == 'Construction']
+        with open(self.construction_path, 'a') as fp:
+            for firm in sim.firms.values():
+                if firm.sector == 'Construction':
+                    fp.write('%s; %s; %s; %s; %.3f; %.3f; %.3f; %s; %.3f; %.3f; %.3f ; %.3f; %.3f; %.3f; %.3f \n' %
+                             (sim.clock.days, firm.id, firm.region_id, firm.region_id[:7], firm.address.x,
+                              firm.address.y, firm.total_balance, firm.num_employees,
+                              firm.total_quantity, len(firm.houses_built), firm.mean_house_price(),
+                              firm.n_houses_sold, firm.revenue, firm.profit,
+                              firm.wages_paid))
 
     def save_agents_data(self, sim):
-        with open(self.agents_path, 'a') as f:
-            [f.write('%s;%s;%s;%.3f;%.3f;%s;%s;%s;%s;%s;%.3f;%s\n' % (sim.clock.days, agent.region_id,
-                                                                      agent.gender, agent.address.x,
-                                                                      agent.address.y, agent.id, agent.age,
-                                                                      agent.qualification, agent.firm_id,
-                                                                      agent.family.id, agent.money,
-                                                                      agent.distance))
-             for agent in sim.agents.values()]
+        with open(self.agents_path, 'a') as fp:
+            for agent in sim.agents.values():
+                fp.write('%s;%s;%s;%.3f;%.3f;%s;%s;%s;%s;%s;%.3f;%s\n' % (sim.clock.days, agent.region_id,
+                                                                             agent.gender, agent.address.x,
+                                                                             agent.address.y, agent.id, agent.age,
+                                                                             agent.qualification, agent.firm_id,
+                                                                             agent.family.id, agent.money,
+                                                                             agent.distance))
 
     def save_grave_data(self, sim):
-        with open(self.grave_path, 'a') as f:
-            [f.write('%s;%s;%s;%s;%s;%d;%d;%d;%s;%s;%.3f;%.3f;%s\n' % (sim.clock.days, agent.region_id,
-                                                                       agent.gender,
-                                                                       agent.address.x if agent.address else None,
-                                                                       agent.address.y if agent.address else None,
-                                                                       agent.id, agent.age,
-                                                                       agent.qualification, agent.firm_id,
-                                                                       agent.family.id if agent.family else None,
-                                                                       agent.money, agent.utility,
-                                                                       agent.distance))
-             for agent in sim.grave]
+        with open(self.grave_path, 'a') as fp:
+            for agent in sim.grave:
+                fp.write('%s;%s;%s;%s;%s;%d;%d;%d;%s;%s;%.3f;%.3f;%s\n' % (sim.clock.days, agent.region_id,
+                                                                              agent.gender,
+                                                                              agent.address.x if agent.address else None,
+                                                                              agent.address.y if agent.address else None,
+                                                                              agent.id, agent.age,
+                                                                              agent.qualification, agent.firm_id,
+                                                                              agent.family.id if agent.family else None,
+                                                                              agent.money, agent.utility,
+                                                                              agent.distance))
+        sim.grave.clear()
 
     def save_house_data(self, sim):
-        with open(self.houses_path, 'a') as f:
-            [f.write('%s;%s;%f;%f;%.2f;%.2f;%s;%.1f;%.2f;%.2f;%s;%s;%s\n' % (sim.clock.days,
-                                                                             house.id,
-                                                                             house.address.x,
-                                                                             house.address.y,
-                                                                             house.size,
-                                                                             house.price,
-                                                                             house.rent_data[0] if house.rent_data
-                                                                             else '',
-                                                                             house.quality,
-                                                                             sim.regions[house.region_id].index,
-                                                                             house.on_market,
-                                                                             house.family_id,
-                                                                             house.region_id,
-                                                                             house.region_id[:7]))
-             for house in sim.houses.values()]
+        with open(self.houses_path, 'a') as fp:
+            for house in sim.houses.values():
+                fp.write('%s;%s;%f;%f;%.2f;%.2f;%s;%.1f;%.2f;%.2f;%s;%s;%s\n' % (sim.clock.days,
+                                                                                    house.id,
+                                                                                    house.address.x,
+                                                                                    house.address.y,
+                                                                                    house.size,
+                                                                                    house.price,
+                                                                                    house.rent_data[0] if house.rent_data
+                                                                                    else '',
+                                                                                    house.quality,
+                                                                                    sim.regions[house.region_id].index,
+                                                                                    house.on_market,
+                                                                                    house.family_id,
+                                                                                    house.region_id,
+                                                                                    house.region_id[:7]))
 
     def save_family_data(self, sim):
-        with open(self.families_path, 'a') as f:
-            [f.write('%s;%s;%s;%s;%s;%.5f;%.2f;%.2f\n' % (sim.clock.days,
-                                                          family.id,
-                                                          family.region_id[:7],
-                                                          family.house.price if family.house else '',
-                                                          family.house.rent_data[0] if family.house.rent_data else '',
-                                                          family.total_wage(),
-                                                          family.savings,
-                                                          family.num_members))
-             for family in sim.families.values()]
+        with open(self.families_path, 'a') as fp:
+            for family in sim.families.values():
+                fp.write('%s;%s;%s;%s;%s;%.5f;%.2f;%.2f\n' % (sim.clock.days,
+                                                                family.id,
+                                                                family.region_id[:7],
+                                                                family.house.price if family.house else '',
+                                                                family.house.rent_data[0] if family.house.rent_data else '',
+                                                                family.total_wage(),
+                                                                family.savings,
+                                                                family.num_members))
 
     def prepare_dataframe(self, sim):
         """Converts nested dictionary (class range → month → count) into a DataFrame."""

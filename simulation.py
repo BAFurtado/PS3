@@ -380,12 +380,11 @@ class Simulation:
 
         # Job Matching
         # Sample used only to calculate wage deciles
-        sample_size = math.floor(len(self.agents) * 0.5)
-        last_wages = [
-            a.last_wage
-            for a in list(self.seed.sample(list(self.agents.values()), sample_size))
-            if a.last_wage is not None
-        ]
+        agent_values = list(self.agents.values())
+        sample_size = math.floor(len(agent_values) * 0.5)
+        last_wages = [a.last_wage for a in self.seed.sample(agent_values, sample_size)
+                      if a.last_wage is not None]
+        del agent_values
         wage_deciles = np.percentile(last_wages, np.arange(10, 101, 10))
         self.labor_market.assign_post(current_unemployment, wage_deciles, self.PARAMS)
 

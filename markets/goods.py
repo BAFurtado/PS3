@@ -93,11 +93,11 @@ class RegionalMarket:
         self.monthly_hh_consumption = defaultdict(float)
         # Household consumption
 
-        # Create sector-wise dictionary to reduce filtering within families
-        firms_by_sector = {
-            sector: [f for f in self.sim.firms.values() if f.sector == sector and f.total_quantity > 0]
-            for sector in self.sim.regional_market.final_demand.index
-        }
+        # Single pass over firms to build sector grouping (avoids N_sector full scans)
+        firms_by_sector = defaultdict(list)
+        for f in self.sim.firms.values():
+            if f.total_quantity > 0:
+                firms_by_sector[f.sector].append(f)
         for family in self.sim.families.values():
             consumption = family.consume(
                 self,

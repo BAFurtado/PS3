@@ -1,7 +1,7 @@
 import datetime
 
 import numpy as np
-from collections import defaultdict
+from collections import defaultdict, deque
 
 
 class Family:
@@ -42,10 +42,10 @@ class Family:
         self.rent_default = 0
         self.rent_voucher = 0
         self.average_utility = 0
-        self.last_permanent_income = list()
+        self.last_permanent_window = 24
+        self.last_permanent_income = deque(maxlen=self.last_permanent_window)
         self.permanent_income = 1
         self.affordability_ratio = 10e6
-        self.last_permanent_window = 24
 
         # Previous region id
         if house is not None:
@@ -141,9 +141,7 @@ class Family:
         # Permanent income (Dawid-consistent)
         current_pi = t0 + r_eff * wealth
         self.last_permanent_income.append(current_pi)
-        # Keep only last 24 months
-        if len(self.last_permanent_income) > self.last_permanent_window:
-            self.last_permanent_income = self.last_permanent_income[-self.last_permanent_window:]
+        # deque(maxlen=24) evicts oldest automatically; no manual trimming needed
         # Average without artificial zerollasts
         value = (
             current_pi if len(self.last_permanent_income) == 1
