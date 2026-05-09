@@ -656,7 +656,8 @@ class ConstructionFirm(Firm):
 
         # Number of product quantities needed for the house
         gross_cost = building_size * building_quality
-        # Productivity of the company may vary double than exogenous set markup.
+        # Productivity is drawn once per firm from [1 - MULTIPLIER*MARKUP, 1.0].
+        # Lower productivity → higher building cost → fewer profitable projects.
         # Productivity reduces the cost of construction and sets the size of profiting when selling
         if not self.productivity:
             self.productivity = seed_np.randint(100 - int(params['CONSTRUCTION_FIRM_MARKUP_MULTIPLIER'] *

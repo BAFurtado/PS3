@@ -7,7 +7,16 @@ import pandas as pd
 def pop_age_data(pop, code, age, percent_pop):
     """Select and return the proportion value of population
     for a given municipality, gender and age"""
-    n_pop = pop[pop['code'] == str(code)][age].iloc[0] * percent_pop
+    match = pop[pop['code'] == str(code)]
+    if match.empty:
+        # Shapefile uses 13-digit AREAP codes; fallback CSVs use 7-digit municipality codes.
+        # Try the municipality prefix so peripheral ACP municipalities are not skipped.
+        match = pop[pop['code'] == str(code)[:7]]
+    if match.empty:
+        return 0
+    # AP data has integer age columns; fallback CSVs may still have string columns.
+    col = age if age in match.columns else str(age)
+    n_pop = match[col].iloc[0] * percent_pop
     rounded = int(round(n_pop))
 
     # for small `percent_pop`, sometimes we get 0

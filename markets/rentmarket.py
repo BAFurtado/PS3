@@ -82,6 +82,9 @@ class RentalMarket:
             # Families who are already settled, will move into rental only if better quality (that is, price)
             if family.house.price > house.price:
                 return
+            # Don't move if rent would exceed the affordability threshold (comprometimento de renda)
+            if price > family.get_permanent_income() * sim.PARAMS['MAX_RENT_TO_INCOME_RATIO']:
+                return
             family.move_out(sim.funds)
         family.move_in(house)
         self.unoccupied.remove(house)
@@ -133,9 +136,9 @@ class RentalMarket:
                     # Ask for reduced price, because out of budget. Varying according to number of available houses
                     price = house.price * base_proportion * (1 - (sim.PARAMS['PRICE_RUGGEDNESS'] / len(my_market)))
                 if sim.PARAMS['OFFER_SIZE_ON_PRICE']:
-                    vacancy_value = 1 - (vacancy * sim.PARAMS['OFFER_SIZE_ON_PRICE'])
-                    if vacancy_value < sim.PARAMS['MAX_OFFER_DISCOUNT']:
-                        vacancy_value = sim.PARAMS['MAX_OFFER_DISCOUNT']
+                    vacancy_value = 1 + (sim.PARAMS['VACANCY_PRICE_REFERENCE'] - vacancy) * sim.PARAMS['OFFER_SIZE_ON_PRICE']
+                    vacancy_value = max(vacancy_value, sim.PARAMS['MAX_OFFER_DISCOUNT'])
+                    vacancy_value = min(vacancy_value, sim.PARAMS['MAX_OFFER_PREMIUM'])
                     price *= vacancy_value
                 # Decision on moving. If no house, move, else, consider. If worse quality, give up on renting.
                 self.maybe_move(family, house, price, sim)

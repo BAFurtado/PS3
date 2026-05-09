@@ -105,15 +105,20 @@ BANK_DEPOSIT_RESERVE = .2
 # HOUSING AND REAL ESTATE MARKET #############################################################
 CAPPED_TOP_VALUE = 1.3
 CAPPED_LOW_VALUE = 0.7
-# Influence of vacancy size on house prices
-# It can be True or 1 or if construction companies consider vacancy strongly it might be 2 [1 - (vacancy * VALUE)]
+# Vacancy-price sensitivity: formula is 1 + (VACANCY_PRICE_REFERENCE - vacancy) * OFFER_SIZE_ON_PRICE
+# Symmetric around the reference: tight markets (vacancy < reference) generate a premium;
+# slack markets (vacancy > reference) generate a discount.
 OFFER_SIZE_ON_PRICE = 3
+# Vacancy rate at which prices sit at base level — the market equilibrium point.
+VACANCY_PRICE_REFERENCE = 0.08
 # TOO LONG ON THE MARKET:
 # value=(1 - MAX_OFFER_DISCOUNT) * e ** (ON_MARKET_DECAY_FACTOR * MONTHS ON MARKET) + MAX_OFFER_DISCOUNT
 # AS SUCH (-.02) DECAY OF 1% FIRST MONTH, 10% FIRST YEAR. SET TO 0 TO ELIMINATE EFFECT
 ON_MARKET_DECAY_FACTOR = -0.02
-# LOWER BOUND, THAT IS, AT LEAST 50% PERCENT OF VALUE WILL REMAIN AT END OF PERIOD, IF PARAMETER IS .5
+# LOWER BOUND, THAT IS, AT LEAST 60% PERCENT OF VALUE WILL REMAIN AT END OF PERIOD, IF PARAMETER IS .6
 MAX_OFFER_DISCOUNT = 0.6
+# UPPER BOUND: maximum price premium in tight markets (vacancy near zero)
+MAX_OFFER_PREMIUM = 1.3
 # How strong construction firms respond to vacancy
 BUILD_VACANCY_SENSITIVITY = 3
 # Percentage of households pursuing new location (on average families move about once every 20 years)
@@ -123,6 +128,10 @@ NEIGHBORHOOD_EFFECT = 2
 # RENTAL #######################
 INITIAL_RENTAL_SHARE = 0.25
 INITIAL_RENTAL_PRICE = 0.002
+# Maximum fraction of permanent income a household will commit to rent when choosing to move.
+# 0.3 matches the Brazilian "comprometimento de renda" standard used in PlanHab/MCMV eligibility.
+# Applies only to already-housed families in maybe_move; homeless families are unaffected.
+MAX_RENT_TO_INCOME_RATIO = 0.3
 
 # CONSTRUCTION #################################################################################
 # LICENSES ARE URBANIZED LOTS AVAILABLE FOR CONSTRUCTION PER NEIGHBORHOOD PER MONTH.
@@ -141,7 +150,7 @@ MAX_HOUSE_STOCK = 36
 # Categories of submarkets for the housing markets
 PERC_HOUSE_CATEGORIES = [0.4, 0.3, 0.2, 0.1]
 # HOW LARGER IS CONSTRUCTION FIRMS PROFIT RELATIVE TO USUAL MARKUP (firms' productivity, given current prices)
-CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 8
+CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 3
 
 # POPULATION AND DEMOGRAPHY
 # Families run parameters (on average) for year 2000, or no information. 2010 uses APs average data
@@ -213,7 +222,7 @@ PROCESSING_ACPS = ["PORTO VELHO"]
 STARTING_DAY = datetime.date(2010, 1, 1)
 
 # The Maximum running time (restrained by official data) is 30 years,
-TOTAL_DAYS = (datetime.date(2012, 1, 1) - STARTING_DAY).days
+TOTAL_DAYS = (datetime.date(2040, 1, 1) - STARTING_DAY).days
 
 # Select the possible ACPs (Population Concentration Areas) from the list below.
 # Actually, they are URBAN CONCENTRATION AREAS FROM IBGE, 2022

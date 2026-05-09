@@ -18,6 +18,14 @@ def prepare_shapes_2010(geo):
 
     codes = [str(code) for code in geo.mun_codes]
 
+    # Peripheral municipalities added to an ACP via ACPs_MUN_CODES may lack AP-level
+    # (área de ponderação) census data — they are too small to require one.
+    # Creating regions for them would crash pop_age_data with an empty lookup.
+    # Restrict to municipalities that actually appear in the AP population file.
+    ap_pops = pd.read_csv(f'input/num_people_age_gender_AP_{geo.year}.csv', sep=';')
+    ap_mun_codes = {str(int(str(c)[:7])) for c in ap_pops['AREAP'].unique()}
+    codes = [c for c in codes if c in ap_mun_codes]
+
     my_shapes = gpd.GeoDataFrame(columns=['id', 'geometry'])
     states = list()
     for uf in geo.states_on_process:

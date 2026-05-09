@@ -209,6 +209,8 @@ class HousingMarket:
         params = sim.PARAMS
         offer_size = params['OFFER_SIZE_ON_PRICE']
         max_discount = params['MAX_OFFER_DISCOUNT']
+        max_premium = params['MAX_OFFER_PREMIUM']
+        vacancy_ref = params['VACANCY_PRICE_REFERENCE']
         capped_top_value = params['CAPPED_TOP_VALUE']
         max_loan_to_value = params['MAX_LOAN_TO_VALUE']
         capped_low_value = params['CAPPED_LOW_VALUE']
@@ -216,11 +218,11 @@ class HousingMarket:
         for house in my_market:
             cash = 0
             p = house.price
-            # A large empty market makes those selling ask for a lower price
+            # Tight market (vacancy < reference) → premium; slack market → discount
             if offer_size:
-                vacancy_value = 1 - (vacancy * offer_size)
-                if vacancy_value < max_discount:
-                    vacancy_value = max_discount
+                vacancy_value = 1 + (vacancy_ref - vacancy) * offer_size
+                vacancy_value = max(vacancy_value, max_discount)
+                vacancy_value = min(vacancy_value, max_premium)
                 p *= vacancy_value
 
             # If savings is enough, then price is established as the average of the two
