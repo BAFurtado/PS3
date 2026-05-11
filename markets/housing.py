@@ -221,8 +221,7 @@ class HousingMarket:
             # Tight market (vacancy < reference) → premium; slack market → discount
             if offer_size:
                 vacancy_value = 1 + (vacancy_ref - vacancy) * offer_size
-                vacancy_value = max(vacancy_value, max_discount)
-                vacancy_value = min(vacancy_value, max_premium)
+                vacancy_value = max(max_discount, min(max_premium, vacancy_value))
                 p *= vacancy_value
 
             # If savings is enough, then price is established as the average of the two
