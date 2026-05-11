@@ -105,15 +105,18 @@ BANK_DEPOSIT_RESERVE = .2
 # HOUSING AND REAL ESTATE MARKET #############################################################
 CAPPED_TOP_VALUE = 1.3
 CAPPED_LOW_VALUE = 0.7
-# Influence of vacancy size on house prices
-# It can be True or 1 or if construction companies consider vacancy strongly it might be 2 [1 - (vacancy * VALUE)]
+# Influence of vacancy size on house prices (symmetric formula: 1 + (VACANCY_PRICE_REFERENCE - vacancy) * VALUE)
 OFFER_SIZE_ON_PRICE = 3
+# Equilibrium vacancy for neutral pricing in symmetric formula
+VACANCY_PRICE_REFERENCE = 0.08
 # TOO LONG ON THE MARKET:
 # value=(1 - MAX_OFFER_DISCOUNT) * e ** (ON_MARKET_DECAY_FACTOR * MONTHS ON MARKET) + MAX_OFFER_DISCOUNT
 # AS SUCH (-.02) DECAY OF 1% FIRST MONTH, 10% FIRST YEAR. SET TO 0 TO ELIMINATE EFFECT
 ON_MARKET_DECAY_FACTOR = -0.02
 # LOWER BOUND, THAT IS, AT LEAST 50% PERCENT OF VALUE WILL REMAIN AT END OF PERIOD, IF PARAMETER IS .5
 MAX_OFFER_DISCOUNT = 0.6
+# UPPER BOUND on vacancy price premium (caps price increase in very tight markets)
+MAX_OFFER_PREMIUM = 1.3
 # How strong construction firms respond to vacancy
 BUILD_VACANCY_SENSITIVITY = 3
 # Percentage of households pursuing new location (on average families move about once every 20 years)
@@ -141,7 +144,7 @@ MAX_HOUSE_STOCK = 36
 # Categories of submarkets for the housing markets
 PERC_HOUSE_CATEGORIES = [0.4, 0.3, 0.2, 0.1]
 # HOW LARGER IS CONSTRUCTION FIRMS PROFIT RELATIVE TO USUAL MARKUP (firms' productivity, given current prices)
-CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 8
+CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 3
 
 # POPULATION AND DEMOGRAPHY
 # Families run parameters (on average) for year 2000, or no information. 2010 uses APs average data

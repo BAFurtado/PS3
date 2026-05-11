@@ -214,11 +214,10 @@ class HousingMarket:
         for house in my_market:
             cash = 0
             p = house.price
-            # A large empty market makes those selling ask for a lower price
+            # Symmetric vacancy formula: premium when tight, discount when loose
             if offer_size:
-                vacancy_value = 1 - (vacancy * offer_size)
-                if vacancy_value < max_discount:
-                    vacancy_value = max_discount
+                vacancy_value = 1 + (params['VACANCY_PRICE_REFERENCE'] - vacancy) * offer_size
+                vacancy_value = max(max_discount, min(params['MAX_OFFER_PREMIUM'], vacancy_value))
                 p *= vacancy_value
 
             # If savings is enough, then price is established as the average of the two
