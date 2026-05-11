@@ -12,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 PYTHON         = "python"
 MAIN           = "main.py"
 
-MAX_CPU_BUDGET = 10    # total CPU slots across all parallel city runs (server has 12)
+MAX_CPU_BUDGET = 12    # total CPU slots across all parallel city runs (server has 12)
 MAX_RETRIES    = 1     # extra attempts for failed/crashed cities
 TIMEOUT_HOURS  = None  # None = no timeout; set to a number once typical durations are known
 
