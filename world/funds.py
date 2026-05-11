@@ -46,9 +46,10 @@ class Funds:
 
         families = list(self.sim.families.values())
 
-        # Cache incomes
-        family_incomes = {f: f.get_permanent_income() for f in families}
-        quantile_value = np.quantile(list(family_incomes.values()), quantile)
+        # Compute quantile from a temporary contiguous array, then free it immediately
+        incomes = np.fromiter((f.permanent_income for f in families), dtype=np.float64, count=len(families))
+        quantile_value = np.quantile(incomes, quantile)
+        del incomes
 
         # Group families by region
         families_by_region = defaultdict(list)
@@ -59,7 +60,7 @@ class Funds:
         for region in self.sim.regions.values():
             eligible = [
                 f for f in families_by_region[region.id]
-                if family_incomes[f] < quantile_value
+                if f.permanent_income < quantile_value
             ]
             region.registry[today].extend(eligible)
 
@@ -98,9 +99,7 @@ class Funds:
             ]
 
             if self.sim.PARAMS['TOTAL_TARGETING_POLICY']:
-                filtered.sort(
-                    key=lambda f: family_incomes.get(f, f.get_permanent_income())
-                )
+                filtered.sort(key=lambda f: f.permanent_income)
 
             self.policy_families[mun] = filtered
 
