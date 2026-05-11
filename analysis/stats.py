@@ -181,8 +181,8 @@ class Statistics(object):
             is_vacant[i] = house.family_id is None
 
         # Compute metrics using NumPy
-        avg_house_price = np.mean(house_prices)
-        avg_rent_price = np.mean(rent_prices[has_rent_data]) if np.any(has_rent_data) else 0
+        avg_house_price = np.nanmean(house_prices) if n_houses > 0 else 0
+        avg_rent_price = np.nanmean(rent_prices[has_rent_data]) if np.any(has_rent_data) else 0
         mean_quality = np.mean(house_qualities) if n_houses > 0 else 0
         vacancy_rate = np.sum(is_vacant) / n_houses if n_houses > 0 else 0
         self.vacancy_rate = vacancy_rate

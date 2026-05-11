@@ -268,9 +268,13 @@ class Funds:
                     fpm_region[id] = self.fpm[state][(self.fpm[state].ano == float(year)) &
                                                      (self.fpm[state].cod == float(mun_code))].fpm.iloc[0]
 
+        total_fpm = sum(set(fpm_region.values()))
         for id, region in regions.items():
             mun_code = region.id[:7]
-            regional_fpm = fpm_region[id] / sum(set(fpm_region.values())) * value * pop_t[id] / pop_mun_t[mun_code]
+            if total_fpm == 0 or pop_mun_t[mun_code] == 0:
+                regional_fpm = 0.0
+            else:
+                regional_fpm = fpm_region[id] / total_fpm * value * pop_t[id] / pop_mun_t[mun_code]
 
             # Dividing government investment between intermediate consumption and own consumption
             gov_firms_money = (1 - self.gov_consumption_parameter) * regional_fpm
@@ -289,7 +293,7 @@ class Funds:
     def locally(self, value, regions, mun_code, pop_t, pop_mun_t):
         for mun in mun_code.keys():
             for id_ in mun_code[mun]:
-                amount = value[mun] * pop_t[id_] / pop_mun_t[mun]
+                amount = value[mun] * pop_t[id_] / pop_mun_t[mun] if pop_mun_t[mun] > 0 else 0.0
                 # Dividing government investment between intermediate consumption and own consumption
                 # Check whether there are gov. firms in this municipality at all.
                 # When there are no firms, amount is unchanged and goes all to policies and infrastructure
@@ -317,7 +321,7 @@ class Funds:
             [f.government_transfer(gov_firms_money * f.budget_proportion) for f in self.mun_gov_firms[mun_code]]
 
         for id, region in regions.items():
-            amount = value * pop_t[id] / pop_total
+            amount = value * pop_t[id] / pop_total if pop_total > 0 else 0.0
             # Separating money for policy
             if self.needs_policy_funding():
                 self.policy_money[id[:7]] += amount * self.sim.PARAMS['POLICY_COEFFICIENT']
