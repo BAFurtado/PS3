@@ -39,7 +39,7 @@ class House:
         if neighborhood:
             # If neighborhood is 0 (False), price is unchanged.
             # If 1 (True) or higher, neighborhood effect is the value multiplier which increasingly impacts prices
-            self.price *= (1 + value * neighborhood[self.region_id])
+            self.price *= (1 + value * neighborhood.get(self.region_id, 0))
 
     def empty(self):
         """Remove current family"""

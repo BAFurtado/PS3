@@ -137,7 +137,8 @@ class RentalMarket:
                     price = house.price * base_proportion * (1 - (sim.PARAMS['PRICE_RUGGEDNESS'] / len(my_market)))
                 if sim.PARAMS['OFFER_SIZE_ON_PRICE']:
                     vacancy_value = 1 + (sim.PARAMS['VACANCY_PRICE_REFERENCE'] - vacancy) * sim.PARAMS['OFFER_SIZE_ON_PRICE']
-                    vacancy_value = max(sim.PARAMS['MAX_OFFER_DISCOUNT'], min(sim.PARAMS['MAX_OFFER_PREMIUM'], vacancy_value))
+                    vacancy_value = max(vacancy_value, sim.PARAMS['MAX_OFFER_DISCOUNT'])
+                    vacancy_value = min(vacancy_value, sim.PARAMS['MAX_OFFER_PREMIUM'])
                     price *= vacancy_value
                 # Decision on moving. If no house, move, else, consider. If worse quality, give up on renting.
                 self.maybe_move(family, house, price, sim)
