@@ -624,7 +624,11 @@ class ConstructionFirm(Firm):
         # Probability depends on size of market
         # Construction responds more strongly to vacancy
         build_sensitivity = params['BUILD_VACANCY_SENSITIVITY']
-        if seed_np.rand() < min(vacancy * build_sensitivity, 1):
+        # Exponential suppression: probability of skipping grows smoothly with vacancy,
+        # asymptotically approaching 1 but never reaching it — construction becomes very rare
+        # at high vacancy without ever being categorically forbidden.
+        # At 8% vacancy (equilibrium) and sensitivity=6: ~38% skip. At 25%: ~78% skip.
+        if seed_np.rand() < 1.0 - np.exp(-vacancy * build_sensitivity):
             return
 
         # Check whether production capacity does not exceed hired construction

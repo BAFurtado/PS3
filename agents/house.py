@@ -31,7 +31,9 @@ class House:
         # Cache firm distances, since houses and firms never change address
         self._firm_distances = {}
 
-    def update_price(self, regions, k, bound, neighborhood, value):
+    def update_price(self, regions, k, bound, neighborhood, value,
+                     vacancy=0, offer_size=0, vacancy_ref=0.08,
+                     max_disc=0.6, max_prem=1.3):
         """Compute new price for the house"""
         self.price = self.size * self.quality * regions[self.region_id].index
         # Update for too long in the market
@@ -40,6 +42,11 @@ class House:
             # If neighborhood is 0 (False), price is unchanged.
             # If 1 (True) or higher, neighborhood effect is the value multiplier which increasingly impacts prices
             self.price *= (1 + value * neighborhood.get(self.region_id, 0))
+        if offer_size:
+            # Vacancy adjustment baked into the listed price so that both purchase and rental
+            # markets see a vacancy-corrected base price (avoiding double-discounting at negotiation time).
+            vf = max(min(1 + (vacancy_ref - vacancy) * offer_size, max_prem), max_disc)
+            self.price *= vf
 
     def empty(self):
         """Remove current family"""

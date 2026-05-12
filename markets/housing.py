@@ -36,13 +36,23 @@ class HousingMarket:
             _max, _min = max(neighborhood_wealth.values()), min(neighborhood_wealth.values())
             neighborhood_wealth = {k: (v - _min) / (_max - _min) for k, v in neighborhood_wealth.items()}
 
+        try:
+            vacancy = sim.stats.vacancy_rate
+        except AttributeError:
+            vacancy = 0
+
         for house in sim.houses.values():
             # Updating all houses values every month
             house.update_price(sim.regions,
                                sim.PARAMS['ON_MARKET_DECAY_FACTOR'],
                                sim.PARAMS['MAX_OFFER_DISCOUNT'],
                                neighborhood_wealth,
-                               sim.PARAMS['NEIGHBORHOOD_EFFECT'])
+                               sim.PARAMS['NEIGHBORHOOD_EFFECT'],
+                               vacancy=vacancy,
+                               offer_size=sim.PARAMS['OFFER_SIZE_ON_PRICE'],
+                               vacancy_ref=sim.PARAMS['VACANCY_PRICE_REFERENCE'],
+                               max_disc=sim.PARAMS['MAX_OFFER_DISCOUNT'],
+                               max_prem=sim.PARAMS['MAX_OFFER_PREMIUM'])
 
             # If house is empty, and not already on sales list, add it to houses on the market and start counting
             # However, if house is empty and had been empty count one extra month
@@ -207,23 +217,14 @@ class HousingMarket:
         # Otherwise, it tries another one.
         # Cache parameters locally (avoid repeated dict lookups)
         params = sim.PARAMS
-        offer_size = params['OFFER_SIZE_ON_PRICE']
-        max_discount = params['MAX_OFFER_DISCOUNT']
-        max_premium = params['MAX_OFFER_PREMIUM']
-        vacancy_ref = params['VACANCY_PRICE_REFERENCE']
         capped_top_value = params['CAPPED_TOP_VALUE']
         max_loan_to_value = params['MAX_LOAN_TO_VALUE']
         capped_low_value = params['CAPPED_LOW_VALUE']
 
         for house in my_market:
             cash = 0
+            # house.price already incorporates the vacancy adjustment via update_price()
             p = house.price
-            # Tight market (vacancy < reference) → premium; slack market → discount
-            if offer_size:
-                vacancy_value = 1 + (vacancy_ref - vacancy) * offer_size
-                vacancy_value = max(vacancy_value, max_discount)
-                vacancy_value = min(vacancy_value, max_premium)
-                p *= vacancy_value
 
             # If savings is enough, then price is established as the average of the two
             if savings > p:

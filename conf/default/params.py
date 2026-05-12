@@ -119,8 +119,10 @@ ON_MARKET_DECAY_FACTOR = -0.02
 MAX_OFFER_DISCOUNT = 0.6
 # UPPER BOUND: maximum price premium in tight markets (vacancy near zero)
 MAX_OFFER_PREMIUM = 1.3
-# How strong construction firms respond to vacancy
-BUILD_VACANCY_SENSITIVITY = 3
+# How strong construction firms respond to vacancy.
+# Used in exponential suppression: P(skip) = 1 - exp(-vacancy * sensitivity).
+# At equilibrium vacancy (8%) → ~38% skip; at 25% → ~78% skip; never a hard stop.
+BUILD_VACANCY_SENSITIVITY = 6
 # Percentage of households pursuing new location (on average families move about once every 20 years)
 PERCENTAGE_ENTERING_ESTATE_MARKET = 0.025
 NEIGHBORHOOD_EFFECT = 2

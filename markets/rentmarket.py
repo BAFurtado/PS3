@@ -103,12 +103,6 @@ class RentalMarket:
     def rental_market(self, families, sim, to_rent=None):
         # Families that come here without a house (from marriage or immigration) need to move in or give up their plans
         # In that case, the list of houses is any unoccupied houses. Not a sample list separated for the rental market
-        # Check for no rental market test
-        try:
-            vacancy = sim.stats.vacancy_rate
-        # When houses have not generated yet, at time 0
-        except AttributeError:
-            vacancy = 0
         base_proportion = sim.PARAMS['INITIAL_RENTAL_PRICE']
         self.update_list(sim, to_rent)
         if families:
@@ -135,10 +129,6 @@ class RentalMarket:
                         return
                     # Ask for reduced price, because out of budget. Varying according to number of available houses
                     price = house.price * base_proportion * (1 - (sim.PARAMS['PRICE_RUGGEDNESS'] / len(my_market)))
-                if sim.PARAMS['OFFER_SIZE_ON_PRICE']:
-                    vacancy_value = 1 + (sim.PARAMS['VACANCY_PRICE_REFERENCE'] - vacancy) * sim.PARAMS['OFFER_SIZE_ON_PRICE']
-                    vacancy_value = max(vacancy_value, sim.PARAMS['MAX_OFFER_DISCOUNT'])
-                    vacancy_value = min(vacancy_value, sim.PARAMS['MAX_OFFER_PREMIUM'])
-                    price *= vacancy_value
+                # house.price already incorporates the vacancy adjustment via update_price()
                 # Decision on moving. If no house, move, else, consider. If worse quality, give up on renting.
                 self.maybe_move(family, house, price, sim)
