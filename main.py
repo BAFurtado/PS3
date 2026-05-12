@@ -57,8 +57,6 @@ def ensure_population_exists(params, path):
 
 def single_run(params, path):
     """Run a simulation once for given parameters"""
-    if conf.RUN['PRINT_STATISTICS_AND_RESULTS_DURING_PROCESS']:
-        logging.basicConfig(level=logging.INFO)
     os.makedirs(path, exist_ok=True)
     with open(os.path.join(path, 'conf.json'), 'w') as f:
         json.dump({
@@ -118,7 +116,7 @@ def multiple_runs(overrides, runs, cpus, output_dir, fix_seeds=None):
                 if fix_seeds:
                     p['SEED'] = fix_seeds[i]
                 jobs.append((delayed(single_run)(p, os.path.join(path, str(i)))))
-        Parallel(n_jobs=cpus, prefer='processes', backend='multiprocessing', batch_size=1)(jobs)
+        Parallel(n_jobs=cpus, prefer='processes', backend='loky', batch_size=1)(jobs)
 
     logger.info('Averaging run data...')
     results = []
@@ -446,7 +444,7 @@ def resume(root_dir, cpus):
             single_run(job['params'], job['path'])
     else:
         jobs = [delayed(single_run)(job['params'], job['path']) for job in pending]
-        Parallel(n_jobs=cpus, prefer='processes', backend='multiprocessing', batch_size=1)(jobs)
+        Parallel(n_jobs=cpus, prefer='processes', backend='loky', batch_size=1)(jobs)
 
     logger.info('Finished.')
 
