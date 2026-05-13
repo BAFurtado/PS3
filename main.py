@@ -57,6 +57,8 @@ def ensure_population_exists(params, path):
 
 def single_run(params, path):
     """Run a simulation once for given parameters"""
+    if conf.RUN['PRINT_STATISTICS_AND_RESULTS_DURING_PROCESS']:
+        logging.basicConfig(level=logging.INFO)
     os.makedirs(path, exist_ok=True)
     with open(os.path.join(path, 'conf.json'), 'w') as f:
         json.dump({

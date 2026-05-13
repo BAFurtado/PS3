@@ -417,7 +417,9 @@ class Generator:
             }
         num_firms = sum(num_firms_by_sector.values())
         addresses = self.get_random_points_in_polygon(region, number_addresses=num_firms)
-        balances = self.seed_np.beta(1.5, 10, size=num_firms) * 10e5
+        # Scale initial capital by regional IDHM so firms in lower-income regions start
+        # with proportionally less capital, matching local income levels.
+        balances = self.seed_np.beta(1.5, 10, size=num_firms) * 10e5 * region.index
 
         j = 0
         for key in num_firms_by_sector:

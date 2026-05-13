@@ -28,7 +28,7 @@ LABOR_MARKET = 0.8
 # Percentage of employees' firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
-RELEVANCE_UNEMPLOYMENT_SALARIES = 3.88
+RELEVANCE_UNEMPLOYMENT_SALARIES = 1.5
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 20
 
@@ -165,7 +165,7 @@ TAX_CONSUMPTION = 0.15
 TAX_LABOR = 0.15
 TAX_ESTATE_TRANSACTION = 0.004
 TAX_FIRM = 0.15
-TAX_PROPERTY = 0.004
+TAX_PROPERTY = 0.008
 TAX_TRANSPORT = 0
 
 # EMISSIONS POLICIES ######################################################

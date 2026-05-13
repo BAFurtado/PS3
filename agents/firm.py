@@ -510,12 +510,16 @@ class Firm:
         # guarantees that firms do not distribute all money when unemployment is 0
         # Calculating wage base on a per-employee basis.
         unemployment = .04 if unemployment == 0 else unemployment
+        # Cold-start fallback: in months with zero sales revenue (typically month 1),
+        # advance a small fraction of capital as implicit revenue so workers receive
+        # non-zero wages and bootstrap household permanent income.
+        effective_revenue = self.revenue if self.revenue > 0 else self.total_balance * 0.001
         if self.num_employees > 0:
-            return ((self.revenue - self.input_cost) / self.num_employees) * (
+            return ((effective_revenue - self.input_cost) / self.num_employees) * (
                     1 - (unemployment * relevance_unemployment)
             )
         else:
-            return (self.revenue - self.input_cost) * (1 - (unemployment * relevance_unemployment))
+            return (effective_revenue - self.input_cost) * (1 - (unemployment * relevance_unemployment))
 
     def make_payment(self, regions, unemployment, alpha, tax_labor, relevance_unemployment, tax_transport=False):
         """ Pay employees based on revenue, relative employee qualification, labor taxes, and alpha param
