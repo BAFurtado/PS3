@@ -514,12 +514,14 @@ class Firm:
         # advance a small fraction of capital as implicit revenue so workers receive
         # non-zero wages and bootstrap household permanent income.
         effective_revenue = self.revenue if self.revenue > 0 else self.total_balance * 0.001
+        # Exponential discount: labor_share = exp(-u * relevance). Approaches 0 asymptotically
+        # as unemployment rises; equals ~0.94 at equilibrium 4% unemployment (same as old linear).
+        # Replaces linear (1 - u*relevance) which crossed zero at u = 1/relevance ≈ 67%.
+        labor_share = np.exp(-unemployment * relevance_unemployment)
         if self.num_employees > 0:
-            return ((effective_revenue - self.input_cost) / self.num_employees) * (
-                    1 - (unemployment * relevance_unemployment)
-            )
+            return ((effective_revenue - self.input_cost) / self.num_employees) * labor_share
         else:
-            return (effective_revenue - self.input_cost) * (1 - (unemployment * relevance_unemployment))
+            return (effective_revenue - self.input_cost) * labor_share
 
     def make_payment(self, regions, unemployment, alpha, tax_labor, relevance_unemployment, tax_transport=False):
         """ Pay employees based on revenue, relative employee qualification, labor taxes, and alpha param

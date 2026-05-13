@@ -45,13 +45,13 @@ class Region:
         self.save_and_clear_treasure()
         return treasure
 
-    def update_index_pop(self, proportion_pop):
-        """First term of QLI update, relative to change in population within its territory.
-        Capped at 1.0: population decline does not inflate the index. Infrastructure does
-        not improve just because fewer people share it — maintenance capacity also shrinks
-        as the tax base contracts. The tax-funded additive channel (update_index) already
-        handles whatever real investment does occur."""
-        self.index *= min(proportion_pop, 1.0)
+    def update_index_pop(self, proportion_pop, elasticity):
+        """QLI responds symmetrically to population pressure.
+        Growth crowds infrastructure (index falls); decline eases it (index rises).
+        Elasticity < 1 dampens both directions so monthly swings stay small relative
+        to the investment channel. Tax revenue already captures the fiscal side of
+        population change through the additive update_index channel."""
+        self.index *= proportion_pop ** elasticity
 
     def update_applied_taxes(self, amount, key):
         self.applied_treasure[key] += amount

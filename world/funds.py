@@ -380,7 +380,7 @@ class Funds:
             else:
                 # Ratio is multiplicative, thus 1 (neutral value)
                 ratio = 1
-            region.update_index_pop(ratio)
+            region.update_index_pop(ratio, self.sim.PARAMS['QLI_POP_ELASTICITY'])
 
         v_local = defaultdict(float)
         # Every month taxes to distribute start from 0

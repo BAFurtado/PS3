@@ -170,7 +170,7 @@ TAX_TRANSPORT = 0
 
 # EMISSIONS POLICIES ######################################################
 # Taxes on emission are given by tax * total_emissions. Roughly R$ * tonCO2. .1 is about R$10
-TAX_EMISSION = 1
+TAX_EMISSION = .01
 # Subsidies in (0,1) is the amount of investment paid by the gov(subsidies * total_invested)
 # 0 is none, 1 is full
 ECO_INVESTMENT_SUBSIDIES = 0.2
@@ -216,6 +216,11 @@ PERCENTAGE_ACTUAL_POP = 0.01
 
 # Order of magnitude parameter of input into municipality investment
 MUNICIPAL_EFFICIENCY_MANAGEMENT = 1e-07
+# Elasticity of QLI to per-capita population pressure [0, 1].
+# 1 = pure per-capita sharing; 0 = population has no effect.
+# 0.3 keeps monthly swings small (±0.02–0.03%) while making QLI symmetric:
+# growth crowds infrastructure (index falls), decline eases it (index rises).
+QLI_POP_ELASTICITY = 0.3
 
 # Write exactly like the list below
 PROCESSING_ACPS = ["ARACAJU"]

@@ -43,7 +43,10 @@ def extract_metadata(stats_path: Path) -> dict:
         meta[key.lower()] = value
 
     # normalize types
-    meta["policy_melhorias"] = meta["policy_melhorias"] == "True"
+    try:
+        meta["policy_melhorias"] = meta["policy_melhorias"] == "True"
+    except KeyError:
+        pass
 
     return meta
 
