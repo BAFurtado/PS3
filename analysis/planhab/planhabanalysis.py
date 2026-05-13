@@ -84,13 +84,13 @@ if __name__ == '__main__':
     final_stats.to_csv('final_stats.csv', index=False)
     regional_stats.to_csv('regional_stats.csv', index=False)
 
-    out = final_stats.groupby(by=['processing_acps', 'funds_availability', 'policy_melhorias'], as_index=False)[
-        ['pop', 'price_level', 'gdp_level',
-         'unemployment', 'firms_median_employment', 'families_median_wealth',
-         'gini_index',
-         'pct_zero_consumption', 'rent_default', 'inflation',
-         'average_qli', 'house_vacancy', 'house_price', 'house_rent', "house_quality",
-         'affordable', 'p_delinquent', ]].median(numeric_only=True)
+    # out = final_stats.groupby(by=['processing_acps', 'funds_availability', 'policy_melhorias'], as_index=False)[
+    #     ['pop', 'price_level', 'gdp_level',
+    #      'unemployment', 'firms_median_employment', 'families_median_wealth',
+    #      'gini_index',
+    #      'pct_zero_consumption', 'rent_default', 'inflation',
+    #      'average_qli', 'house_vacancy', 'house_price', 'house_rent', "house_quality",
+    #      'affordable', 'p_delinquent', ]].median(numeric_only=True)
 
 
 
