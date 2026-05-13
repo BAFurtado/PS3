@@ -13,7 +13,7 @@ from .rentmarket import RentalMarket, collect_rent
 class HousingMarket:
     def __init__(self):
         self.rental = RentalMarket()
-        self.for_sale = list()
+        self.for_sale = set()
         self.policy_year = 0
         self.policy_percentages = defaultdict(dict)
         
@@ -59,7 +59,7 @@ class HousingMarket:
             if not house.is_occupied:
                 if house not in self.for_sale:
                     house.on_market = 0
-                    self.for_sale.append(house)
+                    self.for_sale.add(house)
                 else:
                     house.on_market += 1
 
@@ -145,8 +145,9 @@ class HousingMarket:
 
         # Deduce houses that are to be rented from sales pool and
         # Restrict list of available houses to families' maximum paying ability
+        houses_to_rent_set = set(houses_to_rent)
         houses_to_sell = [h for h in self.for_sale if
-                          (h not in houses_to_rent) and (h.price < maximum_purchasing_power)]
+                          (h not in houses_to_rent_set) and (h.price < maximum_purchasing_power)]
 
         # Separating purchasing families by house price distribution and assigning quality houses accordingly
         purchasing, houses_to_sell_by_quality, houses_to_rent_by_quality = \
@@ -274,8 +275,8 @@ class HousingMarket:
             self.notarial_procedures(family, house, price, change, sim)
 
             # if the procedures have come this far, it means loan or price have being agreed upon.
-            # Clean for_sale list.
-            self.for_sale[:] = [h for h in for_sale if h is not house]
+            # Remove sold house from for_sale set.
+            self.for_sale = {h for h in for_sale if h is not house}
 
             # Having bought a house, then it can move on to the next family
             return

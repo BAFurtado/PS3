@@ -59,7 +59,9 @@ def find_firms_csv(root_dir):
     stats_files = []
 
     for dirpath, _, filenames in os.walk(root_dir):
-        if "firms.csv" in filenames:
+        if "firms.parquet" in filenames:
+            stats_files.append(os.path.join(dirpath, "firms.parquet"))
+        elif "firms.csv" in filenames:
             stats_files.append(os.path.join(dirpath, "firms.csv"))
 
     return stats_files
@@ -147,8 +149,11 @@ def read_firms_simulation_data(file_path, policy=None, last_month=True, consolid
     else:
         print("No file path given")
         return None
-    data = pd.read_csv(fp, encoding='utf-8', delimiter=';', header=None)
-    data.columns = columns
+    if fp.endswith('.parquet'):
+        data = pd.read_parquet(fp)
+    else:
+        data = pd.read_csv(fp, encoding='utf-8', delimiter=';', header=None)
+        data.columns = columns
     sim_month_last = data.iloc[-24, 0]
 
     if consolidate:

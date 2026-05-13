@@ -76,14 +76,15 @@ class Plotter:
         return fig
 
     def _prepare_data(self, path, columns):
-        # Just read the data
         try:
-            dat = pd.read_csv(path, sep=';', decimal='.', header=None)
+            if path.endswith('.parquet'):
+                dat = pd.read_parquet(path)
+            else:
+                dat = pd.read_csv(path, sep=';', decimal='.', header=None)
+                dat.columns = columns
         except FileNotFoundError:
             raise MissingDataError
-        dat.columns = columns
 
-        # # Time to be eliminated (adjustment of the model)
         if conf.RUN['TIME_TO_BE_ELIMINATED'] > 0:
             dat = dat.loc[len(dat['month']) * conf.RUN['TIME_TO_BE_ELIMINATED']:, :]
         return dat
@@ -250,7 +251,7 @@ class Plotter:
             self.save_fig(fig, '{}'.format(title))
 
     def plot_banks(self):
-        labels, dats = self._load_multiple_runs('banks', 'banks.csv')
+        labels, dats = self._load_multiple_runs('banks', 'banks.parquet')
 
         cols = ['balance', 'active_loans', 'mortgage_rate', 'p_delinquent_loans',
                 'mean_loan_age', 'mean_loan']
@@ -262,7 +263,7 @@ class Plotter:
             self.save_fig(fig, 'banks_{}'.format(title))
 
     def plot_houses(self):
-        dat = self._load_single_run('houses', 'houses.csv')
+        dat = self._load_single_run('houses', 'houses.parquet')
 
         to_plot = {
             'price': {
@@ -284,7 +285,7 @@ class Plotter:
             self.save_fig(fig, 'houses_{}'.format(name))
 
     def plot_families(self):
-        dat = self._load_single_run('families', 'families.csv')
+        dat = self._load_single_run('families', 'families.parquet')
         dat['renting'] = pd.notna(dat['house_rent'])
 
         to_plot = {
@@ -379,7 +380,7 @@ class Plotter:
             self.save_fig(fig, f'regional_tax_{tax_col}')
 
     def plot_firms(self):
-        dat = self._load_single_run('firms', 'firms.csv')
+        dat = self._load_single_run('firms', 'firms.parquet')
 
         cols = ['amount_produced', 'price']
         titles = ['Cumulative sum of amount produced by firm, by month', 'Price values by firm, by month']
@@ -403,7 +404,7 @@ class Plotter:
         pass
 
     def plot_construction(self):
-        dat = self._load_single_run('construction', 'construction.csv')
+        dat = self._load_single_run('construction', 'construction.parquet')
         cols = ['amount_produced', 'price']
         titles = ['Cumulative sum of amount produced by construction firms, by month',
                   'Price values of houses by firm, by month']

@@ -4,8 +4,15 @@ import os
 from collections import defaultdict
 
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 
 import conf
+
+# Files written as CSV (small, used by averaging pipeline)
+_CSV_FILES = {'stats', 'regional', 'time', 'head', 'neighbourhood'}
+# Files written as Parquet (large per-agent/family/firm data)
+_PARQUET_FILES = {'firms', 'banks', 'houses', 'agents', 'families', 'grave', 'construction'}
 
 AGENTS_PATH = 'StoragedAgents'
 if not os.path.exists(AGENTS_PATH):
@@ -178,9 +185,9 @@ class Output:
     """Manages simulation outputs"""
 
     def __init__(self, sim, output_path):
-        files = ['stats', 'regional', 'time', 'firms', 'banks',
-                 'houses', 'agents', 'families', 'grave', 'construction',
-                 'head', 'neighbourhood']
+        all_files = ['stats', 'regional', 'time', 'firms', 'banks',
+                     'houses', 'agents', 'families', 'grave', 'construction',
+                     'head', 'neighbourhood']
 
         self.sim = sim
         self.times = []
@@ -190,19 +197,31 @@ class Output:
             os.makedirs(self.path)
             os.makedirs(self.transit_path)
 
-        for p in files:
-            path = os.path.join(self.path, '{}.csv'.format(p))
+        for p in all_files:
+            ext = 'parquet' if p in _PARQUET_FILES else 'csv'
+            path = os.path.join(self.path, '{}.{}'.format(p, ext))
             setattr(self, '{}_path'.format(p), path)
-
-            # reset files for each run
             if os.path.exists(path):
                 os.remove(path)
+
+        self._pq_writers = {}
 
         self.save_name = '{}/{}_states_{}_acps_{}'.format(
             AGENTS_PATH,
             '_'.join([str(self.sim.PARAMS[name]) for name in GENERATOR_PARAMS]),
             '_'.join(sim.geo.states_on_process),
             '_'.join(sim.geo.processing_acps_codes))
+
+    def _write_parquet(self, name, path, data_dict):
+        table = pa.table(data_dict)
+        if name not in self._pq_writers:
+            self._pq_writers[name] = pq.ParquetWriter(path, table.schema, compression='snappy')
+        self._pq_writers[name].write_table(table)
+
+    def close(self):
+        for writer in self._pq_writers.values():
+            writer.close()
+        self._pq_writers.clear()
 
     def save_stats_report(self, sim, bank_taxes, affordability_decis):
         # Banks
@@ -326,6 +345,11 @@ class Output:
             else:
                 families_by_mun[family.region_id].append(family)
 
+        # Pre-compute firm revenue per municipality in O(n_firms) — avoids O(n_firms × n_muns) loop
+        mun_firm_revenue = defaultdict(float)
+        for firm in sim.firms.values():
+            mun_firm_revenue[firm.region_id[:7]] += firm.revenue
+
         # aggregate regions into municipalities,
         # in case they are APs
         municipalities = defaultdict(list)
@@ -338,7 +362,7 @@ class Output:
             mun_gdp = sum(r.gdp for r in regions)
             mun_agents = agents_by_mun[mun_id]
             mun_families = families_by_mun[mun_id]
-            GDP_mun_capita = sim.stats.update_GDP_capita(sim.firms, mun_id, mun_pop)
+            GDP_mun_capita = mun_firm_revenue[mun_id] / mun_pop if mun_pop > 0 else 0
             commuting = sim.stats.update_commuting(mun_families)
             mun_gini = sim.stats.calculate_regional_gini(mun_families)
             mun_house_values = sim.stats.calculate_avg_regional_house_price(mun_families)
@@ -409,82 +433,149 @@ class Output:
             save_fn(sim)
 
     def save_firms_data(self, sim):
-        with open(self.firms_path, 'a') as fp:
-            for firm in sim.firms.values():
-                fp.write('%s; %s; %s; %s; %.3f; %.3f; %.3f; %s; %.3f; %.3f; %.3f ; %.3f; %.3f; %.3f; %.3f; '
-                         '%.3f;%.3f;%.3f;%.3f; %s \n' %
-                         (sim.clock.days, firm.id, firm.region_id, firm.region_id[:7], firm.address.x,
-                          firm.address.y, firm.total_balance, firm.num_employees,
-                          firm.total_quantity, firm.amount_produced, firm.prices,
-                          firm.amount_sold, firm.revenue, firm.profit,
-                          firm.wages_paid, firm.input_cost, firm.last_emissions, firm.env_efficiency,
-                          firm.inno_inv, firm.sector))
+        day = sim.clock.days
+        firms_data = {
+            'month': [], 'firm_id': [], 'region_id': [], 'mun_id': [],
+            'long': [], 'lat': [], 'total_balance': [], 'number_employees': [],
+            'stocks': [], 'amount_produced': [], 'price': [], 'amount_sold': [],
+            'revenue': [], 'profit': [], 'wages_paid': [], 'input_cost': [],
+            'emissions': [], 'eco_eff': [], 'innov_investment': [], 'sector': []
+        }
+        construction_data = {
+            'month': [], 'firm_id': [], 'region_id': [], 'mun_id': [],
+            'long': [], 'lat': [], 'total_balance': [], 'number_employees': [],
+            'stocks': [], 'amount_produced': [], 'price': [], 'amount_sold': [],
+            'revenue': [], 'profit': [], 'wages_paid': []
+        }
         for firm in sim.firms.values():
+            firms_data['month'].append(day)
+            firms_data['firm_id'].append(firm.id)
+            firms_data['region_id'].append(firm.region_id)
+            firms_data['mun_id'].append(firm.region_id[:7])
+            firms_data['long'].append(firm.address.x)
+            firms_data['lat'].append(firm.address.y)
+            firms_data['total_balance'].append(firm.total_balance)
+            firms_data['number_employees'].append(firm.num_employees)
+            firms_data['stocks'].append(firm.total_quantity)
+            firms_data['amount_produced'].append(firm.amount_produced)
+            firms_data['price'].append(firm.prices)
+            firms_data['amount_sold'].append(firm.amount_sold)
+            firms_data['revenue'].append(firm.revenue)
+            firms_data['profit'].append(firm.profit)
+            firms_data['wages_paid'].append(firm.wages_paid)
+            firms_data['input_cost'].append(firm.input_cost)
+            firms_data['emissions'].append(firm.last_emissions)
+            firms_data['eco_eff'].append(firm.env_efficiency)
+            firms_data['innov_investment'].append(firm.inno_inv)
+            firms_data['sector'].append(firm.sector)
+            if firm.sector == 'Construction':
+                construction_data['month'].append(day)
+                construction_data['firm_id'].append(firm.id)
+                construction_data['region_id'].append(firm.region_id)
+                construction_data['mun_id'].append(firm.region_id[:7])
+                construction_data['long'].append(firm.address.x)
+                construction_data['lat'].append(firm.address.y)
+                construction_data['total_balance'].append(firm.total_balance)
+                construction_data['number_employees'].append(firm.num_employees)
+                construction_data['stocks'].append(firm.total_quantity)
+                construction_data['amount_produced'].append(len(firm.houses_built))
+                construction_data['price'].append(firm.mean_house_price())
+                construction_data['amount_sold'].append(firm.n_houses_sold)
+                construction_data['revenue'].append(firm.revenue)
+                construction_data['profit'].append(firm.profit)
+                construction_data['wages_paid'].append(firm.wages_paid)
             firm.reset_amount_sold()
 
-        with open(self.construction_path, 'a') as fp:
-            for firm in sim.firms.values():
-                if firm.sector == 'Construction':
-                    fp.write('%s; %s; %s; %s; %.3f; %.3f; %.3f; %s; %.3f; %.3f; %.3f ; %.3f; %.3f; %.3f; %.3f \n' %
-                             (sim.clock.days, firm.id, firm.region_id, firm.region_id[:7], firm.address.x,
-                              firm.address.y, firm.total_balance, firm.num_employees,
-                              firm.total_quantity, len(firm.houses_built), firm.mean_house_price(),
-                              firm.n_houses_sold, firm.revenue, firm.profit,
-                              firm.wages_paid))
+        self._write_parquet('firms', self.firms_path, firms_data)
+        if construction_data['month']:
+            self._write_parquet('construction', self.construction_path, construction_data)
 
     def save_agents_data(self, sim):
-        with open(self.agents_path, 'a') as fp:
-            for agent in sim.agents.values():
-                fp.write('%s;%s;%s;%.3f;%.3f;%s;%s;%s;%s;%s;%.3f;%s\n' % (sim.clock.days, agent.region_id,
-                                                                             agent.gender, agent.address.x,
-                                                                             agent.address.y, agent.id, agent.age,
-                                                                             agent.qualification, agent.firm_id,
-                                                                             agent.family.id, agent.money,
-                                                                             agent.distance))
+        day = sim.clock.days
+        data = {
+            'month': [], 'region_id': [], 'gender': [], 'x': [], 'y': [],
+            'id': [], 'age': [], 'qualification': [], 'firm_id': [],
+            'family_id': [], 'money': [], 'distance': []
+        }
+        for agent in sim.agents.values():
+            data['month'].append(day)
+            data['region_id'].append(agent.region_id)
+            data['gender'].append(agent.gender)
+            data['x'].append(agent.address.x)
+            data['y'].append(agent.address.y)
+            data['id'].append(agent.id)
+            data['age'].append(agent.age)
+            data['qualification'].append(agent.qualification)
+            data['firm_id'].append(agent.firm_id)
+            data['family_id'].append(agent.family.id)
+            data['money'].append(agent.money)
+            data['distance'].append(agent.distance)
+        self._write_parquet('agents', self.agents_path, data)
 
     def save_grave_data(self, sim):
-        with open(self.grave_path, 'a') as fp:
+        if sim.grave:
+            day = sim.clock.days
+            data = {
+                'month': [], 'region_id': [], 'gender': [], 'x': [], 'y': [],
+                'id': [], 'age': [], 'qualification': [], 'firm_id': [],
+                'family_id': [], 'money': [], 'utility': [], 'distance': []
+            }
             for agent in sim.grave:
-                fp.write('%s;%s;%s;%s;%s;%d;%d;%d;%s;%s;%.3f;%.3f;%s\n' % (sim.clock.days, agent.region_id,
-                                                                              agent.gender,
-                                                                              agent.address.x if agent.address else None,
-                                                                              agent.address.y if agent.address else None,
-                                                                              agent.id, agent.age,
-                                                                              agent.qualification, agent.firm_id,
-                                                                              agent.family.id if agent.family else None,
-                                                                              agent.money, agent.utility,
-                                                                              agent.distance))
+                data['month'].append(day)
+                data['region_id'].append(agent.region_id)
+                data['gender'].append(agent.gender)
+                data['x'].append(agent.address.x if agent.address else None)
+                data['y'].append(agent.address.y if agent.address else None)
+                data['id'].append(agent.id)
+                data['age'].append(agent.age)
+                data['qualification'].append(agent.qualification)
+                data['firm_id'].append(agent.firm_id)
+                data['family_id'].append(agent.family.id if agent.family else None)
+                data['money'].append(agent.money)
+                data['utility'].append(agent.utility)
+                data['distance'].append(agent.distance)
+            self._write_parquet('grave', self.grave_path, data)
         sim.grave.clear()
 
     def save_house_data(self, sim):
-        with open(self.houses_path, 'a') as fp:
-            for house in sim.houses.values():
-                fp.write('%s;%s;%f;%f;%.2f;%.2f;%s;%.1f;%.2f;%.2f;%s;%s;%s\n' % (sim.clock.days,
-                                                                                    house.id,
-                                                                                    house.address.x,
-                                                                                    house.address.y,
-                                                                                    house.size,
-                                                                                    house.price,
-                                                                                    house.rent_data[0] if house.rent_data
-                                                                                    else '',
-                                                                                    house.quality,
-                                                                                    sim.regions[house.region_id].index,
-                                                                                    house.on_market,
-                                                                                    house.family_id,
-                                                                                    house.region_id,
-                                                                                    house.region_id[:7]))
+        day = sim.clock.days
+        data = {
+            'month': [], 'id': [], 'x': [], 'y': [], 'size': [], 'price': [],
+            'rent': [], 'quality': [], 'qli': [], 'on_market': [],
+            'family_id': [], 'region_id': [], 'mun_id': []
+        }
+        for house in sim.houses.values():
+            data['month'].append(day)
+            data['id'].append(house.id)
+            data['x'].append(house.address.x)
+            data['y'].append(house.address.y)
+            data['size'].append(house.size)
+            data['price'].append(house.price)
+            data['rent'].append(house.rent_data[0] if house.rent_data else None)
+            data['quality'].append(house.quality)
+            data['qli'].append(sim.regions[house.region_id].index)
+            data['on_market'].append(house.on_market)
+            data['family_id'].append(house.family_id)
+            data['region_id'].append(house.region_id)
+            data['mun_id'].append(house.region_id[:7])
+        self._write_parquet('houses', self.houses_path, data)
 
     def save_family_data(self, sim):
-        with open(self.families_path, 'a') as fp:
-            for family in sim.families.values():
-                fp.write('%s;%s;%s;%s;%s;%.5f;%.2f;%.2f\n' % (sim.clock.days,
-                                                                family.id,
-                                                                family.region_id[:7],
-                                                                family.house.price if family.house else '',
-                                                                family.house.rent_data[0] if family.house.rent_data else '',
-                                                                family.total_wage(),
-                                                                family.savings,
-                                                                family.num_members))
+        day = sim.clock.days
+        data = {
+            'month': [], 'id': [], 'mun_id': [], 'house_price': [],
+            'house_rent': [], 'total_wage': [], 'savings': [], 'num_members': []
+        }
+        for family in sim.families.values():
+            data['month'].append(day)
+            data['id'].append(family.id)
+            data['mun_id'].append(family.region_id[:7])
+            data['house_price'].append(family.house.price if family.house else None)
+            data['house_rent'].append(family.house.rent_data[0] if family.house and family.house.rent_data else None)
+            data['total_wage'].append(family.total_wage())
+            data['savings'].append(family.savings)
+            data['num_members'].append(family.num_members)
+        self._write_parquet('families', self.families_path, data)
 
     def prepare_dataframe(self, sim):
         """Converts nested dictionary (class range → month → count) into a DataFrame."""
@@ -505,15 +596,23 @@ class Output:
 
     def save_banks_data(self, sim):
         bank = sim.central
-        with open(self.banks_path, 'a') as f:
-            active = bank.active_loans()
-            n_active = len(active)
-            mean_age = sum(l.age for l in active) / n_active if n_active else 0
-            p_delinquent = len(bank.delinquent_loans()) / n_active if n_active else 0
-            mn, mx, avg = bank.loan_stats_summary()
-            f.write(f"{sim.clock.days};{bank.balance:.3f};{n_active:.2f};"
-                    f"{bank.mortgage_rate:.6f};"
-                    f"{p_delinquent:.3f};{mean_age:.3f};{mn:.3f};{mx:.3f};{avg:.3f}\n")
+        active = bank.active_loans()
+        n_active = len(active)
+        mean_age = sum(l.age for l in active) / n_active if n_active else 0
+        p_delinquent = len(bank.delinquent_loans()) / n_active if n_active else 0
+        mn, mx, avg = bank.loan_stats_summary()
+        data = {
+            'month': [sim.clock.days],
+            'balance': [bank.balance],
+            'active_loans': [n_active],
+            'mortgage_rate': [bank.mortgage_rate],
+            'p_delinquent_loans': [p_delinquent],
+            'mean_loan_age': [mean_age],
+            'min_loan': [mn],
+            'max_loan': [mx],
+            'mean_loan': [avg],
+        }
+        self._write_parquet('banks', self.banks_path, data)
 
     def save_transit_data(self, sim, fname):
         region_ids = conf.RUN['LIMIT_SAVED_TRANSIT_REGIONS']

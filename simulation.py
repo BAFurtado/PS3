@@ -184,6 +184,7 @@ class Simulation:
 
         if conf.RUN["SAVE_TRANSIT_DATA"]:
             self.output.save_transit_data(self, "end")
+        self.output.close()
         self.logger.logger.info("Simulation completed.")
 
     def initialize(self):
