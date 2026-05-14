@@ -834,6 +834,13 @@ class GovernmentFirm(Firm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.budget_proportion = 0
+        self._transfer_prev = 0.0
+        self._transfer_current = 0.0
+
+    def reset_amount_sold(self):
+        super().reset_amount_sold()
+        self._transfer_prev = self._transfer_current
+        self._transfer_current = 0.0
 
     def consume(self, sim):
         # As long as we provide labor and total_balance, the other methods are OK to use methods from regular firm
@@ -869,14 +876,16 @@ class GovernmentFirm(Firm):
         return total_consumption
 
     def wage_base(self, unemployment, relevance_unemployment):
-        # Wages are funded by the balance kept after consume() (GovernmentConsumption['Government']
-        # fraction, ~89.6%). revenue is always 0 at payment time because invest_taxes() runs after
-        # make_payment() in the simulation cycle, so we use total_balance directly.
+        # Wages are funded by last month's tax transfer, not total_balance.
+        # total_balance conflates initial firm capitalization (large, from world generation)
+        # with ongoing tax revenue, causing a massive month-1 wage spike if used directly.
+        # invest_taxes() runs after make_payment() in the monthly cycle, so this month's
+        # transfer is unavailable; _transfer_prev carries the previous month's amount.
+        if self.num_employees == 0 or self._transfer_prev <= 0:
+            return 0.0
         unemployment = .04 if unemployment == 0 else unemployment
         labor_share = np.exp(-unemployment * relevance_unemployment)
-        if self.num_employees > 0:
-            return max(0.0, self.total_balance) / self.num_employees * labor_share
-        return 0.0
+        return self._transfer_prev / self.num_employees * labor_share
 
     def assign_proportion(self, value):
         self.budget_proportion = value
@@ -886,4 +895,5 @@ class GovernmentFirm(Firm):
         if amount > 0:
             self.total_balance += amount
             self.revenue += amount
+            self._transfer_current += amount
         return 0
