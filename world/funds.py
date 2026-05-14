@@ -302,7 +302,7 @@ class Funds:
                     if firms_here:
                         gov_firms_money = (1 - self.gov_consumption_parameter) * amount
                         [f.government_transfer(gov_firms_money * f.budget_proportion)
-                         for f in list(self.mun_gov_firms[mun_code])]
+                         for f in list(self.mun_gov_firms[mun])]
                         amount = self.gov_consumption_parameter * amount
 
                 # Separating money for policy

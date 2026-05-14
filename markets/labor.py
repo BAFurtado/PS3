@@ -236,11 +236,26 @@ class LaborMarket:
         jobs_balance = total_gov_employees - total_employment
 
         if jobs_balance > 0:
-            hiring_firms = sim.seed.sample(gov_firms, min(jobs_balance, len(gov_firms)))
-            [self.add_post(f) for f in hiring_firms]
-        else:
-            firing_firms = sim.seed.sample(gov_firms, min((jobs_balance * -1), len(gov_firms)))
-            [f.fire(self.seed) for f in firing_firms]
+            posts_per_firm = max(1, ceil(jobs_balance / len(gov_firms)))
+            posted = 0
+            for f in sim.seed.sample(gov_firms, len(gov_firms)):
+                if posted >= jobs_balance:
+                    break
+                n = min(posts_per_firm, jobs_balance - posted)
+                for _ in range(n):
+                    self.add_post(f)
+                posted += n
+        elif jobs_balance < 0:
+            to_fire = -jobs_balance
+            fires_per_firm = max(1, ceil(to_fire / len(gov_firms)))
+            fired = 0
+            for f in sim.seed.sample(gov_firms, len(gov_firms)):
+                if fired >= to_fire:
+                    break
+                for _ in range(min(fires_per_firm, to_fire - fired)):
+                    if f.employees:
+                        f.fire(self.seed)
+                        fired += 1
 
     def hire_fire(self, firms, firm_enter_freq, initialize=False):
         """Firms adjust their labor force based on profit"""

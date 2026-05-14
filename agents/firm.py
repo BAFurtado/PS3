@@ -868,20 +868,22 @@ class GovernmentFirm(Firm):
                 self.total_balance += money_this_sector.copy()
         return total_consumption
 
+    def wage_base(self, unemployment, relevance_unemployment):
+        # Wages are funded by the balance kept after consume() (GovernmentConsumption['Government']
+        # fraction, ~89.6%). revenue is always 0 at payment time because invest_taxes() runs after
+        # make_payment() in the simulation cycle, so we use total_balance directly.
+        unemployment = .04 if unemployment == 0 else unemployment
+        labor_share = np.exp(-unemployment * relevance_unemployment)
+        if self.num_employees > 0:
+            return max(0.0, self.total_balance) / self.num_employees * labor_share
+        return 0.0
+
     def assign_proportion(self, value):
         self.budget_proportion = value
 
     def government_transfer(self, amount):
-        """ Equivalent to sales for regular firms,
-            in which government transfer are added to government firms total balance """
+        """ Government tax transfers credited directly as revenue (no inventory gate) """
         if amount > 0:
-            # Add price of the unit, deduce it from consumers' amount
-            for key in list(self.inventory.keys()):
-                if self.inventory[key].quantity > 0:
-                    amount_sold = self.inventory[key].quantity
-                    # Deducing from stock
-                    self.inventory[key].quantity = 0
-                    self.total_balance += amount
-                    self.revenue += amount
-                    self.amount_sold += amount_sold
+            self.total_balance += amount
+            self.revenue += amount
         return 0

@@ -116,20 +116,20 @@ VACANCY_PRICE_REFERENCE = 0.08
 # AS SUCH (-.02) DECAY OF 1% FIRST MONTH, 10% FIRST YEAR. SET TO 0 TO ELIMINATE EFFECT
 ON_MARKET_DECAY_FACTOR = -0.02
 # LOWER BOUND, THAT IS, AT LEAST 60% PERCENT OF VALUE WILL REMAIN AT END OF PERIOD, IF PARAMETER IS .6
-MAX_OFFER_DISCOUNT = 0.6
+MAX_OFFER_DISCOUNT = 0.65
 # UPPER BOUND: maximum price premium in tight markets (vacancy near zero)
 MAX_OFFER_PREMIUM = 1.3
 # How strong construction firms respond to vacancy.
 # Used in exponential suppression: P(skip) = 1 - exp(-vacancy * sensitivity).
 # At equilibrium vacancy (8%) → ~38% skip; at 25% → ~78% skip; never a hard stop.
-BUILD_VACANCY_SENSITIVITY = 6
+BUILD_VACANCY_SENSITIVITY = 9
 # Percentage of households pursuing new location (on average families move about once every 20 years)
 PERCENTAGE_ENTERING_ESTATE_MARKET = 0.025
 NEIGHBORHOOD_EFFECT = 2
 
 # RENTAL #######################
 INITIAL_RENTAL_SHARE = 0.25
-INITIAL_RENTAL_PRICE = 0.002
+INITIAL_RENTAL_PRICE = 0.0015
 # Maximum fraction of permanent income a household will commit to rent when choosing to move.
 # 0.3 matches the Brazilian "comprometimento de renda" standard used in PlanHab/MCMV eligibility.
 # Applies only to already-housed families in maybe_move; homeless families are unaffected.
