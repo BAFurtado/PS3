@@ -165,28 +165,87 @@ class Family:
 
     # Consumption ####################################################################################################
     def decision_enter_house_market(self, sim, house_price_quantiles):
-        # It considers current employment status, space constraints, financial availability,
-        # including consumption and payments, housing needs (is renting).
-        # In construction adding criteria: affordability
-        # 0. If family has not made goods consumption, or is defaulting on rent don't consider entering housing market
+        """Decide whether to enter the housing market as a potential buyer/renter.
+
+        Returns False to exclude the family entirely, or a non-negative score used to
+        rank families; the simulation selects the top PERCENTAGE_ENTERING_ESTATE_MARKET
+        scorers each month.
+
+        Gates (hard — return False if failed):
+          0. Basic viability: has consumed goods and is not in rent default.
+          1. Short-term liquidity: holds some savings.
+          2. Bank deposits: has invested surplus in the bank (signals financial stability).
+          3. Down-payment: savings + deposits cover MIN_DOWN_PAYMENT_FRACTION of the
+             target house price. Enforces equity accumulation before buying.
+
+        Score components:
+          need   = is_renting  (1 if renting, 0 if owner)
+                 + prob_employed
+                 + space_constraint (crowding pressure)
+          penalty = financial gap between the bank deposit return and the rental yield.
+                    When holding savings in the bank earns more than the avoided rent
+                    from owning, buying is financially inferior to saving. The penalty
+                    dampens the score of families for whom the bank dominates, removing
+                    purely investment-motivated buyers when interest rates are high while
+                    leaving genuinely high-need families (renters, crowded households)
+                    above zero.
+        """
+        # 0. Basic viability
         if not self.average_utility or self.rent_default:
             return False
-        # 1. Needs to have short term reserve money
+        # 1. Short-term liquidity
         if not self.savings:
             return False
-        # 2. Needs to have some investment in the bank
+        # 2. Bank investment (signals financial stability and non-zero surplus)
         self.bank_savings = sim.central.sum_deposits(self)
         if not self.bank_savings:
             return False
-        # Distinction on submarket. How much money available compared to housing prices distribution?
+
+        # Determine target submarket from total available funds
         available = self.savings + self.bank_savings
         self.quality_score = np.searchsorted(house_price_quantiles, available)
-        # B. How many are employed?
+
+        # 3. Down-payment gate: require MIN_DOWN_PAYMENT_FRACTION of the target price
+        # before entering the market. Families accumulate equity in the bank first;
+        # only enter when they can genuinely participate in their price segment.
+        # This is consistent with MAX_LOAN_TO_VALUE = 0.80 (which already enforces
+        # 20% equity at the negotiation stage, but too late to prevent overcrowding).
+        target_idx = min(self.quality_score, len(house_price_quantiles) - 1)
+        target_price = house_price_quantiles[target_idx]
+        if available < target_price * sim.PARAMS['MIN_DOWN_PAYMENT_FRACTION']:
+            return False
+
+        # Need-based score components
         prob_employed = self.prob_employed()
-        # C. Is renting
-        # D. Space constraint
-        self.space_constraint = self.num_members / self.house.size * 3.5  # To approximate value to a range 0, 1
-        return self.is_renting + prob_employed + self.space_constraint
+        self.space_constraint = self.num_members / self.house.size * 3.5
+        need_score = self.is_renting + prob_employed + self.space_constraint
+
+        # Financial attractiveness: compare the gross rental yield against the
+        # opportunity cost of the capital that would be locked in the house.
+        #
+        # required_yield = bank_rate + annual_property_tax / 12
+        #   (what the savings earn in the bank plus the holding cost of ownership)
+        # rental_yield   = INITIAL_RENTAL_PRICE
+        #   (monthly rent avoided by owning, as a fraction of house price)
+        #
+        # When required_yield > rental_yield: the bank earns more than buying saves
+        # → penalise entry. The penalty is normalised to [0, 1] so it is comparable
+        # with the need_score (which lives in ~[0, 3]).
+        # When rental_yield >= required_yield: buying is financially rational → no penalty.
+        #
+        # HOUSING_FINANCIAL_WEIGHT controls how aggressively the penalty reduces scores.
+        # At typical Brazilian SELIC (8-12 % annual) the penalty removes low-need owners
+        # (speculative buyers) while high-need renters survive above zero.
+        EPS = 1e-6
+        bank_rate = max(sim.central.interest, EPS)
+        property_tax_monthly = sim.PARAMS['TAX_PROPERTY'] / 12
+        required_yield = bank_rate + property_tax_monthly
+        rental_yield = sim.PARAMS['INITIAL_RENTAL_PRICE']
+        # Normalised gap: 0 when buying is rational, approaching 1 as rental yield → 0
+        financial_gap = max(0.0, (required_yield - rental_yield) / required_yield)
+        penalty = financial_gap * sim.PARAMS['HOUSING_FINANCIAL_WEIGHT']
+
+        return need_score - penalty
 
     def decision_on_consumption(self, central, year, month, params, regions):
         """ Family consumes its permanent income, based on members' wages, real estate assets, and savings.

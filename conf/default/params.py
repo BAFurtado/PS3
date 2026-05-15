@@ -124,16 +124,36 @@ MAX_OFFER_PREMIUM = 1.3
 # At equilibrium vacancy (8%) → ~38% skip; at 25% → ~78% skip; never a hard stop.
 BUILD_VACANCY_SENSITIVITY = 7
 # Percentage of households pursuing new location (on average families move about once every 20 years)
-PERCENTAGE_ENTERING_ESTATE_MARKET = 0.025
+# Brazilian households move on average every 15-20 years → 0.4-0.5% per month.
+# At 2.5% the buyer pool (~470/month in BH) far exceeds monthly housing supply (~14),
+# so the wealthiest buyers absorb all supply regardless of need-based scoring.
+# At 0.5% the pool (~94/month) is closer to supply, allowing some months where
+# available houses exceed active buyers and vacancy begins to accumulate.
+PERCENTAGE_ENTERING_ESTATE_MARKET = 0.005
 NEIGHBORHOOD_EFFECT = 2
 
 # RENTAL #######################
-INITIAL_RENTAL_SHARE = 0.25
-INITIAL_RENTAL_PRICE = 0.0015
+INITIAL_RENTAL_SHARE = 0.40
+# Monthly rent as a fraction of house price.
+# At 0.003 this is 3.6% annual gross yield — in line with Brazilian urban rental markets.
+# Also calibrates the financial attractiveness comparison in decision_enter_house_market:
+# when the bank rate exceeds this yield, depositing savings is more profitable than buying.
+INITIAL_RENTAL_PRICE = 0.003
 # Maximum fraction of permanent income a household will commit to rent when choosing to move.
 # 0.3 matches the Brazilian "comprometimento de renda" standard used in PlanHab/MCMV eligibility.
 # Applies only to already-housed families in maybe_move; homeless families are unaffected.
 MAX_RENT_TO_INCOME_RATIO = 0.3
+
+# HOUSING PURCHASE DECISION #######################
+# Minimum fraction of target house price that must be held in savings + bank deposits
+# before a family enters the housing market. Enforces equity accumulation before buying
+# (consistent with MAX_LOAN_TO_VALUE = 0.80, which already requires 20% equity at negotiation).
+MIN_DOWN_PAYMENT_FRACTION = 0.20
+# Weight applied to the financial attractiveness penalty in decision_enter_house_market.
+# When the bank deposit rate + property tax exceeds the rental yield, buying is financially
+# inferior to holding savings. This weight scales that gap into a score reduction.
+# Higher values more aggressively exclude investment-motivated buyers when rates are high.
+HOUSING_FINANCIAL_WEIGHT = 3.0
 
 # CONSTRUCTION #################################################################################
 # LICENSES ARE URBANIZED LOTS AVAILABLE FOR CONSTRUCTION PER NEIGHBORHOOD PER MONTH.
@@ -144,7 +164,7 @@ EXPECTED_LICENSES_PER_REGION = 3
 # Although prices are accounted for at once.
 CONSTRUCTION_ACC_CASH_FLOW = 12
 # Cost of lot in PERCENTAGE of construction
-LOT_COST = 0.1
+LOT_COST = 0.15
 # Initial percentage of vacant houses
 HOUSE_VACANCY = 0.1
 # MAX_NUMBER OF HOUSES IN STOCK

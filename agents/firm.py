@@ -624,6 +624,10 @@ class ConstructionFirm(Firm):
         self.cash_flow = defaultdict(float)
         self.monthly_planned_revenue = list()
         self.productivity = 0
+        # Seed initial stock so the Leontief self-loop doesn't dead-lock at startup.
+        # Without this, cities whose construction matrix is dominated by a local self-loop
+        # (like Brasilia) never produce their first unit and never build any houses.
+        self.total_quantity = 200
 
     def plan_house(self, regions, params, sim, seed_np, vacancy, region_price_stats):
         """Decide where to build with which attributes"""
