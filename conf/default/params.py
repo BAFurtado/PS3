@@ -122,7 +122,7 @@ MAX_OFFER_PREMIUM = 1.3
 # How strong construction firms respond to vacancy.
 # Used in exponential suppression: P(skip) = 1 - exp(-vacancy * sensitivity).
 # At equilibrium vacancy (8%) → ~38% skip; at 25% → ~78% skip; never a hard stop.
-BUILD_VACANCY_SENSITIVITY = 9
+BUILD_VACANCY_SENSITIVITY = 7
 # Percentage of households pursuing new location (on average families move about once every 20 years)
 PERCENTAGE_ENTERING_ESTATE_MARKET = 0.025
 NEIGHBORHOOD_EFFECT = 2
@@ -144,7 +144,7 @@ EXPECTED_LICENSES_PER_REGION = 3
 # Although prices are accounted for at once.
 CONSTRUCTION_ACC_CASH_FLOW = 12
 # Cost of lot in PERCENTAGE of construction
-LOT_COST = 0.15
+LOT_COST = 0.1
 # Initial percentage of vacant houses
 HOUSE_VACANCY = 0.1
 # MAX_NUMBER OF HOUSES IN STOCK

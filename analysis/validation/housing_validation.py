@@ -74,17 +74,17 @@ def compute_derived_monthly_indicators(df):
     )
 
     # -----------------------------
-    # Price / wage (worker-level proxy)
+    # Price / monthly family income (months of income to buy a house)
+    # Uses firms_wage_per_worker when available (correct per-worker median computed
+    # only over active firms); falls back to families_wages_received (family level).
+    # The old firms_median_wage_paid / firms_median_employment ratio is incorrect:
+    # dividing two medians across all firms (including 0-wage firms) gives near-zero
+    # per-worker wages and price/wage ratios in the thousands.
     # -----------------------------
-    df["wage_per_worker"] = safe_ratio(
-        df["firms_median_wage_paid"],
-        df["firms_median_employment"]
-    )
-
-    df["price_wage"] = safe_ratio(
-        df["house_price"],
-        df["wage_per_worker"]
-    )
+    if "firms_wage_per_worker" in df.columns:
+        df["price_wage"] = safe_ratio(df["house_price"], df["firms_wage_per_worker"])
+    else:
+        df["price_wage"] = safe_ratio(df["house_price"], df["families_wages_received"])
 
     # -----------------------------
     # Price / annual household wage income
@@ -376,7 +376,7 @@ def write_latex(summary, suffix=""):
 Indicador & Modelo & Brasil (aprox.) \\\\
 \\hline
 Estoque imobiliário / PIB & {summary['housing_stock_gdp_mean']:.2f} & 1.5--2.5 \\\\
-Preço / salário mensal (trabalhador) & {summary['price_wage_p10']:.0f}--{summary['price_wage_p90']:.0f} & 40--90 \\\\
+Preço / salário mensal por trabalhador & {summary['price_wage_p10']:.0f}--{summary['price_wage_p90']:.0f} & 60--150 \\\\
 Preço / renda anual familiar & {summary['price_income_mean']:.2f} & 6--12 \\\\
 Produção habitacional (por 1000 hab) & {summary['housing_production_per_1000_mean']:.2f} & 2--4 \\\\
 Consumo / PIB & {summary['consumption_gdp_mean']:.2f} & 0.55--0.65 \\\\

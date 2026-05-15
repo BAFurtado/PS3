@@ -63,9 +63,15 @@ class Statistics(object):
             firm_profits[i] = firm.profit
             firm_inno_inv[i] = firm.inno_inv
 
+        # Per-worker wage: only firms with both employees and positive wages paid this month.
+        # Median of the whole distribution (including 0-wage firms) is near-zero and misleading.
+        active = (firm_workers > 0) & (firm_wages > 0)
+        per_worker = (firm_wages[active] / firm_workers[active]) if active.any() else np.array([0.0])
+
         results = {
             "median_wealth": np.median(firm_balances) if firm_balances.size > 0 else 0,
             "median_wages": np.median(firm_wages) if firm_wages.size > 0 else 0,
+            "median_wage_per_worker": float(np.median(per_worker)),
             "eco_efficiency": np.mean(firm_eco_eff) if firm_eco_eff.size > 0 else 0,
             "emissions": np.sum(firm_emissions) if firm_emissions.size > 0 else 0,
             "median_stock": np.median(firm_stocks) if firm_stocks.size > 0 else 0,
