@@ -210,8 +210,8 @@ def marriage(sim):
                 b.family.remove_agent(b)
                 new_family.add_agent(a)
                 new_family.add_agent(b)
-                new_family.relatives.add(a.id)
-                new_family.relatives.add(b.id)
+                new_family.relatives.add(old_a.id)
+                new_family.relatives.add(old_b.id)
                 sim.housing.rental.rental_market([new_family], sim)
 
                 # Reverse marriage if they can't find a house

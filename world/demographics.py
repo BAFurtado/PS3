@@ -16,22 +16,29 @@ def check_education(agent, age):
 
 def check_demographics(sim, birthdays, year, mortality_men, mortality_women, fertility):
     """Agent life cycles: update agent ages, deaths, and births"""
-    random_numbers = sim.seed_np.random(size=len(birthdays))
-    for i, (age, agents) in enumerate(birthdays.items()):
+    # One random number per agent drawn in bulk — independent draws across individuals,
+    # not shared within a cohort (which caused mass-death events for same-age groups).
+    total_agents = sum(len(agents) for agents in birthdays.values())
+    random_numbers = sim.seed_np.random(size=total_agents)
+    r_idx = 0
+    for age, agents in birthdays.items():
         age = age + 1
+        # Always compute rounded_age so fertility fallback can use it even when
+        # the direct mortality lookup succeeds (avoids NameError in fertility block).
+        rounded_age = ((age + 4) // 5) * 5
         try:
             prob_mort_m = mortality_men[age][str(year)]
             prob_mort_f = mortality_women[age][str(year)]
         except KeyError:
             try:
                 # New data only contains probability at 0, 1, 5, 10 and from onwards.
-                rounded_age = ((age + 4) // 5) * 5
                 prob_mort_m = mortality_men[rounded_age][str(year)]
                 prob_mort_f = mortality_women[rounded_age][str(year)]
             except KeyError:
                 # New data also only goes up to 90
                 prob_mort_m = mortality_men[90][str(year)]
                 prob_mort_f = mortality_women[90][str(year)]
+        p_pregnancy = 0
         if 14 < age < 50:
             try:
                 p_pregnancy = fertility[age][str(year)]
@@ -39,20 +46,22 @@ def check_demographics(sim, birthdays, year, mortality_men, mortality_women, fer
                 p_pregnancy = fertility[rounded_age][str(year)]
         for agent in agents:
             agent.age += 1
+            r = random_numbers[r_idx]
+            r_idx += 1
             if 7 < age < 18:
-                if random_numbers[i] > .17:
+                if r > .17:
                     # Dropout for schooling years is of the order of magnitude of 17% for Brazil
                     agent = check_education(agent, age)
             agent.p_marriage = marriage_data.p_marriage(agent)
             if agent.gender == 'Male':
-                if random_numbers[i] < prob_mort_m:
+                if r < prob_mort_m:
                     die(sim, agent)
             else:
                 if 14 < age < 50:
                     pregnant(sim, agent, p_pregnancy)
                 # Mortality procedures
                 # Extract specific agent data to calculate mortality 'Female'
-                if random_numbers[i] < prob_mort_f:
+                if r < prob_mort_f:
                     die(sim, agent)
 
 
@@ -115,13 +124,13 @@ def die(sim, agent):
                 # who gets the most expensive house, also gets the debt, if any
                 inheritance.sort(key=lambda h: h.price, reverse=False)
                 debtor = lucky_ones.pop()
-                sim.generator.randomly_assign_houses(inheritance.pop(), debtor)
+                sim.generator.randomly_assign_houses([inheritance.pop()], [debtor])
                 # If we still have other houses and other relatives, assign randomly
                 if inheritance and lucky_ones:
                     sim.generator.randomly_assign_houses(inheritance, lucky_ones)
                 # If we have just more houses, give them all to the survivor
                 elif inheritance:
-                    sim.generator.randomly_assign_houses(inheritance, debtor)
+                    sim.generator.randomly_assign_houses(inheritance, [debtor])
             else:
                 debtor = sim.seed.choice(relatives)
 

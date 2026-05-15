@@ -31,8 +31,8 @@ sim.initialize()
 N_HOUSES_INIT = len(sim.houses)
 sim.run()
 
-# ── helpers ──────────────────────────────────────────────────────────────────
 
+# ── helpers ──────────────────────────────────────────────────────────────────
 def gini_of_sim(s):
     incomes = np.array([f.get_permanent_income() for f in s.families.values()])
     incomes = incomes - incomes.min() + 1e-6
@@ -169,7 +169,7 @@ check(
 )
 
 # ── summary ──────────────────────────────────────────────────────────────────
-print(f"\n{'─'*50}")
+print(f"\n{'─' * 50}")
 print(f"Results: {PASS} PASS  |  {FAIL} FAIL  |  {PASS + FAIL} total")
 if FAIL:
     raise SystemExit(1)
