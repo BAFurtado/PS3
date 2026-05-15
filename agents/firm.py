@@ -699,8 +699,10 @@ class ConstructionFirm(Firm):
         self.building[idx]["region"] = region.id
         self.building[idx]["size"] = building_size
         self.building[idx]["quality"] = building_quality
-        # Product.quantity increases as construction moves forward and is deducted at once
-        self.building[idx]["cost"] = building_cost * region.license_price
+        # Product.quantity increases as construction moves forward and is deducted at once.
+        # Divided by HOUSE_PRODUCTION_ADEQUACY to bridge the scale gap between labour output
+        # units (~3-8/month) and building_size in square metres (~60-200 m²).
+        self.building[idx]["cost"] = building_cost * region.license_price / params["HOUSE_PRODUCTION_ADEQUACY"]
 
         # Provide temporary cashflow revenue numbers before sales start to trickle in.
         # Additional value per month. Expectations of monthly payments before first sell

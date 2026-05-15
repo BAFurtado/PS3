@@ -160,7 +160,7 @@ class Central:
 
         del self.wallet[client]
 
-        self.balance -= payout
+        self.balance -= amount  # interest already deducted in pay_interest()
         return payout
 
     def sum_deposits(self, client):

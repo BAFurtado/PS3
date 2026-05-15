@@ -173,6 +173,12 @@ MAX_HOUSE_STOCK = 36
 PERC_HOUSE_CATEGORIES = [0.4, 0.3, 0.2, 0.1]
 # HOW LARGER IS CONSTRUCTION FIRMS PROFIT RELATIVE TO USUAL MARKUP (firms' productivity, given current prices)
 CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 3
+# Bridges the scale gap between construction firm labor output (sum of qual^alpha per month, ~3-8 units)
+# and building_size in square metres (~60-200 m²). Without this divisor a median house requires ~190
+# production-units, meaning 25-60 months of dedicated firm output — far too slow.
+# At 15: median cost ≈ 13 units → ~4 months throughput per house for a 10-employee firm,
+# equivalent to maintaining 5 concurrent projects each individually taking ~20 months.
+HOUSE_PRODUCTION_ADEQUACY = 15
 
 # POPULATION AND DEMOGRAPHY
 # Families run parameters (on average) for year 2000, or no information. 2010 uses APs average data
