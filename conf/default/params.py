@@ -121,8 +121,8 @@ MAX_OFFER_DISCOUNT = 0.65
 MAX_OFFER_PREMIUM = 1.3
 # How strong construction firms respond to vacancy.
 # Used in exponential suppression: P(skip) = 1 - exp(-vacancy * sensitivity).
-# At equilibrium vacancy (8%) → ~38% skip; at 25% → ~78% skip; never a hard stop.
-BUILD_VACANCY_SENSITIVITY = 7
+# At equilibrium vacancy (8%) → ~62% skip; at 15% → ~83% skip; at 25% → ~95% skip.
+BUILD_VACANCY_SENSITIVITY = 12
 # Percentage of households pursuing new location (on average families move about once every 20 years)
 # Brazilian households move on average every 15-20 years → 0.4-0.5% per month.
 # At 2.5% the buyer pool (~470/month in BH) far exceeds monthly housing supply (~14),
@@ -158,7 +158,10 @@ HOUSING_FINANCIAL_WEIGHT = 3.0
 # CONSTRUCTION #################################################################################
 # LICENSES ARE URBANIZED LOTS AVAILABLE FOR CONSTRUCTION PER NEIGHBORHOOD PER MONTH.
 # Expected number of NEW licenses created monthly by region (neighborhood). Set to 0 for no licenses.
-EXPECTED_LICENSES_PER_REGION = 3
+# Reduced from 3 → 1: at 3/region the pool accumulated so fast that licenses never
+# constrained which regions could be built in; at 1/region repeatedly chosen profitable
+# regions can run short, providing a secondary throttle alongside BUILD_VACANCY_SENSITIVITY.
+EXPECTED_LICENSES_PER_REGION = 1
 # PERCENT_CONSTRUCTION_FIRMS = 0.07 This has been deprecated with the introduction of sectors
 # Months that construction firm will divide its income into monthly revenue installments.
 # Although prices are accounted for at once.
