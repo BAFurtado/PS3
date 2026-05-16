@@ -119,20 +119,22 @@ class Generator:
                 my_agents[agent] = regional_agents[agent]
 
             num_agents = len(regional_agents)
+            if num_agents == 0:
+                continue
             if self.sim.geo.year == 2010:
                 try:
-                    num_families = int(
+                    num_families = max(1, int(
                         num_agents
                         / avg_num_fam[avg_num_fam["AREAP"] == int(region_id)].iloc[0][
                             "avg_num_people"
                         ]
-                    )
+                    ))
                 except (KeyError, IndexError):
-                    num_families = int(
+                    num_families = max(1, int(
                         num_agents / self.sim.geo.avg_num_people[int(region_id[:7])][str(self.sim.geo.year)]
-                    )
+                    ))
             else:
-                num_families = int(num_agents / self.sim.PARAMS["MEMBERS_PER_FAMILY"])
+                num_families = max(1, int(num_agents / self.sim.PARAMS["MEMBERS_PER_FAMILY"]))
             num_houses = int(num_families * (1 + self.sim.PARAMS["HOUSE_VACANCY"]))
             num_firms = int(
                 self.firm_data.num_emp_t0[int(region.id)]
@@ -250,6 +252,8 @@ class Generator:
         agents = list(agents.values())
         self.seed_np.shuffle(agents)
         fams = list(families.values())
+        if not fams:
+            return agents, families
         # Separate adults to make sure all families have at least one adult
         adults = [a for a in agents if a.age > 21]
         chd = [a for a in agents if a not in adults]
