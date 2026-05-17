@@ -1,4 +1,5 @@
 
+import json
 from pathlib import Path
 import pandas as pd
 import sys
@@ -8,47 +9,61 @@ sys.path.append(str(ROOT))
 
 from analysis.output import OUTPUT_DATA_SPEC
 
+# Keys pulled from conf.json to supplement the folder-name metadata.
+# These matter most for sensitivity runs where the folder name only
+# contains the swept parameter and the city is buried in conf.json.
+_CONF_SUPPLEMENT_KEYS = [
+    'PROCESSING_ACPS',
+    'INTEREST',
+    'FUNDS_AVAILABILITY',
+    'POLICY_MELHORIAS',
+]
 
-def build_simulation_id(stats_path: Path) -> str:
-    """
-    Gera um ID único baseado no caminho completo da simulação
-    """
-    # pasta que contém INTEREST=...
-    config_folder = next(
-        p.name for p in stats_path.parents
-        if '=' in p.name
-    )
-
-    # timestamp folder (um nível acima)
-    timestamp_folder = stats_path.parents[
-        [p.name for p in stats_path.parents].index(config_folder) + 1
-    ].name
-
-    sim_number = stats_path.parent.name  # 0,1,2
-
-    return f"{timestamp_folder}__{config_folder}__{sim_number}"
+_PLANHAB_KEYS = {'processing_acps', 'policy_melhorias', 'funds_availability'}
 
 
 def extract_metadata(stats_path: Path) -> dict:
-    # parent of "0", i.e. the folder with INTEREST=... etc
-    config_dir = next(
-        p.name for p in stats_path.parents
-        if '=' in p.name
-    )
-    parts = config_dir.split("__")
     meta = {}
 
-    for part in parts:
-        key, value = part.split("=")
-        meta[key.lower()] = value
-
-    # normalize types
+    # 1. Parse KEY=VALUE pairs from the config folder name.
     try:
-        meta["policy_melhorias"] = meta["policy_melhorias"] == "True"
-    except KeyError:
-        pass
+        config_dir = next(p.name for p in stats_path.parents if '=' in p.name)
+        for part in config_dir.split("__"):
+            key, value = part.split("=", 1)
+            meta[key.lower()] = value
+    except StopIteration:
+        pass  # plain run with no config folder (timestamp only)
+
+    # 2. Fill in fields absent from the folder name using conf.json.
+    conf_path = stats_path.parent / 'conf.json'
+    if conf_path.exists():
+        try:
+            with open(conf_path) as f:
+                run_conf = json.load(f)
+            params = run_conf.get('PARAMS', {})
+            for key in _CONF_SUPPLEMENT_KEYS:
+                if key.lower() not in meta and key in params:
+                    val = params[key]
+                    if isinstance(val, list):
+                        val = ','.join(str(v) for v in val)
+                    meta[key.lower()] = val
+        except (json.JSONDecodeError, KeyError, OSError):
+            pass
+
+    # Normalize boolean
+    if 'policy_melhorias' in meta:
+        meta['policy_melhorias'] = meta['policy_melhorias'] in (True, 'True')
 
     return meta
+
+
+def infer_run_type(meta: dict) -> str:
+    if _PLANHAB_KEYS.issubset(meta.keys()):
+        return 'planhab'
+    non_city = {k for k in meta if k not in ('processing_acps', 'interest')}
+    if len(non_city) == 1:
+        return 'sensitivity'
+    return 'other'
 
 
 def main(base='stats'):
@@ -64,20 +79,27 @@ def main(base='stats'):
     stats_cols = OUTPUT_DATA_SPEC[base]['columns']
 
     dfs = []
-
     for path in stats_files:
+        try:
+            df = pd.read_csv(path, sep=';')
+            df.columns = stats_cols
+        except (pd.errors.ParserError, ValueError, OSError):
+            continue
 
-        df = pd.read_csv(path, sep=';')
-        df.columns = stats_cols
         meta = extract_metadata(path)
         for key, value in meta.items():
             df[key] = value
-        df["simulation_id"] = (
-                path.parents[2].name + "__" + path.parent.name
+
+        df['run_type'] = infer_run_type(meta)
+        # unique ID: timestamp__config__run_number
+        df['simulation_id'] = (
+            path.parents[2].name + '__' + path.parents[1].name + '__' + path.parent.name
         )
         dfs.append(df)
-    final = pd.concat(dfs, ignore_index=True)
-    return final
+
+    if not dfs:
+        return pd.DataFrame()
+    return pd.concat(dfs, ignore_index=True)
 
 
 if __name__ == '__main__':
@@ -87,13 +109,7 @@ if __name__ == '__main__':
     final_stats.to_csv('final_stats.csv', index=False)
     regional_stats.to_csv('regional_stats.csv', index=False)
 
-    # out = final_stats.groupby(by=['processing_acps', 'funds_availability', 'policy_melhorias'], as_index=False)[
-    #     ['pop', 'price_level', 'gdp_level',
-    #      'unemployment', 'firms_median_employment', 'families_median_wealth',
-    #      'gini_index',
-    #      'pct_zero_consumption', 'rent_default', 'inflation',
-    #      'average_qli', 'house_vacancy', 'house_price', 'house_rent', "house_quality",
-    #      'affordable', 'p_delinquent', ]].median(numeric_only=True)
-
-
-
+    print(f"Saved {len(final_stats)} rows to final_stats.csv")
+    print(f"Saved {len(regional_stats)} rows to regional_stats.csv")
+    if not final_stats.empty:
+        print(final_stats.groupby('run_type')['simulation_id'].nunique().rename('unique_runs').to_string())
