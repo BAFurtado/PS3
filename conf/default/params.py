@@ -4,7 +4,7 @@ import datetime
 
 # FIRMS #########################################################
 # Production function, labor with decaying exponent, Alpha for K. [0, 1]
-PRODUCTIVITY_EXPONENT = .8
+PRODUCTIVITY_EXPONENT = 0.65
 # Order of magnitude correction of production. Production divided by parameter
 PRODUCTIVITY_MAGNITUDE_DIVISOR = 1
 # GENERAL CALIBRATION PARAMETERS
@@ -162,6 +162,12 @@ HOUSING_FINANCIAL_WEIGHT = 5.0
 # constrained which regions could be built in; at 1/region repeatedly chosen profitable
 # regions can run short, providing a secondary throttle alongside BUILD_VACANCY_SENSITIVITY.
 EXPECTED_LICENSES_PER_REGION = 0.5
+# Minimum total licenses issued city-wide per month, regardless of number of regions.
+# Small cities (few neighborhoods) have proportionally more free urban land and should not
+# be starved by low per-region rates. Effective rate = max(EXPECTED_LICENSES_PER_REGION, floor/n_regions).
+# At 6: an 8-region city gets max(0.5, 0.75)=0.75/region; a 76-region city is unchanged at 0.5.
+# Set to 0 to disable (pure per-region Poisson with no floor).
+LICENSE_MIN_CITY_MONTHLY = 6
 # PERCENT_CONSTRUCTION_FIRMS = 0.07 This has been deprecated with the introduction of sectors
 # Months that construction firm will divide its income into monthly revenue installments.
 # Although prices are accounted for at once.
@@ -181,7 +187,7 @@ CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 3
 # production-units, meaning 25-60 months of dedicated firm output — far too slow.
 # At 15: median cost ≈ 13 units → ~4 months throughput per house for a 10-employee firm,
 # equivalent to maintaining 5 concurrent projects each individually taking ~20 months.
-HOUSE_PRODUCTION_ADEQUACY = 15
+HOUSE_PRODUCTION_ADEQUACY = 9
 
 # POPULATION AND DEMOGRAPHY
 # Families run parameters (on average) for year 2000, or no information. 2010 uses APs average data

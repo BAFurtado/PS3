@@ -243,8 +243,14 @@ class Simulation:
 
         current_unemployment = self.stats.global_unemployment_rate
 
-        # Create new land licenses
+        # Create new land licenses.
+        # Small cities have fewer neighborhoods but proportionally more free urban land,
+        # so we ensure a city-wide floor: effective rate = max(per-region param, floor/n_regions).
         licenses_per_region = self.PARAMS["EXPECTED_LICENSES_PER_REGION"]
+        min_city_monthly = self.PARAMS.get("LICENSE_MIN_CITY_MONTHLY", 0)
+        if min_city_monthly > 0:
+            n_regions = len(self.regions)
+            licenses_per_region = max(licenses_per_region, min_city_monthly / n_regions)
         for region in self.regions.values():
             region.licenses += self.seed_np.poisson(lam=licenses_per_region)
 
