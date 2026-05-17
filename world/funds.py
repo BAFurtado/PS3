@@ -41,9 +41,6 @@ class Funds:
 
     def update_policy_families(self, quantile):
         today = self.sim.clock.days
-        # Skip if within grace period
-        if today < self.sim.PARAMS['STARTING_DAY'] + datetime.timedelta(360):
-            return
 
         families = list(self.sim.families.values())
 
@@ -111,8 +108,9 @@ class Funds:
         # Implement policies only after first year of simulation run. Commented for MCMV policy. Existed in 2010.
         # if self.sim.clock.days < self.sim.PARAMS['STARTING_DAY'] + datetime.timedelta(360):
         #     return
-        # Reset indicator every month to reflect subside in a given month, mun_pops not cumulatively
+        # Reset monthly indicators so stats reflect current month, not cumulative totals
         self.families_subsided = 0
+        self.money_applied_policy = 0
 
         if self.sim.PARAMS['POLICY_MCMV']:
             # MCMV FAIXA 1
@@ -147,7 +145,7 @@ class Funds:
                 self.distribute_funds_to_families()
 
         if self.allocated_money:
-            self.perc_policy_money_spent = (self.allocated_money - self.money_applied_policy) / self.allocated_money
+            self.perc_policy_money_spent = self.money_applied_policy / self.allocated_money
 
         if self.sim.PARAMS['CARBON_TAX_RECYCLING']:
             self.recycle_carbon_tax(self.sim.regions)

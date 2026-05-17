@@ -57,10 +57,24 @@ def extract_metadata(stats_path: Path) -> dict:
     return meta
 
 
-def infer_run_type(meta: dict) -> str:
-    if _PLANHAB_KEYS.issubset(meta.keys()):
+def _folder_meta(stats_path: Path) -> dict:
+    """Metadata from the config folder name only — no conf.json supplement."""
+    try:
+        config_dir = next(p.name for p in stats_path.parents if '=' in p.name)
+        meta = {}
+        for part in config_dir.split("__"):
+            k, v = part.split("=", 1)
+            meta[k.lower()] = v
+        return meta
+    except StopIteration:
+        return {}
+
+
+def infer_run_type(stats_path: Path) -> str:
+    folder_keys = set(_folder_meta(stats_path).keys())
+    if {'policy_melhorias', 'funds_availability'}.issubset(folder_keys):
         return 'planhab'
-    non_city = {k for k in meta if k not in ('processing_acps', 'interest')}
+    non_city = folder_keys - {'processing_acps', 'interest'}
     if len(non_city) == 1:
         return 'sensitivity'
     return 'other'
@@ -90,7 +104,7 @@ def main(base='stats'):
         for key, value in meta.items():
             df[key] = value
 
-        df['run_type'] = infer_run_type(meta)
+        df['run_type'] = infer_run_type(path)
         # unique ID: timestamp__config__run_number
         df['simulation_id'] = (
             path.parents[2].name + '__' + path.parents[1].name + '__' + path.parent.name

@@ -130,7 +130,7 @@ BUILD_VACANCY_SENSITIVITY = 12
 # At 0.5% the pool (~94/month) is closer to supply, allowing some months where
 # available houses exceed active buyers and vacancy begins to accumulate.
 PERCENTAGE_ENTERING_ESTATE_MARKET = 0.005
-NEIGHBORHOOD_EFFECT = 2
+NEIGHBORHOOD_EFFECT = 1.5
 
 # RENTAL #######################
 INITIAL_RENTAL_SHARE = 0.40
@@ -138,7 +138,7 @@ INITIAL_RENTAL_SHARE = 0.40
 # At 0.003 this is 3.6% annual gross yield — in line with Brazilian urban rental markets.
 # Also calibrates the financial attractiveness comparison in decision_enter_house_market:
 # when the bank rate exceeds this yield, depositing savings is more profitable than buying.
-INITIAL_RENTAL_PRICE = 0.003
+INITIAL_RENTAL_PRICE = 0.002
 # Maximum fraction of permanent income a household will commit to rent when choosing to move.
 # 0.3 matches the Brazilian "comprometimento de renda" standard used in PlanHab/MCMV eligibility.
 # Applies only to already-housed families in maybe_move; homeless families are unaffected.
@@ -153,7 +153,7 @@ MIN_DOWN_PAYMENT_FRACTION = 0.20
 # When the bank deposit rate + property tax exceeds the rental yield, buying is financially
 # inferior to holding savings. This weight scales that gap into a score reduction.
 # Higher values more aggressively exclude investment-motivated buyers when rates are high.
-HOUSING_FINANCIAL_WEIGHT = 3.0
+HOUSING_FINANCIAL_WEIGHT = 5.0
 
 # CONSTRUCTION #################################################################################
 # LICENSES ARE URBANIZED LOTS AVAILABLE FOR CONSTRUCTION PER NEIGHBORHOOD PER MONTH.
@@ -161,7 +161,7 @@ HOUSING_FINANCIAL_WEIGHT = 3.0
 # Reduced from 3 → 1: at 3/region the pool accumulated so fast that licenses never
 # constrained which regions could be built in; at 1/region repeatedly chosen profitable
 # regions can run short, providing a secondary throttle alongside BUILD_VACANCY_SENSITIVITY.
-EXPECTED_LICENSES_PER_REGION = 1
+EXPECTED_LICENSES_PER_REGION = 0.5
 # PERCENT_CONSTRUCTION_FIRMS = 0.07 This has been deprecated with the introduction of sectors
 # Months that construction firm will divide its income into monthly revenue installments.
 # Although prices are accounted for at once.
