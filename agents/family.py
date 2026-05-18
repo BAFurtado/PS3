@@ -174,8 +174,6 @@ class Family:
         Gates (hard — return False if failed):
           0. Basic viability: has consumed goods and is not in rent default.
           1. Short-term liquidity: holds some savings.
-          2. Down-payment: savings + deposits cover MIN_DOWN_PAYMENT_FRACTION of the
-             target house price. Enforces equity accumulation before buying.
 
         Score components:
           need   = is_renting  (1 if renting, 0 if owner)
@@ -201,16 +199,6 @@ class Family:
         # Determine target submarket from total available funds
         available = self.savings + self.bank_savings
         self.quality_score = np.searchsorted(house_price_quantiles, available)
-
-        # 3. Down-payment gate: require MIN_DOWN_PAYMENT_FRACTION of the target price
-        # before entering the market. Families accumulate equity in the bank first;
-        # only enter when they can genuinely participate in their price segment.
-        # This is consistent with MAX_LOAN_TO_VALUE = 0.80 (which already enforces
-        # 20% equity at the negotiation stage, but too late to prevent overcrowding).
-        target_idx = min(self.quality_score, len(house_price_quantiles) - 1)
-        target_price = house_price_quantiles[target_idx]
-        if available < target_price * sim.PARAMS['MIN_DOWN_PAYMENT_FRACTION']:
-            return False
 
         # Need-based score components
         prob_employed = self.prob_employed()
