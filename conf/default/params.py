@@ -122,7 +122,7 @@ MAX_OFFER_PREMIUM = 1.3
 # How strong construction firms respond to vacancy.
 # Used in exponential suppression: P(skip) = 1 - exp(-vacancy * sensitivity).
 # At equilibrium vacancy (8%) → ~62% skip; at 15% → ~83% skip; at 25% → ~95% skip.
-BUILD_VACANCY_SENSITIVITY = 12
+BUILD_VACANCY_SENSITIVITY = 10
 # Percentage of households pursuing new location (on average families move about once every 20 years)
 # Brazilian households move on average every 15-20 years → 0.4-0.5% per month.
 # At 2.5% the buyer pool (~470/month in BH) far exceeds monthly housing supply (~14),
@@ -130,7 +130,7 @@ BUILD_VACANCY_SENSITIVITY = 12
 # At 0.5% the pool (~94/month) is closer to supply, allowing some months where
 # available houses exceed active buyers and vacancy begins to accumulate.
 PERCENTAGE_ENTERING_ESTATE_MARKET = 0.005
-NEIGHBORHOOD_EFFECT = 1.5
+NEIGHBORHOOD_EFFECT = 0.5
 
 # RENTAL #######################
 INITIAL_RENTAL_SHARE = 0.40
@@ -161,11 +161,11 @@ HOUSING_FINANCIAL_WEIGHT = 5.0
 # Reduced from 3 → 1: at 3/region the pool accumulated so fast that licenses never
 # constrained which regions could be built in; at 1/region repeatedly chosen profitable
 # regions can run short, providing a secondary throttle alongside BUILD_VACANCY_SENSITIVITY.
-EXPECTED_LICENSES_PER_REGION = 0.5
+EXPECTED_LICENSES_PER_REGION = 0.65
 # Minimum total licenses issued city-wide per month, regardless of number of regions.
 # Small cities (few neighborhoods) have proportionally more free urban land and should not
 # be starved by low per-region rates. Effective rate = max(EXPECTED_LICENSES_PER_REGION, floor/n_regions).
-# At 6: an 8-region city gets max(0.5, 0.75)=0.75/region; a 76-region city is unchanged at 0.5.
+# At 6: an 8-region city gets max(0.65, 0.75)=0.75/region; a 76-region city is unchanged at 0.65.
 # Set to 0 to disable (pure per-region Poisson with no floor).
 LICENSE_MIN_CITY_MONTHLY = 6
 # PERCENT_CONSTRUCTION_FIRMS = 0.07 This has been deprecated with the introduction of sectors
