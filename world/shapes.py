@@ -31,12 +31,11 @@ def prepare_shapes_2010(geo):
     for uf in geo.states_on_process:
         states.append(gpd.read_file(f'input/shapes/2010/areas/{uf}.shp'))
 
-    for mun_id in codes:
-        for state in states:
-            for index, row in state.iterrows():
-                if row['mun_code'] == mun_id:
-                    shap_data = gpd.GeoDataFrame({'id': row['id'], 'geometry': row.geometry}, index=[index])
-                    my_shapes = pd.concat([my_shapes, shap_data], ignore_index=True)
+    all_states = pd.concat(states, ignore_index=True)
+    my_shapes = gpd.GeoDataFrame(
+        all_states[all_states['mun_code'].isin(set(codes))][['id', 'geometry']].copy(),
+        geometry='geometry',
+    ).reset_index(drop=True)
     return urban, my_shapes
 
 
