@@ -30,7 +30,7 @@ OUTCOME_VARIABLES_TO_PLOT = [
 OUTPUT_DATA_SPEC = {
     'stats': {
         'columns': ['month', 'pop', 'price_level', 'gdp_level', 'gdp_growth_rate',
-                    'unemployment', 'firms_median_employment', 'families_median_wealth',
+                    'unemployment', 'firms_median_employment', 'families_median_permanent_income',
                     'families_wages_received', 'families_commuting', 'families_savings',
                     'families_helped', 'amount_subsidised', 'firms_total_profit',
                     'firms_median_stock', 'firms_avg_eco_eff', 'firms_median_wage_paid',

@@ -66,7 +66,7 @@ def compute_derived_monthly_indicators(df):
     # Housing stock / family wealth
     # proxy: median family wealth * number of domiciles
     # -----------------------------
-    df["families_permanent_income"] = df["families_median_wealth"] * 12 * df["number_domiciles"]
+    df["families_permanent_income"] = df["families_median_permanent_income"] * 12 * df["number_domiciles"]
 
     df["housing_stock_permanent_income"] = safe_ratio(
         df["housing_stock_value"],

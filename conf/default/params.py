@@ -98,6 +98,9 @@ LOAN_PAYMENT_TO_PERMANENT_INCOME = 0.35
 # MAX_LOAN_PAYMENT_TO_WEALTH=.4
 # Refers to the maximum rate of the loan on the value of the estate
 MAX_LOAN_TO_VALUE = 0.8
+# Subsidised credit channels allow higher LTV — FGTS/MCMV effectively 0-5% down payment
+MAX_LOAN_TO_VALUE_FGTS = 0.95
+MAX_LOAN_TO_VALUE_SBPE = 0.90
 # This parameter refers to the total amount of resources available at the bank.
 MAX_LOAN_BANK_PERCENT = 0.6
 BANK_DEPOSIT_RESERVE = .2

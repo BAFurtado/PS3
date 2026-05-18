@@ -302,7 +302,7 @@ class Statistics(object):
             # head_family.set_head_family()
 
         affordability_ratio = (affordable + total_voucher) / total_renting if total_renting > 0 else 0
-        median_wealth = np.median(permanent_income)
+        median_permanent_income = np.median(permanent_income)
         median_wages = np.median(wages)
         median_affordability = np.median(rent_ratio[rent_ratio > 0]) if total_renting > 0 else 0
 
@@ -342,7 +342,7 @@ class Statistics(object):
 
         return {
             "affordability_ratio": affordability_ratio,
-            "median_wealth": median_wealth,
+            "median_permanent_income": median_permanent_income,
             "median_affordability": median_affordability,
             "median_wages": median_wages,
             "total_savings": total_savings,

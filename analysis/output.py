@@ -43,7 +43,7 @@ OUTPUT_DATA_SPEC = {
                     'unemployment',
                     'firms_median_employment',
                     "firms_total_employment",
-                    'families_median_wealth',
+                    'families_median_permanent_income',
                     'families_wages_received',
                     'families_commuting',
                     'families_savings',
@@ -168,7 +168,7 @@ OUTPUT_DATA_SPEC = {
                     'fpm',
                     'licenses',
                     'affordability_ratio',
-                    'median_wealth',
+                    'median_permanent_income',
                     'median_affordability']
     },
     'neighbourhood': {
@@ -273,7 +273,7 @@ class Output:
             "unemployment": unemployment,
             "firms_median_employment": firm_results["workers"],
             "firms_total_employment": firm_results["firms_total_employment"],
-            "families_median_wealth": families_results["median_wealth"],
+            "families_median_permanent_income": families_results["median_permanent_income"],
             "families_wages_received": families_results["median_wages"],
             "families_commuting": commuting,
             "families_savings": families_results["total_savings"],
@@ -395,7 +395,7 @@ class Output:
                    mun_applied_treasure['fpm'],
                    licenses,
                    families_regional_metrics['affordability_ratio'],
-                   families_regional_metrics['median_wealth'],
+                   families_regional_metrics['median_permanent_income'],
                    families_regional_metrics['median_affordability'],
                    ))
 

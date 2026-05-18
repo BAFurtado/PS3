@@ -156,7 +156,7 @@ class Plotter:
                 'unemployment',
                 'firms_median_employment',
                 'firms_total_employment',
-                'families_median_wealth',
+                'families_median_permanent_income',
                 'families_wages_received',
                 'families_commuting',
                 'families_savings',

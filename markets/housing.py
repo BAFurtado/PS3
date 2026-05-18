@@ -219,8 +219,14 @@ class HousingMarket:
         # Cache parameters locally (avoid repeated dict lookups)
         params = sim.PARAMS
         capped_top_value = params['CAPPED_TOP_VALUE']
-        max_loan_to_value = params['MAX_LOAN_TO_VALUE']
         capped_low_value = params['CAPPED_LOW_VALUE']
+        loan_rate = getattr(family, 'loan_rate', None)
+        if loan_rate == 'fgts':
+            max_loan_to_value = params['MAX_LOAN_TO_VALUE_FGTS']
+        elif loan_rate == 'sbpe':
+            max_loan_to_value = params['MAX_LOAN_TO_VALUE_SBPE']
+        else:
+            max_loan_to_value = params['MAX_LOAN_TO_VALUE']
 
         for house in my_market:
             cash = 0
