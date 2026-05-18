@@ -174,8 +174,7 @@ class Family:
         Gates (hard — return False if failed):
           0. Basic viability: has consumed goods and is not in rent default.
           1. Short-term liquidity: holds some savings.
-          2. Bank deposits: has invested surplus in the bank (signals financial stability).
-          3. Down-payment: savings + deposits cover MIN_DOWN_PAYMENT_FRACTION of the
+          2. Down-payment: savings + deposits cover MIN_DOWN_PAYMENT_FRACTION of the
              target house price. Enforces equity accumulation before buying.
 
         Score components:
@@ -196,10 +195,8 @@ class Family:
         # 1. Short-term liquidity
         if not self.savings:
             return False
-        # 2. Bank investment (signals financial stability and non-zero surplus)
+        # 2. Refresh bank deposit balance (used in available funds calculation below)
         self.bank_savings = sim.central.sum_deposits(self)
-        if not self.bank_savings:
-            return False
 
         # Determine target submarket from total available funds
         available = self.savings + self.bank_savings
