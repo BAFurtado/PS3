@@ -132,6 +132,7 @@ class HousingMarket:
                 f.loan_rate = 'sbpe'
             else:
                 f.savings_with_loan = f.savings + f.bank_savings + sim.central.max_loan(f)[0]
+                f.loan_rate = 'market'
 
         # Family with the largest savings
         family_maximum_purchasing_power = max(looking, key=lambda fam: fam.savings_with_loan)

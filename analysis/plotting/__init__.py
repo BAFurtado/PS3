@@ -184,6 +184,14 @@ class Plotter:
                 "loan_approval_rate",
                 "credit_stock",
                 "bank_balance",
+                "denied_existing_loan",
+                "denied_invalid_term",
+                "denied_affordability",
+                "denied_recursos_fgts",
+                "denied_recursos_sbpe",
+                "denied_funding_keyerror",
+                "denied_liquidity_reserve",
+                "denied_bank_limit",
                 ]
         titles = ['Total population',
                   'Aggregate price level',
@@ -235,6 +243,14 @@ class Plotter:
                   'Loan approval rate',
                   'Outstanding credit stock',
                   'Bank balance',
+                  'Denied loans: existing loan',
+                  'Denied loans: invalid term (age)',
+                  'Denied loans: affordability',
+                  'Denied loans: FGTS fund exhausted',
+                  'Denied loans: SBPE fund exhausted',
+                  'Denied loans: funding key error',
+                  'Denied loans: liquidity reserve',
+                  'Denied loans: bank limit',
                   ]
 
         # General plotting

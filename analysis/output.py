@@ -96,6 +96,14 @@ OUTPUT_DATA_SPEC = {
                     "loan_approval_rate",
                     "credit_stock",
                     "bank_balance",
+                    "denied_existing_loan",
+                    "denied_invalid_term",
+                    "denied_affordability",
+                    "denied_recursos_fgts",
+                    "denied_recursos_sbpe",
+                    "denied_funding_keyerror",
+                    "denied_liquidity_reserve",
+                    "denied_bank_limit",
                     ]
     },
     'families': {
@@ -317,6 +325,14 @@ class Output:
                 "requested"] else 0,
             "credit_stock": bank._outstanding_loans,
             "bank_balance": bank.balance,
+            "denied_existing_loan": bank.loan_stats["denied_existing_loan"],
+            "denied_invalid_term": bank.loan_stats["denied_invalid_term"],
+            "denied_affordability": bank.loan_stats["denied_affordability"],
+            "denied_recursos_fgts": bank.loan_stats["denied_recursos_fgts"],
+            "denied_recursos_sbpe": bank.loan_stats["denied_recursos_sbpe"],
+            "denied_funding_keyerror": bank.loan_stats["denied_funding_keyerror"],
+            "denied_liquidity_reserve": bank.loan_stats["denied_liquidity_reserve"],
+            "denied_bank_limit": bank.loan_stats["denied_bank_limit"],
         }
 
         for i, v in enumerate(affordability_decis, start=1):
