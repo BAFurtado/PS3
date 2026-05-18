@@ -2,8 +2,6 @@ import conf
 import logging
 import numpy as np
 from collections import defaultdict
-from agents.firm import GovernmentFirm
-
 logger = logging.getLogger('stats')
 
 if conf.RUN['PRINT_STATISTICS_AND_RESULTS_DURING_PROCESS']:
@@ -64,7 +62,7 @@ class Statistics(object):
             firm_workers[i] = firm.num_employees
             firm_profits[i] = firm.profit
             firm_inno_inv[i] = firm.inno_inv
-            is_gov[i] = isinstance(firm, GovernmentFirm)
+            is_gov[i] = type(firm).__name__ == 'GovernmentFirm'
 
         # Per-worker wage: only firms with both employees and positive wages paid this month.
         # Median of the whole distribution (including 0-wage firms) is near-zero and misleading.
