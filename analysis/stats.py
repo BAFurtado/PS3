@@ -2,6 +2,7 @@ import conf
 import logging
 import numpy as np
 from collections import defaultdict
+from agents.firm import GovernmentFirm
 
 logger = logging.getLogger('stats')
 
@@ -52,6 +53,7 @@ class Statistics(object):
         firm_workers = np.zeros(n_firms)
         firm_profits = np.zeros(n_firms)
         firm_inno_inv = np.zeros(n_firms)
+        is_gov = np.zeros(n_firms, dtype=bool)
 
         for i, firm in enumerate(firms.values()):
             firm_balances[i] = firm.total_balance
@@ -62,11 +64,17 @@ class Statistics(object):
             firm_workers[i] = firm.num_employees
             firm_profits[i] = firm.profit
             firm_inno_inv[i] = firm.inno_inv
+            is_gov[i] = isinstance(firm, GovernmentFirm)
 
         # Per-worker wage: only firms with both employees and positive wages paid this month.
         # Median of the whole distribution (including 0-wage firms) is near-zero and misleading.
         active = (firm_workers > 0) & (firm_wages > 0)
         per_worker = (firm_wages[active] / firm_workers[active]) if active.any() else np.array([0.0])
+
+        # Profit metrics exclude GovernmentFirm: its "profit" reflects redistribution
+        # accounting (tax revenue vs. public wages), not productive surplus.
+        non_gov = ~is_gov
+        non_gov_profits = firm_profits[non_gov]
 
         results = {
             "median_wealth": np.median(firm_balances) if firm_balances.size > 0 else 0,
@@ -77,7 +85,9 @@ class Statistics(object):
             "median_stock": np.median(firm_stocks) if firm_stocks.size > 0 else 0,
             "workers": np.median(firm_workers) if firm_workers.size > 0 else 0,
             "firms_total_employment": np.sum(firm_workers) if firm_workers.size > 0 else 0,
-            "aggregate_profits": np.sum(firm_profits) if firm_profits.size > 0 else 0,
+            "aggregate_profits": np.sum(non_gov_profits) if non_gov_profits.size > 0 else 0,
+            "median_profit": float(np.median(non_gov_profits)) if non_gov_profits.size > 0 else 0,
+            "share_firms_positive_profit": float(np.mean(non_gov_profits > 0)) if non_gov_profits.size > 0 else 0,
             "innovation_investment": np.mean(firm_inno_inv) if firm_inno_inv.size > 0 else 0
         }
         logger.info(f"Firm stats - Median wealth: {results['median_wealth']:.2f}, "

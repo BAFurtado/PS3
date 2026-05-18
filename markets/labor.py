@@ -162,6 +162,7 @@ class LaborMarket:
 
         return scores
 
+
     def matching_firm_offers(self, lst_firms, params, cand_looking=None, flag=None):
         if cand_looking:
             candidates = cand_looking
