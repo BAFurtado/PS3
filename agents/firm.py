@@ -629,7 +629,17 @@ class ConstructionFirm(Firm):
         # (like Brasilia) never produce their first unit and never build any houses.
         self.total_quantity = 200
 
-    def plan_house(self, regions, params, sim, seed_np, vacancy, region_price_stats):
+    # Realistic median floor areas (m²) by quality tier, matching Brazilian housing:
+    # quality 1 ≈ MCMV Faixa 1 (~45 m²), quality 4 ≈ upscale (~160 m²).
+    # Lognormal (mu, sigma) pairs; sigma=0.4 gives realistic spread without extreme outliers.
+    _SIZE_PARAMS = {
+        1: (np.log(45),  0.4),
+        2: (np.log(70),  0.4),
+        3: (np.log(110), 0.4),
+        4: (np.log(160), 0.4),
+    }
+
+    def plan_house(self, regions, params, sim, seed_np, vacancy):
         """Decide where to build with which attributes"""
         # Probability depends on size of market
         # Construction responds more strongly to vacancy
@@ -663,10 +673,13 @@ class ConstructionFirm(Firm):
         if not regions:
             return
 
-        # Targets
-        building_size = seed_np.lognormal(4.96, 0.5)
+        # Draw quality first, then size conditional on quality.
+        # Low quality → small footprint (cheap absolute price, accessible to FGTS families).
+        # High quality → large footprint (high absolute price, upscale market).
         b, c, d = 0.38, 0.3, 0.1
         building_quality = seed_np.choice([1, 2, 3, 4], p=[1 - (b + c + d), b, c, d])
+        mu, sigma = self._SIZE_PARAMS[building_quality]
+        building_size = seed_np.lognormal(mu, sigma)
 
         # Number of product quantities needed for the house
         gross_cost = building_size * building_quality
@@ -678,11 +691,16 @@ class ConstructionFirm(Firm):
                                                 params["MARKUP"] * 100), 101) / 100
         building_cost = gross_cost * self.productivity
 
-        # Choose region where construction is most profitable
+        # Choose region where construction is most profitable.
+        # Expected revenue uses quality-specific price per sqm (quality × region.index),
+        # not the market median — cheap houses sell cheap, expensive houses sell dear.
+        # Since license_price == region.index, profit simplifies to:
+        #   size × quality × index × (1 − productivity × (1 + LOT_COST))
+        # so margin is the same fraction for every quality tier; what differs is the
+        # absolute project size (and therefore capital required and profit in units).
         profitable_regions = []
         for r in regions:
-            price_per_size = region_price_stats.get(r.id, {"median": 0})["median"]
-            expected_price = price_per_size * building_size
+            expected_price = building_quality * r.index * building_size
             profit = expected_price - (
                     r.license_price * building_cost * (1 + params["LOT_COST"])
             )

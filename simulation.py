@@ -383,8 +383,6 @@ class Simulation:
             vacancy = .1
         construction_firms = [f for f in self.firms.values() if f.sector == 'Construction']
 
-        # Pre compute region stats
-        region_price_stats = compute_region_price_stats(self.houses.values())
         for firm in construction_firms:
             # See if firm can build a house
             firm.plan_house(
@@ -393,7 +391,6 @@ class Simulation:
                 self,
                 self.seed_np,
                 vacancy,
-                region_price_stats
             )
             # See whether a house has been completed. If so, register. Else, continue
             house = firm.build_house(self.regions, self.generator)
