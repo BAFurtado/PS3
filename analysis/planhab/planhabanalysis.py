@@ -80,6 +80,57 @@ def infer_run_type(stats_path: Path) -> str:
     return 'other'
 
 
+# These two columns were inserted in the MIDDLE of the spec (after firms_total_profit)
+# in commit c6f630a.  Every other historical addition was appended at the END, so the
+# column ordering before that commit is simply the current spec with these two removed.
+# _MONOTONIC_COLS is therefore a stable, ever-growing list where position i always refers
+# to the same real-world quantity across all historical file versions.
+_MIDDLE_INSERTED = ['firms_median_profit', 'share_firms_positive_profit']
+_MONOTONIC_COLS = None  # initialised lazily from stats_cols in _assign_columns
+
+# Files with fewer than this many columns pre-date the housing-market rework and use
+# a completely different schema — skip them rather than misassign names.
+_MIN_COLS = 50
+
+
+def _assign_columns(df, stats_cols):
+    """Assign column names to a headerless CSV DataFrame, handling legacy formats.
+
+    Strategy:
+      - Files with the current column count: assign directly.
+      - Files with fewer columns: they were written before one or more end-appends
+        (the common case) or before the one known middle-insertion.  Build a
+        "monotonic" column list by removing the middle-inserted columns from the
+        current spec; all historical end-appends are then simply a prefix of that
+        list.  Assign the first N monotonic names and fill the rest with NaN.
+      - Files below _MIN_COLS: pre-date the current schema entirely — skip.
+    """
+    global _MONOTONIC_COLS
+    if _MONOTONIC_COLS is None:
+        _MONOTONIC_COLS = [c for c in stats_cols if c not in _MIDDLE_INSERTED]
+
+    n = len(df.columns)
+    if n < _MIN_COLS:
+        raise ValueError(f"Too few columns ({n}) — pre-schema file, skipping")
+
+    if n == len(stats_cols):
+        df.columns = stats_cols
+        return df
+
+    # Legacy file: map to the monotonic ordering (handles both the middle-insertion
+    # gap and any number of missing end-appended columns in a single step).
+    if n <= len(_MONOTONIC_COLS):
+        df.columns = _MONOTONIC_COLS[:n]
+        for col in stats_cols:
+            if col not in df.columns:
+                df[col] = float('nan')
+        return df
+
+    # n is between len(_MONOTONIC_COLS) and len(stats_cols): the file has some but
+    # not all of the middle-inserted columns — shouldn't happen in practice.
+    raise ValueError(f"Unrecognised column count {n}")
+
+
 def main(base='stats'):
     HERE = Path(__file__).resolve().parent
     PROJECT_ROOT = HERE.parents[1]
@@ -95,8 +146,8 @@ def main(base='stats'):
     dfs = []
     for path in stats_files:
         try:
-            df = pd.read_csv(path, sep=';')
-            df.columns = stats_cols
+            df = pd.read_csv(path, sep=';', header=None)
+            df = _assign_columns(df, stats_cols)
         except (pd.errors.ParserError, ValueError, OSError):
             continue
 
