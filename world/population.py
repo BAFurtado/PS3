@@ -97,7 +97,7 @@ def immigration(sim):
     pop_pct = sim.PARAMS['PERCENTAGE_ACTUAL_POP']
     number_new_families = 0
 
-    for mun_code, pop in sim.mun_pops.items():
+    for mun_code, pop in list(sim.mun_pops.items()):
         estimated_pop = pop_estimates.at[str(mun_code), year]
         estimated_pop *= pop_pct
         # Correction of population by total number of people
