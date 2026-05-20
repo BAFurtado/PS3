@@ -13,14 +13,14 @@ import conf
 
 
 class Loan:
-    def __init__(self, principal, mortgage_rate, months, house, loan_type='market'):
+    def __init__(self, principal, mortgage_rate, months, house, loan_type='market', table_type='sac'):
         self.age = 0
         self.months = months
         self.principal = principal
         self.my_mortgage_rate = mortgage_rate
+        self.table_type = table_type
         self.payment = list()
         self.payment_schedule()
-        # House value is updated
         self.collateral = house
         self.paid_off = False
         self.delinquent = False
@@ -30,13 +30,18 @@ class Loan:
         return sum(self.payment)
 
     def payment_schedule(self):
-        # Implementation of SAC Brazilian system. Amortization is constant with decreasing interest.
-        amortiza = round(self.principal / self.months, 6)
-        balance = self.principal
-        for i in range(self.months):
-            interest = balance * self.my_mortgage_rate
-            self.payment.append(amortiza + interest)
-            balance -= amortiza
+        if self.table_type == 'price':
+            # Tabela Price: constant installments — used by FGTS/MCMV programs in Brazil
+            pmt = -npf.pmt(self.my_mortgage_rate, self.months, self.principal)
+            self.payment = [round(pmt, 6)] * self.months
+        else:
+            # SAC: constant amortization with declining interest
+            amortiza = round(self.principal / self.months, 6)
+            balance = self.principal
+            for i in range(self.months):
+                interest = balance * self.my_mortgage_rate
+                self.payment.append(amortiza + interest)
+                balance -= amortiza
 
     def current_collateral(self):
         bal = sum(self.payment)
@@ -218,16 +223,33 @@ class Central:
         return 0, 0, 0
 
     def request_loan(self, family, house, amount, ano, month):
-        # register loan request
         self.loan_stats["requested"] += 1
 
-        # If they have outstanding loans, don't lend
         if self.loans[family.id]:
             self.loan_stats["denied_existing_loan"] += 1
             return False, None
 
-        # Family-side cap
-        max_amount, max_months = self.max_loan(family, flag=family.loan_rate)
+        rate = {
+            'market': self.mortgage_rate,
+            'sbpe': self.i_sbpe,
+            'fgts': self.i_fgts
+        }.get(family.loan_rate, self.mortgage_rate)
+
+        # FGTS always uses Tabela Price (Brazilian law); market/SBPE try SAC first,
+        # fall back to Price if the higher first SAC payment exceeds the family's budget.
+        if family.loan_rate == 'fgts':
+            table_type = 'price'
+            max_amount, max_months = self.max_loan(family, flag=family.loan_rate, table_type='price')
+        else:
+            max_sac, max_months = self.max_loan(family, flag=family.loan_rate, table_type='sac')
+            max_price, _ = self.max_loan(family, flag=family.loan_rate, table_type='price')
+            if amount <= max_sac:
+                table_type, max_amount = 'sac', max_sac
+            elif amount <= max_price:
+                table_type, max_amount = 'price', max_price
+            else:
+                table_type, max_amount = 'sac', max_sac
+
         if max_months <= 0:
             self.loan_stats["denied_invalid_term"] += 1
             return False, None
@@ -238,9 +260,13 @@ class Central:
             self.loan_stats["denied_zero_capped_amount"] += 1
             return False, None
 
-        # Criteria related to consumer
-        monthly_payment = self._max_monthly_payment(family)
-        if amount / max_months > monthly_payment:
+        # Affordability gate: check actual first payment against the chosen table
+        monthly_budget = self._max_monthly_payment(family)
+        if table_type == 'price':
+            first_payment = -npf.pmt(rate, max_months, amount)
+        else:
+            first_payment = amount * (1 / max_months + rate)
+        if first_payment > monthly_budget:
             self.loan_stats["denied_affordability"] += 1
             return False, None
 
@@ -271,13 +297,8 @@ class Central:
         # Approve
         self.loan_stats["approved"] += 1
 
-        rate = {
-            'market': self.mortgage_rate,
-            'sbpe': self.i_sbpe,
-            'fgts': self.i_fgts
-        }.get(family.loan_rate, self.mortgage_rate)
-
-        self.loans[family.id].append(Loan(amount, rate, max_months, house, loan_type=family.loan_rate))
+        self.loans[family.id].append(Loan(amount, rate, max_months, house, loan_type=family.loan_rate,
+                                          table_type=table_type))
 
         if family.loan_rate == 'market':
             self.balance -= amount
@@ -291,26 +312,28 @@ class Central:
         return True, amount
 
     def _max_monthly_payment(self, family):
-        # Max % of income on loan repayments
         return family.get_permanent_income() * self.loan_to_income
 
-    def max_loan(self, family, flag='market'):
-        """Estimate maximum loan for family"""
+    def max_loan(self, family, flag='market', table_type='sac'):
+        """Estimate maximum loan principal given the family's max monthly payment and amortization table."""
         income = self._max_monthly_payment(family)
         max_years = conf.PARAMS['MAX_LOAN_AGE'] - max([m.age for m in family.members.values()])
-        # Longest possible mortgage period is limited to 30 years (360 months).
         max_months = min(max_years * 12, 360)
         if max_months <= 0:
             return 0, 0
-        max_total = income * max_months
         rate = {
             'market': self.mortgage_rate,
             'sbpe': self.i_sbpe,
             'fgts': self.i_fgts
         }.get(flag, self.mortgage_rate)
 
-        max_total = income * max_months
-        max_principal = max_total / (1 + rate)
+        if table_type == 'price':
+            # PV of a constant annuity equal to the max monthly payment
+            max_principal = npf.pv(rate, max_months, -income) if rate > 0 else income * max_months
+        else:
+            # SAC: first payment = P*(1/N + rate); solve for P
+            denom = 1 / max_months + rate
+            max_principal = income / denom
 
         return max_principal, max_months
 

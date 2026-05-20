@@ -125,7 +125,7 @@ class HousingMarket:
 
         for f, income in zip(looking, incomes):
             if income < fgts_quantiles_value:
-                f.savings_with_loan = f.savings + f.bank_savings + sim.central.max_loan(f, flag='fgts')[0]
+                f.savings_with_loan = f.savings + f.bank_savings + sim.central.max_loan(f, flag='fgts', table_type='price')[0]
                 f.loan_rate = 'fgts'
             elif income < sbpe_quantiles_value:
                 f.savings_with_loan = f.savings + f.bank_savings + sim.central.max_loan(f, flag='sbpe')[0]
