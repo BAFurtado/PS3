@@ -10,14 +10,16 @@ import datetime
 PYTHON = "python"
 MAIN = "main.py"
 
-CITY = "GOIANIA"   # canonical sensitivity city (~47 min/run; 18 params × 47 min ≈ 14 h)
+# Goiania: 5/5 targets in 2011-2021, mid-sized, shows long-run Gini drift.
+# ~47 min/param with -c 18 (all points × runs fit in parallel).
+# 12 params × 47 min ≈ 9.5 h total.
+CITY = "GOIANIA"
 RUNS = 3
 CPUS = 18
 
-LOG_DIR = pathlib.Path("logs/planhab_oat")
+LOG_DIR = pathlib.Path("logs/sensitivity_wave21")
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-# Write city override once so every subprocess picks it up via -p
 CITY_PARAMS_PATH = LOG_DIR / "city_params.json"
 with open(CITY_PARAMS_PATH, "w") as _f:
     json.dump({"PROCESSING_ACPS": [CITY]}, _f)
@@ -25,61 +27,62 @@ with open(CITY_PARAMS_PATH, "w") as _f:
 # ---------------------------------------------------------------------
 # OAT Parameter Ranges
 # Format: PARAM: (start, end, n_points)
-# All ranges are centred on / include the current default value.
+# Ranges are centred on / include the current default.
+# With RUNS=3 and CPUS=18, all (n_points × 3) jobs run in parallel
+# when n_points × 3 ≤ 18, keeping wall time ≈ 1 simulation per param.
 # ---------------------------------------------------------------------
 
 PARAM_RANGES = {
-    # ── Housing market pricing ──────────────────────────────────────
-    # current=3; upper bound raised so sweep covers the current value mid-range
-    "OFFER_SIZE_ON_PRICE":                   (1,      5,      3),
-    # current=-0.02; range covers faster decay through no decay
-    "ON_MARKET_DECAY_FACTOR":                (-0.04,  0,      3),
-    # current=0.65; unchanged — centred inside range
-    "MAX_OFFER_DISCOUNT":                    (0.4,    0.8,    3),
-    # current=2; OLD range (0,1) did not cover the current value — fixed
-    "NEIGHBORHOOD_EFFECT":                   (0,      4,      3),
 
-    # ── Housing market entry ────────────────────────────────────────
-    # current=0.005; OLD range (0.03, 0.07) was 6–14× the current value — fixed
-    "PERCENTAGE_ENTERING_ESTATE_MARKET":     (0.002,  0.015,  3),
-    # NEW param (down-payment gate); current=0.20
-    "MIN_DOWN_PAYMENT_FRACTION":             (0.10,   0.30,   3),
-    # NEW param (investment-vs-rent deterrence); current=3.0
-    "HOUSING_FINANCIAL_WEIGHT":              (1.0,    6.0,    3),
+    # ── Spatial price heterogeneity ─────────────────────────────────
+    # price *= (1 + NE × normalised_neighbourhood_median_income)
+    # current=0.5; was 2.0 (caused zero_cons explosion); zero_cons now fixed,
+    # so we explore the full range to find the Gini/access trade-off.
+    # 5 points: 18 CPUs fit 5×3=15 jobs simultaneously.
+    "NEIGHBORHOOD_EFFECT":          (0.0,  2.0,  5),
 
-    # ── Rental market ───────────────────────────────────────────────
-    # NEW in sensitivity; recently changed 0.25→0.40
-    "INITIAL_RENTAL_SHARE":                  (0.25,   0.55,   3),
-    # NEW in sensitivity; recently changed 0.0015→0.003
-    "INITIAL_RENTAL_PRICE":                  (0.0015, 0.005,  3),
+    # ── Subsidised credit access — income eligibility ───────────────
+    # Quantile of the income distribution below which families qualify.
+    # Exposed as scalar aliases of INCOME_MODALIDADES['fgts'/'sbpe'].
+    # current fgts=0.65: bottom 65% eligible for FGTS.
+    "FGTS_INCOME_QUANTILE":         (0.50, 0.80, 4),
+    # current sbpe=0.85: families in 65th–85th percentile eligible for SBPE.
+    "SBPE_INCOME_QUANTILE":         (0.70, 0.95, 4),
+
+    # ── Subsidised credit access — loan size ────────────────────────
+    # current=0.95 (FGTS allows effectively 0–5% down payment).
+    "MAX_LOAN_TO_VALUE_FGTS":       (0.85, 1.00, 4),
+    # current=0.90
+    "MAX_LOAN_TO_VALUE_SBPE":       (0.80, 0.95, 4),
+
+    # ── Housing purchase entry gate ─────────────────────────────────
+    # current=0.20; lower values allow families with less equity to enter.
+    "MIN_DOWN_PAYMENT_FRACTION":    (0.05, 0.30, 3),
+    # current=5.0; penalises investment-motivated buyers when rates > rental yield.
+    "HOUSING_FINANCIAL_WEIGHT":     (1.0,  10.0, 3),
 
     # ── Construction supply ─────────────────────────────────────────
-    # NEW (user-requested); current=12 — key vacancy throttle
-    "BUILD_VACANCY_SENSITIVITY":             (6,      18,     3),
-    # current=1; OLD range (0,1) had current at the edge — extended to 3
-    "EXPECTED_LICENSES_PER_REGION":          (0,      3,      3),
-    # current=3; OLD range (4,8) started above the current value — fixed
-    "CONSTRUCTION_FIRM_MARKUP_MULTIPLIER":   (1,      8,      3),
-    # current=0.15; unchanged
-    "LOT_COST":                              (0.10,   0.20,   3),
-    # NEW param (production scale bridge); current=15
-    "HOUSE_PRODUCTION_ADEQUACY":             (8,      25,     3),
-    # current=12; range tests the effect of shorter cash-flow smoothing
-    "CONSTRUCTION_ACC_CASH_FLOW":            (1,      12,     3),
+    # Exponential vacancy suppression: P(skip) = 1 − exp(−vacancy × BVS).
+    # current=10; lower → more building at any given vacancy.
+    "BUILD_VACANCY_SENSITIVITY":    (5,    20,   4),
+    # current=9; bridges scale gap between firm labour output and m² built.
+    "HOUSE_PRODUCTION_ADEQUACY":    (5,    15,   3),
+    # current=12; months over which construction revenue is recognised.
+    "CONSTRUCTION_ACC_CASH_FLOW":   (1,    24,   3),
 
-    # ── Credit ──────────────────────────────────────────────────────
-    # current=0.8; unchanged
-    "MAX_LOAN_TO_VALUE":                     (0.7,    0.9,    3),
-    # current=0.35; slightly wider than old (0.30, 0.40)
-    "LOAN_PAYMENT_TO_PERMANENT_INCOME":      (0.25,   0.45,   3),
+    # ── Vacancy–price equilibrium ───────────────────────────────────
+    # Vacancy at which listed prices sit at base level.
+    # current=0.08; 3 cities (Brasília, Campo Grande, Palmas) run just below.
+    "VACANCY_PRICE_REFERENCE":      (0.04, 0.12, 3),
 
-    # ── Production function ─────────────────────────────────────────
-    # current=0.8; OLD range (0.4, 0.6) did not cover the current value — fixed
-    "PRODUCTIVITY_EXPONENT":                 (0.5,    1.0,    3),
+    # ── Quality-of-life dynamics ────────────────────────────────────
+    # Elasticity of QLI to per-capita population pressure.
+    # current=0.3; 0 = no crowding effect; 1 = pure per-capita sharing.
+    "QLI_POP_ELASTICITY":           (0.0,  0.6,  3),
 }
 
 # ---------------------------------------------------------------------
-# Execution Loop (sequential parameters, parallel runs inside each)
+# Execution loop (sequential across params; parallel runs inside each)
 # ---------------------------------------------------------------------
 
 
@@ -90,8 +93,7 @@ def main():
 
     for param, (start, end, steps) in PARAM_RANGES.items():
 
-        print(f"\n[{count}/{total}] Running sensitivity for {param}  "
-              f"({start} → {end}, {steps} points, city={CITY})")
+        print(f"\n[{count}/{total}] {param}  ({start} → {end}, {steps} points, city={CITY})")
 
         param_string = f"{param}:{start}:{end}:{steps}"
 
@@ -109,24 +111,16 @@ def main():
 
         try:
             with open(log_file, "w") as log:
-                subprocess.run(
-                    cmd,
-                    stdout=subprocess.DEVNULL,
-                    stderr=log,
-                    check=True,
-                )
-
-            print(f"✓ {param} completed")
-
+                subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=log, check=True)
+            print(f"  ✓ completed")
         except subprocess.CalledProcessError as e:
-            print(f"✗ {param} FAILED (exit code {e.returncode})")
-
+            print(f"  ✗ FAILED (exit code {e.returncode})")
         except Exception as e:
-            print(f"✗ {param} CRASHED ({e})")
+            print(f"  ✗ CRASHED ({e})")
 
         count += 1
 
-    print(f"\nAll {total} sensitivity runs completed. City: {CITY}")
+    print(f"\nAll {total} sensitivity runs done. City: {CITY}")
 
 
 if __name__ == "__main__":

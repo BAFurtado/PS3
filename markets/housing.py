@@ -120,8 +120,8 @@ class HousingMarket:
         # Check families that have access to subsidised rates
         # First FGTS, then SBPE, then MARKET
         incomes = np.array([f.get_permanent_income() for f in looking])
-        fgts_quantiles_value = np.quantile(incomes, sim.PARAMS['INCOME_MODALIDADES']['fgts'])
-        sbpe_quantiles_value = np.quantile(incomes, sim.PARAMS['INCOME_MODALIDADES']['sbpe'])
+        fgts_quantiles_value = np.quantile(incomes, sim.PARAMS['FGTS_INCOME_QUANTILE'])
+        sbpe_quantiles_value = np.quantile(incomes, sim.PARAMS['SBPE_INCOME_QUANTILE'])
 
         for f, income in zip(looking, incomes):
             if income < fgts_quantiles_value:

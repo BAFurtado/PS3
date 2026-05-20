@@ -73,6 +73,12 @@ INCOME_MODALIDADES = {'faixa1': .38,
                       'fgts': .65,
                       'sbpe': .85
                       }
+# Scalar aliases — income quantile ceilings for subsidised credit channels.
+# Families with permanent_income BELOW this quantile of the current income distribution
+# qualify for that channel. Mirrors INCOME_MODALIDADES['fgts'/'sbpe'] but exposed as
+# individual scalars so OAT sensitivity can sweep them without touching the dict.
+FGTS_INCOME_QUANTILE = 0.65
+SBPE_INCOME_QUANTILE = 0.85
 TOTAL_TARGETING_POLICY = False
 POLICY_MELHORIAS = True
 UPGRADE_COST = .2
@@ -170,7 +176,7 @@ EXPECTED_LICENSES_PER_REGION = 0.65
 # be starved by low per-region rates. Effective rate = max(EXPECTED_LICENSES_PER_REGION, floor/n_regions).
 # At 6: an 8-region city gets max(0.65, 0.75)=0.75/region; a 76-region city is unchanged at 0.65.
 # Set to 0 to disable (pure per-region Poisson with no floor).
-LICENSE_MIN_CITY_MONTHLY = 6
+LICENSE_MIN_CITY_MONTHLY = 10
 # PERCENT_CONSTRUCTION_FIRMS = 0.07 This has been deprecated with the introduction of sectors
 # Months that construction firm will divide its income into monthly revenue installments.
 # Although prices are accounted for at once.
