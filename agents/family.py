@@ -290,7 +290,7 @@ class Family:
                     if money >= permanent_income - rent - loan:
                         consumption = permanent_income - rent - loan
                     else:
-                        consumption = 0
+                        consumption = max(0, money - rent - loan)
 
         # If we grabbed more than planned
         if money > consumption + rent + loan:

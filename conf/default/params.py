@@ -77,7 +77,7 @@ INCOME_MODALIDADES = {'faixa1': .38,
 # Families with permanent_income BELOW this quantile of the current income distribution
 # qualify for that channel. Mirrors INCOME_MODALIDADES['fgts'/'sbpe'] but exposed as
 # individual scalars so OAT sensitivity can sweep them without touching the dict.
-FGTS_INCOME_QUANTILE = 0.65
+FGTS_INCOME_QUANTILE = 0.70
 SBPE_INCOME_QUANTILE = 0.85
 TOTAL_TARGETING_POLICY = False
 POLICY_MELHORIAS = True
@@ -139,7 +139,7 @@ BUILD_VACANCY_SENSITIVITY = 13
 # At 0.5% the pool (~94/month) is closer to supply, allowing some months where
 # available houses exceed active buyers and vacancy begins to accumulate.
 PERCENTAGE_ENTERING_ESTATE_MARKET = 0.005
-NEIGHBORHOOD_EFFECT = 0.5
+NEIGHBORHOOD_EFFECT = 0.3
 
 # RENTAL #######################
 INITIAL_RENTAL_SHARE = 0.40
@@ -185,7 +185,7 @@ LIQUIDITY_BUFFER_MONTHS = 6
 # Reduced from 3 → 1: at 3/region the pool accumulated so fast that licenses never
 # constrained which regions could be built in; at 1/region repeatedly chosen profitable
 # regions can run short, providing a secondary throttle alongside BUILD_VACANCY_SENSITIVITY.
-EXPECTED_LICENSES_PER_REGION = 0.65
+EXPECTED_LICENSES_PER_REGION = 1.5
 # Minimum total licenses issued city-wide per month, regardless of number of regions.
 # Small cities (few neighborhoods) have proportionally more free urban land and should not
 # be starved by low per-region rates. Effective rate = max(EXPECTED_LICENSES_PER_REGION, floor/n_regions).
@@ -205,13 +205,13 @@ MAX_HOUSE_STOCK = 36
 # Categories of submarkets for the housing markets
 PERC_HOUSE_CATEGORIES = [0.4, 0.3, 0.2, 0.1]
 # HOW LARGER IS CONSTRUCTION FIRMS PROFIT RELATIVE TO USUAL MARKUP (firms' productivity, given current prices)
-CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 3
+CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 5
 # Bridges the scale gap between construction firm labor output (sum of qual^alpha per month, ~3-8 units)
 # and building_size in square metres (~60-200 m²). Without this divisor a median house requires ~190
 # production-units, meaning 25-60 months of dedicated firm output — far too slow.
 # At 15: median cost ≈ 13 units → ~4 months throughput per house for a 10-employee firm,
 # equivalent to maintaining 5 concurrent projects each individually taking ~20 months.
-HOUSE_PRODUCTION_ADEQUACY = 9
+HOUSE_PRODUCTION_ADEQUACY = 6
 
 # POPULATION AND DEMOGRAPHY
 # Families run parameters (on average) for year 2000, or no information. 2010 uses APs average data

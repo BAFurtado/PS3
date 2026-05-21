@@ -173,7 +173,7 @@ class Plotter:
                 'house_price', 'house_rent', 'house_quality',
                 'number_domiciles',
                 'affordable', 'p_delinquent',
-                'equally', 'locally', 'fpm', 'bank',
+                'bank',
                 'emissions_fund',
                 'affordability_median',
                 'ext_amount_sold',
@@ -231,9 +231,6 @@ class Plotter:
                   'Housing stock',
                   'Share of renter families with affordable housing',
                   'Delinquency rate on active loans',
-                  'Equalized intergovernmental transfers',
-                  'Locally retained tax transfers',
-                  'FPM-based transfers',
                   'Bank tax payments',
                   'Environmental fund balance',
                   'Median rent-to-income ratio',
@@ -268,6 +265,21 @@ class Plotter:
             else:
                 fig = self.make_plot([d[col] for d in dats], title, labels)
             self.save_fig(fig, '{}'.format(title))
+
+        # Tax-to-GDP ratio: monthly government investment as share of monthly GDP.
+        # equally/locally/fpm are cumulative stored values; diff recovers monthly flows.
+        tax_gdp_series = []
+        for d in dats:
+            monthly_tax = (
+                d[['equally', 'locally', 'fpm']]
+                .diff()
+                .clip(lower=0)
+                .sum(axis=1)
+            )
+            tax_gdp = monthly_tax / d['gdp_level'].replace(0, float('nan'))
+            tax_gdp_series.append(tax_gdp)
+        fig = self.make_plot(tax_gdp_series, 'Monthly govt investment as share of GDP', labels)
+        self.save_fig(fig, 'tax_to_gdp_ratio')
 
     def plot_banks(self):
         labels, dats = self._load_multiple_runs('banks', 'banks.parquet')
@@ -389,14 +401,30 @@ class Plotter:
                                  q1=q1_series, q3=q3_series)
             self.save_fig(fig, f'regional_{title.replace(" ", "_").lower()}')
 
-        # Total taxes across time — summed across municipalities
-        taxes = ['equally', 'locally', 'fpm']
-        taxes_labels = ['Taxes distributed Equally', 'Taxes distributed Locally', 'FPM invested']
+        # Tax-to-GDP ratio: monthly government investment as a share of monthly regional GDP.
+        # The raw columns (fpm, equally, locally) are cumulative applied_treasure — take
+        # month-over-month diffs per municipality to recover actual monthly flows.
+        dat_tax = dat.sort_values(['mun_id', 'month']).copy()
+        for col in ['fpm', 'equally', 'locally']:
+            dat_tax[f'{col}_flow'] = (
+                dat_tax.groupby('mun_id')[col]
+                .diff()
+                .fillna(0)
+                .clip(lower=0)
+            )
+        dat_tax['total_tax_flow'] = dat_tax[['fpm_flow', 'equally_flow', 'locally_flow']].sum(axis=1)
+        dat_tax['tax_to_gdp'] = dat_tax['total_tax_flow'] / dat_tax['gdp_region'].replace(0, float('nan'))
 
-        for tax_col, label in zip(taxes, taxes_labels):
-            series = dat.groupby(by=['month'], as_index=False).sum()[tax_col]
-            fig = self.make_plot([series], 'Evolution of Taxes', labels=[label], y_label='Total Taxes')
-            self.save_fig(fig, f'regional_tax_{tax_col}')
+        tax_gdp_pivot = dat_tax.pivot(index='month', columns='mun_id', values='tax_to_gdp').astype(float)
+        names_mun_tax = [mun_codes.get(v, str(v)) for v in tax_gdp_pivot.columns]
+        dats_to_plot = [tax_gdp_pivot[c] for c in tax_gdp_pivot.columns]
+        fig = self.make_plot(
+            dats_to_plot,
+            'Monthly government investment as share of regional GDP',
+            labels=names_mun_tax,
+            y_label='Tax flow / GDP',
+        )
+        self.save_fig(fig, 'regional_tax_gdp_ratio')
 
     def plot_firms(self):
         dat = self._load_single_run('firms', 'firms.parquet')
