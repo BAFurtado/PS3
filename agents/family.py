@@ -196,6 +196,11 @@ class Family:
         # 1. Short-term liquidity
         if not self.savings:
             return False
+        # Families with an existing active loan cannot borrow again (bank gate).
+        # Excluding them here prevents wealthy loan-holders from crowding out
+        # genuine first-time buyers in the limited looking pool.
+        if sim.central.loans[self.id]:
+            return False
         # 2. Bank investment (signals financial stability and non-zero surplus)
         self.bank_savings = sim.central.sum_deposits(self)
         if not self.bank_savings:
