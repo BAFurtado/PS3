@@ -158,11 +158,21 @@ MAX_RENT_TO_INCOME_RATIO = 0.3
 # before a family enters the housing market. Enforces equity accumulation before buying
 # (consistent with MAX_LOAN_TO_VALUE = 0.80, which already requires 20% equity at negotiation).
 MIN_DOWN_PAYMENT_FRACTION = 0.20
-# Weight applied to the financial attractiveness penalty in decision_enter_house_market.
-# When the bank deposit rate + property tax exceeds the rental yield, buying is financially
-# inferior to holding savings. This weight scales that gap into a score reduction.
-# Higher values more aggressively exclude investment-motivated buyers when rates are high.
-HOUSING_FINANCIAL_WEIGHT = 5.0
+# Scales the opportunity-cost term in decision_enter_house_market.
+# opportunity_cost = max(0, bank_rate - INITIAL_RENTAL_PRICE) × HOUSING_FINANCIAL_WEIGHT
+# This is now an absolute-difference formula (not normalized), so the weight is larger than
+# the old normalized version. At SELIC ≈ 10% annual (bank_rate ≈ 0.008/month):
+#   opportunity_cost ≈ (0.008 - 0.002) × 100 = 0.6
+# A renter (housing_need=1.0) scores 0.4 > 0 → enters.
+# A comfortable owner (housing_need=0) scores −0.6 → excluded.
+# A crowded owner (crowding_bonus=0.7) scores 0.1 → enters to upgrade.
+# At low SELIC (≈ 2%, bank_rate ≈ 0.0017): opportunity_cost ≈ 0 → some owners enter.
+HOUSING_FINANCIAL_WEIGHT = 100
+# Minimum months of permanent income that must remain liquid after the down payment.
+# Discourages families from locking all savings into a house and being cash-poor.
+# At 6 months: a family spending 100% of available savings on a down payment scores
+# a full liquidity_penalty of 1.0, reducing their entry score significantly.
+LIQUIDITY_BUFFER_MONTHS = 6
 
 # CONSTRUCTION #################################################################################
 # LICENSES ARE URBANIZED LOTS AVAILABLE FOR CONSTRUCTION PER NEIGHBORHOOD PER MONTH.
