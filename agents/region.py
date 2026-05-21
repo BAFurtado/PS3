@@ -45,20 +45,31 @@ class Region:
         self.save_and_clear_treasure()
         return treasure
 
-    def update_index_pop(self, proportion_pop, elasticity):
-        """QLI responds symmetrically to population pressure.
-        Growth crowds infrastructure (index falls); decline eases it (index rises).
-        Elasticity < 1 dampens both directions so monthly swings stay small relative
-        to the investment channel. Tax revenue already captures the fiscal side of
-        population change through the additive update_index channel."""
-        self.index *= proportion_pop ** elasticity
+    def update_qli(self, gdp_per_pop, params):
+        """Logistic growth toward QLI_MAX driven by economic development level.
+
+        delta = QLI_GROWTH_RATE × sqrt(gdp_per_pop / QLI_GDP_NORM) × (1 − index / QLI_MAX)
+
+        - sqrt dampens the spread between rich and poor cities (4× GDP gap → 2× rate gap)
+        - logistic ceiling: growth slows as index approaches QLI_MAX; never overshoots
+        - scale-free: same formula for any city size at the same development level
+        - Replaces both the additive tax channel and the multiplicative population channel
+        """
+        gdp_norm = max(params['QLI_GDP_NORM'], 1e-6)
+        economic_driver = (gdp_per_pop / gdp_norm) ** 0.5
+        logistic_ceiling = max(0.0, 1.0 - self.index / params['QLI_MAX'])
+        self.index += params['QLI_GROWTH_RATE'] * economic_driver * logistic_ceiling
 
     def update_applied_taxes(self, amount, key):
         self.applied_treasure[key] += amount
 
     def update_index(self, value):
-        """Index is updated per capita for current population"""
+        """Kept for backward compatibility; no longer called by the main loop."""
         self.index += value
+
+    def update_index_pop(self, proportion_pop, elasticity):
+        """Kept for backward compatibility; no longer called by the main loop."""
+        self.index *= proportion_pop ** elasticity
 
     def __repr__(self):
         return '%s \n QLI: %.2f, \t GDP: %.2f, \t Pop: %s, Commute: %.2f' % (self.name, self.index, self.gdp,

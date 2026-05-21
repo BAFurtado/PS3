@@ -114,10 +114,11 @@ class Family:
         self.have_loan = bank.loans.get(self.id)
         return self.savings + estate_value + bank.sum_deposits(self) - bank.loan_balance(self.id)
 
-    def invest(self, bank, y, m):
-        # Savings are updated during consumption as the fraction of above permanent income that is not consumed
-        # If savings are above a six-month period reserve money, the surplus is invested in the bank.
-        reserve_money = self.get_permanent_income() * 6
+    def invest(self, bank, y, m, params):
+        # Keep a liquid emergency buffer equal to SAVINGS_BUFFER_MONTHS of current wages.
+        # Anchored to wages (not permanent income) so it covers actual cash expenses
+        # during unemployment and does not compound with house appreciation or interest.
+        reserve_money = self.total_wage() * params['SAVINGS_BUFFER_MONTHS']
         if self.savings > reserve_money > 0:
             bank.deposit(self, self.savings - reserve_money, datetime.date(y, m, 1))
             self.savings = reserve_money

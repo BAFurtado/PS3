@@ -284,8 +284,6 @@ class Funds:
                 self.policy_money[mun_code] += regional_fpm * self.sim.PARAMS['POLICY_COEFFICIENT']
                 regional_fpm *= 1 - self.sim.PARAMS['POLICY_COEFFICIENT']
 
-            # Actually investing the FPM
-            region.update_index(regional_fpm * self.sim.PARAMS['MUNICIPAL_EFFICIENCY_MANAGEMENT'])
             region.update_applied_taxes(regional_fpm, 'fpm')
 
     def locally(self, value, regions, mun_code, pop_t, pop_mun_t):
@@ -308,7 +306,6 @@ class Funds:
                     self.policy_money[mun] += amount * self.sim.PARAMS['POLICY_COEFFICIENT']
                     amount *= 1 - self.sim.PARAMS['POLICY_COEFFICIENT']
 
-                regions[id_].update_index(amount * self.sim.PARAMS['MUNICIPAL_EFFICIENCY_MANAGEMENT'])
                 regions[id_].update_applied_taxes(amount, 'locally')
 
     def equally(self, value, regions, pop_t, pop_total):
@@ -325,7 +322,6 @@ class Funds:
                 self.policy_money[id[:7]] += amount * self.sim.PARAMS['POLICY_COEFFICIENT']
                 amount *= 1 - self.sim.PARAMS['POLICY_COEFFICIENT']
 
-            region.update_index(amount * self.sim.PARAMS['MUNICIPAL_EFFICIENCY_MANAGEMENT'])
             region.update_applied_taxes(amount, 'equally')
 
     def invest_taxes(self, year, bank_taxes):
@@ -353,6 +349,7 @@ class Funds:
         pop_t_minus_1, pop_t = {}, {}
         pop_mun_minus = defaultdict(int)
         pop_mun_t = defaultdict(int)
+        gdp_mun_t = defaultdict(float)
         treasure = defaultdict(dict)
 
         for id, region in regions.items():
@@ -364,21 +361,19 @@ class Funds:
             region.pop = new_pop
             pop_t[id] = new_pop
             pop_mun_t[id[:7]] += new_pop
+            gdp_mun_t[id[:7]] += region.gdp
 
             # BRING treasure from regions to municipalities
             treasure[id] = region.transfer_treasure()
-           
 
-        # Update proportion of index coming from population variation
+        # QLI: logistic growth driven by municipal economic development.
+        # IDHM is a municipal-level statistic, so all regions in the same
+        # municipality receive the same update based on municipal GDP per capita.
         for id, region in regions.items():
             m_id = id[:7]
-            denom = pop_mun_t[m_id]
-            if denom > 0:
-                ratio = pop_mun_minus[m_id] / denom
-            else:
-                # Ratio is multiplicative, thus 1 (neutral value)
-                ratio = 1
-            region.update_index_pop(ratio, self.sim.PARAMS['QLI_POP_ELASTICITY'])
+            mun_pop = pop_mun_t[m_id]
+            gdp_per_pop = gdp_mun_t[m_id] / mun_pop if mun_pop > 0 else 0.0
+            region.update_qli(gdp_per_pop, self.sim.PARAMS)
 
         v_local = defaultdict(float)
         # Every month taxes to distribute start from 0

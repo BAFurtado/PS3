@@ -432,7 +432,7 @@ class Simulation:
 
         # Family investments
         for fam in self.families.values():
-            fam.invest(self.central, self.clock.year, self.clock.months)
+            fam.invest(self.central, self.clock.year, self.clock.months, self.PARAMS)
 
         # Remunerate central bank idle liquid assets
         self.central.remunerate_liquid_balance()

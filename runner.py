@@ -36,7 +36,7 @@ if __name__ == '__main__':
     c0 = 'python main.py -c 10 -n 20 sensitivity ' \
          'PRODUCTIVITY_EXPONENT:0:.9:7 ' \
          'PRODUCTIVITY_MAGNITUDE_DIVISOR:1:36:7 ' \
-         'MUNICIPAL_EFFICIENCY_MANAGEMENT:.00001:.0002:7 ' \
+         'QLI_GROWTH_RATE:0.0002:0.003:7 ' \
          'LOAN_PAYMENT_TO_PERMANENT_INCOME:0.1:.9:7 ' \
          'MAX_LOAN_TO_VALUE:.1:.9:7 ' \
          'PERCENTAGE_ENTERING_ESTATE_MARKET:.001:.05:7 ' \

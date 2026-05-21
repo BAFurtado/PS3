@@ -158,6 +158,11 @@ MAX_RENT_TO_INCOME_RATIO = 0.3
 # before a family enters the housing market. Enforces equity accumulation before buying
 # (consistent with MAX_LOAN_TO_VALUE = 0.80, which already requires 20% equity at negotiation).
 MIN_DOWN_PAYMENT_FRACTION = 0.20
+# Months of current wages kept as a liquid emergency buffer before depositing surplus
+# in the bank. Anchored to wages (not permanent income) so the buffer tracks actual
+# cash needs rather than compounding with house appreciation or interest returns.
+# 3 months matches standard financial-planning guidance for employed households.
+SAVINGS_BUFFER_MONTHS = 3
 # Scales the opportunity-cost term in decision_enter_house_market.
 # opportunity_cost = max(0, bank_rate - INITIAL_RENTAL_PRICE) × HOUSING_FINANCIAL_WEIGHT
 # This is now an absolute-difference formula (not normalized), so the weight is larger than
@@ -268,13 +273,19 @@ REGIONAL_FREIGHT_COST = .3
 # Minimum value to run depends on the size of municipality 0,001 is recommended minimum
 PERCENTAGE_ACTUAL_POP = 0.01
 
-# Order of magnitude parameter of input into municipality investment
-MUNICIPAL_EFFICIENCY_MANAGEMENT = 1e-07
-# Elasticity of QLI to per-capita population pressure [0, 1].
-# 1 = pure per-capita sharing; 0 = population has no effect.
-# 0.3 keeps monthly swings small (±0.02–0.03%) while making QLI symmetric:
-# growth crowds infrastructure (index falls), decline eases it (index rises).
-QLI_POP_ELASTICITY = 0.3
+# QLI / IDHM DEVELOPMENT ######################################################################
+# Monthly growth rate scaling factor. Calibrated so a municipality at the reference
+# development level (QLI_GDP_NORM) grows ≈ +0.001/month = +0.012/year, consistent
+# with Brazilian IDHM improvement of ~0.006–0.012/year in 2010–2020.
+# The logistic ceiling naturally slows growth as QLI approaches QLI_MAX.
+QLI_GROWTH_RATE = 0.003
+# Theoretical ceiling for the QLI/IDHM index (HDI max = 1.0).
+QLI_MAX = 1.0
+# Reference GDP per capita (model units) representing a typical Brazilian state capital
+# at mid-calibration (≈ 2015). Sets the scale so that economic_driver ≈ 1.0 for an
+# average city. Richer cities (higher GDP/pop) develop faster; poorer ones slower.
+# Estimated from wave calibration data: median GDP/pop across capitals ≈ 3.5.
+QLI_GDP_NORM = 3.5
 
 # Write exactly like the list below
 PROCESSING_ACPS = ["GOIANIA"]
