@@ -168,7 +168,7 @@ MIN_DOWN_PAYMENT_FRACTION = 0.20
 # in the bank. Anchored to wages (not permanent income) so the buffer tracks actual
 # cash needs rather than compounding with house appreciation or interest returns.
 # 3 months matches standard financial-planning guidance for employed households.
-SAVINGS_BUFFER_MONTHS = 3
+SAVINGS_BUFFER_MONTHS = 4
 # Scales the opportunity-cost term in decision_enter_house_market.
 # opportunity_cost = max(0, bank_rate - INITIAL_RENTAL_PRICE) × HOUSING_FINANCIAL_WEIGHT
 # This is now an absolute-difference formula (not normalized), so the weight is larger than
