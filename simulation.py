@@ -342,6 +342,7 @@ class Simulation:
         markup = self.PARAMS["MARKUP"]
         const_cash_flow = self.PARAMS["CONSTRUCTION_ACC_CASH_FLOW"]
         price_ruggedness = self.PARAMS["PRICE_RUGGEDNESS"]
+        inventory_target_ratio = self.PARAMS.get("INVENTORY_TARGET_RATIO", 0.0)
         tax_transport = self.PARAMS["TAX_TRANSPORT"]
         self.avg_prices, _ = self.stats.update_price(self.firms, mid_simulation_calculus=True)
         for firm in self.firms.values():
@@ -369,6 +370,7 @@ class Simulation:
                 prod_magnitude_divisor,
                 const_cash_flow,
                 price_ruggedness,
+                inventory_target_ratio,
             )
             firm.invest_eco_efficiency(
                 self.regional_market,
@@ -396,6 +398,20 @@ class Simulation:
             house = firm.build_house(self.regions, self.generator)
             if house is not None:
                 self.houses[house.id] = house
+
+        # Natural job separation: workers quit/reach contract end at an exogenous monthly rate.
+        # Runs after wages are paid (separated workers keep this month's wage) and before
+        # look_for_jobs so they enter the candidate pool in the same month.
+        sep_rate = self.PARAMS.get('NATURAL_SEPARATION_RATE', 0.0)
+        if sep_rate > 0:
+            eligible = [a for a in self.agents.values() if a.firm_id is not None and 16 < a.age < 70]
+            to_separate = [a for a, s in zip(eligible, self.seed_np.random(len(eligible)) < sep_rate) if s]
+            for agent in to_separate:
+                firm = self.firms.get(agent.firm_id)
+                if firm is not None and agent.id in firm.employees:
+                    del firm.employees[agent.id]
+                agent.firm_id = None
+                agent.set_commute(None)
 
         # Initiating Labor Market
         # AGENTS

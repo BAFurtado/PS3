@@ -273,22 +273,25 @@ class Family:
                 # Loan age exceeded. Will make payments only when there is enough money, after consumption.
                 loan = min(self.have_loan[0].payment)
 
+        propensity = params.get('CONSUMPTION_PROPENSITY', 1.0)
+        target = max(0, permanent_income - rent - loan) * propensity
+
         # Guard the cases that family expenses exceed resources
         if money >= permanent_income:
-            consumption = max(0, permanent_income - rent - loan)
+            consumption = target
         # Getting extra funds
         else:
             # If not enough, grab reserve money, savings which are not in the bank.
             money += self.savings
             self.savings = 0
             if money >= permanent_income - rent - loan:
-                consumption = max(0, permanent_income - rent - loan)
+                consumption = target
             else:
                 # If still not enough, grab actual savings in the bank.
                 if central.wallet[self]:
                     money += self.grab_savings(central, year, month)
                     if money >= permanent_income - rent - loan:
-                        consumption = permanent_income - rent - loan
+                        consumption = target
                     else:
                         consumption = max(0, money - rent - loan)
 
@@ -311,7 +314,7 @@ class Family:
             return defaultdict(float)
 
         size_market = int(params['SIZE_MARKET'])
-        tax_consumption = int(params['TAX_CONSUMPTION'])
+        tax_consumption = params['TAX_CONSUMPTION']
 
         household_demand = regional_market.final_demand['HouseholdConsumption']
         total_consumption = defaultdict(float)

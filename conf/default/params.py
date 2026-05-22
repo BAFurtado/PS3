@@ -6,7 +6,7 @@ import datetime
 # Production function, labor with decaying exponent, Alpha for K. [0, 1]
 PRODUCTIVITY_EXPONENT = 0.65
 # Order of magnitude correction of production. Production divided by parameter
-PRODUCTIVITY_MAGNITUDE_DIVISOR = 1
+PRODUCTIVITY_MAGNITUDE_DIVISOR = .5
 # GENERAL CALIBRATION PARAMETERS
 # INTEREST. Choose either: 'nominal', 'real' or 'fixed'. Default 'real'
 # FOR CENARIOS PLANHAB, choose either interests: 'alta', 'media' ou 'baixa'
@@ -19,16 +19,22 @@ STICKY_PRICES = .7
 # Price ruggedness a positive value (below 1) that multiplies the magnitude of price reduction
 # Reflects a reluctance of businesses to lower prices. Amount estimated for reduction multiplied by parameter
 PRICE_RUGGEDNESS = 0.1
+# Safety-stock buffer: fraction of monthly sales firms want to hold above productive capacity.
+# Higher values keep more firms in "low inventory" mode → more hiring signals, less deflation risk.
+INVENTORY_TARGET_RATIO = 0.2
 # Number of firms consulted before consumption
 SIZE_MARKET = 5
 # Number of firms to buy from in the INTERMEDIATE market
 INTERMEDIATE_SIZE_MARKET = 10
 # Frequency firms enter the market
 LABOR_MARKET = 0.8
+
+# Monthly probability an employed worker separates (quits, contract end, etc.).
+NATURAL_SEPARATION_RATE = 0.025
 # Percentage of employees' firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
-RELEVANCE_UNEMPLOYMENT_SALARIES = 1.5
+RELEVANCE_UNEMPLOYMENT_SALARIES = .5
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 20
 
@@ -219,6 +225,12 @@ EXOGENOUS_HEAD_RATE = False
 MEMBERS_PER_FAMILY = 2.5
 MARRIAGE_CHECK_PROBABILITY = 0.03
 
+# CONSUMPTION #############################################################
+# Fraction of permanent income actually spent on goods; remainder flows to savings.
+CONSUMPTION_PROPENSITY = 1
+# Fraction of accumulated balance government firms spend each month; remainder carried forward.
+GOVERNMENT_EXECUTION_RATE = 1
+
 # TAXES ##################################################################
 TAX_CONSUMPTION = 0.15
 TAX_LABOR = 0.15
@@ -271,7 +283,7 @@ REGIONAL_FREIGHT_COST = .3
 # RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation
 # Minimum value to run depends on the size of municipality 0,001 is recommended minimum
-PERCENTAGE_ACTUAL_POP = 0.01
+PERCENTAGE_ACTUAL_POP = 0.005
 
 # QLI / IDHM DEVELOPMENT ######################################################################
 # Monthly growth rate scaling factor. Calibrated so a municipality at the reference
@@ -294,7 +306,7 @@ PROCESSING_ACPS = ["GOIANIA"]
 STARTING_DAY = datetime.date(2010, 1, 1)
 
 # The Maximum running time (restrained by official data) is 30 years,
-TOTAL_DAYS = (datetime.date(2040, 1, 1) - STARTING_DAY).days
+TOTAL_DAYS = (datetime.date(2030, 1, 1) - STARTING_DAY).days
 
 # Select the possible ACPs (Population Concentration Areas) from the list below.
 # Actually, they are URBAN CONCENTRATION AREAS FROM IBGE, 2022

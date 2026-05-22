@@ -51,6 +51,7 @@ class Statistics(object):
         firm_workers = np.zeros(n_firms)
         firm_profits = np.zeros(n_firms)
         firm_inno_inv = np.zeros(n_firms)
+        firm_increase_prod = np.zeros(n_firms, dtype=bool)
         is_gov = np.zeros(n_firms, dtype=bool)
 
         for i, firm in enumerate(firms.values()):
@@ -62,6 +63,7 @@ class Statistics(object):
             firm_workers[i] = firm.num_employees
             firm_profits[i] = firm.profit
             firm_inno_inv[i] = firm.inno_inv
+            firm_increase_prod[i] = firm.increase_production
             is_gov[i] = type(firm).__name__ == 'GovernmentFirm'
 
         # Per-worker wage: only firms with both employees and positive wages paid this month.
@@ -86,12 +88,14 @@ class Statistics(object):
             "aggregate_profits": np.sum(non_gov_profits) if non_gov_profits.size > 0 else 0,
             "median_profit": float(np.median(non_gov_profits)) if non_gov_profits.size > 0 else 0,
             "share_firms_positive_profit": float(np.mean(non_gov_profits > 0)) if non_gov_profits.size > 0 else 0,
-            "innovation_investment": np.mean(firm_inno_inv) if firm_inno_inv.size > 0 else 0
+            "innovation_investment": np.mean(firm_inno_inv) if firm_inno_inv.size > 0 else 0,
+            "pct_increase_production": float(np.mean(firm_increase_prod)) if n_firms > 0 else 0.0,
         }
         logger.info(f"Firm stats - Median wealth: {results['median_wealth']:.2f}, "
                     f"Median wages: {results['median_wages']:.2f}, "
                     f"Median stock: {results['median_stock']:.2f}, "
                     f"Median workers: {results['workers']:.2f}, "
+                    f"Pct hiring signal: {results['pct_increase_production']:.1%}"
                     )
 
         return results

@@ -25,7 +25,8 @@ CALIBRATION_SETTINGS = {
     "samples":        128,
     "runs_per_sample": 1,   # min 5 for stable stochastic estimates
 
-    # Burn-in window — policy triggers after target_end_year
+    # Burn-in excluded from fitness; moments computed over [burn_in_end, target_end_year]
+    "burn_in_end":       "2012-01-01",
     "target_start_year": "2010-01-01",
     "target_end_year":   "2015-01-01",
 

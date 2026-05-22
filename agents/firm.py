@@ -410,6 +410,7 @@ class Firm:
             prod_magnitude_divisor=None,
             const_cash_flow=None,
             price_ruggedness=1,
+            inventory_target_ratio=0.0,
     ):
         """ Update prices based on inventory and average prices
             Save signal for the labor market """
@@ -421,9 +422,10 @@ class Firm:
                 # Considering inventory to last one month only
                 delta_price = seed_np.randint(0, int(2 * markup * 100) + 1) / 100
                 productive_capacity = self.total_qualification(prod_exponent) / prod_magnitude_divisor
-                low_inventory = (
-                        ((self.total_quantity + productive_capacity) <= self.amount_sold) or self.total_quantity == 0
-                )
+                # Firms target a safety-stock buffer (inventory_target_ratio * amount_sold) above
+                # bare productive capacity. Without a buffer the signal is a knife-edge that flips
+                # too many firms into surplus mode, causing deflationary firing cascades.
+                low_inventory = (self.total_quantity + productive_capacity) <= self.amount_sold * (1 + inventory_target_ratio)
                 low_prices = p.price < avg_prices if avg_prices != 1 else True
                 if low_inventory:
                     self.increase_production = True
@@ -871,7 +873,8 @@ class GovernmentFirm(Firm):
         # Consumption: government own consumption is used as update index. Other sectors consume here.
         total_consumption = defaultdict(float)
 
-        money_to_spend = self.total_balance
+        execution_rate = sim.PARAMS.get('GOVERNMENT_EXECUTION_RATE', 1.0)
+        money_to_spend = self.total_balance * execution_rate
         self.total_balance -= money_to_spend
         for sector in sim.regional_market.final_demand.index:
             if sector == 'Government':

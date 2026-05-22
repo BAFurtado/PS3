@@ -265,12 +265,17 @@ class LaborMarket:
         for i, firm in enumerate(firms.values()):
             # `firm_enter_freq` is the frequency firms enter the market
             if random_value[i] < firm_enter_freq:
-                # Increase production based on low inventory and low prices
-                if initialize or firm.increase_production:
+                if initialize:
                     self.add_post(firm)
-                # Three-way criteria: Wages exceed sales, profits (considering taxes) are negative
-                # and there is no need to increase production due to low prices and inventories
-                elif firm.profit < 0 or not firm.increase_production:  # and firm.wages_paid > firm.revenue:
+                elif firm.total_balance <= 0:
+                    # Insolvent: shed labour regardless of production signal
+                    firm.fire(self.seed_np)
+                    n_fired += 1
+                elif firm.increase_production and firm.profit >= 0:
+                    self.add_post(firm)
+                elif not firm.increase_production and firm.profit < 0:
+                    # Fire only when BOTH signals align: surplus inventory AND losing money.
+                    # OR-logic fired profitable firms with adequate stock, collapsing demand.
                     firm.fire(self.seed_np)
                     n_fired += 1
         # print('N of fired: ',n_fired)

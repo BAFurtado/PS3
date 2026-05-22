@@ -98,6 +98,7 @@ OUTPUT_DATA_SPEC = {
                     "loan_approval_rate",
                     "credit_stock",
                     "bank_balance",
+                    "pct_firms_increase_production",
                     "denied_existing_loan",
                     "denied_invalid_term",
                     "denied_affordability",
@@ -329,6 +330,7 @@ class Output:
                 "requested"] else 0,
             "credit_stock": bank._outstanding_loans,
             "bank_balance": bank.balance,
+            "pct_firms_increase_production": firm_results["pct_increase_production"],
             "denied_existing_loan": bank.loan_stats["denied_existing_loan"],
             "denied_invalid_term": bank.loan_stats["denied_invalid_term"],
             "denied_affordability": bank.loan_stats["denied_affordability"],
@@ -349,7 +351,7 @@ class Output:
             f.write(row)
 
         logger = (logging.getLogger('bank'))
-        logger.info(dict(sim.central.loan_stats))
+        #logger.info(dict(sim.central.loan_stats))
 
     def save_regional_report(self, sim):
         reports = []
@@ -461,7 +463,8 @@ class Output:
             'long': [], 'lat': [], 'total_balance': [], 'number_employees': [],
             'stocks': [], 'amount_produced': [], 'price': [], 'amount_sold': [],
             'revenue': [], 'profit': [], 'wages_paid': [], 'input_cost': [],
-            'emissions': [], 'eco_eff': [], 'innov_investment': [], 'sector': []
+            'emissions': [], 'eco_eff': [], 'innov_investment': [], 'sector': [],
+            'increase_production': []
         }
         construction_data = {
             'month': [], 'firm_id': [], 'region_id': [], 'mun_id': [],
@@ -490,6 +493,7 @@ class Output:
             firms_data['eco_eff'].append(firm.env_efficiency)
             firms_data['innov_investment'].append(firm.inno_inv)
             firms_data['sector'].append(firm.sector)
+            firms_data['increase_production'].append(firm.increase_production)
             if firm.sector == 'Construction':
                 construction_data['month'].append(day)
                 construction_data['firm_id'].append(firm.id)
