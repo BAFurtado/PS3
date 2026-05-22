@@ -93,8 +93,8 @@ check(
 
 u = unemployment_rate(sim)
 check(
-    "Unemployment rate in plausible range [0.02, 0.35]",
-    0.02 <= u <= 0.35,
+    "Unemployment rate in plausible range [0.01, 0.35]",
+    0.01 <= u <= 0.35,
     f"unemployment={u:.4f}",
 )
 

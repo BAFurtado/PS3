@@ -19,9 +19,10 @@ def pop_age_data(pop, code, age, percent_pop):
     n_pop = match[col].iloc[0] * percent_pop
     rounded = int(round(n_pop))
 
-    # for small `percent_pop`, sometimes we get 0
-    # when it's better to have at least 1 agent
-    if rounded == 0 and math.ceil(n_pop) == 1:
+    # Only round up to 1 when n_pop >= 0.5 (standard rounding threshold).
+    # math.ceil(n_pop)==1 fires for any n_pop in (0,1], forcing census cells with
+    # 1–5 people (at low sampling rates) all to produce 1 agent — overcounting small cells.
+    if rounded == 0 and n_pop >= 0.5:
         return 1
     return rounded
 

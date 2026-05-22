@@ -6,7 +6,7 @@ import datetime
 # Production function, labor with decaying exponent, Alpha for K. [0, 1]
 PRODUCTIVITY_EXPONENT = 0.65
 # Order of magnitude correction of production. Production divided by parameter
-PRODUCTIVITY_MAGNITUDE_DIVISOR = .5
+PRODUCTIVITY_MAGNITUDE_DIVISOR = 1
 # GENERAL CALIBRATION PARAMETERS
 # INTEREST. Choose either: 'nominal', 'real' or 'fixed'. Default 'real'
 # FOR CENARIOS PLANHAB, choose either interests: 'alta', 'media' ou 'baixa'
@@ -30,18 +30,18 @@ INTERMEDIATE_SIZE_MARKET = 10
 LABOR_MARKET = 0.8
 
 # Monthly probability an employed worker separates (quits, contract end, etc.).
-NATURAL_SEPARATION_RATE = 0.025
+NATURAL_SEPARATION_RATE = 0.003
 # Percentage of employees' firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
-RELEVANCE_UNEMPLOYMENT_SALARIES = .5
+RELEVANCE_UNEMPLOYMENT_SALARIES = 1.5
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 20
 
 # Reduction size in case of eco innovation success: multiplies firm parameters
 ENVIRONMENTAL_EFFICIENCY_STEP = .99
 # Innovation process probability: 1 - exp(lambda * investment / wage_base)
-ECO_INVESTMENT_LAMBDA = 50
+ECO_INVESTMENT_LAMBDA = 10
 # Adjustment factor for emissions within firms
 EMISSIONS_PARAM = 1000
 
@@ -241,7 +241,7 @@ TAX_TRANSPORT = 0
 
 # EMISSIONS POLICIES ######################################################
 # Taxes on emission are given by tax * total_emissions. Roughly R$ * tonCO2. .1 is about R$10
-TAX_EMISSION = 1
+TAX_EMISSION = 0.01
 # Subsidies in (0,1) is the amount of investment paid by the gov(subsidies * total_invested)
 # 0 is none, 1 is full
 ECO_INVESTMENT_SUBSIDIES = 0.2
@@ -283,7 +283,7 @@ REGIONAL_FREIGHT_COST = .3
 # RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation
 # Minimum value to run depends on the size of municipality 0,001 is recommended minimum
-PERCENTAGE_ACTUAL_POP = 0.005
+PERCENTAGE_ACTUAL_POP = 0.01
 
 # QLI / IDHM DEVELOPMENT ######################################################################
 # Monthly growth rate scaling factor. Calibrated so a municipality at the reference
@@ -300,13 +300,13 @@ QLI_MAX = 1.0
 QLI_GDP_NORM = 3.5
 
 # Write exactly like the list below
-PROCESSING_ACPS = ["ARACAJU"]
+PROCESSING_ACPS = ["GOIANIA"]
 
 # Selecting the starting year to build the Agents can be: 1991, 2000 or 2010
 STARTING_DAY = datetime.date(2010, 1, 1)
 
 # The Maximum running time (restrained by official data) is 30 years,
-TOTAL_DAYS = (datetime.date(2030, 1, 1) - STARTING_DAY).days
+TOTAL_DAYS = (datetime.date(2040, 1, 1) - STARTING_DAY).days
 
 # Select the possible ACPs (Population Concentration Areas) from the list below.
 # Actually, they are URBAN CONCENTRATION AREAS FROM IBGE, 2022
