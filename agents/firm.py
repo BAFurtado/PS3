@@ -148,7 +148,7 @@ class Firm:
             if emission_tax > 0:
                 self.emission_taxes_paid = emission_tax
                 self.total_balance -= emission_tax
-                regions[self.region_id].collect_taxes(self.taxes_paid, "emissions")
+                regions[self.region_id].collect_taxes(emission_tax, "emissions")
             else:
                 self.emission_taxes_paid = 0
 
@@ -157,7 +157,7 @@ class Firm:
         Reduce overall emissions per wage employed.
         """
         # Decide how much to invest based on expected cost and benefit analysis
-        eco_investment, paid_subsidies = self.decision_on_eco_efficiency(regional_market,regions)
+        eco_investment, paid_subsidies = self.decision_on_eco_efficiency(regional_market, regions)
 
         # Check if firm has enough balance
         eco_investment = max(0, min(self.total_balance, eco_investment))
@@ -165,14 +165,11 @@ class Firm:
 
         # Stochastic process to actually reduce firm-level parameter
         params = regional_market.sim.PARAMS
-        p_success = self.probability_success(eco_investment,params['ECO_INVESTMENT_LAMBDA']) #regional_market.
-        random_value = seed_np.rand()
-        if p_success>random_value:
-            # Inovation was successful
+        # Probability uses I/R (investment as fraction of revenue) as designed by the FOC
+        investment_share = eco_investment / max(self.revenue, 1e-6)
+        p_success = self.probability_success(investment_share, params['ECO_INVESTMENT_LAMBDA'])
+        if p_success > seed_np.rand():
             self.env_efficiency *= params['ENVIRONMENTAL_EFFICIENCY_STEP']
-        else:
-            # Nothing happens
-            pass
         regions[self.region_id].collect_taxes(-paid_subsidies, "emissions")
         self.total_balance += paid_subsidies
         self.inno_inv = eco_investment
@@ -208,19 +205,18 @@ class Firm:
                 subsidies = 0
 
 
-        # Profit maximization formula yields the formula below
-        if self.revenue>0:
-            investment_per_revenue = (np.log(
-                                            eco_lambda*expected_cost_reduction/((1-subsidies)*self.revenue))*
-                                     (self.revenue/eco_lambda))
+        # Profit maximization FOC yields optimal absolute investment I = R·ln(λ·ECR/((1−s)·R))/λ
+        if self.revenue > 0:
+            eco_investment = (np.log(
+                                eco_lambda * expected_cost_reduction / ((1 - subsidies) * self.revenue)) *
+                              (self.revenue / eco_lambda))
         else:
-            investment_per_revenue = 0
+            eco_investment = 0
 
-        if investment_per_revenue < 0:
-            investment_per_revenue = 0
-        # TODO: Can the government enter deficit?
-        paid_subsidies = subsidies*investment_per_revenue*self.revenue
-        return investment_per_revenue, paid_subsidies
+        if eco_investment < 0:
+            eco_investment = 0
+        paid_subsidies = subsidies * eco_investment
+        return eco_investment, paid_subsidies
 
     # PRODUCTION DEPARTMENT ###########################################################################################
     def choose_firm_per_sector(self, regional_market, firms, seed, market_size,

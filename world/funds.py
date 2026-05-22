@@ -37,6 +37,7 @@ class Funds:
                 (self.sim.PARAMS['POLICIES'] in ['buy', 'rent', 'wage'] and self.sim.PARAMS['POLICY_COEFFICIENT'] > 0)
                 or self.sim.PARAMS.get('POLICY_MCMV')
                 or self.sim.PARAMS.get('POLICY_MELHORIAS')
+                or self.sim.PARAMS.get('CARBON_TAX_RECYCLING')
         )
 
     def update_policy_families(self, quantile):

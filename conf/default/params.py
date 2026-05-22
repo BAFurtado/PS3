@@ -41,7 +41,7 @@ HIRING_SAMPLE_SIZE = 20
 # Reduction size in case of eco innovation success: multiplies firm parameters
 ENVIRONMENTAL_EFFICIENCY_STEP = .99
 # Innovation process probability: 1 - exp(lambda * investment / wage_base)
-ECO_INVESTMENT_LAMBDA = 10
+ECO_INVESTMENT_LAMBDA = 50
 # Adjustment factor for emissions within firms
 EMISSIONS_PARAM = 1000
 
@@ -241,7 +241,7 @@ TAX_TRANSPORT = 0
 
 # EMISSIONS POLICIES ######################################################
 # Taxes on emission are given by tax * total_emissions. Roughly R$ * tonCO2. .1 is about R$10
-TAX_EMISSION = .01
+TAX_EMISSION = 1
 # Subsidies in (0,1) is the amount of investment paid by the gov(subsidies * total_invested)
 # 0 is none, 1 is full
 ECO_INVESTMENT_SUBSIDIES = 0.2
@@ -300,7 +300,7 @@ QLI_MAX = 1.0
 QLI_GDP_NORM = 3.5
 
 # Write exactly like the list below
-PROCESSING_ACPS = ["GOIANIA"]
+PROCESSING_ACPS = ["ARACAJU"]
 
 # Selecting the starting year to build the Agents can be: 1991, 2000 or 2010
 STARTING_DAY = datetime.date(2010, 1, 1)
