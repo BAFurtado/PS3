@@ -275,8 +275,8 @@ PERCENTAGE_ACTUAL_POP = 0.01
 
 # QLI / IDHM DEVELOPMENT ######################################################################
 # Monthly growth rate scaling factor. Calibrated so a municipality at the reference
-# development level (QLI_GDP_NORM) grows ≈ +0.001/month = +0.012/year, consistent
-# with Brazilian IDHM improvement of ~0.006–0.012/year in 2010–2020.
+# development level (QLI_GDP_NORM) grows ≈ +0.0007/month = +0.008/year, consistent
+# with Brazilian IDHM improvement of ~0.006–0.010/year in 2010–2020.
 # The logistic ceiling naturally slows growth as QLI approaches QLI_MAX.
 QLI_GROWTH_RATE = 0.002
 # Theoretical ceiling for the QLI/IDHM index (HDI max = 1.0).
