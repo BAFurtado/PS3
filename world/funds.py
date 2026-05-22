@@ -372,7 +372,7 @@ class Funds:
         for id, region in regions.items():
             m_id = id[:7]
             mun_pop = pop_mun_t[m_id]
-            gdp_per_pop = gdp_mun_t[m_id] / mun_pop if mun_pop > 0 else 0.0
+            gdp_per_pop = max(0.0, gdp_mun_t[m_id]) / mun_pop if mun_pop > 0 else 0.0
             region.update_qli(gdp_per_pop, self.sim.PARAMS)
 
         v_local = defaultdict(float)
