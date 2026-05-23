@@ -271,10 +271,31 @@ def sensitivity(ctx, params):
             flag = True
             cities = param.split('-')[1:]
             capitais = [
-                'ARACAJU', 'BELEM', 'BELO HORIZONTE', 'BRASILIA', 'CAMPO GRANDE',
-                'CUIABA', 'CURITIBA', 'FLORIANOPOLIS', 'FORTALEZA', 'GOIANIA',
-                'JOAO PESSOA', 'MACAPA', 'MACEIO', 'MANAUS', 'NATAL',
-                'PORTO ALEGRE', 'RECIFE', 'SALVADOR', 'SAO LUIS', 'TERESINA', 'VITORIA'
+                'ARACAJU',
+                'BELEM',
+                'BELO HORIZONTE',
+                'BOA VISTA',
+                'BRASILIA',
+                'CAMPO GRANDE',
+                'CUIABA',
+                'CURITIBA',
+                'FLORIANOPOLIS',
+                'FORTALEZA',
+                'GOIANIA',
+                'JOAO PESSOA',
+                'MACAPA',
+                'MACEIO',
+                'MANAUS',
+                'NATAL',
+                'PALMAS',
+                'PORTO ALEGRE',
+                'PORTO VELHO',
+                'RECIFE',
+                'RIO BRANCO',
+                'SALVADOR',
+                'SAO LUIS',
+                'TERESINA',
+                'VITORIA',
             ]
             if cities[0].lower() == "capitais":
                 cities = capitais

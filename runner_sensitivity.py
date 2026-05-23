@@ -39,6 +39,15 @@ with open(CITY_PARAMS_PATH, "w") as _f:
 # These results will supersede wave12 correlations.
 # ---------------------------------------------------------------------
 
+# Categorical params — use the PARAM*val1+val2+... syntax (already handled by main.py).
+# real  = BC series 433 real estate financing rate (~3%/yr mean, 2010–2022)
+# media = blended average scenario (~9.2%/yr, current default)
+# nominal = raw SELIC-based (~8.0%/yr mean, 2010–2022)
+# sbpe/fgts rates are identical across all three (regulated, SELIC-independent).
+CATEGORICAL_PARAMS = {
+    "INTEREST": ["real", "media", "nominal"],
+}
+
 PARAM_RANGES = {
 
     # ── Housing purchase decision — opportunity-cost weight ─────────
@@ -72,38 +81,43 @@ PARAM_RANGES = {
 # ---------------------------------------------------------------------
 
 
+def run_sensitivity(param_string, label, count, total):
+    print(f"\n[{count}/{total}] {label}  (city={CITY})")
+    cmd = [
+        PYTHON, MAIN,
+        "-p", str(CITY_PARAMS_PATH),
+        "-n", str(RUNS),
+        "-c", str(CPUS),
+        "sensitivity",
+        param_string,
+    ]
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_file = LOG_DIR / f"{label}_{timestamp}.log"
+    try:
+        with open(log_file, "w") as log:
+            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=log, check=True)
+        print(f"  ✓ completed")
+    except subprocess.CalledProcessError as e:
+        print(f"  ✗ FAILED (exit code {e.returncode})")
+    except Exception as e:
+        print(f"  ✗ CRASHED ({e})")
+
+
 def main():
 
-    total = len(PARAM_RANGES)
+    total = len(PARAM_RANGES) + len(CATEGORICAL_PARAMS)
     count = 1
 
     for param, (start, end, steps) in PARAM_RANGES.items():
-
-        print(f"\n[{count}/{total}] {param}  ({start} → {end}, {steps} points, city={CITY})")
-
         param_string = f"{param}:{start}:{end}:{steps}"
+        label = f"{param}_{start}-{end}"
+        run_sensitivity(param_string, label, count, total)
+        count += 1
 
-        cmd = [
-            PYTHON, MAIN,
-            "-p", str(CITY_PARAMS_PATH),
-            "-n", str(RUNS),
-            "-c", str(CPUS),
-            "sensitivity",
-            param_string,
-        ]
-
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_file = LOG_DIR / f"{param}_{timestamp}.log"
-
-        try:
-            with open(log_file, "w") as log:
-                subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=log, check=True)
-            print(f"  ✓ completed")
-        except subprocess.CalledProcessError as e:
-            print(f"  ✗ FAILED (exit code {e.returncode})")
-        except Exception as e:
-            print(f"  ✗ CRASHED ({e})")
-
+    for param, values in CATEGORICAL_PARAMS.items():
+        param_string = f"{param}*{'+'.join(values)}"
+        label = f"{param}_{'_'.join(values)}"
+        run_sensitivity(param_string, label, count, total)
         count += 1
 
     print(f"\nAll {total} sensitivity sweeps done.  City: {CITY}")
