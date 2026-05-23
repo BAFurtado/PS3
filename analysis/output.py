@@ -265,7 +265,7 @@ class Output:
         sim.funds.families_subsided, sim.funds.money_applied_policy = 0, 0
         for k in ['equally', 'locally', 'fpm']:
             mun_applied_treasure[k] = sum(r.applied_treasure[k] for r in sim.regions.values())
-        emissions_fund = sum(r.cumulative_treasure['emissions'] for r in sim.regions.values())
+        emissions_fund = sum(r.treasure['emissions'] for r in sim.regions.values())
         perc_fgts, perc_sbpe = sim.central.funding_usage_month(
             sim.clock.year,
             sim.clock.months,

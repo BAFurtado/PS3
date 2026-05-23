@@ -17,11 +17,15 @@ OUT_DIR = BASE_DIR / "analysis" / "validation"
 
 
 def find_stats_files():
-    files = glob(str(OUTPUT_DIR / "**" / "stats.csv"), recursive=True)
+    files = glob(str(OUTPUT_DIR / "**" / "final_stats29.csv"), recursive=True)
     return [f for f in files if "/avg/" not in f]
 
 
 def load_stats(path):
+    with open(path) as fh:
+        first = fh.readline()
+    if first.startswith("month"):
+        return pd.read_csv(path, sep=",")
     cols = OUTPUT_DATA_SPEC["stats"]["columns"]
     df = pd.read_csv(path, header=None, sep=";")
     df.columns = cols
@@ -288,7 +292,10 @@ def main(month_cut_off=None, suffix=""):
     for f in files:
         df = load_stats(f)
         df["source_file"] = str(f)
-        df["run_id"] = path_to_run_id(f)
+        if "simulation_id" in df.columns:
+            df["run_id"] = df["simulation_id"]
+        else:
+            df["run_id"] = path_to_run_id(f)
         df["month"] = pd.to_datetime(df["month"], errors="coerce")
 
         if month_cut_off:

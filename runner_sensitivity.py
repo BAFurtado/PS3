@@ -10,16 +10,14 @@ import datetime
 PYTHON = "python"
 MAIN = "main.py"
 
-# 5 credit parameters only — re-run after tabela Price/SAC commit (2026-05-20).
-# Previous wave21 sensitivity used old loan math; these results are now stale.
-# CPUS=6 reserved for sensitivity; runner_planhab.py uses the remaining cores.
-# With 6 CPUs: 4-pt params → 2 batches of 6 jobs ≈ 40 min each; 3-pt → same.
-# 5 params × ~40 min ≈ 3.5 h total — fits comfortably alongside capitals run.
+# Wave30 OAT — 4 housing/market params centred on current wave30 defaults.
+# Runs in parallel with the wave30 capitals run (6 CPUs reserved here).
+# 4 params × 4 points × 3 runs = 48 jobs → 8 batches of 6 → ~4-5 h total.
 CITY = "GOIANIA"
 RUNS = 3
 CPUS = 6
 
-LOG_DIR = pathlib.Path("logs/sensitivity_wave22_credit")
+LOG_DIR = pathlib.Path("logs/sensitivity_wave30_housing")
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 CITY_PARAMS_PATH = LOG_DIR / "city_params.json"
@@ -28,32 +26,45 @@ with open(CITY_PARAMS_PATH, "w") as _f:
 
 # ---------------------------------------------------------------------
 # OAT Parameter Ranges
-# Format: PARAM: (start, end, n_points)
-# Ranges are centred on / include the current default.
-# With RUNS=3 and CPUS=6: 4-pt params → 12 jobs, 2 sequential batches of 6.
+# Format: PARAM: (start, end, n_points)  →  np.linspace(start, end, n_points)
+#
+# HFW  25→100:  [25, 50, 75, 100]  — primary unemployment/vacancy lever
+# HPA   6→12:  [ 6,  8, 10,  12]  — production volume control
+# BVS   6→15:  [ 6,  9, 12,  15]  — construction response to vacancy
+# NEIGH 0→0.6: [ 0, 0.2, 0.4, 0.6] — zero-consumption amplifier
+#
+# Wave30 defaults: HFW=60  HPA=8  BVS=9  NEIGH=0.2
+# All four current values fall inside their respective ranges.
+# Wave12 OAT is outdated (HFW range was 1–10; major structural changes since).
+# These results will supersede wave12 correlations.
 # ---------------------------------------------------------------------
 
 PARAM_RANGES = {
 
-    # ── Subsidised credit access — income eligibility ───────────────
-    # Quantile of the income distribution below which families qualify.
-    # Exposed as scalar aliases of INCOME_MODALIDADES['fgts'/'sbpe'].
-    # current fgts=0.65: bottom 65% eligible for FGTS.
-    "FGTS_INCOME_QUANTILE":      (0.50, 0.80, 4),
-    # current sbpe=0.85: families in 65th–85th percentile eligible for SBPE.
-    "SBPE_INCOME_QUANTILE":      (0.70, 0.95, 4),
+    # ── Housing purchase decision — opportunity-cost weight ─────────
+    # Wave28: 100 → unemployment OK, vacancy 4% (too low)
+    # Wave29: 25  → unemployment 2.2% (collapsed), vacancy 6.4%
+    # Wave30: 60  → target unemployment 6-8%, vacancy 7-9%
+    # OAT r (wave12, directional): Vacancy +0.93  Unemp +0.76  ZeroCons -0.92
+    "HOUSING_FINANCIAL_WEIGHT":  (25, 100, 4),
 
-    # ── Subsidised credit access — loan size ────────────────────────
-    # current=0.95 (FGTS allows effectively 0–5% down payment).
-    # FGTS now uses Tabela Price (correct first-payment formula) — results
-    # from wave21 used the old SAC-everywhere math and are stale for these.
-    "MAX_LOAN_TO_VALUE_FGTS":    (0.85, 1.00, 4),
-    # current=0.90
-    "MAX_LOAN_TO_VALUE_SBPE":    (0.80, 0.95, 4),
+    # ── Construction output per license ────────────────────────────
+    # Wave29: 10 → production 4.6/1000 (target 2-4, too high)
+    # Wave30:  8 → target ~3.0-3.5/1000
+    # OAT r (wave12, directional): Vacancy +0.98  Unemp -0.64  ZeroCons -0.93
+    "HOUSE_PRODUCTION_ADEQUACY": (6, 12, 4),
 
-    # ── Housing purchase entry gate ─────────────────────────────────
-    # current=0.20; lower values allow families with less equity to enter.
-    "MIN_DOWN_PAYMENT_FRACTION": (0.05, 0.30, 3),
+    # ── Construction sensitivity to vacancy level ───────────────────
+    # Wave28: 13 → Wave29: 9 → vacancy improved but production overshot
+    # Wave30:  9 held — sweep clarifies balance point with new HPA=8
+    # OAT r (wave12, directional): Vacancy -0.56  Gini +0.53  LoanAppr -0.58
+    "BUILD_VACANCY_SENSITIVITY": (6, 15, 4),
+
+    # ── Neighbourhood feedback amplifier ───────────────────────────
+    # OAT r=+1.00 with zero consumption — strongest single lever in matrix
+    # Current 0.2 (user chose as compromise); wave12 tested 0-2.0
+    # OAT r (wave12, directional): ZeroCons +1.00  Vacancy +0.72  Gini -0.57
+    "NEIGHBORHOOD_EFFECT":       (0.0, 0.6, 4),
 }
 
 # ---------------------------------------------------------------------
@@ -95,7 +106,9 @@ def main():
 
         count += 1
 
-    print(f"\nAll {total} sensitivity runs done. City: {CITY}")
+    print(f"\nAll {total} sensitivity sweeps done.  City: {CITY}")
+    print(f"Logs → {LOG_DIR}")
+    print("Next: python analysis/sensitivity_oat.py output")
 
 
 if __name__ == "__main__":

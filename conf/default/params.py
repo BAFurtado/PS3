@@ -145,7 +145,7 @@ BUILD_VACANCY_SENSITIVITY = 9
 # At 0.5% the pool (~94/month) is closer to supply, allowing some months where
 # available houses exceed active buyers and vacancy begins to accumulate.
 PERCENTAGE_ENTERING_ESTATE_MARKET = 0.005
-NEIGHBORHOOD_EFFECT = 0.3
+NEIGHBORHOOD_EFFECT = 0.2
 
 # RENTAL #######################
 INITIAL_RENTAL_SHARE = 0.40
@@ -178,7 +178,7 @@ SAVINGS_BUFFER_MONTHS = 2
 # A comfortable owner (housing_need=0) scores −0.15 → excluded.
 # A crowded owner (crowding_bonus=0.7) scores 0.55 → enters to upgrade.
 # At low SELIC (≈ 2%, bank_rate ≈ 0.0017): opportunity_cost ≈ 0 → some owners enter.
-HOUSING_FINANCIAL_WEIGHT = 25
+HOUSING_FINANCIAL_WEIGHT = 60
 # Minimum months of permanent income that must remain liquid after the down payment.
 # Discourages families from locking all savings into a house and being cash-poor.
 # At 6 months: a family spending 100% of available savings on a down payment scores
@@ -217,7 +217,7 @@ CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 5
 # production-units, meaning 25-60 months of dedicated firm output — far too slow.
 # At 15: median cost ≈ 13 units → ~4 months throughput per house for a 10-employee firm,
 # equivalent to maintaining 5 concurrent projects each individually taking ~20 months.
-HOUSE_PRODUCTION_ADEQUACY = 10
+HOUSE_PRODUCTION_ADEQUACY = 8
 
 # POPULATION AND DEMOGRAPHY
 # Families run parameters (on average) for year 2000, or no information. 2010 uses APs average data
