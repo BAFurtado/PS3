@@ -30,7 +30,7 @@ INTERMEDIATE_SIZE_MARKET = 10
 LABOR_MARKET = 0.8
 
 # Monthly probability an employed worker separates (quits, contract end, etc.).
-NATURAL_SEPARATION_RATE = 0.003
+NATURAL_SEPARATION_RATE = 0.010
 # Percentage of employees' firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
@@ -137,7 +137,7 @@ MAX_OFFER_PREMIUM = 1.3
 # How strong construction firms respond to vacancy.
 # Used in exponential suppression: P(skip) = 1 - exp(-vacancy * sensitivity).
 # At equilibrium vacancy (8%) → ~65% skip; at 15% → ~86% skip; at 25% → ~96% skip.
-BUILD_VACANCY_SENSITIVITY = 13
+BUILD_VACANCY_SENSITIVITY = 9
 # Percentage of households pursuing new location (on average families move about once every 20 years)
 # Brazilian households move on average every 15-20 years → 0.4-0.5% per month.
 # At 2.5% the buyer pool (~470/month in BH) far exceeds monthly housing supply (~14),
@@ -168,17 +168,17 @@ MIN_DOWN_PAYMENT_FRACTION = 0.20
 # in the bank. Anchored to wages (not permanent income) so the buffer tracks actual
 # cash needs rather than compounding with house appreciation or interest returns.
 # 3 months matches standard financial-planning guidance for employed households.
-SAVINGS_BUFFER_MONTHS = 4
+SAVINGS_BUFFER_MONTHS = 2
 # Scales the opportunity-cost term in decision_enter_house_market.
 # opportunity_cost = max(0, bank_rate - INITIAL_RENTAL_PRICE) × HOUSING_FINANCIAL_WEIGHT
 # This is now an absolute-difference formula (not normalized), so the weight is larger than
 # the old normalized version. At SELIC ≈ 10% annual (bank_rate ≈ 0.008/month):
-#   opportunity_cost ≈ (0.008 - 0.002) × 100 = 0.6
-# A renter (housing_need=1.0) scores 0.4 > 0 → enters.
-# A comfortable owner (housing_need=0) scores −0.6 → excluded.
-# A crowded owner (crowding_bonus=0.7) scores 0.1 → enters to upgrade.
+#   opportunity_cost ≈ (0.008 - 0.002) × 25 = 0.15
+# A renter (housing_need=1.0) scores 0.85 > 0 → enters.
+# A comfortable owner (housing_need=0) scores −0.15 → excluded.
+# A crowded owner (crowding_bonus=0.7) scores 0.55 → enters to upgrade.
 # At low SELIC (≈ 2%, bank_rate ≈ 0.0017): opportunity_cost ≈ 0 → some owners enter.
-HOUSING_FINANCIAL_WEIGHT = 100
+HOUSING_FINANCIAL_WEIGHT = 25
 # Minimum months of permanent income that must remain liquid after the down payment.
 # Discourages families from locking all savings into a house and being cash-poor.
 # At 6 months: a family spending 100% of available savings on a down payment scores
@@ -217,7 +217,7 @@ CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 5
 # production-units, meaning 25-60 months of dedicated firm output — far too slow.
 # At 15: median cost ≈ 13 units → ~4 months throughput per house for a 10-employee firm,
 # equivalent to maintaining 5 concurrent projects each individually taking ~20 months.
-HOUSE_PRODUCTION_ADEQUACY = 6
+HOUSE_PRODUCTION_ADEQUACY = 10
 
 # POPULATION AND DEMOGRAPHY
 # Families run parameters (on average) for year 2000, or no information. 2010 uses APs average data
@@ -236,7 +236,7 @@ TAX_CONSUMPTION = 0.15
 TAX_LABOR = 0.15
 TAX_ESTATE_TRANSACTION = 0.004
 TAX_FIRM = 0.15
-TAX_PROPERTY = 0.008
+TAX_PROPERTY = 0.012
 TAX_TRANSPORT = 0
 
 # EMISSIONS POLICIES ######################################################
