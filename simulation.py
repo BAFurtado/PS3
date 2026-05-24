@@ -98,8 +98,8 @@ class Simulation:
         interest = pd.read_csv(f"input/interest_{self.PARAMS['INTEREST']}.csv")
         interest.date = pd.to_datetime(interest.date)
         self.interest = interest.set_index("date")
-        # sbpe/fgts rates are regulated independently of SELIC; only baixa/media/alta have distinct housing scenarios.
-        housing_key = self.PARAMS['INTEREST'] if self.PARAMS['INTEREST'] in ('baixa', 'media', 'alta') else 'media'
+        # sbpe/fgts rates are regulated independently of SELIC; governed by INTEREST_HOUSING param.
+        housing_key = self.PARAMS.get('INTEREST_HOUSING', 'media')
         housing_interest = pd.read_csv(f"input/planhab_funds/interest_housing_{housing_key}.csv")
         housing_interest.date = pd.to_datetime(housing_interest.date)
         self.housing_interest = housing_interest.set_index("date")
@@ -345,6 +345,7 @@ class Simulation:
         const_cash_flow = self.PARAMS["CONSTRUCTION_ACC_CASH_FLOW"]
         price_ruggedness = self.PARAMS["PRICE_RUGGEDNESS"]
         inventory_target_ratio = self.PARAMS.get("INVENTORY_TARGET_RATIO", 0.0)
+        price_markup_cap = self.PARAMS.get("PRICE_MARKUP_CAP", 0.25)
         tax_transport = self.PARAMS["TAX_TRANSPORT"]
         self.avg_prices, _ = self.stats.update_price(self.firms, mid_simulation_calculus=True)
         for firm in self.firms.values():
@@ -373,6 +374,7 @@ class Simulation:
                 const_cash_flow,
                 price_ruggedness,
                 inventory_target_ratio,
+                price_markup_cap,
             )
             firm.invest_eco_efficiency(
                 self.regional_market,

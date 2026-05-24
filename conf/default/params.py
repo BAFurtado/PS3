@@ -8,10 +8,10 @@ PRODUCTIVITY_EXPONENT = 0.65
 # Order of magnitude correction of production. Production divided by parameter
 PRODUCTIVITY_MAGNITUDE_DIVISOR = 1
 # GENERAL CALIBRATION PARAMETERS
-# INTEREST. Choose either: 'nominal', 'real' or 'fixed'. Default 'real'
-# FOR CENARIOS PLANHAB, choose either interests: 'alta', 'media' ou 'baixa'
-# Assumption. Mortgage assumed lower than SELIC (general rate).
-INTEREST = "media"
+# INTEREST: market/SELIC scenario. Choose: 'real', 'media', 'fixed'
+INTEREST = "real"
+# INTEREST_HOUSING: SBPE/FGTS regulated rate scenario for PlanHab. Choose: 'alta', 'media', 'baixa'
+INTEREST_HOUSING = "media"
 # By how much percentage to increase prices
 MARKUP = 0.1
 # Frequency firms change prices. Probability < than parameter
@@ -19,6 +19,10 @@ STICKY_PRICES = .7
 # Price ruggedness a positive value (below 1) that multiplies the magnitude of price reduction
 # Reflects a reluctance of businesses to lower prices. Amount estimated for reduction multiplied by parameter
 PRICE_RUGGEDNESS = 0.1
+# Maximum premium above market average before the inventory-driven price rise is capped.
+# Decouples the inventory signal from the relative-price gate: firms respond to low inventory
+# freely up to avg_prices * (1 + PRICE_MARKUP_CAP), then stop. Set to 0 for old joint-condition.
+PRICE_MARKUP_CAP = 0.0875
 # Safety-stock buffer: fraction of monthly sales firms want to hold above productive capacity.
 # Higher values keep more firms in "low inventory" mode → more hiring signals, less deflation risk.
 INVENTORY_TARGET_RATIO = 0.2
@@ -217,7 +221,7 @@ CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 5
 # production-units, meaning 25-60 months of dedicated firm output — far too slow.
 # At 15: median cost ≈ 13 units → ~4 months throughput per house for a 10-employee firm,
 # equivalent to maintaining 5 concurrent projects each individually taking ~20 months.
-HOUSE_PRODUCTION_ADEQUACY = 8
+HOUSE_PRODUCTION_ADEQUACY = 12
 
 # POPULATION AND DEMOGRAPHY
 # Families run parameters (on average) for year 2000, or no information. 2010 uses APs average data

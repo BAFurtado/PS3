@@ -407,30 +407,28 @@ class Firm:
             const_cash_flow=None,
             price_ruggedness=1,
             inventory_target_ratio=0.0,
+            price_markup_cap=0.25,
     ):
         """ Update prices based on inventory and average prices
             Save signal for the labor market """
         # Sticky prices (KLENOW, MALIN, 2010)
         if seed_np.rand() < sticky_prices:
             for p in self.inventory.values():
-                # if the firm has sold this month more than available in stocks, prices rise
-                # Dawid 2018 p.26 Firm observes excess or shortage inventory and relative price considering other firms
-                # Considering inventory to last one month only
                 delta_price = seed_np.randint(0, int(2 * markup * 100) + 1) / 100
                 productive_capacity = self.total_qualification(prod_exponent) / prod_magnitude_divisor
-                # Firms target a safety-stock buffer (inventory_target_ratio * amount_sold) above
-                # bare productive capacity. Without a buffer the signal is a knife-edge that flips
-                # too many firms into surplus mode, causing deflationary firing cascades.
+                # Firms target a safety-stock buffer above bare productive capacity.
                 low_inventory = (self.total_quantity + productive_capacity) <= self.amount_sold * (1 + inventory_target_ratio)
-                low_prices = p.price < avg_prices if avg_prices != 1 else True
                 if low_inventory:
                     self.increase_production = True
+                    # Rise freely up to avg_prices * (1 + cap); spatial monopoly premium bounded.
+                    ceiling = avg_prices * (1 + price_markup_cap)
+                    if p.price < ceiling:
+                        p.price = min(p.price * (1 + delta_price), ceiling)
                 else:
                     self.increase_production = False  # Lengnick
-                if low_inventory and low_prices:
-                    p.price *= 1 + delta_price
-                elif not low_inventory and not low_prices:
-                    p.price *= 1 - delta_price * price_ruggedness
+                    # Fall only if above average, damped by price_ruggedness.
+                    if p.price > avg_prices:
+                        p.price *= 1 - delta_price * price_ruggedness
         self.prices = sum(p.price for p in self.inventory.values()) / len(
             self.inventory
         )

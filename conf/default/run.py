@@ -9,7 +9,7 @@ KEEP_RANDOM_SEED = True
 DESCRIPTIVE_STATS_CHOICE = False
 
 # Logging
-PRINT_STATISTICS_AND_RESULTS_DURING_PROCESS = False
+PRINT_STATISTICS_AND_RESULTS_DURING_PROCESS = True
 PRINT_FINAL_STATISTICS_ABOUT_AGENTS = False
 
 # Inform numbers in percentage of the period
@@ -17,7 +17,7 @@ TIME_TO_BE_ELIMINATED = 0.2
 
 # Saving adjustments
 # If you save_plots (in a multiple run), you need AVERAGE_DATA = ['stats'] below!
-SAVE_PLOTS_FIGURES = False
+SAVE_PLOTS_FIGURES = True
 
 # If plots should be generated separately for each simulation run or just aggregated
 # When PLOT_EACH_RUN is True, DATA for banks, construction, firms, regional, stats are also SAVED
