@@ -403,20 +403,6 @@ class Simulation:
             if house is not None:
                 self.houses[house.id] = house
 
-        # Natural job separation: workers quit/reach contract end at an exogenous monthly rate.
-        # Runs after wages are paid (separated workers keep this month's wage) and before
-        # look_for_jobs so they enter the candidate pool in the same month.
-        sep_rate = self.PARAMS.get('NATURAL_SEPARATION_RATE', 0.0)
-        if sep_rate > 0:
-            eligible = [a for a in self.agents.values() if a.firm_id is not None and 16 < a.age < 70]
-            to_separate = [a for a, s in zip(eligible, self.seed_np.random(len(eligible)) < sep_rate) if s]
-            for agent in to_separate:
-                firm = self.firms.get(agent.firm_id)
-                if firm is not None and agent.id in firm.employees:
-                    del firm.employees[agent.id]
-                agent.firm_id = None
-                agent.set_commute(None)
-
         # Initiating Labor Market
         # AGENTS
         self.labor_market.look_for_jobs(self.agents)
@@ -437,6 +423,20 @@ class Simulation:
         del agent_values
         wage_deciles = np.percentile(last_wages, np.arange(10, 101, 10))
         self.labor_market.assign_post(current_unemployment, wage_deciles, self.PARAMS)
+
+        # Natural job separation: workers quit/reach contract end at an exogenous monthly rate.
+        # Runs after matching so separated workers miss this month's pool and must wait
+        # until next month — creating a minimum one-month unemployment spell per separation.
+        sep_rate = self.PARAMS.get('NATURAL_SEPARATION_RATE', 0.0)
+        if sep_rate > 0:
+            eligible = [a for a in self.agents.values() if a.firm_id is not None and 16 < a.age < 70]
+            to_separate = [a for a, s in zip(eligible, self.seed_np.random(len(eligible)) < sep_rate) if s]
+            for agent in to_separate:
+                firm = self.firms.get(agent.firm_id)
+                if firm is not None and agent.id in firm.employees:
+                    del firm.employees[agent.id]
+                agent.firm_id = None
+                agent.set_commute(None)
 
         # Initiating Real Estate Market
         # Tax transaction taxes (ITBI) when selling house
