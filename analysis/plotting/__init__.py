@@ -67,7 +67,9 @@ class Plotter:
                 d.plot(ax=ax)
 
         # Create the plot
-        ax.legend(loc='best', ncol=3, fancybox=True, shadow=False, framealpha=.25)
+        handles, _ = ax.get_legend_handles_labels()
+        if handles:
+            ax.legend(loc='best', ncol=3, fancybox=True, shadow=False, framealpha=.25)
         ax.set_title(title)
         ax.set_xlabel('Time')
         if y_label is not None:

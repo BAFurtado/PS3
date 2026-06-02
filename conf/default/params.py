@@ -140,10 +140,8 @@ MAX_OFFER_DISCOUNT = 0.65
 MAX_OFFER_PREMIUM = 1.3
 # How strong construction firms respond to vacancy.
 # Used in exponential suppression: P(skip) = 1 - exp(-vacancy * sensitivity).
-# At equilibrium vacancy (8%) → ~54% skip; at 15% → ~83% skip; at 25% → ~95% skip.
-# Lowered from 9 to 7: firms build ~8pp more often at 4% vacancy, ~13pp more at 8%,
-# making supply response slightly more elastic without changing equilibrium direction.
-BUILD_VACANCY_SENSITIVITY = 7
+# At equilibrium vacancy (8%) → ~65% skip; at 15% → ~86% skip; at 25% → ~96% skip.
+BUILD_VACANCY_SENSITIVITY = 9
 # Percentage of households pursuing new location (on average families move about once every 20 years)
 # Brazilian households move on average every 15-20 years → 0.4-0.5% per month.
 # At 2.5% the buyer pool (~470/month in BH) far exceeds monthly housing supply (~14),
