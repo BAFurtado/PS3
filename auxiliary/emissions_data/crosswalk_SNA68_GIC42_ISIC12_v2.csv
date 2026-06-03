@@ -1,0 +1,69 @@
+SNA_68_Code,SNA_68_Description,GIC_42_Code,ISIC_Section,Aggregation_12_Sectors
+0191,"Agriculture, including support for agriculture and postharvest",01,A,Agriculture
+0192,"Livestock, including support for livestock",01,A,Agriculture
+0280,Forest production; fisheries and aquaculture,01,A,Agriculture
+0680,"Extraction of oil and gas, including support activities",02,B,Mining
+0791,"Extraction of iron ore, including processing and agglomeration",03,B,Mining
+0580,Extraction of coal and non-metallic minerals,04,B,Mining
+0792,"Extraction of non-ferrous metal ores, including",04,B,Mining
+1091,"Slaughter and meat products, including dairy products and fishery products",05,C,Manufacturing
+1092,Manufacture and refining of sugar,05,C,Manufacturing
+1093,Other Food Products,05,C,Manufacturing
+1100,Manufacture of beverages,05,C,Manufacturing
+1200,Manufacture of tobacco products,06,C,Manufacturing
+1300,Manufacture of textiles,07,C,Manufacturing
+1400,Manufacture of wearing apparel and accessories,08,C,Manufacturing
+1500,Manufacture of footwear and leather goods,09,C,Manufacturing
+1600,Manufacture of wood products,10,C,Manufacturing
+1700,"Manufacture of pulp, paper and paper products",11,C,Manufacturing
+1800,Printing and reproduction of recordings,12,C,Manufacturing
+1991,Oil refining and coking plants,13,C,Manufacturing
+1992,Manufacture of biofuels,14,C,Manufacturing
+2091,"Manufacture of organic and inorganic chemicals, resins and elastomers",15,C,Manufacturing
+2100,Manufacture of pharmaceutical and pharmacokinetic products,16,C,Manufacturing
+2093,"Manufacture of cleaning products, cosmetics / perfumes and toilet preparations",17,C,Manufacturing
+2092,"Manufacture of pesticides, disinfectants, dyes and various chemicals",18,C,Manufacturing
+2200,Manufacture of rubber and plastic products,19,C,Manufacturing
+2300,Manufacture of non-metallic mineral products,20,C,Manufacturing
+2491,"Production of pig iron / ferrous alloys, steel and seamless steel tubes",21,C,Manufacturing
+2492,Metallurgy of non-ferrous metals and metal smelting,22,C,Manufacturing
+2500,"Manufacture of metal products, except machinery and equipment",23,C,Manufacturing
+2600,"Manufacture of computer, electronic and optical products",24,C,Manufacturing
+2800,Manufacture of machinery and mechanical equipment,24,C,Manufacturing
+3180,Manufacture of furniture and products of various industries,24,C,Manufacturing
+3300,"Maintenance, repair and installation of machinery and equipment",24,C,Manufacturing
+2700,Manufacture of electrical machinery and equipment,25,C,Manufacturing
+2991,"Manufacture of cars, trucks and buses, except parts",26,C,Manufacturing
+2992,Manufacture of parts and accessories for motor vehicles,27,C,Manufacturing
+3000,"Manufacture of other transport equipment, except motor vehicles",28,C,Manufacturing
+3500,"Electricity, natural gas and other utilities",29,D,Utilities
+3680,"Water, sewage and waste management",29,E,Utilities
+4180,Construction,30,F,Construction
+4500,Trade and repair of motor vehicles and motorcycles,31,G,Trade services
+4680,"Wholesale and retail trade, except motor vehicles",31,G,Trade services
+4900,Ground transportation,32,H,Transport services
+5000,Water transportation,32,H,Transport services
+5100,Air Transport,32,H,Transport services
+5280,"Storage, auxiliary transport and mail activities",32,H,Transport services
+5500,Accommodation,33,I,Trade services
+5600,Food services,33,I,Trade services
+5800,Print-integrated editing and editing,34,J,Business services
+5980,"Television, radio, cinema and sound / image recording / editing activities",34,J,Business services
+6100,Telecommunications,34,J,Business services
+6280,Development of systems and other information services,34,J,Business services
+6480,"Financial intermediation, insurance and supplementary pension plans",35,K,Financial services
+6800,Real estate activities,36,L,Real estate
+6980,"Legal, accounting, consulting and corporate headquarters activities",37,M,Business services
+7180,"Architectural, engineering, testing / technical analysis and R & D services",37,M,Business services
+7380,"Other professional, scientific and technical activities",37,M,Business services
+7700,Non-Real Estate Rentals and Management of Intellectual Property Assets,37,N,Business services
+7880,Other administrative activities and complementary services,37,N,Business services
+8000,"Surveillance, security and research activities",37,N,Business services
+9080,"Artistic, creative and entertainment activities",37,R,Other services
+9480,Associations and other personal services,37,S,Other services
+9700,Domestic services,37,T,Other services
+8400,"Public administration, defense and social security",38,O,Govt services
+8591,Public education,39,P,Govt services
+8592,Private education,40,P,Govt services
+8691,Public health,41,Q,Govt services
+8692,Private health,42,Q,Govt services

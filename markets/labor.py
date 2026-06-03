@@ -1,0 +1,284 @@
+import itertools
+from math import ceil
+
+import numpy as np
+import pandas as pd
+
+
+class LaborMarket:
+    """
+    This class makes the match among firms and prospective candidates.
+    The two lists (of firms and candidates) are ordered.
+    The firms that pay the highest base wage and the candidates that have the most qualification.
+    Firms on top choose first.
+    They randomly choose with a given probability either the candidate who lives the closest
+    or the most qualified.
+    Lists are emptied every month.
+    """
+
+    def __init__(self, sim, seed, seed_np):
+        self.sim = sim
+        self.seed = seed
+        self.seed_np = seed_np
+        self.gov_employees = self.process_gov_employees_year()
+        self.available_postings = list()
+        self.candidates = list()
+        if self.sim.od_matrix is not None:
+            mode_col = 'TempoRedeNec' if self.sim.PARAMS['TRANSPORT_TIME'] else 'TempoRedeBase'
+            self.commute_time = self.build_commute_time_cache(mode_col)
+            self.max_dist = None
+        else:
+            self.commute_time = None
+            self.max_dist = None
+
+    def compute_max_distance(self):
+        centroids = [r.addresses.centroid for r in self.sim.regions.values()]
+        max_dist = 0
+        for c1, c2 in itertools.combinations(centroids, 2):
+            dist = c1.distance(c2)
+            if dist > max_dist:
+                max_dist = dist
+        return max_dist
+
+    def build_commute_time_cache(self, mode_col):
+        return self.sim.od_matrix.set_index(['code_weighting_orig', 'code_weighting_dest'])[mode_col].to_dict()
+
+    def process_gov_employees_year(self):
+        employees = pd.read_csv('input/qtde_vinc_gov_rais_stable_from_2020_onwards.csv')
+        geo_codes_6_digit = [int(str(_)[:6]) for _ in self.sim.geo.mun_codes]
+        # Just municipalities in this run
+        return employees[employees['codemun'].isin(geo_codes_6_digit)]
+
+    def add_post(self, firm):
+        self.available_postings.append(firm)
+
+    @property
+    def num_candidates(self):
+        return len(self.candidates)
+
+    def reset(self):
+        self.available_postings = list()
+        self.candidates = list()
+
+    def assign_post(self, unemployment, wage_deciles, params):
+        """Rank positions by revenue. Make a match as workers considers mobility choices """
+        pct_distance_hiring = params['PCT_DISTANCE_HIRING']
+        relevance_unemployment = params['RELEVANCE_UNEMPLOYMENT_SALARIES']
+
+        self.seed_np.shuffle(self.candidates)
+        if wage_deciles is not None:
+            for c in self.candidates:
+                if c.last_wage:
+                    for i, d in enumerate(wage_deciles):
+                        if d > c.last_wage:
+                            break
+                    p_car = params['WAGE_TO_CAR_OWNERSHIP_QUANTILES'][i]
+                    c.has_car = self.seed_np.rand() < p_car
+                else:
+                    c.has_car = False
+        else:
+            [setattr(c, 'has_car', False) for c in self.candidates]
+
+        # If parameter of distance or qualification is ON, firms are the ones that are divided by the criteria
+        # Candidates consider distance when they deduce cost of mobility from potential wage bundle
+        # Division between qualification and proximity is done randomly
+        self.seed_np.shuffle(self.available_postings)
+        if len(self.available_postings) >= 2:
+            split = int(len(self.available_postings) * (1 - pct_distance_hiring))
+            by_qual = self.available_postings[0:split]
+            by_dist = self.available_postings[split:]
+        else:
+            return
+
+        # Choosing by qualification
+        # Firms paying higher wages first
+        by_qual = [(f, f.wage_base(unemployment, relevance_unemployment)) for f in by_qual]
+        by_qual.sort(key=lambda p: p[1], reverse=True)
+        by_dist = [(f, f.wage_base(unemployment, relevance_unemployment)) for f in by_dist]
+        by_dist.sort(key=lambda p: p[1], reverse=True)
+
+        # Two matching processes. 1. By qualification 2. By distance only, if candidates left
+        cand_still_looking = self.matching_firm_offers(by_qual, params, cand_looking=None, flag='qualification')
+        self.matching_firm_offers(by_dist, params, cand_still_looking)
+
+        self.available_postings = []
+        self.candidates = []
+
+    def compute_scores_cobb_douglas_vectorized(self,
+                                               candidates, firm, wage,
+                                               qual_min, qual_max, dist_max, wage_min, wage_max,
+                                               alpha, beta,
+                                               private_cost, public_cost
+                                               ):
+        """
+        candidates: lista de candidatos
+        firm: firma
+        wage: salário da firma
+        od_matrix: dicionário de deslocamentos
+        *_min, *_max: limites inferiores e superiores para normalização
+        alpha, beta: parâmetros Cobb-Douglas
+        """
+
+        gamma = 1.0 - alpha - beta
+
+        # Lista de atributos dos candidatos
+        quals = np.array([c.qualification for c in candidates])
+        # Normalização
+        q_norm = (quals - qual_min) / (qual_max - qual_min + 1e-6)
+
+        # Transit cost
+        has_car = np.array([c.has_car for c in candidates])
+        transit_cost = np.where(has_car, private_cost, public_cost)
+
+        # Distâncias ou tempos de deslocamento
+        if self.sim.od_matrix is not None:
+            commutes = np.array([
+                self.sim.od_matrix.get((c.family.house.region_id, firm.region_id), dist_max)
+                for c in candidates
+            ])
+        else:
+            commutes = np.array([
+                c.family.house.distance_to_firm(firm)
+                for c in candidates
+            ])
+        # Penalty: distance * cost
+        commute_penalty = commutes * transit_cost
+        penalty_min = np.min(commute_penalty)
+        penalty_max = np.max(commute_penalty)
+
+        t_norm = 1.0 - (commute_penalty - penalty_min) / (penalty_max - penalty_min + 1e6)
+
+        # Salário é fixo por firma
+        w_norm = (wage - wage_min) / (wage_max - wage_min + 1e-6)
+        w_norm = np.full_like(q_norm, w_norm)
+
+        # Evita log(0) e normaliza dentro do intervalo (0.001, 1.0)
+        q_norm = np.clip(q_norm, 1e-3, 1.0)
+        t_norm = np.clip(t_norm, 1e-3, 1.0)
+        w_norm = np.clip(w_norm, 1e-3, 1.0)
+
+        # Cálculo vetorizado do log-score Cobb-Douglas
+        scores = alpha * np.log(q_norm) + beta * np.log(t_norm) + gamma * np.log(w_norm)
+
+        return scores
+
+
+    def matching_firm_offers(self, lst_firms, params, cand_looking=None, flag=None):
+        if cand_looking:
+            candidates = cand_looking
+        else:
+            candidates = self.candidates
+        if not candidates:
+            return None
+        offers = []
+        done_firms = set()
+        done_cands = set()
+        alpha = self.sim.PARAMS['CB_QUALIFICATION']
+        beta = self.sim.PARAMS['CB_COMMUTING']
+        public_cost = self.sim.PARAMS['PUBLIC_TRANSIT_COST']
+        public_private = self.sim.PARAMS['PRIVATE_TRANSIT_COST']
+        # This organizes a number of offers of candidates per firm, according to their own location
+        # and "size" of a firm, giving by its more recent revenue level
+        # Min, Max for score attributes normalization
+        qual_min, qual_max = min(c.qualification for c in candidates), max(c.qualification for c in candidates)
+        if self.sim.od_matrix is not None:
+            dist_max = max(self.commute_time.values())
+        else:
+            if self.max_dist is None:
+                self.max_dist = self.compute_max_distance()
+                dist_max = self.max_dist
+            else:
+                dist_max = self.max_dist
+        wages = [w for _, w in lst_firms]
+        wage_min, wage_max = min(wages), max(wages)
+
+        for firm, wage in lst_firms:
+            sampled_candidates = self.seed.sample(candidates,
+                                                  min(len(candidates), int(params['HIRING_SAMPLE_SIZE'])))
+            scores = self.compute_scores_cobb_douglas_vectorized(
+                sampled_candidates, firm, wage,
+                qual_min, qual_max, dist_max, wage_min, wage_max,
+                alpha, beta,
+                public_cost, public_private
+            )
+            for c, s in zip(sampled_candidates, scores):
+                offers.append((firm, c, s))
+
+        # Then, the criteria is used to order all candidates
+        offers = sorted(offers, key=lambda o: o[2], reverse=True)
+        for firm, candidate, score in offers:
+            if firm not in done_firms and candidate not in done_cands:
+                self.apply_assign(candidate, firm)
+                done_firms.add(firm)
+                done_cands.add(candidate)
+
+        # If this run was for qualification, another run for distance has to go through
+        if flag:
+            # Now it is time for the matching for firms favoring proximity
+            cand_still_looking = [c for c in self.candidates if c not in done_cands]
+            return cand_still_looking
+        return None
+
+    @staticmethod
+    def apply_assign(chosen, firm):
+        chosen.set_commute(firm)
+        firm.add_employee(chosen)
+
+    def look_for_jobs(self, agents):
+        self.candidates += [agent for agent in agents.values() if 16 < agent.age < 70 and agent.firm_id is None]
+        pass
+
+    def gov_hire_fire(self, sim):
+        total_gov_employees = ceil(self.gov_employees[self.gov_employees.ano == sim.clock.year].qtde_vinc_ativos.sum() *
+                                   sim.PARAMS['PERCENTAGE_ACTUAL_POP'])
+        gov_firms = [firm for firm in sim.firms.values()
+                     if firm.sector == 'Government']
+        total_employment = sum([f.num_employees for f in gov_firms])
+        jobs_balance = total_gov_employees - total_employment
+
+        if jobs_balance > 0:
+            posts_per_firm = max(1, ceil(jobs_balance / len(gov_firms)))
+            posted = 0
+            for f in sim.seed.sample(gov_firms, len(gov_firms)):
+                if posted >= jobs_balance:
+                    break
+                n = min(posts_per_firm, jobs_balance - posted)
+                for _ in range(n):
+                    self.add_post(f)
+                posted += n
+        elif jobs_balance < 0:
+            to_fire = -jobs_balance
+            fires_per_firm = max(1, ceil(to_fire / len(gov_firms)))
+            fired = 0
+            for f in sim.seed.sample(gov_firms, len(gov_firms)):
+                if fired >= to_fire:
+                    break
+                for _ in range(min(fires_per_firm, to_fire - fired)):
+                    if f.employees:
+                        f.fire(self.seed)
+                        fired += 1
+
+    def hire_fire(self, firms, firm_enter_freq, initialize=False):
+        """Firms adjust their labor force based on profit"""
+        random_value = self.seed_np.random(size=len(firms.values()))
+        n_fired = 0
+        for i, firm in enumerate(firms.values()):
+            # `firm_enter_freq` is the frequency firms enter the market
+            if random_value[i] < firm_enter_freq:
+                if initialize:
+                    self.add_post(firm)
+                elif firm.total_balance <= 0:
+                    # Insolvent: shed labour regardless of production signal
+                    firm.fire(self.seed_np)
+                    n_fired += 1
+                elif firm.increase_production and firm.profit >= 0:
+                    self.add_post(firm)
+                elif not firm.increase_production and firm.profit < 0:
+                    # Fire only when BOTH signals align: surplus inventory AND losing money.
+                    # OR-logic fired profitable firms with adequate stock, collapsing demand.
+                    firm.fire(self.seed_np)
+                    n_fired += 1
+        # print('N of fired: ',n_fired)
+
+    def __repr__(self):
+        return self.available_postings, self.candidates

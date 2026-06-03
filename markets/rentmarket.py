@@ -1,0 +1,134 @@
+
+
+def collect_rent(houses, sim):
+    for house in houses:
+        if house.rent_data:
+            rent = house.rent_data[0]
+            tenant = sim.families[house.family_id]
+            land_family = sim.families[house.owner_id]
+
+            # Collect taxes on transaction
+            taxes = rent * sim.PARAMS['TAX_LABOR']
+
+            # If family belongs to rent policy programme, rent is paid for
+            if tenant.rent_voucher:
+                # Money has been deducted from municipal balance when voucher was conceded.
+                payment = house.rent_data[0].copy()
+                tenant.rent_voucher -= 1
+            else:
+                payment = 0
+
+            # If cash is not enough to pay rent
+            if payment < rent:
+                difference = rent - payment
+                # Try savings
+                if tenant.savings >= difference:
+                    # Withdraw difference from savings
+                    tenant.savings -= difference
+                    # And add to payment made
+                    payment += difference
+                else:
+                    # Take whatever savings are available
+                    payment += tenant.savings
+                    tenant.savings = 0
+
+                # If money still not enough, try deposits in the bank
+                if payment < rent:
+                    if sim.central.wallet[tenant]:
+                        cash = tenant.grab_savings(sim.central, sim.clock.year, sim.clock.months)
+                        difference = payment - rent
+                        if cash > difference:
+                            tenant.savings += cash - difference
+                            payment += difference
+                        else:
+                            payment += cash
+
+            tenant.rent_default = 1 if payment == 0 else 0
+            # Deposit change, if any. If payment is not enough in the end, land_family gets the loss
+            # and does not receive payment.
+            # Now handle the financial transactions
+            if payment > 0:
+                # Collect taxes only on actual payment made
+                actual_taxes = min(payment, taxes)  # Can't tax more than was paid
+                sim.regions[house.region_id].collect_taxes(actual_taxes, 'labor')
+
+                # Landlord gets what's left after taxes
+                landlord_payment = payment - actual_taxes
+                if landlord_payment > 0:
+                    land_family.update_balance(round(landlord_payment, 2))
+
+                # If tenant overpaid, return the difference
+                if payment > rent:
+                    overpayment = payment - rent
+                    tenant.update_balance(round(overpayment, 2))
+
+
+class RentalMarket:
+
+    def __init__(self):
+        self.unoccupied = list()
+
+    def update_list(self, sim, to_rent=None):
+        if to_rent is not None:
+            self.unoccupied = to_rent
+        else:
+            # Only rent from families, not firms
+            self.unoccupied = [h for h in sim.houses.values() if h.family_id is None and h.family_owner]
+
+    def maybe_move(self, family, house, price, sim):
+        # Make the move
+        old_r_id = family.region_id
+        if family.house:
+            # Families who are already settled, will move into rental only if better quality (that is, price)
+            if family.house.price > house.price:
+                return
+            # Don't move if rent would exceed the affordability threshold (comprometimento de renda)
+            if price > family.get_permanent_income() * sim.PARAMS['MAX_RENT_TO_INCOME_RATIO']:
+                return
+            family.move_out(sim.funds)
+        family.move_in(house)
+        self.unoccupied.remove(house)
+        # Save information of rental on house
+        house.rent_data = price, sim.clock.days
+
+        # Only after simulation has begun, it is necessary to update population, not at generation time
+        try:
+            if sim.mun_pops:
+                if old_r_id and family.region_id:
+                    for _ in family.agents:
+                        sim.update_pop(old_r_id, family.region_id)
+        except AttributeError:
+            pass
+
+    def rental_market(self, families, sim, to_rent=None):
+        # Families that come here without a house (from marriage or immigration) need to move in or give up their plans
+        # In that case, the list of houses is any unoccupied houses. Not a sample list separated for the rental market
+        base_proportion = sim.PARAMS['INITIAL_RENTAL_PRICE']
+        self.update_list(sim, to_rent)
+        if families:
+            families.sort(key=lambda f: f.get_permanent_income(), reverse=True)
+            for family in families:
+                # Make sure list of vacant houses is up-to-date
+                self.unoccupied = [h for h in self.unoccupied if h.family_id is None]
+                # Matching
+                my_market = sim.seed.sample(self.unoccupied,
+                                            min(len(self.unoccupied), int(sim.PARAMS['SIZE_MARKET']) * 3))
+                in_budget = [h for h in my_market if h.price * base_proportion < family.get_permanent_income()]
+                if in_budget:
+                    house = sim.seed.choice(in_budget)
+                    price = house.price * base_proportion
+                else:
+                    if my_market:
+                        my_market.sort(key=lambda h: h.price)
+                        house = my_market[0]
+                    elif self.unoccupied:
+                        self.unoccupied.sort(key=lambda h: h.price)
+                        house = self.unoccupied[0]
+                    else:
+                        # Family may go without a house. Try next month if there are vacancies
+                        return
+                    # Ask for reduced price, because out of budget. Varying according to number of available houses
+                    price = house.price * base_proportion * (1 - (sim.PARAMS['PRICE_RUGGEDNESS'] / len(my_market)))
+                # house.price already incorporates the vacancy adjustment via update_price()
+                # Decision on moving. If no house, move, else, consider. If worse quality, give up on renting.
+                self.maybe_move(family, house, price, sim)

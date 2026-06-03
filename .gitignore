@@ -1,0 +1,53 @@
+# Simulation outputs
+output/
+StoragedAgents/
+
+# Compiled Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# IDE
+.idea/
+.vscode/
+
+# Validation outputs (simulated data and result plots)
+analysis/validation/simulated_data/
+analysis/validation/results/
+
+# Internal calibration outputs (wave-specific)
+analysis/validation/*_full.csv
+analysis/validation/*_pre_2025.csv
+analysis/validation/*.tex
+analysis/validation/oat_heatmap_*.png
+analysis/validation/price_inflation_*.png
+analysis/validation/qli_fgts_*.png
+analysis/validation/tax_gdp_*.png
+
+# Redundant auxiliary outputs (canonical versions are in input/planhab_funds/)
+auxiliary/housing_data/outputs/
+
+# Calibration-specific runner scripts
+runner.py
+runner_sensitivity.py
+
+# Backup files
+*.bak
+
+# Internal documents
+PlanHab_todo.MD
+HANDOFF.md
+CLAUDE.md
+WAVE27_RESULTS.md
+text/memoria_calculo_investimentos_melhorias.txt
+text/ps3/
+text/*.pdf
+text/*.docx
+text/*.zip
+text/*.png
+text/*.html
+text/gera_diagramas.py
+
+# OS
+.DS_Store
+Thumbs.db
