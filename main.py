@@ -22,7 +22,7 @@ import matplotlib
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from joblib import Parallel, delayed
+from concurrent.futures import ProcessPoolExecutor, as_completed, BrokenExecutor
 
 import conf
 import main_plotting
@@ -76,6 +76,37 @@ def single_run(params, path):
                            params=params, logger=logger, sim=sim)
 
 
+def _run_jobs_parallel(jobs, cpus):
+    """
+    Run jobs with ProcessPoolExecutor. If a worker is killed (OOM, signal),
+    BrokenExecutor is caught and the pool restarts using DONE files as truth.
+    Up to 3 restarts; individual run errors are logged and skipped.
+    """
+    remaining = list(jobs)
+    max_restarts = 3
+    restarts = 0
+    while remaining:
+        try:
+            with ProcessPoolExecutor(max_workers=cpus) as executor:
+                futures = {executor.submit(single_run, j['params'], j['path']): j
+                           for j in remaining}
+                for future in as_completed(futures):
+                    try:
+                        future.result()
+                    except Exception as e:
+                        logger.error('Run failed (%s): %s', futures[future]['path'], e)
+        except BrokenExecutor as e:
+            restarts += 1
+            logger.warning('Worker killed (%s). Restart %d/%d...', e, restarts, max_restarts)
+            if restarts >= max_restarts:
+                logger.error('Max restarts reached. Giving up on remaining jobs.')
+                break
+        remaining = [j for j in remaining
+                     if not os.path.exists(os.path.join(j['path'], 'DONE'))]
+        if remaining and restarts < max_restarts:
+            logger.info('%d job(s) still pending after restart.', len(remaining))
+
+
 def multiple_runs(overrides, runs, cpus, output_dir, fix_seeds=None):
     """Run multiple configurations, each `runs` times"""
     # overrides is a list of dictionaries with parameter name and value
@@ -114,13 +145,11 @@ def multiple_runs(overrides, runs, cpus, output_dir, fix_seeds=None):
         jobs = []
         for p, path in zip(params, paths):
             for i in range(runs):
-                p = copy.deepcopy(p)
+                job_p = copy.deepcopy(p)
                 if fix_seeds:
-                    p['SEED'] = fix_seeds[i]
-                jobs.append((delayed(single_run)(p, os.path.join(path, str(i)))))
-        for _ in Parallel(n_jobs=cpus, prefer='processes', backend='multiprocessing',
-                           batch_size=1, return_as='generator')(jobs):
-            pass
+                    job_p['SEED'] = fix_seeds[i]
+                jobs.append({'params': job_p, 'path': os.path.join(path, str(i))})
+        _run_jobs_parallel(jobs, cpus)
 
     logger.info('Averaging run data...')
     results = []
@@ -468,10 +497,7 @@ def resume(root_dir, cpus):
         for job in pending:
             single_run(job['params'], job['path'])
     else:
-        jobs = [delayed(single_run)(job['params'], job['path']) for job in pending]
-        for _ in Parallel(n_jobs=cpus, prefer='processes', backend='multiprocessing',
-                           batch_size=1, return_as='generator')(jobs):
-            pass
+        _run_jobs_parallel(pending, cpus)
 
     logger.info('Finished.')
 
