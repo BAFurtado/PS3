@@ -54,34 +54,21 @@ CITY_CONFIGS = {
     'RIO BRANCO':     {'runs': 3, 'cpus': 2},
 }
 
+# Cities still missing complete runs as of stats36 (2026-06-09).
+# 10 cities had zero planhab runs; SAO PAULO needs pessimista/True completed
+# (1 of 3 runs exists). Running full PLANHAB for all 11 is safe — duplicates
+# are harmless and the aggregation script picks any 3 complete runs per combo.
 CAPITAIS = [
-    'ARACAJU',
-    'BELEM',
-    'BELO HORIZONTE',
     'BOA VISTA',
-    'BRASILIA',
-    'CAMPO GRANDE',
     'CUIABA',
-    'CURITIBA',
-    'FLORIANOPOLIS',
     'FORTALEZA',
-    'GOIANIA',
-    'JOAO PESSOA',
     'MACAPA',
     'MACEIO',
-    'MANAUS',
     'NATAL',
     'PALMAS',
-    'PORTO ALEGRE',
-    'PORTO VELHO',
-    'RECIFE',
-    'RIO BRANCO',
-    'RIO DE JANEIRO',
     'SAO LUIS',
-    'SAO PAULO',
     'SALVADOR',
     'TERESINA',
-    'VITORIA',
 ]
 
 
