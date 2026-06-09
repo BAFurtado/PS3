@@ -1,6 +1,6 @@
 # PolicySpace3 (PS3)
 
-![Python](https://img.shields.io/badge/python-3.12-blue) ![License](https://img.shields.io/badge/license-GNU%20v3-green)
+![Python](https://img.shields.io/badge/python-3.12-blue) ![GitHub](https://img.shields.io/github/license/bafurtado/PS3) ![GitHub stars](https://img.shields.io/github/stars/bafurtado/PS3.svg?color=orange) ![GitHub forks](https://img.shields.io/github/forks/bafurtado/PS3)
 
 **An open agent-based platform for ex ante simulation of public policies in Brazilian urban areas.**
 

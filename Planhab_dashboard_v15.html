@@ -332,13 +332,7 @@ select:focus{border-color:var(--accent);}
         <span id="indiv-lbl">Show</span>
       </label>
     </div>
-    <div class="ctrl" id="dim-ctrl" style="display:none">
-      <label>Dim individual to</label>
-      <div class="slider-row">
-        <input type="range" id="dim-slider" min="0" max="100" step="5" value="30">
-        <span class="slider-val" id="dim-val">30%</span>
-      </div>
-    </div>
+
     <div class="ctrl">
       <label>Columns</label>
       <select id="sel-cols"><option value="1">1 col</option><option value="2" selected>2 col</option><option value="3">3 col</option></select>
@@ -381,7 +375,14 @@ select:focus{border-color:var(--accent);}
           <span>Legend</span>
           <span style="color:var(--muted);font-size:9px">Click to hide &nbsp;&#183;&nbsp; Double-click label to rename</span>
         </div>
-        <div style="display:flex;gap:6px">
+        <div style="display:flex;gap:6px;align-items:center">
+          <span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Export legend:</span>
+          <select id="gl-legend-pos" style="font-size:10px;padding:3px 7px;min-width:0">
+            <option value="above">Above chart</option>
+            <option value="below">Below chart</option>
+            <option value="right">Right of chart</option>
+            <option value="none">No legend</option>
+          </select>
           <button class="btn btn-sm" id="gl-show-all">Show all</button>
           <button class="btn btn-sm" id="gl-hide-all">Hide all</button>
           <button class="btn btn-sm" id="gl-reset-labels">Reset labels</button>
@@ -764,7 +765,6 @@ function initApp(filename){
     showAggregate=!showAggregate; aggPill.classList.toggle("on",showAggregate);
     document.getElementById("agg-panel").classList.toggle("visible",showAggregate);
     document.getElementById("indiv-toggle-ctrl").style.display=showAggregate?"flex":"none";
-    document.getElementById("dim-ctrl").style.display=showAggregate?"flex":"none";
     if(showAggregate) buildAggPanel();
     buildCharts();
   });
@@ -869,11 +869,7 @@ function initApp(filename){
     buildCharts();
   });
 
-  // Dim slider
-  document.getElementById("dim-slider").addEventListener("input",function(){
-    document.getElementById("dim-val").textContent=this.value+"%";
-    if(showAggregate) debounce(buildCharts,150);
-  });
+
 
   // Columns
   document.getElementById("sel-cols").addEventListener("change",function(){
@@ -1126,8 +1122,8 @@ function buildCharts(){
   var polList=Object.keys(activePolicies);
   var varList=Object.keys(selectedVars);
   var sw=parseInt(document.getElementById("smooth-slider").value)||0;
-  var dimPct=parseInt(document.getElementById("dim-slider").value)||30;
-  var dimAlpha=dimPct/100;
+  
+  
 
   var indivVisible=showIndividual;
   var seriesN=acpList.length*scList.length*polList.length+(showAggregate?scList.length*polList.length:0);
@@ -1209,7 +1205,7 @@ function buildCharts(){
     // 2. Individual ACP series
     acpList.forEach(function(acp){
       var baseOpa=ACP_OPACITY[acp]||0;
-      var effOpa=!indivVisible?0:(showAggregate?Math.min(baseOpa,dimAlpha):baseOpa);
+      var effOpa=!indivVisible?0:baseOpa;
       scList.forEach(function(sc){
         polList.forEach(function(pol){
           var hexColor=seriesColor(ACP_COLORS[acp]||"#666",sc);
@@ -1339,8 +1335,6 @@ function buildGlobalLegend(){
 
 function applySeriesVisibility(){
   // For each chart, set dataset opacity based on hidden state + existing opacity logic
-  var dimPct=parseInt(document.getElementById("dim-slider").value)||30;
-  var dimAlpha=dimPct/100;
   var indivVisible=showIndividual;
 
   Object.keys(charts).forEach(function(variable){
@@ -1357,7 +1351,7 @@ function applySeriesVisibility(){
         if(sd.isAgg) opa=getAggStyle(sd.sc,sd.pol).opacity;
         else {
           var baseOpa=ACP_OPACITY[sd.acp]||0;
-          opa=!indivVisible?0:(showAggregate?Math.min(baseOpa,dimAlpha):baseOpa);
+          opa=!indivVisible?0:baseOpa;
         }
         ds.borderColor=toRgba(hexColor,opa);
       }
@@ -1708,7 +1702,30 @@ function renderSingleMatrix(canvas,matrix,vars,cellSz,fontSize,rowW,colH,W,H){
 // ═══════════════════════════════════════════════════════
 //  LEGEND CANVAS RENDERER  (for composed export)
 // ═══════════════════════════════════════════════════════
-function renderLegendCanvas(dpr){
+function getLegendPosition(){
+  var sel=document.getElementById("gl-legend-pos");
+  return sel?sel.value:"above";
+}
+
+// ── Title strip canvas ──
+function renderTitleCanvas(titleText,dpr,minWidth){
+  var fs=13,padX=14,padY=9;
+  var tmp=document.createElement("canvas");
+  var tCtx=tmp.getContext("2d");
+  tCtx.font="400 "+fs+"px 'Source Serif 4',Georgia,serif";
+  var tw=tCtx.measureText(titleText).width;
+  var W=Math.max(minWidth||0,tw+padX*2), H=fs+padY*2;
+  var canvas=document.createElement("canvas");
+  canvas.width=Math.ceil(W*dpr); canvas.height=Math.ceil(H*dpr);
+  var ctx=canvas.getContext("2d"); ctx.scale(dpr,dpr);
+  ctx.fillStyle="#fff"; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle="#1a1a18"; ctx.font="400 "+fs+"px 'Source Serif 4',Georgia,serif";
+  ctx.textBaseline="middle"; ctx.fillText(titleText,padX,H/2);
+  return canvas;
+}
+
+// ── Legend canvas (horizontal or vertical layout) ──
+function renderLegendCanvas(dpr,vertical){
   var firstVar=Object.keys(chartMeta)[0]; if(!firstVar) return null;
   var meta=chartMeta[firstVar]; if(!meta) return null;
 
@@ -1727,12 +1744,31 @@ function renderLegendCanvas(dpr){
   });
   if(!items.length) return null;
 
-  var fs=10, itemH=20, padX=14, padY=8, swW=20, gap=8, itemGap=16;
-  var maxW=720;
+  var fs=10,itemH=20,padX=14,padY=8,swW=20,gap=8,itemGap=16;
   var tmp=document.createElement("canvas");
   var tCtx=tmp.getContext("2d"); tCtx.font=fs+"px 'IBM Plex Mono',monospace";
 
-  // Layout items into rows
+  if(vertical){
+    // Single column
+    var maxLW=0; items.forEach(function(item){ var w=tCtx.measureText(item.label).width; if(w>maxLW) maxLW=w; });
+    var W=padX+swW+gap+maxLW+padX, H=items.length*itemH+padY*2;
+    var canvas=document.createElement("canvas");
+    canvas.width=Math.ceil(W*dpr); canvas.height=Math.ceil(H*dpr);
+    var ctx=canvas.getContext("2d"); ctx.scale(dpr,dpr);
+    ctx.fillStyle="#fff"; ctx.fillRect(0,0,W,H);
+    ctx.font=fs+"px 'IBM Plex Mono',monospace"; ctx.textBaseline="middle";
+    items.forEach(function(item,i){
+      var x=padX, y=padY+i*itemH+itemH/2;
+      ctx.beginPath(); ctx.strokeStyle=item.color; ctx.lineWidth=item.lineW;
+      if(item.isDotted) ctx.setLineDash([2,2]); else if(item.isDashed) ctx.setLineDash([5,3]); else ctx.setLineDash([]);
+      ctx.moveTo(x,y); ctx.lineTo(x+swW,y); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle="#1a1a18"; ctx.fillText(item.label,x+swW+gap,y);
+    });
+    return canvas;
+  }
+
+  // Horizontal with wrapping
+  var maxW=720;
   var rows=[[]], rowW=padX;
   items.forEach(function(item){
     var tw=tCtx.measureText(item.label).width;
@@ -1741,22 +1777,18 @@ function renderLegendCanvas(dpr){
     rows[rows.length-1].push({item:item,tw:tw,iw:iw});
     rowW+=iw;
   });
-
   var W=maxW, H=rows.length*itemH+padY*2;
   var canvas=document.createElement("canvas");
   canvas.width=Math.ceil(W*dpr); canvas.height=Math.ceil(H*dpr);
   var ctx=canvas.getContext("2d"); ctx.scale(dpr,dpr);
   ctx.fillStyle="#fff"; ctx.fillRect(0,0,W,H);
   ctx.font=fs+"px 'IBM Plex Mono',monospace"; ctx.textBaseline="middle";
-
   rows.forEach(function(row,ri){
     var x=padX, y=padY+ri*itemH+itemH/2;
     row.forEach(function(entry){
       var item=entry.item;
       ctx.beginPath(); ctx.strokeStyle=item.color; ctx.lineWidth=item.lineW;
-      if(item.isDotted) ctx.setLineDash([2,2]);
-      else if(item.isDashed) ctx.setLineDash([5,3]);
-      else ctx.setLineDash([]);
+      if(item.isDotted) ctx.setLineDash([2,2]); else if(item.isDashed) ctx.setLineDash([5,3]); else ctx.setLineDash([]);
       ctx.moveTo(x,y); ctx.lineTo(x+swW,y); ctx.stroke(); ctx.setLineDash([]);
       ctx.fillStyle="#1a1a18"; ctx.fillText(item.label,x+swW+gap,y);
       x+=entry.iw;
@@ -1765,23 +1797,68 @@ function renderLegendCanvas(dpr){
   return canvas;
 }
 
-function composeChartWithLegend(chartCanvas,legCanvas,dpr){
-  if(!legCanvas) return chartCanvas;
+// ── Compose title + chart + legend according to position ──
+function composeChartWithLegend(chartCanvas,legCanvas,titleCanvas,dpr,position){
+  // Helper: draw canvas onto ctx at logical coords
+  function draw(ctx,src,x,y){ ctx.drawImage(src,x*dpr,y*dpr,src.width,src.height); }
+
   var cW=chartCanvas.width/dpr, cH=chartCanvas.height/dpr;
-  var lW=legCanvas.width/dpr, lH=legCanvas.height/dpr;
-  var W=Math.max(cW,lW), H=lH+cH;
-  var out=document.createElement("canvas");
-  out.width=Math.ceil(W*dpr); out.height=Math.ceil(H*dpr);
-  var ctx=out.getContext("2d"); ctx.scale(dpr,dpr);
-  ctx.fillStyle="#fff"; ctx.fillRect(0,0,W,H);
-  ctx.drawImage(legCanvas,0,0,lW,lH);
-  ctx.drawImage(chartCanvas,0,lH,cW,cH);
+  var tH=titleCanvas?titleCanvas.height/dpr:0;
+  var lW=legCanvas?legCanvas.width/dpr:0, lH=legCanvas?legCanvas.height/dpr:0;
+
+  var W, H, out, ctx;
+
+  if(!legCanvas||position==="none"){
+    W=Math.max(cW,titleCanvas?titleCanvas.width/dpr:0);
+    H=tH+cH;
+    out=document.createElement("canvas"); out.width=Math.ceil(W*dpr); out.height=Math.ceil(H*dpr);
+    ctx=out.getContext("2d");
+    ctx.fillStyle="#fff"; ctx.fillRect(0,0,out.width,out.height);
+    if(titleCanvas) ctx.drawImage(titleCanvas,0,0);
+    ctx.drawImage(chartCanvas,0,Math.round(tH*dpr));
+    return out;
+  }
+
+  if(position==="right"){
+    var legV=renderLegendCanvas(dpr,true); // vertical legend for right placement
+    var lvW=legV?legV.width/dpr:lW, lvH=legV?legV.height/dpr:lH;
+    W=cW+lvW+12; H=tH+Math.max(cH,lvH);
+    out=document.createElement("canvas"); out.width=Math.ceil(W*dpr); out.height=Math.ceil(H*dpr);
+    ctx=out.getContext("2d");
+    ctx.fillStyle="#fff"; ctx.fillRect(0,0,out.width,out.height);
+    if(titleCanvas) ctx.drawImage(titleCanvas,0,0);
+    ctx.drawImage(chartCanvas,0,Math.round(tH*dpr));
+    if(legV) ctx.drawImage(legV,Math.round((cW+12)*dpr),Math.round(tH*dpr));
+    return out;
+  }
+
+  if(position==="below"){
+    W=Math.max(cW,lW,titleCanvas?titleCanvas.width/dpr:0);
+    H=tH+cH+lH;
+    out=document.createElement("canvas"); out.width=Math.ceil(W*dpr); out.height=Math.ceil(H*dpr);
+    ctx=out.getContext("2d");
+    ctx.fillStyle="#fff"; ctx.fillRect(0,0,out.width,out.height);
+    if(titleCanvas) ctx.drawImage(titleCanvas,0,0);
+    ctx.drawImage(chartCanvas,0,Math.round(tH*dpr));
+    ctx.drawImage(legCanvas,0,Math.round((tH+cH)*dpr));
+    return out;
+  }
+
+  // above (default)
+  W=Math.max(cW,lW,titleCanvas?titleCanvas.width/dpr:0);
+  H=tH+lH+cH;
+  out=document.createElement("canvas"); out.width=Math.ceil(W*dpr); out.height=Math.ceil(H*dpr);
+  ctx=out.getContext("2d");
+  ctx.fillStyle="#fff"; ctx.fillRect(0,0,out.width,out.height);
+  if(titleCanvas) ctx.drawImage(titleCanvas,0,0);
+  ctx.drawImage(legCanvas,0,Math.round(tH*dpr));
+  ctx.drawImage(chartCanvas,0,Math.round((tH+lH)*dpr));
   return out;
 }
 
 function exportChartWithLegend(variable){
   var chart=charts[variable]; if(!chart) return;
-  var dpr=getDPR();
+  var dpr=getDPR(), pos=getLegendPosition();
   var orig=chart.options.devicePixelRatio;
   chart.options.devicePixelRatio=dpr; chart.resize(); chart.update("none");
   var chartDataUrl=chart.toBase64Image("image/png",1);
@@ -1789,14 +1866,15 @@ function exportChartWithLegend(variable){
 
   var lbl=(VAR_LABEL[variable]||variable).replace(/[^a-z0-9]+/gi,"_").toLowerCase();
   var fname="abm_"+lbl+"_"+exportSlug()+".png";
-  var legCanvas=renderLegendCanvas(dpr);
+  var legCanvas=pos!=="none"?renderLegendCanvas(dpr,false):null;
 
   var img=new Image();
   img.onload=function(){
     var tmp=document.createElement("canvas");
     tmp.width=img.width; tmp.height=img.height;
     tmp.getContext("2d").drawImage(img,0,0);
-    var composed=composeChartWithLegend(tmp,legCanvas,dpr);
+    var titleCanvas=renderTitleCanvas(VAR_LABEL[variable]||variable,dpr,img.width/dpr);
+    var composed=composeChartWithLegend(tmp,legCanvas,titleCanvas,dpr,pos);
     var a=document.createElement("a"); a.href=composed.toDataURL("image/png",1); a.download=fname; a.click();
   };
   img.src=chartDataUrl;
@@ -1804,8 +1882,8 @@ function exportChartWithLegend(variable){
 
 async function exportAllChartsWithLegend(){
   var ckeys=Object.keys(charts); if(!ckeys.length) return;
-  var dpr=getDPR(), slug=exportSlug();
-  var legCanvas=renderLegendCanvas(dpr);
+  var dpr=getDPR(), slug=exportSlug(), pos=getLegendPosition();
+  var legCanvas=pos!=="none"?renderLegendCanvas(dpr,false):null;
   var zip=new JSZip();
 
   for(var ci=0;ci<ckeys.length;ci++){
@@ -1817,13 +1895,13 @@ async function exportAllChartsWithLegend(){
     var chartDataUrl=chart.toBase64Image("image/png",1);
     chart.options.devicePixelRatio=orig; chart.resize(); chart.update("none");
 
-    // Compose via offscreen Image
     await new Promise(function(resolve){
       var img=new Image();
       img.onload=function(){
         var tmp=document.createElement("canvas"); tmp.width=img.width; tmp.height=img.height;
         tmp.getContext("2d").drawImage(img,0,0);
-        var composed=composeChartWithLegend(tmp,legCanvas,dpr);
+        var titleCanvas=renderTitleCanvas(VAR_LABEL[variable]||variable,dpr,img.width/dpr);
+        var composed=composeChartWithLegend(tmp,legCanvas,titleCanvas,dpr,pos);
         var b64=composed.toDataURL("image/png",1).split(",")[1];
         zip.file("abm_"+lbl+"_"+slug+".png",b64,{base64:true});
         resolve();
@@ -1833,9 +1911,8 @@ async function exportAllChartsWithLegend(){
   }
   var blob=await zip.generateAsync({type:"blob"});
   var a=document.createElement("a"); a.href=URL.createObjectURL(blob);
-  a.download="abm_charts_with_legend_"+slug+".zip"; a.click();
+  a.download="abm_charts_"+slug+".zip"; a.click();
 }
-
 function exportAllCorrPNG(){
   if(!lastCorrData) return;
   var dpr=parseInt(document.getElementById("export-dpi").value)||3;
@@ -1914,8 +1991,8 @@ document.getElementById("btn-export-legend").addEventListener("click",function()
   if(!Object.keys(charts).length){ alert("No charts rendered yet."); return; }
   var acpList=Object.keys(activeACPs).sort();
   var scList=Object.keys(activeScenarios),polList=Object.keys(activePolicies);
-  var dimPct=parseInt(document.getElementById("dim-slider").value)||30;
-  var dimAlpha=dimPct/100;
+  
+  
   var allS=[];
   if(showAggregate){
     scList.forEach(function(sc){ polList.forEach(function(pol){
@@ -1926,7 +2003,7 @@ document.getElementById("btn-export-legend").addEventListener("click",function()
     }); });
   }
   acpList.forEach(function(acp){
-    var baseOpa=ACP_OPACITY[acp]||0; var effOpa=showIndividual?(showAggregate?Math.min(baseOpa,dimAlpha):baseOpa):0;
+    var baseOpa=ACP_OPACITY[acp]||0; var effOpa=showIndividual?baseOpa:0;
     scList.forEach(function(sc){ polList.forEach(function(pol){
       var hex=seriesColor(ACP_COLORS[acp]||"#666",sc);
       var parts=[(ACP_LABEL[acp]||acp),(SC_LABEL[sc]||sc)]; if(polList.length>1) parts.push(pol==="true"?"Melhorias":"Baseline");
