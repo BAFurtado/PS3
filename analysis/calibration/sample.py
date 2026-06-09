@@ -244,6 +244,7 @@ def single_run(params: dict, path: str):
         json.dump({"PARAMS": params}, f, indent=4, default=str)
     
     sim = Simulation(params, path)
+    sim.generate()
     sim.initialize()
     sim.run(log=False)
     open(os.path.join(path, "DONE"), "w").close()
@@ -262,7 +263,7 @@ def score_calibration(root_dir: str) -> pd.DataFrame:
     param_set_dirs = sorted([
         d for d in glob(os.path.join(root_dir, "*/"))
         if os.path.basename(os.path.normpath(d)).isdigit()
-    ])
+    ], key=lambda d: int(os.path.basename(os.path.normpath(d))))
 
     for ps_dir in param_set_dirs:
         run_scores, param_snapshot = [], {}
@@ -326,7 +327,9 @@ def compute_sensitivity(root_dir: str) -> pd.DataFrame:
 
     problem   = meta["problem"]
     n_samples = meta["n_samples"]
-    Y         = pd.read_csv(scores_path).sort_values("path")["score"].values
+    _scores   = pd.read_csv(scores_path)
+    _scores["_idx"] = _scores["path"].apply(lambda p: int(os.path.basename(os.path.normpath(p))))
+    Y         = _scores.sort_values("_idx")["score"].values
 
     expected = n_samples * (problem["num_vars"] + 2)
     if len(Y) != expected:

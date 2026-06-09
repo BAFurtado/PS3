@@ -6,22 +6,33 @@
 # data inputs (A' matrix, ε_s, distributions) vary by region.
 CALIBRATION_PARAMETERS = {
 
-    "PRODUCTIVITY_MAGNITUDE_DIVISOR": [0.1, 2.0],   # paper 1: 8.25
-    #"ECO_INVESTMENT_LAMBDA":          [5.0, 20.0],   # paper 1: 10
+    # Production
+    "PRODUCTIVITY_MAGNITUDE_DIVISOR": [0.1,   2.0],   # default: 1.0
+    "PRODUCTIVITY_EXPONENT":          [0.4,   0.8],   # default: 0.65
 
-    "MARKUP":                         [0.005, 0.1],  # paper 1: 0.1
-    "RELEVANCE_UNEMPLOYMENT_SALARIES":[1.0,   5.0],  # paper 1: 3.5
+    # Pricing
+    "MARKUP":                         [0.005, 0.15],  # default: 0.1
+    "STICKY_PRICES":                  [0.05,  0.9],   # default: 0.7
+    "PRICE_RUGGEDNESS":               [0.05,  0.5],   # default: 0.1
 
-    "STICKY_PRICES":                  [0.05,   0.4],  # paper 1: 0.5
-    #"REGIONAL_FREIGHT_COST":          [0.1,   0.5],  # paper 1: 0.3
+    # Labor market
+    "NATURAL_SEPARATION_RATE":        [0.005, 0.04],  # default: 0.01
+    "RELEVANCE_UNEMPLOYMENT_SALARIES":[0.5,   5.0],   # default: 1.5
+    "LABOR_MARKET":                   [0.3,   1.0],   # default: 0.8
+    "PCT_DISTANCE_HIRING":            [0.0,   0.5],   # default: 0.2
+
+    # Inventory
+    "INVENTORY_TARGET_RATIO":         [0.0,   0.4],   # default: 0.2
+
+    # Emissions
+    "ENVIRONMENTAL_EFFICIENCY_STEP":  [0.90,  0.999], # default: 0.99
 
 }
 
 CALIBRATION_SETTINGS = {
 
-    # Sobol: N * (k + 2) total runs.
-    # k=7 (full set) → 128 * 9 = 1152 runs.
-    # Use samples=64 for scouting, 128 for production.
+    # Sobol: N * (k + 2) total runs. Use powers of 2.
+    # Lower N for scouting, higher for production.
     "samples":        128,
     "runs_per_sample": 1,   # min 5 for stable stochastic estimates
 
