@@ -28,17 +28,17 @@ analysis/validation/tax_gdp_*.png
 auxiliary/housing_data/outputs/
 
 # Calibration-specific runner scripts
-runner.py
-runner_sensitivity.py
+old/runner.py
+old/runner_sensitivity.py
 
 # Backup files
 *.bak
 
 # Internal documents
 PlanHab_todo.MD
-HANDOFF.md
+old/HANDOFF.md
 CLAUDE.md
-WAVE27_RESULTS.md
+old/WAVE27_RESULTS.md
 text/memoria_calculo_investimentos_melhorias.txt
 text/ps3/
 text/*.pdf

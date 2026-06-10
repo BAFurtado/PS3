@@ -226,6 +226,14 @@ class Output:
 
     def _write_parquet(self, name, path, data_dict):
         table = pa.table(data_dict)
+        # Promote integer columns to float64 so the schema is stable across
+        # quarterly batches: a numeric column that happens to be all-zero
+        # (inferred as int64) in one batch but has fractional values in
+        # another would otherwise crash ParquetWriter.write_table with a
+        # schema mismatch.
+        for i, field in enumerate(table.schema):
+            if pa.types.is_integer(field.type):
+                table = table.set_column(i, field.name, table.column(i).cast(pa.float64()))
         if name not in self._pq_writers:
             self._pq_writers[name] = pq.ParquetWriter(path, table.schema, compression='snappy')
         self._pq_writers[name].write_table(table)
