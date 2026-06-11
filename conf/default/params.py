@@ -127,7 +127,7 @@ CAPPED_LOW_VALUE = 0.7
 # Vacancy-price sensitivity: formula is 1 + (VACANCY_PRICE_REFERENCE - vacancy) * OFFER_SIZE_ON_PRICE
 # Symmetric around the reference: tight markets (vacancy < reference) generate a premium;
 # slack markets (vacancy > reference) generate a discount.
-OFFER_SIZE_ON_PRICE = 3
+OFFER_SIZE_ON_PRICE = 5
 # Vacancy rate at which prices sit at base level — the market equilibrium point.
 VACANCY_PRICE_REFERENCE = 0.08
 # TOO LONG ON THE MARKET:
@@ -141,7 +141,7 @@ MAX_OFFER_PREMIUM = 1.3
 # How strong construction firms respond to vacancy.
 # Used in exponential suppression: P(skip) = 1 - exp(-vacancy * sensitivity).
 # At equilibrium vacancy (8%) → ~65% skip; at 15% → ~86% skip; at 25% → ~96% skip.
-BUILD_VACANCY_SENSITIVITY = 9
+BUILD_VACANCY_SENSITIVITY = 13
 # Percentage of households pursuing new location (on average families move about once every 20 years)
 # Brazilian households move on average every 15-20 years → 0.4-0.5% per month.
 # At 2.5% the buyer pool (~470/month in BH) far exceeds monthly housing supply (~14),

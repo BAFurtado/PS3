@@ -333,10 +333,10 @@ def sensitivity(ctx, params):
             my_dict = {
                 "PROCESSING_ACPS": [[c] for c in cities],
                 "POLICY_MELHORIAS": [True, False],
-                "FUNDS_AVAILABILITY": [
-                    "pessimista",
-                    "tendencial",
-                    "otimista"
+                "INTEREST_HOUSING": [
+                    "baixa",
+                    "media",
+                    "alta"
                 ]
             }
 

@@ -750,8 +750,13 @@ class ConstructionFirm(Firm):
         that Construction barely sells into).
         Returns (increase: bool, oversupplied: bool)
         """
-        backlog_cost = sum(b["cost"] for b in self.building.values())
-        capacity_short = backlog_cost > self.total_quantity
+        # A firm is capacity-short if it can't yet finish even its cheapest
+        # pending house (the same threshold build_house uses to complete one).
+        # Comparing against the sum of all pending costs instead would make
+        # any firm with multiple queued projects perpetually "short", since
+        # total_quantity only needs to clear one project's cost at a time.
+        pending_costs = [b["cost"] for b in self.building.values()]
+        capacity_short = bool(pending_costs) and min(pending_costs) > self.total_quantity
         oversupplied = len(self.houses_for_sale) > params['MAX_HOUSE_STOCK']
         increase = capacity_short or (self.last_plan_found_demand and not oversupplied)
         return increase, oversupplied

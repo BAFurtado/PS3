@@ -24,7 +24,7 @@ LOG_DIR.mkdir(parents=True, exist_ok=True)
 # Cities not listed here fall back to DEFAULTS.
 # ─────────────────────────────────────────────────────────────
 
-# PLANHAB produces 2 (POLICY_MELHORIAS) × 3 (FUNDS_AVAILABILITY) = 6 combinations per city.
+# PLANHAB produces 2 (POLICY_MELHORIAS) × 3 (INTEREST_HOUSING) = 6 combinations per city.
 # With n runs each: total_jobs = 6 × n.  cpus becomes n_jobs in joblib's Parallel pool.
 # Clean divisors of 6×3=18: 1, 2, 3, 6, 9, 18.  Use 6/3/2 to keep workers fully busy.
 
@@ -54,21 +54,38 @@ CITY_CONFIGS = {
     'RIO BRANCO':     {'runs': 3, 'cpus': 2},
 }
 
-# Cities still missing complete runs as of stats36 (2026-06-09).
-# 10 cities had zero planhab runs; SAO PAULO needs pessimista/True completed
-# (1 of 3 runs exists). Running full PLANHAB for all 11 is safe — duplicates
-# are harmless and the aggregation script picks any 3 complete runs per combo.
+# Full fresh 486-run (27 capitals x 6 PLANHAB combos x 3 sims) for the
+# construction-firm-dynamics branch: BVS=13/OSP=5 + capacity_short fix +
+# INTEREST_HOUSING (baixa/media/alta) replacing FUNDS_AVAILABILITY as the
+# 3rd scenario axis. All .agents caches were cleared beforehand.
 CAPITAIS = [
-    'BOA VISTA',
-    'CUIABA',
+    'SAO PAULO',
+    'RIO DE JANEIRO',
+    'BELO HORIZONTE',
+    'BRASILIA',
+    'CURITIBA',
     'FORTALEZA',
-    'MACAPA',
+    'GOIANIA',
+    'MANAUS',
+    'PORTO ALEGRE',
+    'RECIFE',
+    'SALVADOR',
+    'ARACAJU',
+    'BELEM',
+    'CAMPO GRANDE',
+    'CUIABA',
+    'FLORIANOPOLIS',
+    'JOAO PESSOA',
     'MACEIO',
     'NATAL',
-    'PALMAS',
     'SAO LUIS',
-    'SALVADOR',
     'TERESINA',
+    'VITORIA',
+    'BOA VISTA',
+    'MACAPA',
+    'PALMAS',
+    'PORTO VELHO',
+    'RIO BRANCO',
 ]
 
 
