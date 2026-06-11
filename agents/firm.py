@@ -624,6 +624,9 @@ class ConstructionFirm(Firm):
         # Without this, cities whose construction matrix is dominated by a local self-loop
         # (like Brasilia) never produce their first unit and never build any houses.
         self.total_quantity = 200
+        # Set by plan_house: did this firm find a profitable place to build this month?
+        # Used by labor_signals() for hire/fire decisions.
+        self.last_plan_found_demand = False
 
     # Realistic median floor areas (m²) by quality tier, matching Brazilian housing:
     # quality 1 ≈ MCMV Faixa 1 (~45 m²), quality 4 ≈ upscale (~160 m²).
@@ -637,6 +640,9 @@ class ConstructionFirm(Firm):
 
     def plan_house(self, regions, params, sim, seed_np, vacancy):
         """Decide where to build with which attributes"""
+        # Default: no demand signal found this month (read by labor_signals)
+        self.last_plan_found_demand = False
+
         # Probability depends on size of market
         # Construction responds more strongly to vacancy
         build_sensitivity = params['BUILD_VACANCY_SENSITIVITY']
@@ -690,13 +696,17 @@ class ConstructionFirm(Firm):
         # Choose region where construction is most profitable.
         # Expected revenue uses quality-specific price per sqm (quality × region.index),
         # not the market median — cheap houses sell cheap, expensive houses sell dear.
-        # Since license_price == region.index, profit simplifies to:
-        #   size × quality × index × (1 − productivity × (1 + LOT_COST))
-        # so margin is the same fraction for every quality tier; what differs is the
-        # absolute project size (and therefore capital required and profit in units).
+        # Mirror House.update_price()'s vacancy factor here: at high vacancy, listed
+        # prices get discounted (down to -35%), so a saturated market should look less
+        # profitable to firms deciding whether to build, not just less likely to be
+        # attempted (build_sensitivity above).
+        vacancy_factor = max(min(
+            1 + (params['VACANCY_PRICE_REFERENCE'] - vacancy) * params['OFFER_SIZE_ON_PRICE'],
+            params['MAX_OFFER_PREMIUM']), params['MAX_OFFER_DISCOUNT'])
+
         profitable_regions = []
         for r in regions:
-            expected_price = building_quality * r.index * building_size
+            expected_price = building_quality * r.index * building_size * vacancy_factor
             profit = expected_price - (
                     r.license_price * building_cost * (1 + params["LOT_COST"])
             )
@@ -706,6 +716,8 @@ class ConstructionFirm(Firm):
 
         if not profitable_regions:
             return
+
+        self.last_plan_found_demand = True
 
         # Building in any profitable region
         region = sim.seed.choice(profitable_regions)
@@ -730,6 +742,19 @@ class ConstructionFirm(Firm):
         cost_of_land = region.license_price * building_cost * params["LOT_COST"]
         self.total_balance -= cost_of_land
         region.collect_taxes(cost_of_land, "transaction")
+
+    def labor_signals(self, params):
+        """
+        Construction-specific hire/fire signals, replacing the generic
+        increase_production/profit pair (which reads off the goods market
+        that Construction barely sells into).
+        Returns (increase: bool, oversupplied: bool)
+        """
+        backlog_cost = sum(b["cost"] for b in self.building.values())
+        capacity_short = backlog_cost > self.total_quantity
+        oversupplied = len(self.houses_for_sale) > params['MAX_HOUSE_STOCK']
+        increase = capacity_short or (self.last_plan_found_demand and not oversupplied)
+        return increase, oversupplied
 
     def build_house(self, regions, generator):
         """Firm decides if house is finished"""

@@ -271,6 +271,16 @@ class LaborMarket:
                     # Insolvent: shed labour regardless of production signal
                     firm.fire(self.seed_np)
                     n_fired += 1
+                elif firm.sector == 'Construction':
+                    # Construction barely sells into the goods market that
+                    # increase_production/profit are derived from. Use signals
+                    # tied directly to the house-building pipeline instead.
+                    increase, oversupplied = firm.labor_signals(self.sim.PARAMS)
+                    if increase:
+                        self.add_post(firm)
+                    elif oversupplied:
+                        firm.fire(self.seed_np)
+                        n_fired += 1
                 elif firm.increase_production and firm.profit >= 0:
                     self.add_post(firm)
                 elif not firm.increase_production and firm.profit < 0:
