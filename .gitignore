@@ -39,14 +39,14 @@ PlanHab_todo.MD
 old/HANDOFF.md
 CLAUDE.md
 old/WAVE27_RESULTS.md
-text/memoria_calculo_investimentos_melhorias.txt
+text/other/memoria_calculo_investimentos_melhorias.txt
 text/ps3/
 text/*.pdf
 text/*.docx
 text/*.zip
 text/*.png
 text/*.html
-text/gera_diagramas.py
+text/other/gera_diagramas.py
 
 # OS
 .DS_Store

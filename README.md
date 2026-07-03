@@ -146,8 +146,9 @@ python main.py -p custom_params.json -r custom_config.json run
 ```
 
 ---
-
 ## Collaborators
+**PI**
+- Bernardo Alves Furtado 
 
 **Current**
 - Gustavo Libório Rocha Lima
