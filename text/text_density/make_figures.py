@@ -18,8 +18,7 @@ Outputs (written to text/text_density/):
     APPENDIX:
         fig_appendix_ranked_bars.pdf          A1 — ranked ΔGini per city (95% CI)
         fig_appendix_violin.pdf               A2 — pooled ΔGini distribution
-        fig_appendix_capital_periphery.pdf    A3 — capital vs periphery paired
-        fig_appendix_pop_scatter.pdf          A4 — population vs ΔGini
+        fig_appendix_pop_scatter.pdf          A3 — population vs ΔGini
 
     All figures also saved as .png (150 dpi) for quick preview.
 """
@@ -63,8 +62,6 @@ def save(fig, stem: str) -> None:
 
 print('Loading prepared data...')
 acp = pd.read_csv(DATA_DIR / 'acp_deltas.csv')
-cap = pd.read_csv(DATA_DIR / 'capital_deltas.csv')
-per = pd.read_csv(DATA_DIR / 'periphery_deltas.csv')
 pop = pd.read_csv(DATA_DIR / 'acp_population.csv')
 ts  = pd.read_csv(DATA_DIR / 'timeseries_delta_gini.csv')
 ts['month'] = pd.to_datetime(ts['month'])
@@ -82,32 +79,17 @@ print(f'  timeseries:  {len(ts)} rows')
 
 print('\nFigure 1: mechanism scatter')
 
-CONFIG_COLORS = {
-    'low_inactive':  '#2166ac',
-    'low_active':    '#67a9cf',
-    'medium_active': '#d1e5f0',
-    'high_inactive': '#ef8a62',
-    'high_active':   '#b2182b',
-}
-CONFIG_LABELS = {
-    'low_inactive':  'Low rate, no improvement',
-    'low_active':    'Low rate, improvement',
-    'medium_active': 'Medium rate, improvement',
-    'high_inactive': 'High rate, no improvement',
-    'high_active':   'High rate, improvement',
-}
-
 fig, ax = plt.subplots(figsize=(8, 6))
 
-for cfg, color in CONFIG_COLORS.items():
-    subset = acp[acp['policy_config'] == cfg]
-    ax.scatter(
-        subset['delta_affordability_median'],
-        subset['delta_gini'],
-        c=color, alpha=0.55, s=25,
-        edgecolors='white', linewidths=0.3,
-        label=CONFIG_LABELS[cfg], zorder=3,
-    )
+# Policy configuration does not separate cleanly in (ΔM, ΔY) space, so points
+# are left uncolored; the config-level decomposition is reported in §4.2.
+ax.scatter(
+    acp['delta_affordability_median'],
+    acp['delta_gini'],
+    c='#2166ac', alpha=0.45, s=25,
+    edgecolors='white', linewidths=0.3,
+    zorder=3,
+)
 
 # Simple OLS trend line (visual; the reported β uses city FE)
 x = acp['delta_affordability_median'].values
@@ -123,7 +105,6 @@ ax.axhline(0, color='grey', linewidth=0.5, zorder=1)
 ax.axvline(0, color='grey', linewidth=0.5, zorder=1)
 ax.set_xlabel(r'$\Delta M$ (change in median rent/income ratio)', fontsize=11)
 ax.set_ylabel(r'$\Delta Y$ (change in Gini coefficient)', fontsize=11)
-ax.legend(fontsize=8, loc='upper left', framealpha=0.9)
 ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
 ax.xaxis.grid(True, linestyle=':', alpha=0.3)
@@ -242,48 +223,10 @@ save(fig, 'fig_appendix_violin')
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# APPENDIX FIGURE A3 — Capital vs periphery paired dot plot
+# APPENDIX FIGURE A3 — Population vs ΔGini scatter
 # ═══════════════════════════════════════════════════════════════════════════════
 
-print('Figure A3: capital vs periphery')
-
-cap_mean = cap.groupby('processing_acps')['delta_regional_gini'].mean()
-per_mean = per.groupby('processing_acps')['delta_gini_periphery'].mean()
-common   = sorted(cap_mean.index.intersection(per_mean.index))
-
-# Sort by ACP-level mean ΔGini
-order = acp_mean_by_city.reindex(common).sort_values().index
-
-cap_vals    = [cap_mean[c] * 100 for c in order]
-per_vals    = [per_mean[c] * 100 for c in order]
-city_labels = [fmt_city(c) for c in order]
-y_pos       = range(len(order))
-
-fig, ax = plt.subplots(figsize=(8, 6.5))
-ax.scatter(cap_vals, y_pos, color='#2166ac', s=40, zorder=4, label='Capital')
-ax.scatter(per_vals, y_pos, color='#b2182b', s=40, marker='D', zorder=4, label='Periphery')
-for i in range(len(order)):
-    ax.plot([cap_vals[i], per_vals[i]], [i, i],
-            color='grey', linewidth=0.6, alpha=0.5, zorder=2)
-
-ax.set_yticks(y_pos)
-ax.set_yticklabels(city_labels, fontsize=8.5)
-ax.axvline(0, color='grey', linewidth=0.5)
-ax.set_xlabel(r'Mean $\Delta$ Gini (percentage points)', fontsize=10)
-ax.legend(fontsize=9, loc='lower right')
-ax.spines['top'].set_visible(False)
-ax.spines['right'].set_visible(False)
-ax.xaxis.grid(True, linestyle=':', alpha=0.3)
-ax.set_axisbelow(True)
-plt.tight_layout()
-save(fig, 'fig_appendix_capital_periphery')
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# APPENDIX FIGURE A4 — Population vs ΔGini scatter
-# ═══════════════════════════════════════════════════════════════════════════════
-
-print('Figure A4: population scatter')
+print('Figure A3: population scatter')
 
 merged = pd.merge(
     acp_mean_by_city.reset_index(),

@@ -207,6 +207,7 @@ tex_lines = [
     r'\centering',
     r'\caption{Housing wealth channel: regression results (Equation~3)}',
     r'\label{tab:regression}',
+    r'\begin{threeparttable}',
     r'\begin{tabular}{lccc}',
     r'\toprule',
     r' & ACP & Capital & Periphery \\',
@@ -252,13 +253,16 @@ n_cells_s = ' & '.join(str(r['n']) for r in secondary_results)
 tex_lines.append(r'$N$ & ' + n_cells_s + r' \\')
 
 tex_lines += [
-    r'\midrule',
-    r'\multicolumn{4}{l}{\footnotesize Notes: OLS with metropolitan-area fixed effects (HC3 standard errors in parentheses).} \\',
-    r'\multicolumn{4}{l}{\footnotesize $\Delta M$ and $\Delta Y$ are 60-month window averages (2035--2039) of policy-induced changes (Eq.~1--2).} \\',
-    r'\multicolumn{4}{l}{\footnotesize Periphery excludes five single-municipality ACPs (Boa Vista, Campo Grande, Manaus, Palmas, Rio Branco).} \\',
-    r'\multicolumn{4}{l}{\footnotesize *** $p<0.01$, ** $p<0.05$, * $p<0.10$.} \\',
     r'\bottomrule',
     r'\end{tabular}',
+    r'\begin{tablenotes}',
+    r'\footnotesize',
+    r'\item Notes: OLS with metropolitan-area fixed effects (HC3 standard errors in parentheses).',
+    r'\item $\Delta M$ and $\Delta Y$ are 60-month window averages (2035--2039) of policy-induced changes (Eq.~1--2).',
+    r'\item Periphery excludes five single-municipality ACPs (Boa Vista, Campo Grande, Manaus, Palmas, Rio Branco).',
+    r'\item *** $p<0.01$, ** $p<0.05$, * $p<0.10$.',
+    r'\end{tablenotes}',
+    r'\end{threeparttable}',
     r'\end{table}',
 ]
 
