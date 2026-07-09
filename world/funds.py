@@ -130,7 +130,7 @@ class Funds:
         if self.sim.PARAMS['POLICY_MELHORIAS']:
             self.policy_money = self.mcmv.update_policy_money(self.sim.clock.year)
             self.allocated_money += sum(self.policy_money.values())
-            quantile = self.sim.PARAMS['INCOME_MODALIDADES']['melhorias']
+            quantile = self.sim.PARAMS['MELHORIAS_INCOME_QUANTILE']
             self.update_policy_families(quantile)
             for mun in self.policy_families.keys():
                 self.policy_families[mun] = [f for f in self.policy_families[mun] if f.house.quality == .5]

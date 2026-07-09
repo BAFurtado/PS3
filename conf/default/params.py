@@ -89,6 +89,9 @@ INCOME_MODALIDADES = {'faixa1': .38,
 # individual scalars so OAT sensitivity can sweep them without touching the dict.
 FGTS_INCOME_QUANTILE = 0.70
 SBPE_INCOME_QUANTILE = 0.85
+# Mirrors INCOME_MODALIDADES['melhorias'] but exposed as a scalar so OAT sensitivity
+# can sweep it without touching the dict.
+MELHORIAS_INCOME_QUANTILE = 0.38
 TOTAL_TARGETING_POLICY = False
 POLICY_MELHORIAS = True
 UPGRADE_COST = .2
