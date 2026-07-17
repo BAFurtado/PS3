@@ -298,6 +298,63 @@ def sensitivity(ctx, params):
             p_name = "_".join(keys)
             p_vals = list(my_dict.values())
 
+        elif "PLANHABFUNDS" in param:
+            # Re-test of MCMV funding-intensity (FUNDS_AVAILABILITY), last run
+            # before it was swapped for INTEREST_HOUSING in the PLANHAB
+            # scenario above -- re-run under the current model (post
+            # construction-dynamics fixes) since that swap coincided with the
+            # BVS=13/OSP=5 + capacity_short fix. POLICY_MCMV stays fixed True
+            # (only funding intensity varies), same structure as the test
+            # that originally found small variation.
+            flag = True
+            cities = param.split('-')[1:]
+            capitais = [
+                'ARACAJU',
+                'BELEM',
+                'BELO HORIZONTE',
+                'BOA VISTA',
+                'BRASILIA',
+                'CAMPO GRANDE',
+                'CUIABA',
+                'CURITIBA',
+                'FLORIANOPOLIS',
+                'FORTALEZA',
+                'GOIANIA',
+                'JOAO PESSOA',
+                'MACAPA',
+                'MACEIO',
+                'MANAUS',
+                'NATAL',
+                'PALMAS',
+                'PORTO ALEGRE',
+                'PORTO VELHO',
+                'RECIFE',
+                'RIO BRANCO',
+                'SALVADOR',
+                'SAO LUIS',
+                'TERESINA',
+                'VITORIA',
+            ]
+            if cities[0].lower() == "capitais":
+                cities = capitais
+            my_dict = {
+                "PROCESSING_ACPS": [[c] for c in cities],
+                "POLICY_MELHORIAS": [True, False],
+                "FUNDS_AVAILABILITY": [
+                    "pessimista",
+                    "tendencial",
+                    "otimista"
+                ]
+            }
+
+            keys, values = zip(*my_dict.items())
+            permutations_dicts = [
+                dict(zip(keys, v))
+                for v in itertools.product(*values)
+            ]
+            p_name = "_".join(keys)
+            p_vals = list(my_dict.values())
+
         elif "PLANHAB" in param:
             flag = True
             cities = param.split('-')[1:]
