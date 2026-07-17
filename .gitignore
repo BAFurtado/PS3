@@ -51,3 +51,6 @@ text/other/gera_diagramas.py
 # OS
 .DS_Store
 Thumbs.db
+
+# text_density has its own separate git repo (synced with Overleaf) — PS3 must not track it
+/text/text_density/

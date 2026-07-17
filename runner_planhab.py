@@ -1,3 +1,4 @@
+import argparse
 import subprocess
 import pathlib
 import datetime
@@ -9,57 +10,46 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # Global settings
 # ─────────────────────────────────────────────────────────────
 
-PYTHON         = "python"
-MAIN           = "main.py"
+PYTHON = "python"
+MAIN   = "main.py"
 
-MAX_CPU_BUDGET = 12    # total CPU slots across all parallel city runs (server has 12)
+SAO_PAULO = "SAO PAULO"
+
+# Applied uniformly to every city. Change these two numbers and every city
+# picks them up automatically -- no per-city editing required.
+# PLANHAB produces 2 (POLICY_MELHORIAS) x 3 (INTEREST_HOUSING) = 6
+# combinations per city; total_jobs = 6 x RUNS. CPUS_PER_CITY becomes
+# n_jobs in joblib's Parallel pool for that city's run.
+RUNS           = 20
+CPUS_PER_CITY  = 10
+MAX_CPU_BUDGET = 10   # this server's total CPU slots for concurrent city runs
+
+# SAO PAULO is an order of magnitude larger than any other ACP, so it is
+# run on its own dedicated server (via --only-sp below) rather than sharing
+# a box with the other capitals. The target is still n=20 (each run writes
+# its own DONE-marked output dir as it finishes -- see main.py multiple_runs
+# -- so a partial/interrupted batch still keeps whatever completed; a full
+# 20 is not required to have usable data). A prior SP run (n=3, cpus=6,
+# ~14 days) crashed mid-run with symptoms consistent with a memory-related
+# process kill, so cpus is kept below the theoretical max as headroom
+# rather than maxed out.
+SP_RUNS           = 10
+SP_CPUS_PER_CITY  = 8
+SP_MAX_CPU_BUDGET = 8
+
 MAX_RETRIES    = 1     # extra attempts for failed/crashed cities
 TIMEOUT_HOURS  = None  # None = no timeout; set to a number once typical durations are known
 
 LOG_DIR = pathlib.Path("logs/processing_acps")
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-# ─────────────────────────────────────────────────────────────
-# Per-city configuration  (runs, cpus)
-# Cities not listed here fall back to DEFAULTS.
-# ─────────────────────────────────────────────────────────────
+# Per-city overrides -- only needed for rare exceptions. Empty by default:
+# every city uses the uniform (RUNS, CPUS_PER_CITY) / (SP_RUNS,
+# SP_CPUS_PER_CITY) settings above.
+CITY_CONFIGS = {}
 
-# PLANHAB produces 2 (POLICY_MELHORIAS) × 3 (INTEREST_HOUSING) = 6 combinations per city.
-# With n runs each: total_jobs = 6 × n.  cpus becomes n_jobs in joblib's Parallel pool.
-# Clean divisors of 6×3=18: 1, 2, 3, 6, 9, 18.  Use 6/3/2 to keep workers fully busy.
-
-DEFAULTS = {'runs': 3, 'cpus': 3}
-
-CITY_CONFIGS = {
-    # ── Very large metros (multi-day wall time expected) ──────
-    'SAO PAULO':      {'runs': 3, 'cpus': 6},  # 18 jobs / 6 workers = 3 full rounds
-    'RIO DE JANEIRO': {'runs': 3, 'cpus': 6},
-    # ── Large metros ─────────────────────────────────────────
-    # cpus=3 → 6 full rounds; 3 cities fit simultaneously in the 10-CPU budget (3+3+3=9)
-    'BELO HORIZONTE': {'runs': 3, 'cpus': 3},
-    'BRASILIA':       {'runs': 3, 'cpus': 3},
-    'CURITIBA':       {'runs': 3, 'cpus': 3},
-    'FORTALEZA':      {'runs': 3, 'cpus': 3},
-    'GOIANIA':        {'runs': 3, 'cpus': 3},
-    'MANAUS':         {'runs': 3, 'cpus': 3},
-    'PORTO ALEGRE':   {'runs': 3, 'cpus': 3},
-    'RECIFE':         {'runs': 3, 'cpus': 3},
-    'SALVADOR':       {'runs': 3, 'cpus': 3},
-    # ── Small/remote capitals ─────────────────────────────────
-    # cpus=2 → 9 full rounds; up to 5 cities fit simultaneously (2×5=10)
-    'BOA VISTA':      {'runs': 3, 'cpus': 2},
-    'MACAPA':         {'runs': 3, 'cpus': 2},
-    'PALMAS':         {'runs': 3, 'cpus': 2},
-    'PORTO VELHO':    {'runs': 3, 'cpus': 2},
-    'RIO BRANCO':     {'runs': 3, 'cpus': 2},
-}
-
-# Full fresh 486-run (27 capitals x 6 PLANHAB combos x 3 sims) for the
-# construction-firm-dynamics branch: BVS=13/OSP=5 + capacity_short fix +
-# INTEREST_HOUSING (baixa/media/alta) replacing FUNDS_AVAILABILITY as the
-# 3rd scenario axis. All .agents caches were cleared beforehand.
 CAPITAIS = [
-    'SAO PAULO',
+    SAO_PAULO,
     'RIO DE JANEIRO',
     'BELO HORIZONTE',
     'BRASILIA',
@@ -90,6 +80,26 @@ CAPITAIS = [
 
 
 # ─────────────────────────────────────────────────────────────
+# CLI
+# ─────────────────────────────────────────────────────────────
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Run PLANHAB sensitivity sweeps across capitals."
+    )
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "--exclude-sp", action="store_true",
+        help="Run every capital except SAO PAULO (use on the main server).",
+    )
+    group.add_argument(
+        "--only-sp", action="store_true",
+        help="Run SAO PAULO only (use on the dedicated SP server).",
+    )
+    return parser.parse_args()
+
+
+# ─────────────────────────────────────────────────────────────
 # Weighted CPU semaphore
 # ─────────────────────────────────────────────────────────────
 
@@ -97,9 +107,10 @@ class CPUPool:
     """
     Weighted semaphore that tracks total CPU slots.
     Ensures sum of cpus_per_run across simultaneous processes never
-    exceeds MAX_CPU_BUDGET, regardless of how many are queued.
+    exceeds the configured budget, regardless of how many are queued.
     """
     def __init__(self, total: int):
+        self._total = total
         self._available = total
         self._cond = threading.Condition()
 
@@ -118,8 +129,11 @@ class CPUPool:
     def available(self) -> int:
         return self._available
 
+    @property
+    def total(self) -> int:
+        return self._total
 
-_cpu_pool = CPUPool(MAX_CPU_BUDGET)
+
 _print_lock = threading.Lock()
 
 
@@ -133,10 +147,10 @@ def _log(msg: str) -> None:
 # City runner
 # ─────────────────────────────────────────────────────────────
 
-def run_city(city: str, attempt: int = 1) -> tuple:
-    cfg = CITY_CONFIGS.get(city, DEFAULTS)
+def run_city(city: str, defaults: dict, cpu_pool: CPUPool, attempt: int = 1) -> tuple:
+    cfg = CITY_CONFIGS.get(city, defaults)
     runs = cfg['runs']
-    cpus = min(cfg['cpus'], MAX_CPU_BUDGET)  # guard against impossible acquire
+    cpus = min(cfg['cpus'], cpu_pool.total)  # guard against an impossible acquire()
 
     cmd = [
         PYTHON, MAIN,
@@ -151,11 +165,11 @@ def run_city(city: str, attempt: int = 1) -> tuple:
     suffix    = f"_attempt{attempt}" if attempt > 1 else ""
     log_file  = LOG_DIR / f"{safe_name}{suffix}_{ts}.log"
 
-    _cpu_pool.acquire(cpus)
+    cpu_pool.acquire(cpus)
     t_start = time.monotonic()
     timeout_secs = TIMEOUT_HOURS * 3600 if TIMEOUT_HOURS is not None else None
     _log(f"[{city}] starting  runs={runs} cpus={cpus} attempt={attempt} "
-         f"(pool remaining: {_cpu_pool.available})")
+         f"(pool remaining: {cpu_pool.available})")
 
     try:
         with open(log_file, "w") as lf:
@@ -185,7 +199,7 @@ def run_city(city: str, attempt: int = 1) -> tuple:
         status  = f"CRASHED ({exc})"
 
     finally:
-        _cpu_pool.release(cpus)
+        cpu_pool.release(cpus)
 
     return city, status, elapsed, log_file
 
@@ -194,24 +208,26 @@ def run_city(city: str, attempt: int = 1) -> tuple:
 # Batch runner
 # ─────────────────────────────────────────────────────────────
 
-def run_batch(cities_and_attempts: list) -> dict:
+def run_batch(cities_and_attempts: list, defaults: dict, cpu_pool: CPUPool) -> dict:
     """
     Submit a batch of (city, attempt) pairs.
-    Larger cities are scheduled first so they don't bottleneck at the end.
+    Larger cities are scheduled first so they don't bottleneck at the end
+    (only matters if CITY_CONFIGS overrides give some cities more cpus
+    than the uniform default).
     Returns {city: status}.
     """
     ordered = sorted(
         cities_and_attempts,
-        key=lambda ca: CITY_CONFIGS.get(ca[0], DEFAULTS)['cpus'],
+        key=lambda ca: CITY_CONFIGS.get(ca[0], defaults)['cpus'],
         reverse=True,
     )
 
     batch_results: dict = {}
     # max_workers >= len(ordered) so every city can block on the semaphore
-    # concurrently; actual parallelism is capped by CPUPool
+    # concurrently; actual parallelism is capped by cpu_pool
     with ThreadPoolExecutor(max_workers=len(ordered)) as executor:
         futures = {
-            executor.submit(run_city, city, attempt): city
+            executor.submit(run_city, city, defaults, cpu_pool, attempt): city
             for city, attempt in ordered
         }
         for future in as_completed(futures):
@@ -228,17 +244,38 @@ def run_batch(cities_and_attempts: list) -> dict:
 # ─────────────────────────────────────────────────────────────
 
 def main():
+    args = parse_args()
+
+    if args.only_sp:
+        cities   = [SAO_PAULO]
+        defaults = {'runs': SP_RUNS, 'cpus': SP_CPUS_PER_CITY}
+        budget   = SP_MAX_CPU_BUDGET
+        label    = "SAO PAULO only"
+    elif args.exclude_sp:
+        cities   = [c for c in CAPITAIS if c != SAO_PAULO]
+        defaults = {'runs': RUNS, 'cpus': CPUS_PER_CITY}
+        budget   = MAX_CPU_BUDGET
+        label    = f"{len(cities)} cities (excluding SAO PAULO)"
+    else:
+        cities   = list(CAPITAIS)
+        defaults = {'runs': RUNS, 'cpus': CPUS_PER_CITY}
+        budget   = MAX_CPU_BUDGET
+        label    = f"{len(cities)} cities (including SAO PAULO)"
+
+    cpu_pool = CPUPool(budget)
+
     timeout_label = f"{TIMEOUT_HOURS}h" if TIMEOUT_HOURS is not None else "none"
-    _log(f"PlanHab runner: {len(CAPITAIS)} cities  CPU budget={MAX_CPU_BUDGET}  "
+    _log(f"PlanHab runner: {label}  CPU budget={budget}  "
+         f"runs={defaults['runs']} cpus/city={defaults['cpus']}  "
          f"timeout={timeout_label}  retries={MAX_RETRIES}")
 
-    results = run_batch([(city, 1) for city in CAPITAIS])
+    results = run_batch([(city, 1) for city in cities], defaults, cpu_pool)
 
     failed = [city for city, status in results.items() if status != "OK"]
     if failed and MAX_RETRIES > 0:
         sep = "─" * 55
         _log(f"\n{sep}\nRetrying {len(failed)} cities: {failed}\n{sep}")
-        retry_results = run_batch([(city, 2) for city in failed])
+        retry_results = run_batch([(city, 2) for city in failed], defaults, cpu_pool)
         results.update(retry_results)
 
     # ── Summary ──────────────────────────────────────────────
@@ -246,14 +283,14 @@ def main():
     print("SUMMARY")
     print(f"{'═' * 55}")
     ok_count = 0
-    for city in CAPITAIS:
+    for city in cities:
         status = results.get(city, "NOT RUN")
         icon   = "v" if status == "OK" else "x"
         print(f"  [{icon}] {city:<22s}  {status}")
         if status == "OK":
             ok_count += 1
     print(f"{'─' * 55}")
-    print(f"  {ok_count}/{len(CAPITAIS)} cities completed successfully.")
+    print(f"  {ok_count}/{len(cities)} cities completed successfully.")
     print(f"{'═' * 55}")
 
 
