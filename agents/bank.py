@@ -75,7 +75,7 @@ class Central:
         (exogenously provided for the moment)
         """
 
-    def __init__(self, id_, balance=0):
+    def __init__(self, id_, balance=0, params=None):
         self.id = id_
         self.balance = balance
         self.interest = 0
@@ -86,15 +86,19 @@ class Central:
         self.i_fgts = 0
         self.loan_stats = defaultdict(int)
         self._outstanding_loans = 0
+        # Per-run params. Sensitivity sweeps override this dict only (see main.py
+        # multiple_runs); conf.PARAMS stays at its defaults, so reading the module
+        # global here would silently ignore any swept value.
+        self.params = conf.PARAMS if params is None else params
         # IBGE codes got only 6 digits
-        funding_data = pd.read_csv(f'input/planhab_funds/fgts_sbpe_pct_{conf.PARAMS['FUNDS_AVAILABILITY']}.csv')
+        funding_data = pd.read_csv(f'input/planhab_funds/fgts_sbpe_pct_{self.params['FUNDS_AVAILABILITY']}.csv')
         self.funding = (funding_data.set_index(['ano', 'cod_ibge'])[['recursos_sbpe', 'recursos_fgts']]
                         .to_dict(orient='index'))
         self.monthly_funding_available = defaultdict(float)
         self.monthly_funding_used = defaultdict(float)
-        self.tax_firm = conf.PARAMS['TAX_FIRM']
+        self.tax_firm = self.params['TAX_FIRM']
 
-        self.loan_to_income = conf.PARAMS['LOAN_PAYMENT_TO_PERMANENT_INCOME']
+        self.loan_to_income = self.params['LOAN_PAYMENT_TO_PERMANENT_INCOME']
 
         # Track remaining loan balances
         self.loans = defaultdict(list)
@@ -272,14 +276,14 @@ class Central:
 
         # Source-of-funds checks
         if family.loan_rate == 'market':
-            required_reserve = conf.PARAMS['BANK_DEPOSIT_RESERVE'] * self.total_deposits()
+            required_reserve = self.params['BANK_DEPOSIT_RESERVE'] * self.total_deposits()
             available_cash = self.balance - required_reserve
 
             if amount > available_cash:
                 self.loan_stats["denied_liquidity_reserve"] += 1
                 return False, None
 
-            if self._outstanding_loans + amount > self.balance * conf.PARAMS['MAX_LOAN_BANK_PERCENT']:
+            if self._outstanding_loans + amount > self.balance * self.params['MAX_LOAN_BANK_PERCENT']:
                 self.loan_stats["denied_bank_limit"] += 1
                 return False, None
 
@@ -317,7 +321,7 @@ class Central:
     def max_loan(self, family, flag='market', table_type='sac'):
         """Estimate maximum loan principal given the family's max monthly payment and amortization table."""
         income = self._max_monthly_payment(family)
-        max_years = conf.PARAMS['MAX_LOAN_AGE'] - max([m.age for m in family.members.values()])
+        max_years = self.params['MAX_LOAN_AGE'] - max([m.age for m in family.members.values()])
         max_months = min(max_years * 12, 360)
         if max_months <= 0:
             return 0, 0

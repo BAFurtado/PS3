@@ -168,6 +168,36 @@ check(
     f"employed={len(employed)}/{len(sim.agents)}",
 )
 
+# ── sweep-safety guard ───────────────────────────────────────────────────────
+# Sensitivity sweeps (main.py multiple_runs) override a per-run params dict that
+# becomes sim.PARAMS; conf.PARAMS keeps its defaults. So any model code reading
+# conf.PARAMS[...] silently ignores the swept value. This once voided an entire
+# FUNDS_AVAILABILITY batch, which ran as N identical replications of the default.
+# Read sim.PARAMS / self.params instead.
+import pathlib
+import re
+
+_MODEL_DIRS = ["agents", "world", "markets", "analysis"]
+_ALLOWED = {
+    # Plotting reads it only as a fallback default, never as a swept value.
+    "analysis/plotting/__init__.py",
+}
+_offenders = []
+for _d in _MODEL_DIRS:
+    for _f in pathlib.Path(_d).rglob("*.py"):
+        _rel = _f.as_posix()
+        if _rel in _ALLOWED:
+            continue
+        for _i, _line in enumerate(_f.read_text().splitlines(), 1):
+            if re.search(r"\bconf\.PARAMS\s*\[", _line):
+                _offenders.append(f"{_rel}:{_i}")
+
+check(
+    "No model code reads swept params from the conf.PARAMS module global",
+    not _offenders,
+    f"offenders={_offenders}",
+)
+
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")
 print(f"Results: {PASS} PASS  |  {FAIL} FAIL  |  {PASS + FAIL} total")

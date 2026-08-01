@@ -1,5 +1,4 @@
 from collections import defaultdict
-import conf
 
 
 class MCMV:
@@ -20,7 +19,11 @@ class MCMV:
         elif 2023 <= year <= 2025:
             value = 0.09
         elif year >= 2026:
-            value = conf.PARAMS['OGU_INVESTMENT'][conf.PARAMS['FUNDS_AVAILABILITY']]
+            # Read per-run params, not the module global: sensitivity sweeps
+            # override sim.PARAMS only (main.py multiple_runs), leaving
+            # conf.PARAMS at its defaults.
+            params = self.sim.PARAMS
+            value = params['OGU_INVESTMENT'][params['FUNDS_AVAILABILITY']]
         else:
             value = 0
 
