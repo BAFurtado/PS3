@@ -22,6 +22,25 @@ from world.geography import Geography, STATES_CODES, state_string
 from markets.goods import RegionalMarket, External
 
 
+def resolve_seed(params):
+    """Return the seed for this run.
+
+    An explicit per-run `SEED` in PARAMS takes precedence: sensitivity runs give the
+    same seed to every policy configuration of a replication, so a treated run and its
+    baseline differ only by the policy and their difference is an exact counterfactual.
+    Without one, fall back to conf.RUN — a fresh random seed per run under
+    KEEP_RANDOM_SEED, otherwise the fixed conf.RUN['SEED'].
+    """
+    seed = params.get("SEED")
+    if seed is None:
+        seed = (
+            secrets.randbelow(2 ** 32)
+            if conf.RUN["KEEP_RANDOM_SEED"]
+            else conf.RUN.get("SEED", 0)
+        )
+    return int(seed)
+
+
 class Simulation:
     def __init__(self, params, output_path):
         self.PARAMS = copy.copy(params)
@@ -32,11 +51,9 @@ class Simulation:
         self.stats = analysis.Statistics(params)
         self.logger = analysis.Logger(hex(id(self))[-5:])
         self.funds = Funds(self)
-        self._seed = (
-            secrets.randbelow(2 ** 32)
-            if conf.RUN["KEEP_RANDOM_SEED"]
-            else conf.RUN.get("SEED", 0)
-        )
+        self._seed = resolve_seed(self.PARAMS)
+        # Record the seed actually used, so a run is reproducible from its own config.
+        self.PARAMS["SEED"] = self._seed
         self.seed = random.Random(self._seed)
         self.seed_np = np.random.RandomState(self._seed)
         self.generator = Generator(self)

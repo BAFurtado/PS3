@@ -27,7 +27,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed, BrokenExecutor
 import conf
 import main_plotting
 from checkpoint import save_jobs, pending_jobs
-from simulation import Simulation
+from simulation import Simulation, resolve_seed
 
 # from web import app
 
@@ -60,6 +60,9 @@ def single_run(params, path):
     if conf.RUN['PRINT_STATISTICS_AND_RESULTS_DURING_PROCESS']:
         logging.basicConfig(level=logging.INFO)
     os.makedirs(path, exist_ok=True)
+     # Resolve before dumping, so conf.json records the seed the run used and the run
+    # is reproducible from its own config file.
+    params['SEED'] = resolve_seed(params)
     with open(os.path.join(path, 'conf.json'), 'w') as f:
         json.dump({
             'RUN': conf.RUN,
@@ -435,13 +438,16 @@ def sensitivity(ctx, params):
             f"{ctx.obj['runs']} run(s) each"
         )
 
-        if conf.RUN.get('KEEP_RANDOM_SEED', False):
+        # One seed per replication, shared across every policy configuration so that
+        # treated and baseline trajectories differ only by the policy.
+        if conf.RUN.get('KEEP_RANDOM_SEED', True):
             fixed_seeds = [
                 secrets.randbelow(2 ** 32)
                 for _ in range(ctx.obj['runs'])
             ]
         else:
-            fixed_seeds = []
+            base = conf.RUN.get('SEED', 0)
+            fixed_seeds = [base + i for i in range(ctx.obj['runs'])]
 
         multiple_runs(
             confs,

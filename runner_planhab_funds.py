@@ -11,26 +11,18 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # Global settings
 # ─────────────────────────────────────────────────────────────
 #
-# Re-run (2026-08-01) of the MCMV funding-intensity sweep. The previous
-# PLANHABFUNDS batch is VOID: FUNDS_AVAILABILITY was read from the
-# conf.PARAMS module global rather than the per-run sim.PARAMS that
-# sensitivity sweeps override, so all three arms executed as `tendencial`
-# and the batch is three identically-parameterised replications wearing
-# different labels. Fixed in agents/bank.py (Central now takes params),
-# world/generator.py and world/mcmv_funds.py, with a source-scanning guard
-# in tests.py.
+# MCMV funding-intensity sweep. Any batch produced before 2026-08-01 is void;
+# see text/model_defects.md for which and why.
 #
-# The design gains a third axis in this re-run: TOTAL_TARGETING_POLICY,
-# which orders eligible families poorest-first before houses are allocated
-# (world/funds.py:update_policy_families). It has been False in every batch
-# to date, and it is the lever the CMAP/CMAS (2021) evaluation points at,
-# so it is swept rather than assumed.
+# TOTAL_TARGETING_POLICY orders eligible families poorest-first before houses
+# are allocated (world/funds.py:update_policy_families). It is the lever the
+# CMAP/CMAS (2021) evaluation points at, so it is swept rather than assumed.
 #
 #   POLICY_MELHORIAS        True | False
 #   FUNDS_AVAILABILITY      pessimista | tendencial | otimista
 #   TOTAL_TARGETING_POLICY  True | False
 #
-# = 2 x 3 x 2 = 12 combinations per city (was 6); total_jobs = 12 x RUNS.
+# = 2 x 3 x 2 = 12 combinations per city; total_jobs = 12 x RUNS.
 # POLICY_MCMV stays fixed True -- see main.py's PLANHABFUNDS branch.
 #
 # Runs on its own dedicated (third) server, independent of runner_planhab.py.

@@ -221,11 +221,11 @@ class HousingMarket:
         params = sim.PARAMS
         capped_top_value = params['CAPPED_TOP_VALUE']
         capped_low_value = params['CAPPED_LOW_VALUE']
-        # Offer ceiling: the bargained price is the average of the buyer's means
-        # and the asking price, so when the buyer is capped at CAPPED_TOP_VALUE
-        # times the ask, the average is against the ask, not against zero. This
-        # makes the rule continuous at the cap: at savings/p == 1.3 both branches
-        # give 1.15p.
+        # Offer ceiling. The bargained price averages the buyer's means with the
+        # asking price; when the buyer's means are capped at CAPPED_TOP_VALUE times
+        # the ask, that average is (CAPPED_TOP_VALUE + 1) / 2 times the ask. The
+        # rule is therefore continuous at the cap: at savings/p == 1.3 both
+        # branches give 1.15p.
         capped_price_factor = (capped_top_value + 1) / 2
         loan_rate = getattr(family, 'loan_rate', None)
         if loan_rate == 'fgts':
@@ -255,12 +255,9 @@ class HousingMarket:
                 else:
                     price = (savings_with_mortgage + p) / 2
 
-                # Get loan to make up the difference. Reaching this branch means
-                # savings alone did not cover the asking price, and the bargained
-                # price is never below it, so a loan is genuinely needed. Asking
-                # the bank for zero is a different thing from not asking at all:
-                # the bank answers a zero request with a refusal, which would make
-                # the family walk away from a house it can pay for outright.
+                # Get loan to make up the difference. The bank is asked only when a
+                # loan is actually needed: a request for zero is not the same thing
+                # as no request, and would come back as a refusal.
                 loan_amount = max(0, price - savings)
                 if loan_amount > 0:
                     # Check macroprudencial policy. If loan to value is above set value,

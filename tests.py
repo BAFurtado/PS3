@@ -198,6 +198,31 @@ check(
     f"offenders={_offenders}",
 )
 
+# ── matched-seed guard ───────────────────────────────────────────────────────
+# The exact-counterfactual design requires a treated run and its baseline to draw
+# the same random numbers, so that the only difference between them is the policy.
+# main.py hands one seed per replication to every configuration via PARAMS['SEED'];
+# if the simulation stops honouring it, every difference silently picks up
+# simulation noise and per-city effects lose power.
+from simulation import resolve_seed  # noqa: E402
+
+_p = dict(conf.PARAMS)
+_p["SEED"] = 987654321
+_resolved = [resolve_seed(dict(_p)) for _ in range(3)]
+check(
+    "PARAMS['SEED'] is honoured, so matched-seed differencing is exact",
+    _resolved == [987654321] * 3,
+    f"resolved={_resolved}",
+)
+
+_p.pop("SEED", None)
+_free = [resolve_seed(dict(_p)) for _ in range(3)]
+check(
+    "Without an explicit seed, runs still vary under KEEP_RANDOM_SEED",
+    len(set(_free)) == 3 if conf.RUN["KEEP_RANDOM_SEED"] else len(set(_free)) == 1,
+    f"free={_free}",
+)
+
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")
 print(f"Results: {PASS} PASS  |  {FAIL} FAIL  |  {PASS + FAIL} total")

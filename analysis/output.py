@@ -80,9 +80,9 @@ OUTPUT_DATA_SPEC = {
                     'emissions_fund',
                     'ext_amount_sold',
                     # Deciles of rent / permanent income among renting families.
-                    # Deliberately NOT named affordability_decis_* -- that column
-                    # family exists in earlier batches measuring a different
-                    # (and broken) quantity, and must not be pooled with these.
+                    # Named distinctly from the affordability_decis_* of earlier
+                    # batches, which measure a different quantity: the two column
+                    # families must never be pooled.
                     # rent_burden_decis_5 == affordability_median by construction.
                     'rent_burden_decis_1',
                     'rent_burden_decis_2',
@@ -112,8 +112,8 @@ OUTPUT_DATA_SPEC = {
                     "pct_firms_increase_production",
                     # Every rejection path in Central.request_loan has a counter
                     # here, so approved + all denied_* reconciles exactly to
-                    # loan_requested. denied_zero_capped_amount was previously
-                    # missing and silently absorbed most of the requests.
+                    # loan_requested. Adding a path without a counter here breaks
+                    # that identity; check_smoke_batch.py asserts it.
                     "denied_existing_loan",
                     "denied_invalid_term",
                     "denied_zero_capped_amount",
@@ -227,9 +227,9 @@ OUTPUT_DATA_SPEC = {
 
 
 def _legacy_stats_columns():
-    """`stats` layout before the 2026-08-01 output fix: no
+    """`stats` layout used by batches before 2026-08-01: no
     denied_zero_capped_amount, no pct_renters_zero_income, and the decile block
-    held the old (broken) affordability_decis_* quantity."""
+    carries affordability_decis_* rather than rent_burden_decis_*."""
     dropped = {'denied_zero_capped_amount', 'denied_no_loan_needed',
                'pct_renters_zero_income'}
     cols = [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c not in dropped]

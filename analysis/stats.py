@@ -325,10 +325,8 @@ class Statistics(object):
         # Rent burden = rent / permanent income, over renting families only.
         # The deciles are a genuine quantile function of that distribution, so
         # they are monotonic by construction and decile 5 is exactly
-        # median_affordability. (They replace the old affordability_decis_*,
-        # which divided two independently sorted vectors -- house price
-        # percentiles by wage deciles -- and was neither monotonic, nor finite,
-        # nor the same quantity as the median it sat next to.)
+        # median_affordability. Note decis_10 is the 100th percentile, i.e. the
+        # maximum, so it is a single household and not a decile average.
         renting_burden = rent_ratio[rent_ratio > 0]
         if renting_burden.size > 0:
             rent_burden_decis = np.percentile(renting_burden, np.arange(10, 101, 10))
