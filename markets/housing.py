@@ -292,8 +292,10 @@ class HousingMarket:
             self.notarial_procedures(family, house, price, change, sim)
 
             # if the procedures have come this far, it means loan or price have being agreed upon.
-            # Remove sold house from for_sale set.
-            self.for_sale = {h for h in for_sale if h is not house}
+            # Drop the sold house. The rest of the market stays in the set: a house that
+            # leaves and is re-added has its on_market counter reset, which suppresses the
+            # time-on-market price decay in House.update_price.
+            self.for_sale.discard(house)
 
             # Having bought a house, then it can move on to the next family
             return
