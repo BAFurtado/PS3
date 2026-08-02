@@ -7,7 +7,7 @@ import pandas as pd
 
 import conf
 from analysis import report
-from analysis.output import OUTPUT_DATA_SPEC
+from analysis.output import OUTPUT_DATA_SPEC, columns_for
 from analysis.plotting import Plotter, MissingDataError
 
 
@@ -42,12 +42,16 @@ def average_run_data(path, avg='mean', n_runs=1):
             df = pd.read_csv(f,  sep=';', decimal='.', header=None)
             dfs.append(df)
         df = pd.concat(dfs)
-        df.columns = spec['columns']
+        df.columns = columns_for(keep_files[fname], df.shape[1])
 
         # Saving date before averaging
+        # Derive from the frame, not the spec: a run directory written by an
+        # older layout has fewer columns than the current spec lists.
         avg_cols = spec['avg']['columns']
         if avg_cols == 'ALL':
-            avg_cols = [c for c in spec['columns'] if c not in spec['avg']['groupings']]
+            avg_cols = [c for c in df.columns if c not in spec['avg']['groupings']]
+        else:
+            avg_cols = [c for c in avg_cols if c in df.columns]
 
         # Ensure these columns are numeric
         df[avg_cols] = df[avg_cols].apply(pd.to_numeric)

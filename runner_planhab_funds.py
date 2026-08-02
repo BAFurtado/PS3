@@ -1,5 +1,6 @@
 import argparse
 import subprocess
+import sys
 import pathlib
 import datetime
 import time
@@ -10,27 +11,46 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # Global settings
 # ─────────────────────────────────────────────────────────────
 #
-# Re-test of MCMV funding-intensity (FUNDS_AVAILABILITY: pessimista /
-# tendencial / otimista), last run before it was swapped for
-# INTEREST_HOUSING in runner_planhab.py's PLANHAB scenario. That swap
-# coincided with the BVS=13/OSP=5 construction-dynamics + capacity_short
-# fix, so the original "small variation" finding predates the current
-# model and is being re-run here under it. POLICY_MCMV stays fixed True
-# (see main.py's PLANHABFUNDS branch) -- only funding intensity + melhorias
-# vary, same 2x3=6-combo structure as the original test.
+# Re-run (2026-08-01) of the MCMV funding-intensity sweep. The previous
+# PLANHABFUNDS batch is VOID: FUNDS_AVAILABILITY was read from the
+# conf.PARAMS module global rather than the per-run sim.PARAMS that
+# sensitivity sweeps override, so all three arms executed as `tendencial`
+# and the batch is three identically-parameterised replications wearing
+# different labels. Fixed in agents/bank.py (Central now takes params),
+# world/generator.py and world/mcmv_funds.py, with a source-scanning guard
+# in tests.py.
+#
+# The design gains a third axis in this re-run: TOTAL_TARGETING_POLICY,
+# which orders eligible families poorest-first before houses are allocated
+# (world/funds.py:update_policy_families). It has been False in every batch
+# to date, and it is the lever the CMAP/CMAS (2021) evaluation points at,
+# so it is swept rather than assumed.
+#
+#   POLICY_MELHORIAS        True | False
+#   FUNDS_AVAILABILITY      pessimista | tendencial | otimista
+#   TOTAL_TARGETING_POLICY  True | False
+#
+# = 2 x 3 x 2 = 12 combinations per city (was 6); total_jobs = 12 x RUNS.
+# POLICY_MCMV stays fixed True -- see main.py's PLANHABFUNDS branch.
 #
 # Runs on its own dedicated (third) server, independent of runner_planhab.py.
 
-PYTHON = "python"
+# Use the interpreter this runner was started with, so the child sims cannot
+# silently land on a different environment than the one launching them (bare
+# `python` is not on PATH outside an activated conda shell).
+PYTHON = sys.executable or "python"
 MAIN   = "main.py"
 
 SAO_PAULO = "SAO PAULO"
 
 # Applied uniformly to every city. Change these two numbers and every city
 # picks them up automatically -- no per-city editing required.
-# PLANHABFUNDS produces 2 (POLICY_MELHORIAS) x 3 (FUNDS_AVAILABILITY) = 6
-# combinations per city; total_jobs = 6 x RUNS. CPUS_PER_CITY becomes
-# n_jobs in joblib's Parallel pool for that city's run.
+# PLANHABFUNDS now produces 12 combinations per city (see header), so
+# total_jobs = 12 x RUNS = 240 per city, 6,240 across the 26 non-SP capitals.
+# RUNS stays at 20 rather than dropping to 10: n=20 is what the planhab batch
+# already has, the comparison wants matched power, and a third re-run would
+# cost far more than the extra wall clock. CPUS_PER_CITY becomes n_jobs in
+# joblib's Parallel pool for that city's run.
 RUNS           = 20
 CPUS_PER_CITY  = 10
 MAX_CPU_BUDGET = 10   # this server's total CPU slots for concurrent city runs

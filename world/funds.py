@@ -19,6 +19,11 @@ class Funds:
         self.gov_consumption_parameter = self.sim.regional_market.final_demand['GovernmentConsumption']['Government']
         self.perc_policy_money_spent = 0
         self.allocated_money = 0
+        # Per-municipality diagnostics of the MCMV acquisition loop, refreshed every
+        # month and written out by analysis/output.py:save_regional_report. ACP-level
+        # perc_policy_money_spent averages the municipalities together and cannot say
+        # *why* the programme stopped; these can.
+        self.mcmv_diag = {}
         if sim.PARAMS['FPM_DISTRIBUTION']:
             self.fpm = {
                 state: pd.read_csv('input/fpm/%s.csv' % state, sep=',', header=0, decimal='.', encoding='latin1')
@@ -31,6 +36,28 @@ class Funds:
         if sim.PARAMS['POLICY_MCMV'] or sim.PARAMS['POLICY_MELHORIAS']:
             # Collect money from exogenous funding
             self.mcmv = MCMV(sim)
+
+    @staticmethod
+    def blank_mcmv_diag():
+        """One municipality-month of MCMV allocation diagnostics.
+
+        The six stop_* fields are mutually exclusive indicators (exactly one is 1
+        whenever the municipality was processed at all), so averaging them across
+        runs gives the probability of each stopping reason.
+        """
+        return {
+            'eligible': 0,
+            'units_available': 0,
+            'units_bought': 0,
+            'money_start': 0.0,
+            'money_residual': 0.0,
+            'stop_no_eligible': 0,
+            'stop_no_units': 0,
+            'stop_families_exhausted': 0,
+            'stop_budget': 0,
+            'stop_indivisible': 0,
+            'stop_units_exhausted': 0,
+        }
 
     def needs_policy_funding(self):
         return (
@@ -112,6 +139,7 @@ class Funds:
         # Reset monthly indicators so stats reflect current month, not cumulative totals
         self.families_subsided = 0
         self.money_applied_policy = 0
+        self.mcmv_diag = {}
 
         if self.sim.PARAMS['POLICY_MCMV']:
             # MCMV FAIXA 1
@@ -208,6 +236,9 @@ class Funds:
                     houses_by_mun[h.region_id[:6]].append(h)
         # Families are sorted in self.policy_families. Buy and give as much as money allows
         for mun in self.policy_money.keys():
+            diag = self.blank_mcmv_diag()
+            self.mcmv_diag[mun] = diag
+
             self.temporary_houses[mun] = houses_by_mun.get(mun, [])
             # Sort houses and families by cheapest, poorest.
             # Considering # houses is limited, help as many as possible earlier.
@@ -216,39 +247,67 @@ class Funds:
             # Exclude families who own any house. Exclusively for renters
             self.policy_families[mun] = [f for f in self.policy_families[mun] if not f.owned_houses]
 
-            for house in self.temporary_houses[mun]:
-                # While families to receive houses
-                if not self.policy_families[mun]:
-                    break
-                # While money is good.
-                if self.policy_money[mun] <= 0 or house.price >= self.policy_money[mun]:
-                    break
-                # Getting poorest family first, given permanent income
-                family = self.policy_families[mun].pop(0)
-                # Transaction taxes help reduce the price of the bulk buying by the municipality
-                taxes = house.price * self.sim.PARAMS['TAX_ESTATE_TRANSACTION']
-                self.sim.regions[house.region_id].collect_taxes(taxes, 'transaction')
-                # Register subsidies
-                self.money_applied_policy += house.price
-                self.families_subsided += 1
-                # Pay construction company
-                self.sim.firms[house.owner_id].update_balance(house.price - taxes,
-                                                              self.sim.PARAMS['CONSTRUCTION_ACC_CASH_FLOW'],
-                                                              self.sim.clock.days)
-                # Deduce from municipality fund
-                self.policy_money[mun] -= house.price
-                # Transfer ownership
-                self.sim.firms[house.owner_id].houses_for_sale.remove(house)
-                # Finish notarial procedures
-                house.owner_id = family.id
-                house.family_owner = True
-                family.owned_houses.append(house)
-                house.on_market = 0
-                # Move out. Move in
-                HousingMarket.make_move(family, house, self.sim)
+            diag['money_start'] = self.policy_money[mun]
+            diag['eligible'] = len(self.policy_families[mun])
+            diag['units_available'] = len(self.temporary_houses[mun])
+
+            if not self.policy_families[mun]:
+                diag['stop_no_eligible'] = 1
+            elif not self.temporary_houses[mun]:
+                diag['stop_no_units'] = 1
+            else:
+                # Optimistic default: only reached if the unit list runs out
+                stop = 'units_exhausted'
+                for house in self.temporary_houses[mun]:
+                    # While families to receive houses
+                    if not self.policy_families[mun]:
+                        stop = 'families_exhausted'
+                        break
+                    # While money is good. Budget exhaustion and an indivisible
+                    # residual (money left, but the cheapest remaining unit costs
+                    # more than what remains) are separate failures -- the second
+                    # is a lumpiness problem, not a scarcity one.
+                    if self.policy_money[mun] <= 0:
+                        stop = 'budget'
+                        break
+                    if house.price >= self.policy_money[mun]:
+                        stop = 'indivisible'
+                        break
+                    self._buy_house_for_family(mun, house)
+                    diag['units_bought'] += 1
+                diag['stop_{}'.format(stop)] = 1
+
+            diag['money_residual'] = self.policy_money[mun]
 
         # Clean up list for next month
         self.temporary_houses = defaultdict(list)
+
+    def _buy_house_for_family(self, mun, house):
+        """Municipality buys `house` from its construction firm and hands it to the
+        poorest remaining eligible family in `mun`."""
+        # Getting poorest family first, given permanent income
+        family = self.policy_families[mun].pop(0)
+        # Transaction taxes help reduce the price of the bulk buying by the municipality
+        taxes = house.price * self.sim.PARAMS['TAX_ESTATE_TRANSACTION']
+        self.sim.regions[house.region_id].collect_taxes(taxes, 'transaction')
+        # Register subsidies
+        self.money_applied_policy += house.price
+        self.families_subsided += 1
+        # Pay construction company
+        self.sim.firms[house.owner_id].update_balance(house.price - taxes,
+                                                      self.sim.PARAMS['CONSTRUCTION_ACC_CASH_FLOW'],
+                                                      self.sim.clock.days)
+        # Deduce from municipality fund
+        self.policy_money[mun] -= house.price
+        # Transfer ownership
+        self.sim.firms[house.owner_id].houses_for_sale.remove(house)
+        # Finish notarial procedures
+        house.owner_id = family.id
+        house.family_owner = True
+        family.owned_houses.append(house)
+        house.on_market = 0
+        # Move out. Move in
+        HousingMarket.make_move(family, house, self.sim)
 
     def distribute_fpm(self, value, regions, pop_t, pop_mun_t, year):
         """Calculate proportion of FPM per region, in relation to the total of all regions.

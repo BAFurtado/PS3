@@ -261,7 +261,18 @@ class Central:
         amount = min(amount, max_amount)
 
         if amount <= 0:
-            self.loan_stats["denied_zero_capped_amount"] += 1
+            if max_amount <= 0:
+                # Genuine affordability failure on the extensive margin: the
+                # family's permanent income supports no principal at all.
+                self.loan_stats["denied_zero_capped_amount"] += 1
+            else:
+                # The caller asked for nothing. Not a rationing event at all, and
+                # since the housing market no longer calls the bank when the
+                # required loan is zero, this should stay at zero: a non-zero
+                # count means some caller has started asking for nothing again
+                # and is reading the False back as a refusal. Kept as a guard,
+                # and so the denial decomposition still reconciles exactly.
+                self.loan_stats["denied_no_loan_needed"] += 1
             return False, None
 
         # Affordability gate: check actual first payment against the chosen table

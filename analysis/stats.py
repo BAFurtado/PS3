@@ -270,6 +270,7 @@ class Statistics(object):
         # Fill arrays
         total_renting = 0
         total_voucher = 0
+        total_renting_zero_income = 0
         affordable = 0
         total_savings = 0
         rent_default_count = 0
@@ -292,6 +293,11 @@ class Statistics(object):
                 total_renting += 1
                 if family.rent_voucher:
                     total_voucher += 1
+                if pi <= 0:
+                    # Rent burden is undefined for these; the line below divides
+                    # by 1 instead, which parks them in the top decile at
+                    # rent-sized values. Counted so that tail is interpretable.
+                    total_renting_zero_income += 1
 
                 rr = family.house.rent_data[0] / (pi if pi > 0 else 1)
                 rent_ratio[i] = rr
@@ -316,7 +322,20 @@ class Statistics(object):
         affordability_ratio = (affordable + total_voucher) / total_renting if total_renting > 0 else 0
         median_permanent_income = np.median(permanent_income)
         median_wages = np.median(wages)
-        median_affordability = np.median(rent_ratio[rent_ratio > 0]) if total_renting > 0 else 0
+        # Rent burden = rent / permanent income, over renting families only.
+        # The deciles are a genuine quantile function of that distribution, so
+        # they are monotonic by construction and decile 5 is exactly
+        # median_affordability. (They replace the old affordability_decis_*,
+        # which divided two independently sorted vectors -- house price
+        # percentiles by wage deciles -- and was neither monotonic, nor finite,
+        # nor the same quantity as the median it sat next to.)
+        renting_burden = rent_ratio[rent_ratio > 0]
+        if renting_burden.size > 0:
+            rent_burden_decis = np.percentile(renting_burden, np.arange(10, 101, 10))
+            median_affordability = float(np.median(renting_burden))
+        else:
+            rent_burden_decis = np.zeros(10)
+            median_affordability = 0
 
         rent_default_ratio = (
             rent_default_count / (total_renting - total_voucher)
@@ -356,6 +375,9 @@ class Statistics(object):
             "affordability_ratio": affordability_ratio,
             "median_permanent_income": median_permanent_income,
             "median_affordability": median_affordability,
+            "rent_burden_decis": rent_burden_decis,
+            "zero_income_renter_share": (
+                total_renting_zero_income / total_renting if total_renting > 0 else 0),
             "median_wages": median_wages,
             "total_savings": total_savings,
             "rent_default_ratio": rent_default_ratio,

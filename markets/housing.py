@@ -16,7 +16,7 @@ class HousingMarket:
         self.for_sale = set()
         self.policy_year = 0
         self.policy_percentages = defaultdict(dict)
-        
+
     @staticmethod
     def process_monthly_rent(sim):
         """ Collection of rental payment due made by households that are renting """
@@ -221,6 +221,12 @@ class HousingMarket:
         params = sim.PARAMS
         capped_top_value = params['CAPPED_TOP_VALUE']
         capped_low_value = params['CAPPED_LOW_VALUE']
+        # Offer ceiling: the bargained price is the average of the buyer's means
+        # and the asking price, so when the buyer is capped at CAPPED_TOP_VALUE
+        # times the ask, the average is against the ask, not against zero. This
+        # makes the rule continuous at the cap: at savings/p == 1.3 both branches
+        # give 1.15p.
+        capped_price_factor = (capped_top_value + 1) / 2
         loan_rate = getattr(family, 'loan_rate', None)
         if loan_rate == 'fgts':
             max_loan_to_value = params['MAX_LOAN_TO_VALUE_FGTS']
@@ -238,33 +244,38 @@ class HousingMarket:
             if savings > p:
                 # Restrict OFFERs to a maximum of 30% threshold
                 if savings / p > capped_top_value:
-                    price = p * capped_top_value / 2
+                    price = p * capped_price_factor
                 else:
                     price = (savings + p) / 2
 
             # If not, check whether loan can help
             elif savings_with_mortgage > p:
                 if savings_with_mortgage / p > capped_top_value:
-                    price = p * capped_top_value / 2
+                    price = p * capped_price_factor
                 else:
                     price = (savings_with_mortgage + p) / 2
 
-                # Get loan to make up the difference
+                # Get loan to make up the difference. Reaching this branch means
+                # savings alone did not cover the asking price, and the bargained
+                # price is never below it, so a loan is genuinely needed. Asking
+                # the bank for zero is a different thing from not asking at all:
+                # the bank answers a zero request with a refusal, which would make
+                # the family walk away from a house it can pay for outright.
                 loan_amount = max(0, price - savings)
+                if loan_amount > 0:
+                    # Check macroprudencial policy. If loan to value is above set value,
+                    # no loan, leave the market.
+                    if (loan_amount / price) > max_loan_to_value:
+                        continue
 
-                # Check macroprudencial policy. If loan to value is above set value, no loan, leave the market.
-                if (loan_amount / price) > max_loan_to_value:
-                    continue
+                    # Attempt to actually get the loan from the bank
+                    success, amount = sim.central.request_loan(
+                        family, house, loan_amount, sim.clock.year, sim.clock.months
+                    )
+                    if not success:
+                        continue
 
-                # Attempt to actually get the loan from the bank
-                success, amount = sim.central.request_loan(
-                    family, house, loan_amount, sim.clock.year, sim.clock.months
-                )
-                if not success:
-                    continue
-
-
-                cash += amount
+                    cash += amount
 
             elif savings / p > capped_low_value:
                 if sim.seed_np.rand() < vacancy:

@@ -79,17 +79,28 @@ OUTPUT_DATA_SPEC = {
                     'bank',
                     'emissions_fund',
                     'ext_amount_sold',
-                    'affordability_decis_1',
-                    'affordability_decis_2',
-                    'affordability_decis_3',
-                    'affordability_decis_4',
-                    'affordability_decis_5',
-                    'affordability_decis_6',
-                    'affordability_decis_7',
-                    'affordability_decis_8',
-                    'affordability_decis_9',
-                    'affordability_decis_10',
+                    # Deciles of rent / permanent income among renting families.
+                    # Deliberately NOT named affordability_decis_* -- that column
+                    # family exists in earlier batches measuring a different
+                    # (and broken) quantity, and must not be pooled with these.
+                    # rent_burden_decis_5 == affordability_median by construction.
+                    'rent_burden_decis_1',
+                    'rent_burden_decis_2',
+                    'rent_burden_decis_3',
+                    'rent_burden_decis_4',
+                    'rent_burden_decis_5',
+                    'rent_burden_decis_6',
+                    'rent_burden_decis_7',
+                    'rent_burden_decis_8',
+                    'rent_burden_decis_9',
+                    'rent_burden_decis_10',
                     'affordability_median',
+                    # Share of renters whose permanent income is <= 0. Their rent
+                    # burden is undefined and lands in the top decile, so this is
+                    # what makes rent_burden_decis_10 readable. affordability_median
+                    # keeps its original definition for comparability with the
+                    # submitted density paper.
+                    'pct_renters_zero_income',
                     'perc_fgts_used',
                     'perc_sbpe_used',
                     "active_loans",
@@ -99,8 +110,14 @@ OUTPUT_DATA_SPEC = {
                     "credit_stock",
                     "bank_balance",
                     "pct_firms_increase_production",
+                    # Every rejection path in Central.request_loan has a counter
+                    # here, so approved + all denied_* reconciles exactly to
+                    # loan_requested. denied_zero_capped_amount was previously
+                    # missing and silently absorbed most of the requests.
                     "denied_existing_loan",
                     "denied_invalid_term",
+                    "denied_zero_capped_amount",
+                    "denied_no_loan_needed",
                     "denied_affordability",
                     "denied_recursos_fgts",
                     "denied_recursos_sbpe",
@@ -180,7 +197,23 @@ OUTPUT_DATA_SPEC = {
                     'licenses',
                     'affordability_ratio',
                     'median_permanent_income',
-                    'median_affordability']
+                    'median_affordability',
+                    # MCMV acquisition diagnostics, per municipality-month.
+                    # The six mcmv_stop_* columns are mutually exclusive 0/1
+                    # indicators, so their average over runs reads as the
+                    # probability of each stopping reason. See
+                    # world/funds.py:buy_houses_give_to_families.
+                    'mcmv_eligible',
+                    'mcmv_units_available',
+                    'mcmv_units_bought',
+                    'mcmv_money_start',
+                    'mcmv_money_residual',
+                    'mcmv_stop_no_eligible',
+                    'mcmv_stop_no_units',
+                    'mcmv_stop_families_exhausted',
+                    'mcmv_stop_budget',
+                    'mcmv_stop_indivisible',
+                    'mcmv_stop_units_exhausted']
     },
     'neighbourhood': {
         'avg': {
@@ -191,6 +224,47 @@ OUTPUT_DATA_SPEC = {
                     'neighbourhood_gdp_percapita', 'neighbourhood_commuting', 'neighbourhood_gini']
     }
 }
+
+
+def _legacy_stats_columns():
+    """`stats` layout before the 2026-08-01 output fix: no
+    denied_zero_capped_amount, no pct_renters_zero_income, and the decile block
+    held the old (broken) affordability_decis_* quantity."""
+    dropped = {'denied_zero_capped_amount', 'denied_no_loan_needed',
+               'pct_renters_zero_income'}
+    cols = [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c not in dropped]
+    return [c.replace('rent_burden_decis_', 'affordability_decis_') for c in cols]
+
+
+def _legacy_regional_columns():
+    """`regional` layout before the MCMV allocation diagnostics were added."""
+    return [c for c in OUTPUT_DATA_SPEC['regional']['columns'] if not c.startswith('mcmv_')]
+
+
+LEGACY_COLUMNS = {
+    'stats': [_legacy_stats_columns()],
+    'regional': [_legacy_regional_columns()],
+}
+
+
+def columns_for(kind, n_fields):
+    """Column names for a headerless output file that has `n_fields` fields.
+
+    stats.csv and regional.csv are written without a header, so anything reading
+    a run directory produced by an older version of this file must use the layout
+    that matches *that* file rather than the current spec. Passing too many names
+    to pandas silently shifts the surplus into the index instead of failing, so
+    resolve the width here and raise when nothing fits.
+    """
+    current = OUTPUT_DATA_SPEC[kind]['columns']
+    if len(current) == n_fields:
+        return current
+    for legacy in LEGACY_COLUMNS.get(kind, []):
+        if len(legacy) == n_fields:
+            return legacy
+    raise ValueError(
+        'No known {} layout has {} columns (current spec has {}).'.format(
+            kind, n_fields, len(current)))
 
 
 class Output:
@@ -243,9 +317,8 @@ class Output:
             writer.close()
         self._pq_writers.clear()
 
-    def save_stats_report(self, sim, bank_taxes, affordability_decis):
+    def save_stats_report(self, sim, bank_taxes):
         # Banks
-        affordability_decis_values = ";".join(f"{v:.2f}" for v in affordability_decis)
         bank = sim.central
         active = bank.active_loans()
         n_active = len(active)
@@ -329,6 +402,7 @@ class Output:
             "emissions_fund": emissions_fund,
             "ext_amount_sold": ext_amount_sold,
             "affordability_median": families_results["median_affordability"],
+            "pct_renters_zero_income": families_results["zero_income_renter_share"],
             "perc_fgts_used": perc_fgts,
             "perc_sbpe_used": perc_sbpe,
             "active_loans": n_active,
@@ -341,6 +415,8 @@ class Output:
             "pct_firms_increase_production": firm_results["pct_increase_production"],
             "denied_existing_loan": bank.loan_stats["denied_existing_loan"],
             "denied_invalid_term": bank.loan_stats["denied_invalid_term"],
+            "denied_zero_capped_amount": bank.loan_stats["denied_zero_capped_amount"],
+            "denied_no_loan_needed": bank.loan_stats["denied_no_loan_needed"],
             "denied_affordability": bank.loan_stats["denied_affordability"],
             "denied_recursos_fgts": bank.loan_stats["denied_recursos_fgts"],
             "denied_recursos_sbpe": bank.loan_stats["denied_recursos_sbpe"],
@@ -349,8 +425,8 @@ class Output:
             "denied_bank_limit": bank.loan_stats["denied_bank_limit"],
         }
 
-        for i, v in enumerate(affordability_decis, start=1):
-            stats_row[f"affordability_decis_{i}"] = v
+        for i, v in enumerate(families_results["rent_burden_decis"], start=1):
+            stats_row[f"rent_burden_decis_{i}"] = v
 
         columns = OUTPUT_DATA_SPEC["stats"]["columns"]
         row = ";".join(str(stats_row[c]) for c in columns) + "\n"
@@ -416,8 +492,15 @@ class Output:
             # average QLI of regions
             mun_qli = sum(r.index for r in regions) / len(regions)
 
+            # funds.policy_money (and hence mcmv_diag) is keyed on the 6-digit
+            # IBGE prefix; mun_id here carries all 7 digits.
+            mcmv = sim.funds.mcmv_diag.get(mun_id[:6]) if hasattr(sim.funds, 'mcmv_diag') else None
+            if mcmv is None:
+                mcmv = sim.funds.blank_mcmv_diag()
+
             reports.append(
                 '%s;%s;%.3f;%d;%.3f;%.4f;%.3f;%.4f;%.5f;%.3f;%.6f;%.6f;%.6f;%.6f;%s;%.6f;%.6f;%.6f'
+                ';%d;%d;%d;%.2f;%.2f;%d;%d;%d;%d;%d;%d'
                 % (sim.clock.days, mun_id, commuting, mun_pop, mun_gdp, mun_gini, mun_house_values,
                    mun_unemployment, mun_qli, GDP_mun_capita, mun_cumulative_treasure,
                    mun_applied_treasure['equally'],
@@ -427,6 +510,17 @@ class Output:
                    families_regional_metrics['affordability_ratio'],
                    families_regional_metrics['median_permanent_income'],
                    families_regional_metrics['median_affordability'],
+                   mcmv['eligible'],
+                   mcmv['units_available'],
+                   mcmv['units_bought'],
+                   mcmv['money_start'],
+                   mcmv['money_residual'],
+                   mcmv['stop_no_eligible'],
+                   mcmv['stop_no_units'],
+                   mcmv['stop_families_exhausted'],
+                   mcmv['stop_budget'],
+                   mcmv['stop_indivisible'],
+                   mcmv['stop_units_exhausted'],
                    ))
 
         with open(self.regional_path, 'a') as f:

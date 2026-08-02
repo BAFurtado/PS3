@@ -344,7 +344,13 @@ def sensitivity(ctx, params):
                     "pessimista",
                     "tendencial",
                     "otimista"
-                ]
+                ],
+                # Allocation order among the eligible: True sorts poorest-first
+                # (world/funds.py:update_policy_families), False leaves the
+                # registry order. Off in every batch so far, and it is the
+                # lever CMAP/CMAS (2021) points at, so it is swept here.
+                # 2 x 3 x 2 = 12 combinations per city.
+                "TOTAL_TARGETING_POLICY": [True, False]
             }
 
             keys, values = zip(*my_dict.items())
