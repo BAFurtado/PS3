@@ -107,7 +107,9 @@ def die(sim, agent):
             agent.family.owned_houses.remove(h)
 
         savings = agent.family.grab_savings(sim.central, sim.clock.year, sim.clock.months)
-        relatives = [sim.families[i] for i in agent.family.relatives if i in sim.families]
+        # Inheritance and debt are drawn from this list, so its order must be stable.
+        relatives = [sim.families[i] for i in sorted(agent.family.relatives)
+                     if i in sim.families]
 
         # Eliminate families with no members
         agent.family.remove_agent(agent)

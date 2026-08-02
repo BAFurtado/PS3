@@ -223,8 +223,10 @@ class Simulation:
         for region_id in self.regions.keys():
             mun_code = region_id[:7]
             self.mun_to_regions[mun_code].add(region_id)
+        # Region order feeds the sequence of random draws downstream, so it must be
+        # stable across processes.
         for mun_code, regions in self.mun_to_regions.items():
-            self.mun_to_regions[mun_code] = list(regions)
+            self.mun_to_regions[mun_code] = sorted(regions)
 
         # First jobs allocated
         # Create an existing job market

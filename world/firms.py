@@ -51,7 +51,7 @@ def firm_growth(sim):
         # Get growth based on historical data
         growth = sim.generator.firm_data.avg_monthly_deltas[int(mun_code)] * sim.PARAMS['PERCENTAGE_ACTUAL_POP']
         # Round the value and use the remainder as probability
-        growth = round(growth)+int(np.random.random()<growth-round(growth))
+        growth = round(growth)+int(sim.seed_np.random()<growth-round(growth))
 
         # Ignoring shrinkage for now
         if growth <= 0:

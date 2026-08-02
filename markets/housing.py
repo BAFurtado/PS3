@@ -138,8 +138,10 @@ class HousingMarket:
         family_maximum_purchasing_power = max(looking, key=lambda fam: fam.savings_with_loan)
         maximum_purchasing_power = family_maximum_purchasing_power.savings_with_loan
 
+        # Sampling below draws from these lists, so their order must be stable.
+        for_sale_ordered = sorted(self.for_sale, key=lambda h: h.id)
         # Only rent from families, not firms
-        family_houses_to_rent = [h for h in self.for_sale if h.family_owner]
+        family_houses_to_rent = [h for h in for_sale_ordered if h.family_owner]
 
         houses_to_rent = sim.seed.sample(family_houses_to_rent,
                                          int(len(family_houses_to_rent) * sim.PARAMS['INITIAL_RENTAL_SHARE']))
@@ -147,7 +149,7 @@ class HousingMarket:
         # Deduce houses that are to be rented from sales pool and
         # Restrict list of available houses to families' maximum paying ability
         houses_to_rent_set = set(houses_to_rent)
-        houses_to_sell = [h for h in self.for_sale if
+        houses_to_sell = [h for h in for_sale_ordered if
                           (h not in houses_to_rent_set) and (h.price < maximum_purchasing_power)]
 
         # Separating purchasing families by house price distribution and assigning quality houses accordingly

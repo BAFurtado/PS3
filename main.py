@@ -6,12 +6,20 @@ Disclaimer:
 This code was generated for research purposes only.
 It is licensed under GNU v3 license
 """
+import os
+
+# Must precede any numpy import: multithreaded BLAS reductions sum in a
+# non-deterministic order, so a fixed seed alone does not reproduce a run. Runs are
+# parallelised across processes, so one thread each is also the faster arrangement.
+for _threads in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS",
+                 "NUMEXPR_NUM_THREADS", "VECLIB_MAXIMUM_THREADS"):
+    os.environ.setdefault(_threads, "1")
+
 import copy
 import datetime
 import itertools
 import json
 import logging
-import os
 import secrets
 
 from glob import glob

@@ -1,3 +1,9 @@
+import os
+
+for _threads in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS",
+                 "NUMEXPR_NUM_THREADS", "VECLIB_MAXIMUM_THREADS"):
+    os.environ.setdefault(_threads, "1")
+
 import conf
 import tempfile
 import numpy as np
@@ -221,6 +227,43 @@ check(
     "Without an explicit seed, runs still vary under KEEP_RANDOM_SEED",
     len(set(_free)) == 3 if conf.RUN["KEEP_RANDOM_SEED"] else len(set(_free)) == 1,
     f"free={_free}",
+)
+
+# ── reproducibility guards ───────────────────────────────────────────────────
+# A run must be reproducible from its seed. Three things break that: drawing from an
+# unseeded global RNG, generating ids outside the seeded stream, and multithreaded
+# BLAS reductions, whose summation order varies between processes.
+_RNG_PAT = re.compile(r"\bnp\.random\.(?!RandomState)|\bnumpy\.random\.(?!RandomState)"
+                      r"|(?<![.\w])random\.(random|randint|choice|sample|shuffle|uniform|gauss|normalvariate)"
+                      r"|\buuid\.uuid[0-9]")
+_rng_offenders = []
+for _d in _MODEL_DIRS + ["."]:
+    for _f in pathlib.Path(_d).glob("*.py") if _d == "." else pathlib.Path(_d).rglob("*.py"):
+        _rel = _f.as_posix()
+        if _rel.startswith("analysis/") and "planhab" not in _rel and "validation" not in _rel:
+            pass
+        if _rel.startswith("analysis/plotting") or "/emission_plots/" in _rel:
+            continue
+        if _rel.startswith("analysis/") and _rel not in ("analysis/stats.py", "analysis/output.py"):
+            continue
+        for _i, _line in enumerate(_f.read_text().splitlines(), 1):
+            if _line.lstrip().startswith("#"):
+                continue
+            if _RNG_PAT.search(_line):
+                _rng_offenders.append(f"{_rel}:{_i}")
+
+check(
+    "Model code draws only from the seeded RNG (no global np.random/random/uuid)",
+    not _rng_offenders,
+    f"offenders={_rng_offenders}",
+)
+
+check(
+    "BLAS thread count pinned to 1 so float reductions are order-stable",
+    all(os.environ.get(v) == "1" for v in
+        ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS")),
+    "export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1, "
+    "or run through main.py which sets them",
 )
 
 # ── summary ──────────────────────────────────────────────────────────────────

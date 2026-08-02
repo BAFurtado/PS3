@@ -72,6 +72,7 @@ class Generator:
         single_ap_muns = pd.read_csv(f"input/single_aps_{self.sim.geo.year}.csv")
         self.single_ap_muns = single_ap_muns["mun_code"].tolist()
         self.quali = self.load_quali()
+        self._next_id = 0
 
     def years_study(self, loc):
         # Qualification 2010 degrees of instruction transformation into years of study
@@ -85,8 +86,14 @@ class Generator:
         return parameters[loc]
 
     def gen_id(self):
-        """Generate a random id that should avoid collisions"""
-        return str(uuid.uuid4())[:12]
+        """Unique id, reproducible under a fixed seed.
+
+        Ids order collections the model iterates and samples from, so they must depend
+        only on creation order. The 'i' prefix keeps them disjoint from the uuid-style
+        ids carried by pickled populations.
+        """
+        self._next_id += 1
+        return 'i%011d' % self._next_id
 
     def create_regions(self):
         """Create regions"""
@@ -297,7 +304,7 @@ class Generator:
     def get_empirical_qualities(self, region, num_houses):
         quality_typologies = [.5, 1, 2, 3, 4, 5]
         proportion = house_qual_areap.loc[house_qual_areap['areap'] == region.id, ['DPP0', 'DPP1', 'DPP2', 'DPP3', 'DPP4', 'DPP5']].values.ravel()
-        qualities = np.random.choice(quality_typologies, num_houses, p=proportion)
+        qualities = self.seed_np.choice(quality_typologies, num_houses, p=proportion)
         return qualities
 
     def get_empirical_data(self, region, num_houses, qualities):
