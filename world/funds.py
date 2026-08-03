@@ -19,16 +19,19 @@ class Funds:
         self.gov_consumption_parameter = self.sim.regional_market.final_demand['GovernmentConsumption']['Government']
         self.perc_policy_money_spent = 0
         self.allocated_money = 0
-        # Per-municipality diagnostics of the MCMV acquisition loop, refreshed every
+        # Per-municipality diagnostics of the two OGU programmes, refreshed every
         # month and written out by analysis/output.py:save_regional_report. ACP-level
         # perc_policy_money_spent averages the municipalities together and cannot say
         # *why* the programme stopped; these can.
         self.mcmv_diag = {}
+        self.melhorias_diag = {}
         if sim.PARAMS['FPM_DISTRIBUTION']:
             self.fpm = {
                 state: pd.read_csv('input/fpm/%s.csv' % state, sep=',', header=0, decimal='.', encoding='latin1')
                 for state in self.sim.geo.states_on_process}
         if self.needs_policy_funding():
+            # Tax-funded pot for the POLICY_COEFFICIENT policies (buy/rent/wage),
+            # fed by distribute_fpm/locally/equally. Distinct from the two OGU pots.
             self.policy_money = defaultdict(float)
             self.policy_families = defaultdict(list)
             self.temporary_houses = defaultdict(list)
@@ -36,10 +39,21 @@ class Funds:
         if sim.PARAMS['POLICY_MCMV'] or sim.PARAMS['POLICY_MELHORIAS']:
             # Collect money from exogenous funding
             self.mcmv = MCMV(sim)
+            # MCMV and melhorias are two distinct programmes, each with its own OGU
+            # budget line of the same size. One persistent pot each: topped up every
+            # month by `share x GDP / 12` and never reset, so money a municipality
+            # could not spend -- typically because the cheapest remaining unit cost
+            # more than what was left -- is still there next month.
+            self.policy_money_mcmv = defaultdict(float)
+            self.policy_money_melhorias = defaultdict(float)
 
     @staticmethod
     def blank_mcmv_diag():
         """One municipality-month of MCMV allocation diagnostics.
+
+        `money_topup` is this month's OGU allocation, `money_start` the balance
+        available to spend (top-up plus whatever carried over) and `money_residual`
+        what carries into next month.
 
         The six stop_* fields are mutually exclusive indicators (exactly one is 1
         whenever the municipality was processed at all), so averaging them across
@@ -49,6 +63,7 @@ class Funds:
             'eligible': 0,
             'units_available': 0,
             'units_bought': 0,
+            'money_topup': 0.0,
             'money_start': 0.0,
             'money_residual': 0.0,
             'stop_no_eligible': 0,
@@ -58,6 +73,43 @@ class Funds:
             'stop_indivisible': 0,
             'stop_units_exhausted': 0,
         }
+
+    @staticmethod
+    def blank_melhorias_diag():
+        """One municipality-month of melhorias allocation diagnostics.
+
+        Same money fields as blank_mcmv_diag. `upgrades` counts houses taken from
+        quality .5 to 1 this month.
+        """
+        return {
+            'eligible': 0,
+            'upgrades': 0,
+            'money_topup': 0.0,
+            'money_start': 0.0,
+            'money_residual': 0.0,
+        }
+
+    @staticmethod
+    def top_up(pot, allocation, diagnostics, blank):
+        """Add this month's `allocation` to a persistent programme `pot`.
+
+        The pot keeps its residual from previous months, so the balance a
+        municipality starts the month with is carryover plus top-up. Opens one
+        diagnostics record per municipality.
+
+        Returns the allocation rather than the balance, because it is the denominator
+        of `perc_policy_money_spent`, a budget-execution rate against the month's
+        budget line. A balance denominator decays towards zero for any programme whose
+        pot accumulates faster than it spends.
+        """
+        for mun, value in allocation.items():
+            pot[mun] += value
+        for mun, balance in pot.items():
+            diag = blank()
+            diag['money_topup'] = allocation.get(mun, 0.0)
+            diag['money_start'] = balance
+            diagnostics[mun] = diag
+        return sum(allocation.values())
 
     def needs_policy_funding(self):
         return (
@@ -140,34 +192,38 @@ class Funds:
         self.families_subsided = 0
         self.money_applied_policy = 0
         self.mcmv_diag = {}
+        self.melhorias_diag = {}
+        self.allocated_money = 0
 
         if self.sim.PARAMS['POLICY_MCMV']:
             # MCMV FAIXA 1
-            self.policy_money = self.mcmv.update_policy_money(self.sim.clock.year)
-            self.allocated_money += sum(self.policy_money.values())
+            self.allocated_money += self.top_up(
+                self.policy_money_mcmv, self.mcmv.monthly_allocation(self.sim.clock.year),
+                self.mcmv_diag, self.blank_mcmv_diag)
             quantile = self.sim.PARAMS['INCOME_MODALIDADES']['faixa1']
             self.update_policy_families(quantile)
-            self.buy_houses_give_to_families()
+            self.buy_houses_give_to_families(self.policy_money_mcmv, self.mcmv_diag)
             # RURAL
-            # self.policy_money = self.mcmv.update_policy_money(self.sim.clock.year, 'rural')
             # quantile = self.sim.PARAMS['INCOME_MODALIDADES']['rural']
             # self.update_policy_families(quantile)
             # for mun in self.policy_families.keys():
             #     self.policy_families[mun] = [f for f in self.policy_families[mun] if f.house.rural]
-            # self.buy_houses_give_to_families()
+            # self.buy_houses_give_to_families(self.policy_money_mcmv, self.mcmv_diag)
         if self.sim.PARAMS['POLICY_MELHORIAS']:
-            self.policy_money = self.mcmv.update_policy_money(self.sim.clock.year)
-            self.allocated_money += sum(self.policy_money.values())
+            self.allocated_money += self.top_up(
+                self.policy_money_melhorias, self.mcmv.monthly_allocation(self.sim.clock.year),
+                self.melhorias_diag, self.blank_melhorias_diag)
             quantile = self.sim.PARAMS['MELHORIAS_INCOME_QUANTILE']
             self.update_policy_families(quantile)
             for mun in self.policy_families.keys():
                 self.policy_families[mun] = [f for f in self.policy_families[mun] if f.house.quality == .5]
-            self.apply_house_upgrade()
+            self.apply_house_upgrade(self.policy_money_melhorias, self.melhorias_diag)
 
         if self.sim.PARAMS['POLICY_COEFFICIENT']:
+            self.allocated_money += sum(self.policy_money.values())
             self.update_policy_families(self.sim.PARAMS['POLICY_COEFFICIENT'])
             if self.sim.PARAMS['POLICIES'] == 'buy':
-                self.buy_houses_give_to_families()
+                self.buy_houses_give_to_families(self.policy_money)
             elif self.sim.PARAMS['POLICIES'] == 'rent':
                 self.pay_families_rent()
             elif self.sim.PARAMS['POLICIES'] == 'wage':
@@ -179,26 +235,30 @@ class Funds:
         if self.sim.PARAMS['CARBON_TAX_RECYCLING']:
             self.recycle_carbon_tax(self.sim.regions)
         # Resetting lists for next month
-        self.allocated_money = 0
         self.policy_families = defaultdict(list)
         self.temporary_houses = defaultdict(list)
 
-    def apply_house_upgrade(self):
+    def apply_house_upgrade(self, policy_money, diagnostics):
         # STRICTLY FROM .5 TO 1
-        for mun in self.policy_families.keys():
-            self.policy_families[mun] = [f for f in self.policy_families[mun] if
-                                         (f.house.family_id == f.id) &
-                                         (f.house.quality == .5)]
-            for family in self.policy_families[mun]:
-                if self.policy_money[mun] > 0:
+        for mun in policy_money.keys():
+            diag = diagnostics[mun]
+            eligible = [f for f in self.policy_families[mun] if
+                        (f.house.family_id == f.id) &
+                        (f.house.quality == .5)]
+            self.policy_families[mun] = eligible
+            diag['eligible'] = len(eligible)
+            for family in eligible:
+                if policy_money[mun] > 0:
                     upgrade_cost = family.house.price * self.sim.PARAMS['UPGRADE_COST']
-                    if self.policy_money[mun] > upgrade_cost:
+                    if policy_money[mun] > upgrade_cost:
                         family.house.quality = 1
-                        self.policy_money[mun] -= upgrade_cost
+                        policy_money[mun] -= upgrade_cost
                         self.money_applied_policy += upgrade_cost
                         self.families_subsided += 1
+                        diag['upgrades'] += 1
                 else:
                     break
+            diag['money_residual'] = policy_money[mun]
 
     def pay_families_rent(self):
         for mun in self.policy_money.keys():
@@ -228,16 +288,17 @@ class Funds:
                 # Reset fund because it has been totally expended.
                 self.policy_money[mun] = 0
 
-    def buy_houses_give_to_families(self):
+    def buy_houses_give_to_families(self, policy_money, diagnostics=None):
         houses_by_mun = defaultdict(list)
         for firm in self.sim.firms.values():
             if firm.sector == 'Construction':
                 for h in firm.houses_for_sale:
                     houses_by_mun[h.region_id[:6]].append(h)
         # Families are sorted in self.policy_families. Buy and give as much as money allows
-        for mun in self.policy_money.keys():
-            diag = self.blank_mcmv_diag()
-            self.mcmv_diag[mun] = diag
+        for mun in policy_money.keys():
+            # The POLICY_COEFFICIENT 'buy' policy shares this loop but is a different
+            # programme, so it reports no MCMV diagnostics.
+            diag = diagnostics[mun] if diagnostics is not None else self.blank_mcmv_diag()
 
             self.temporary_houses[mun] = houses_by_mun.get(mun, [])
             # Sort houses and families by cheapest, poorest.
@@ -247,7 +308,6 @@ class Funds:
             # Exclude families who own any house. Exclusively for renters
             self.policy_families[mun] = [f for f in self.policy_families[mun] if not f.owned_houses]
 
-            diag['money_start'] = self.policy_money[mun]
             diag['eligible'] = len(self.policy_families[mun])
             diag['units_available'] = len(self.temporary_houses[mun])
 
@@ -267,22 +327,22 @@ class Funds:
                     # residual (money left, but the cheapest remaining unit costs
                     # more than what remains) are separate failures -- the second
                     # is a lumpiness problem, not a scarcity one.
-                    if self.policy_money[mun] <= 0:
+                    if policy_money[mun] <= 0:
                         stop = 'budget'
                         break
-                    if house.price >= self.policy_money[mun]:
+                    if house.price >= policy_money[mun]:
                         stop = 'indivisible'
                         break
-                    self._buy_house_for_family(mun, house)
+                    self._buy_house_for_family(mun, house, policy_money)
                     diag['units_bought'] += 1
                 diag['stop_{}'.format(stop)] = 1
 
-            diag['money_residual'] = self.policy_money[mun]
+            diag['money_residual'] = policy_money[mun]
 
         # Clean up list for next month
         self.temporary_houses = defaultdict(list)
 
-    def _buy_house_for_family(self, mun, house):
+    def _buy_house_for_family(self, mun, house, policy_money):
         """Municipality buys `house` from its construction firm and hands it to the
         poorest remaining eligible family in `mun`."""
         # Getting poorest family first, given permanent income
@@ -298,7 +358,7 @@ class Funds:
                                                       self.sim.PARAMS['CONSTRUCTION_ACC_CASH_FLOW'],
                                                       self.sim.clock.days)
         # Deduce from municipality fund
-        self.policy_money[mun] -= house.price
+        policy_money[mun] -= house.price
         # Transfer ownership
         self.sim.firms[house.owner_id].houses_for_sale.remove(house)
         # Finish notarial procedures

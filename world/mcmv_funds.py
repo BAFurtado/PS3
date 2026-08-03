@@ -4,10 +4,14 @@ from collections import defaultdict
 class MCMV:
     def __init__(self, sim):
         self.sim = sim
-        self.policy_money = defaultdict(float)
 
-    def update_policy_money(self, year):
-        self.policy_money = defaultdict(float)
+    def monthly_allocation(self, year):
+        """This month's OGU top-up per municipality: `share x municipal GDP / 12`.
+
+        Returns a fresh dictionary of increments. The caller owns the persistent
+        pot and adds these to it, so an unspent balance survives into next month.
+        """
+        allocation = defaultdict(float)
 
         year = int(year)
 
@@ -30,6 +34,6 @@ class MCMV:
         muns = {int(str(mun)[:6]) for mun in self.sim.geo.mun_codes}
 
         for mun in muns:
-            self.policy_money[str(mun)] += (value * self.sim.stats.last_gdp[mun] / 12)
+            allocation[str(mun)] += (value * self.sim.stats.last_gdp[mun] / 12)
 
-        return self.policy_money
+        return allocation

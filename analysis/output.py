@@ -206,6 +206,7 @@ OUTPUT_DATA_SPEC = {
                     'mcmv_eligible',
                     'mcmv_units_available',
                     'mcmv_units_bought',
+                    'mcmv_money_topup',
                     'mcmv_money_start',
                     'mcmv_money_residual',
                     'mcmv_stop_no_eligible',
@@ -213,7 +214,15 @@ OUTPUT_DATA_SPEC = {
                     'mcmv_stop_families_exhausted',
                     'mcmv_stop_budget',
                     'mcmv_stop_indivisible',
-                    'mcmv_stop_units_exhausted']
+                    'mcmv_stop_units_exhausted',
+                    # Melhorias, the second OGU programme, on its own pot.
+                    # money_start is topup plus the residual carried over from
+                    # previous months; money_residual carries into the next one.
+                    'melhorias_eligible',
+                    'melhorias_upgrades',
+                    'melhorias_money_topup',
+                    'melhorias_money_start',
+                    'melhorias_money_residual']
     },
     'neighbourhood': {
         'avg': {
@@ -238,12 +247,20 @@ def _legacy_stats_columns():
 
 def _legacy_regional_columns():
     """`regional` layout before the MCMV allocation diagnostics were added."""
-    return [c for c in OUTPUT_DATA_SPEC['regional']['columns'] if not c.startswith('mcmv_')]
+    return [c for c in OUTPUT_DATA_SPEC['regional']['columns']
+            if not c.startswith(('mcmv_', 'melhorias_'))]
+
+
+def _legacy_regional_columns_single_pot():
+    """`regional` layout with the MCMV diagnostics but no per-programme pots: no
+    mcmv_money_topup and no melhorias block."""
+    return [c for c in OUTPUT_DATA_SPEC['regional']['columns']
+            if c != 'mcmv_money_topup' and not c.startswith('melhorias_')]
 
 
 LEGACY_COLUMNS = {
     'stats': [_legacy_stats_columns()],
-    'regional': [_legacy_regional_columns()],
+    'regional': [_legacy_regional_columns_single_pot(), _legacy_regional_columns()],
 }
 
 
@@ -492,15 +509,19 @@ class Output:
             # average QLI of regions
             mun_qli = sum(r.index for r in regions) / len(regions)
 
-            # funds.policy_money (and hence mcmv_diag) is keyed on the 6-digit
+            # The two OGU pots (and hence both diag dicts) are keyed on the 6-digit
             # IBGE prefix; mun_id here carries all 7 digits.
             mcmv = sim.funds.mcmv_diag.get(mun_id[:6]) if hasattr(sim.funds, 'mcmv_diag') else None
             if mcmv is None:
                 mcmv = sim.funds.blank_mcmv_diag()
+            melhorias = sim.funds.melhorias_diag.get(mun_id[:6]) if hasattr(sim.funds, 'melhorias_diag') else None
+            if melhorias is None:
+                melhorias = sim.funds.blank_melhorias_diag()
 
             reports.append(
                 '%s;%s;%.3f;%d;%.3f;%.4f;%.3f;%.4f;%.5f;%.3f;%.6f;%.6f;%.6f;%.6f;%s;%.6f;%.6f;%.6f'
-                ';%d;%d;%d;%.2f;%.2f;%d;%d;%d;%d;%d;%d'
+                ';%d;%d;%d;%.2f;%.2f;%.2f;%d;%d;%d;%d;%d;%d'
+                ';%d;%d;%.2f;%.2f;%.2f'
                 % (sim.clock.days, mun_id, commuting, mun_pop, mun_gdp, mun_gini, mun_house_values,
                    mun_unemployment, mun_qli, GDP_mun_capita, mun_cumulative_treasure,
                    mun_applied_treasure['equally'],
@@ -513,6 +534,7 @@ class Output:
                    mcmv['eligible'],
                    mcmv['units_available'],
                    mcmv['units_bought'],
+                   mcmv['money_topup'],
                    mcmv['money_start'],
                    mcmv['money_residual'],
                    mcmv['stop_no_eligible'],
@@ -521,6 +543,11 @@ class Output:
                    mcmv['stop_budget'],
                    mcmv['stop_indivisible'],
                    mcmv['stop_units_exhausted'],
+                   melhorias['eligible'],
+                   melhorias['upgrades'],
+                   melhorias['money_topup'],
+                   melhorias['money_start'],
+                   melhorias['money_residual'],
                    ))
 
         with open(self.regional_path, 'a') as f:
