@@ -558,6 +558,7 @@ class Funds:
         pop_mun_minus = defaultdict(int)
         pop_mun_t = defaultdict(int)
         gdp_mun_t = defaultdict(float)
+        spend_mun_t = defaultdict(float)
         treasure = defaultdict(dict)
 
         for id, region in regions.items():
@@ -570,18 +571,27 @@ class Funds:
             pop_t[id] = new_pop
             pop_mun_t[id[:7]] += new_pop
             gdp_mun_t[id[:7]] += region.gdp
+            # Public money applied here since the last call to this method, i.e. the
+            # previous month's distribution. Cleared as it is read, so this month's
+            # distribution (below) accumulates into a fresh flow.
+            spend_mun_t[id[:7]] += region.take_applied_flow()
 
             # BRING treasure from regions to municipalities
             treasure[id] = region.transfer_treasure()
 
-        # QLI: logistic growth driven by municipal economic development.
-        # IDHM is a municipal-level statistic, so all regions in the same
-        # municipality receive the same update based on municipal GDP per capita.
+        # QLI: logistic growth driven by municipal economic development and, at
+        # QLI_TAX_WEIGHT > 0, by public spending per capita. IDHM is a municipal-level
+        # statistic and one municipality is one administration with one budget, so all
+        # regions in the same municipality receive the same update.
         for id, region in regions.items():
             m_id = id[:7]
             mun_pop = pop_mun_t[m_id]
-            gdp_per_pop = max(0.0, gdp_mun_t[m_id]) / mun_pop if mun_pop > 0 else 0.0
-            region.update_qli(gdp_per_pop, self.sim.PARAMS)
+            if mun_pop > 0:
+                gdp_per_pop = max(0.0, gdp_mun_t[m_id]) / mun_pop
+                spend_per_pop = max(0.0, spend_mun_t[m_id]) / mun_pop
+            else:
+                gdp_per_pop, spend_per_pop = 0.0, 0.0
+            region.update_qli(gdp_per_pop, spend_per_pop, self.sim.PARAMS)
 
         v_local = defaultdict(float)
         # Every month taxes to distribute start from 0

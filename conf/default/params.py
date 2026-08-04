@@ -310,6 +310,24 @@ QLI_MAX = 1.0
 # average city. Richer cities (higher GDP/pop) develop faster; poorer ones slower.
 # Estimated from wave calibration data: median GDP/pop across capitals ≈ 3.5.
 QLI_GDP_NORM = 3.5
+# Weight of the FISCAL leg of the QLI driver: the share of the monthly growth impulse
+# that comes from public spending per capita rather than from GDP per capita.
+#   driver = (1 - w) * sqrt(gdp_pc / QLI_GDP_NORM) + w * sqrt(spend_pc / QLI_SPEND_NORM)
+# At w = 0 the model behaves exactly as before this parameter existed, so the fiscal
+# channel is a designed arm, not a silent change of the baseline. It is what lets a
+# government move neighbourhood quality — and through region.index, house prices — by
+# collecting or transferring differently; FPM is redistributive, so spend per capita
+# varies across municipalities independently of GDP per capita.
+QLI_TAX_WEIGHT = 0.0
+# Reference public spending per capita (model units, monthly), the fiscal counterpart of
+# QLI_GDP_NORM. Set so that fiscal_driver ≈ economic_driver for an average city, which is
+# what keeps the w = 1 baseline comparable with the w = 0 one:
+#   QLI_SPEND_NORM = mean(spend_pc / gdp_pc) * QLI_GDP_NORM
+# Measured at w = 0 over 2010-2040 on GOIANIA / MACAPA / CUIABA / ARACAJU: mean of the four
+# city means of spend_pc/gdp_pc is 0.3342, so 0.3342 x 3.5 = 1.170. Cities are weighted
+# equally rather than by municipality count, so Goiania's 15 municipalities do not set it
+# alone. See model_defects.md §QLI.
+QLI_SPEND_NORM = 1.170
 
 # Write exactly like the list below
 PROCESSING_ACPS = ["GOIANIA"]

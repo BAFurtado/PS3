@@ -308,6 +308,87 @@ check(
     f"_next_id={_gen._next_id}",
 )
 
+# ── QLI fiscal leg (defect #5) ───────────────────────────────────────────────
+print("\n── QLI fiscal leg ───────────────────────────────────────────────────")
+
+from collections import defaultdict  # noqa: E402
+from agents.region import Region  # noqa: E402
+
+_qli_params = dict(sim.PARAMS)
+_qli_params.update({'QLI_GROWTH_RATE': 0.002, 'QLI_MAX': 1.0,
+                    'QLI_GDP_NORM': 3.5, 'QLI_SPEND_NORM': 0.9})
+
+
+def _delta(index, gdp_pc, spend_pc, w):
+    """QLI increment for one month at weight w, off a bare Region."""
+    r = Region.__new__(Region)
+    r.index = index
+    p = dict(_qli_params, QLI_TAX_WEIGHT=w)
+    r.update_qli(gdp_pc, spend_pc, p)
+    return r.index - index
+
+
+# The whole point of QLI_TAX_WEIGHT is that the fiscal leg is a *designed arm*: at
+# w = 0 the model must reproduce the GDP-only rule bit for bit whatever the spending
+# is, so every pre-existing calibration and every batch baseline stays comparable.
+_base = _delta(0.7, 4.0, 0.0, 0.0)
+check(
+    "at QLI_TAX_WEIGHT = 0 public spending cannot move QLI",
+    _delta(0.7, 4.0, 99.0, 0.0) == _base and _delta(0.7, 4.0, 0.5, 0.0) == _base,
+    "w=0 must be exactly the pre-defect-#5 GDP-only rule",
+)
+
+check(
+    "the fiscal leg moves QLI once it is weighted in",
+    _delta(0.7, 4.0, 2.0, 1.0) > _delta(0.7, 4.0, 0.2, 1.0),
+    "two municipalities with equal GDP per capita must differ when spending differs; "
+    "this is the place-based instrument Paper A otherwise lacks",
+)
+
+# Calibration identity: at spend_pc/gdp_pc == QLI_SPEND_NORM/QLI_GDP_NORM the two
+# drivers coincide, so w does not shift the baseline. That is what makes the w = 1
+# arm comparable with w = 0 rather than a different model.
+_ratio = _qli_params['QLI_SPEND_NORM'] / _qli_params['QLI_GDP_NORM']
+check(
+    "at the calibrated spend/GDP ratio the two drivers coincide, so w is neutral",
+    abs(_delta(0.7, 4.0, 4.0 * _ratio, 1.0) - _delta(0.7, 4.0, 0.0, 0.0)) < 1e-12,
+    "QLI_SPEND_NORM = mean(spend_pc/gdp_pc) × QLI_GDP_NORM is what buys this",
+)
+
+# applied_treasure is a cumulative stock that is never reset, which is why it could
+# not be used as the driver. The accumulator beside it must be a monthly FLOW.
+_r = Region.__new__(Region)
+_r.applied_treasure = defaultdict(int)
+_r.update_applied_taxes(10.0, 'fpm')
+_r.update_applied_taxes(5.0, 'equally')
+_first = _r.take_applied_flow()
+_r.update_applied_taxes(2.0, 'locally')
+check(
+    "public money applied is read as a monthly flow and cleared, not as a stock",
+    _first == 15.0 and _r.take_applied_flow() == 2.0 and _r.take_applied_flow() == 0.0
+    and _r.applied_treasure['fpm'] == 10.0,
+    f"first={_first}, applied_treasure kept its cumulative meaning",
+)
+
+# Integration: the plumbing in Funds.invest_taxes must actually feed the driver. A
+# leg fed by zeros would pass every unit test above and do nothing in a real run.
+_spend_seen = [r.qli_spend_pc for r in sim.regions.values()]
+_gdp_seen = [r.qli_gdp_pc for r in sim.regions.values()]
+check(
+    "the live run feeds both QLI drivers with non-zero per-capita flows",
+    any(s > 0 for s in _spend_seen) and any(g > 0 for g in _gdp_seen),
+    f"max spend_pc={max(_spend_seen, default=0):.4f}, "
+    f"max gdp_pc={max(_gdp_seen, default=0):.4f}",
+)
+
+# Region instances are pickled into StoragedAgents, which carries no source hash, so
+# a cache written before these attributes existed is unpickled without them.
+check(
+    "a Region unpickled from an older cache still has the new QLI attributes",
+    all(hasattr(Region, a) for a in ('applied_flow', 'qli_gdp_pc', 'qli_spend_pc')),
+    "class-level defaults are what keep pre-#5 .agents caches loadable",
+)
+
 check(
     "a failing job is abandoned rather than resubmitted for ever",
     isinstance(getattr(main, "MAX_JOB_ATTEMPTS", None), int)

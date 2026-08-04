@@ -189,6 +189,13 @@ OUTPUT_DATA_SPEC = {
                     'regional_house_values',
                     'regional_unemployment',
                     'qli_index',
+                    # The two per-capita drivers of the QLI update, exactly as
+                    # Region.update_qli saw them this month: municipal value added and
+                    # public money applied, both monthly flows over municipal population.
+                    # qli_gdp_pc is NOT gdp_percapita below, which is firm revenue rather
+                    # than value added. QLI_SPEND_NORM is calibrated off their ratio.
+                    'qli_gdp_pc',
+                    'qli_spend_pc',
                     'gdp_percapita',
                     'treasure',
                     'equally',
@@ -239,7 +246,10 @@ OUTPUT_DATA_SPEC = {
             'columns': 'ALL'
         },
         'columns': ['month', 'mun_id', 'neigh_id', 'pop', 'neighbourhood_gdp',
-                    'neighbourhood_gdp_percapita', 'neighbourhood_commuting', 'neighbourhood_gini']
+                    'neighbourhood_gdp_percapita', 'neighbourhood_commuting', 'neighbourhood_gini',
+                    # Region-level QLI. `regional` is aggregated to mun_id, so this is the
+                    # only place intra-municipal QLI dispersion can be measured.
+                    'neighbourhood_qli']
     }
 }
 
@@ -254,29 +264,40 @@ def _legacy_stats_columns():
     return [c.replace('rent_burden_decis_', 'affordability_decis_') for c in cols]
 
 
-def _legacy_regional_columns():
-    """`regional` layout before the MCMV allocation diagnostics were added."""
+def _legacy_regional_columns_no_qli_drivers():
+    """`regional` layout before the QLI drivers were emitted: no qli_gdp_pc and no
+    qli_spend_pc, i.e. every run made before the fiscal leg of QLI existed (40 fields).
+
+    Every older layout below is a subset of this one, since they all predate it.
+    """
     return [c for c in OUTPUT_DATA_SPEC['regional']['columns']
+            if c not in ('qli_gdp_pc', 'qli_spend_pc')]
+
+
+def _legacy_regional_columns():
+    """`regional` layout before the MCMV allocation diagnostics were added (18)."""
+    return [c for c in _legacy_regional_columns_no_qli_drivers()
             if not c.startswith(('mcmv_', 'melhorias_'))]
 
 
 def _legacy_regional_columns_no_melhorias_stops():
     """`regional` layout whose melhorias block is the five count-and-money fields
-    only, carrying no stop_* indicators."""
-    return [c for c in OUTPUT_DATA_SPEC['regional']['columns']
+    only, carrying no stop_* indicators (35)."""
+    return [c for c in _legacy_regional_columns_no_qli_drivers()
             if not c.startswith('melhorias_stop_')]
 
 
 def _legacy_regional_columns_single_pot():
     """`regional` layout with the MCMV diagnostics but no per-programme pots: no
-    mcmv_money_topup and no melhorias block."""
-    return [c for c in OUTPUT_DATA_SPEC['regional']['columns']
+    mcmv_money_topup and no melhorias block (29)."""
+    return [c for c in _legacy_regional_columns_no_qli_drivers()
             if c != 'mcmv_money_topup' and not c.startswith('melhorias_')]
 
 
 LEGACY_COLUMNS = {
     'stats': [_legacy_stats_columns()],
-    'regional': [_legacy_regional_columns_no_melhorias_stops(),
+    'regional': [_legacy_regional_columns_no_qli_drivers(),
+                 _legacy_regional_columns_no_melhorias_stops(),
                  _legacy_regional_columns_single_pot(),
                  _legacy_regional_columns()],
 }
@@ -526,6 +547,10 @@ class Output:
 
             # average QLI of regions
             mun_qli = sum(r.index for r in regions) / len(regions)
+            # Both QLI drivers are municipal quantities, so every region in the
+            # municipality carries the same value; read the first one.
+            qli_gdp_pc = regions[0].qli_gdp_pc
+            qli_spend_pc = regions[0].qli_spend_pc
 
             # The two OGU pots (and hence both diag dicts) are keyed on the 6-digit
             # IBGE prefix; mun_id here carries all 7 digits.
@@ -537,11 +562,12 @@ class Output:
                 melhorias = sim.funds.blank_melhorias_diag()
 
             reports.append(
-                '%s;%s;%.3f;%d;%.3f;%.4f;%.3f;%.4f;%.5f;%.3f;%.6f;%.6f;%.6f;%.6f;%s;%.6f;%.6f;%.6f'
+                '%s;%s;%.3f;%d;%.3f;%.4f;%.3f;%.4f;%.5f;%.6f;%.6f;%.3f;%.6f;%.6f;%.6f;%.6f;%s;%.6f;%.6f;%.6f'
                 ';%d;%d;%d;%.2f;%.2f;%.2f;%d;%d;%d;%d;%d;%d'
                 ';%d;%d;%.2f;%.2f;%.2f;%d;%d;%d;%d;%d'
                 % (sim.clock.days, mun_id, commuting, mun_pop, mun_gdp, mun_gini, mun_house_values,
-                   mun_unemployment, mun_qli, GDP_mun_capita, mun_cumulative_treasure,
+                   mun_unemployment, mun_qli, qli_gdp_pc, qli_spend_pc,
+                   GDP_mun_capita, mun_cumulative_treasure,
                    mun_applied_treasure['equally'],
                    mun_applied_treasure['locally'],
                    mun_applied_treasure['fpm'],
@@ -590,11 +616,12 @@ class Output:
             neighbourhood_commute[r] = commute_value
         with open(self.neighbourhood_path, 'a') as fp:
             for region in sim.regions.values():
-                fp.write('%s; %s; %s; %d; %.3f; %.3f; %.3f; %.3f \n' %
+                fp.write('%s; %s; %s; %d; %.3f; %.3f; %.3f; %.3f; %.5f \n' %
                          (sim.clock.days, region.id[:7], region.id, region.pop, region.gdp,
-                          region.gdp / region.pop,
+                          region.gdp / region.pop if region.pop else 0.0,
                           neighbourhood_commute.get(region.id, 0),
-                          neighbourhood_gini.get(region.id, 0)))
+                          neighbourhood_gini.get(region.id, 0),
+                          region.index))
 
     def save_data(self, sim):
         # firms data is necessary for plots,
