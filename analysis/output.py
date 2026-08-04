@@ -222,7 +222,16 @@ OUTPUT_DATA_SPEC = {
                     'melhorias_upgrades',
                     'melhorias_money_topup',
                     'melhorias_money_start',
-                    'melhorias_money_residual']
+                    'melhorias_money_residual',
+                    # Mutually exclusive 0/1 stopping reasons, as for MCMV. Money and
+                    # construction capacity are separate constraints: melhorias_stop_budget
+                    # is a pot that could not cover a work, melhorias_stop_no_capacity a
+                    # work no local builder could take this month.
+                    'melhorias_stop_no_eligible',
+                    'melhorias_stop_no_builder',
+                    'melhorias_stop_no_capacity',
+                    'melhorias_stop_budget',
+                    'melhorias_stop_families_exhausted']
     },
     'neighbourhood': {
         'avg': {
@@ -251,6 +260,13 @@ def _legacy_regional_columns():
             if not c.startswith(('mcmv_', 'melhorias_'))]
 
 
+def _legacy_regional_columns_no_melhorias_stops():
+    """`regional` layout whose melhorias block is the five count-and-money fields
+    only, carrying no stop_* indicators."""
+    return [c for c in OUTPUT_DATA_SPEC['regional']['columns']
+            if not c.startswith('melhorias_stop_')]
+
+
 def _legacy_regional_columns_single_pot():
     """`regional` layout with the MCMV diagnostics but no per-programme pots: no
     mcmv_money_topup and no melhorias block."""
@@ -260,7 +276,9 @@ def _legacy_regional_columns_single_pot():
 
 LEGACY_COLUMNS = {
     'stats': [_legacy_stats_columns()],
-    'regional': [_legacy_regional_columns_single_pot(), _legacy_regional_columns()],
+    'regional': [_legacy_regional_columns_no_melhorias_stops(),
+                 _legacy_regional_columns_single_pot(),
+                 _legacy_regional_columns()],
 }
 
 
@@ -521,7 +539,7 @@ class Output:
             reports.append(
                 '%s;%s;%.3f;%d;%.3f;%.4f;%.3f;%.4f;%.5f;%.3f;%.6f;%.6f;%.6f;%.6f;%s;%.6f;%.6f;%.6f'
                 ';%d;%d;%d;%.2f;%.2f;%.2f;%d;%d;%d;%d;%d;%d'
-                ';%d;%d;%.2f;%.2f;%.2f'
+                ';%d;%d;%.2f;%.2f;%.2f;%d;%d;%d;%d;%d'
                 % (sim.clock.days, mun_id, commuting, mun_pop, mun_gdp, mun_gini, mun_house_values,
                    mun_unemployment, mun_qli, GDP_mun_capita, mun_cumulative_treasure,
                    mun_applied_treasure['equally'],
@@ -548,6 +566,11 @@ class Output:
                    melhorias['money_topup'],
                    melhorias['money_start'],
                    melhorias['money_residual'],
+                   melhorias['stop_no_eligible'],
+                   melhorias['stop_no_builder'],
+                   melhorias['stop_no_capacity'],
+                   melhorias['stop_budget'],
+                   melhorias['stop_families_exhausted'],
                    ))
 
         with open(self.regional_path, 'a') as f:

@@ -80,6 +80,13 @@ class Funds:
 
         Same money fields as blank_mcmv_diag. `upgrades` counts houses taken from
         quality .5 to 1 this month.
+
+        The five stop_* fields are mutually exclusive indicators (exactly one is 1
+        whenever the municipality was processed at all), so averaging them across
+        runs gives the probability of each stopping reason. Money and construction
+        capacity are separate constraints: `stop_budget` means the pot could not
+        cover a work, `stop_no_capacity` that the money was there but no local
+        builder could do the work this month.
         """
         return {
             'eligible': 0,
@@ -87,6 +94,11 @@ class Funds:
             'money_topup': 0.0,
             'money_start': 0.0,
             'money_residual': 0.0,
+            'stop_no_eligible': 0,
+            'stop_no_builder': 0,
+            'stop_no_capacity': 0,
+            'stop_budget': 0,
+            'stop_families_exhausted': 0,
         }
 
     @staticmethod
@@ -239,7 +251,23 @@ class Funds:
         self.temporary_houses = defaultdict(list)
 
     def apply_house_upgrade(self, policy_money, diagnostics):
-        # STRICTLY FROM .5 TO 1
+        """Melhorias: the municipality contracts a local construction firm to take an
+        eligible house from quality .5 to 1. STRICTLY FROM .5 TO 1.
+
+        The works consume construction capacity (`total_quantity`) at the cost
+        `ConstructionFirm.plan_house` would charge for the same quality delta on the
+        same floor area, so a refurbishment competes with new houses for the same
+        production, and the builder is paid for it exactly as it is paid for an MCMV
+        acquisition. A house is upgraded only when the money *and* a builder with the
+        capacity to do the whole work this month are both available; families that
+        miss out stay eligible next month, and the persistent pot carries their money
+        with them.
+        """
+        builders = defaultdict(list)
+        for firm in self.sim.firms.values():
+            if firm.sector == 'Construction':
+                builders[firm.region_id[:6]].append(firm)
+
         for mun in policy_money.keys():
             diag = diagnostics[mun]
             eligible = [f for f in self.policy_families[mun] if
@@ -247,18 +275,78 @@ class Funds:
                         (f.house.quality == .5)]
             self.policy_families[mun] = eligible
             diag['eligible'] = len(eligible)
-            for family in eligible:
-                if policy_money[mun] > 0:
+
+            if not eligible:
+                diag['stop_no_eligible'] = 1
+            elif not builders[mun]:
+                diag['stop_no_builder'] = 1
+            else:
+                denied_budget, denied_capacity = False, False
+                for family in eligible:
+                    # The works are priced by the model's own price function: taking
+                    # quality .5 to 1 on the same floor area in the same region is
+                    # worth `size * .5 * region.index`, i.e. the house's own
+                    # pre-upgrade price. UPGRADE_COST is the share of that market
+                    # price the state pays.
                     upgrade_cost = family.house.price * self.sim.PARAMS['UPGRADE_COST']
-                    if policy_money[mun] > upgrade_cost:
-                        family.house.quality = 1
-                        policy_money[mun] -= upgrade_cost
-                        self.money_applied_policy += upgrade_cost
-                        self.families_subsided += 1
-                        diag['upgrades'] += 1
+                    if policy_money[mun] <= upgrade_cost:
+                        # Houses are of different sizes and the queue is ordered by
+                        # income, not by price, so a later family may still be
+                        # affordable: keep going rather than break.
+                        denied_budget = True
+                        continue
+                    firm, work_cost = self.hire_builder(builders[mun], family.house)
+                    if firm is None:
+                        denied_capacity = True
+                        continue
+                    self.upgrade_house(mun, family.house, firm, work_cost,
+                                       upgrade_cost, policy_money)
+                    diag['upgrades'] += 1
+                if denied_capacity:
+                    stop = 'no_capacity'
+                elif denied_budget:
+                    stop = 'budget'
                 else:
-                    break
+                    stop = 'families_exhausted'
+                diag['stop_{}'.format(stop)] = 1
+
             diag['money_residual'] = policy_money[mun]
+
+    def hire_builder(self, builders, house):
+        """The municipal construction firm with the most idle production takes the
+        job, provided it can do the whole work within the month.
+
+        Returns `(firm, work_cost)`, or `(None, 0)` when no local builder has the
+        capacity. Ordering is by capacity alone and ties keep firm creation order, so
+        the choice draws nothing from the shared random stream.
+        """
+        region = self.sim.regions[house.region_id]
+        for firm in sorted(builders, key=lambda f: -f.total_quantity):
+            # Same cost formula as ConstructionFirm.plan_house, for a quality delta of
+            # .5 over the floor area the house already has. Firms that have never
+            # planned a house have not drawn a productivity yet and are costed at 1.
+            work_cost = (house.size * .5 * (firm.productivity or 1)
+                         * region.license_price / self.sim.PARAMS['HOUSE_PRODUCTION_ADEQUACY'])
+            if firm.total_quantity >= work_cost:
+                return firm, work_cost
+        return None, 0
+
+    def upgrade_house(self, mun, house, firm, work_cost, upgrade_cost, policy_money):
+        """Municipality pays `firm` for the works and the house moves to quality 1."""
+        # The works consume the production a new house would have consumed
+        firm.total_quantity -= work_cost
+        # Mirrors the MCMV acquisition leg: the region taxes the transaction and the
+        # builder books the rest as revenue accrued over the construction cash-flow
+        # window, which is what reaches wages through ConstructionFirm.wage_base.
+        taxes = upgrade_cost * self.sim.PARAMS['TAX_ESTATE_TRANSACTION']
+        self.sim.regions[house.region_id].collect_taxes(taxes, 'transaction')
+        firm.update_balance(upgrade_cost - taxes,
+                            self.sim.PARAMS['CONSTRUCTION_ACC_CASH_FLOW'],
+                            self.sim.clock.days)
+        house.quality = 1
+        policy_money[mun] -= upgrade_cost
+        self.money_applied_policy += upgrade_cost
+        self.families_subsided += 1
 
     def pay_families_rent(self):
         for mun in self.policy_money.keys():

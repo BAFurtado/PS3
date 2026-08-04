@@ -94,7 +94,12 @@ SBPE_INCOME_QUANTILE = 0.85
 MELHORIAS_INCOME_QUANTILE = 0.38
 TOTAL_TARGETING_POLICY = False
 POLICY_MELHORIAS = True
-UPGRADE_COST = .2
+# Share of the works' market price the state pays for a melhorias upgrade. The works
+# are the .5 -> 1 quality delta, worth `size * .5 * region.index` under
+# House.update_price, which is the house's own pre-upgrade price. At 1 the builder
+# earns the same revenue per unit of construction capacity as it would by putting that
+# capacity into a new house and selling it, so the contract is capacity-neutral.
+UPGRADE_COST = 1
 POLICY_DAYS = 360
 # Days until environmental policies start
 ECO_POLICY_DAYS = 360 * 5

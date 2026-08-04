@@ -332,7 +332,7 @@ class Simulation:
 
         # Firms initialization
         for firm in self.firms.values():
-            firm.present = self.clock
+            firm.present = self.clock.days
 
         # FAMILIES CONSUMPTION -- using payment received from previous month
         for family in self.families.values():
