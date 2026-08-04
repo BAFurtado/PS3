@@ -5,8 +5,10 @@ for _threads in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS",
     os.environ.setdefault(_threads, "1")
 
 import conf
+import inspect
 import tempfile
 import numpy as np
+import main
 from simulation import Simulation
 
 PASS = 0
@@ -264,6 +266,54 @@ check(
         ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS")),
     "export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1, "
     "or run through main.py which sets them",
+)
+
+# ── id generation vs. cached populations ─────────────────────────────────────
+print("\n── Id generation ────────────────────────────────────────────────────")
+
+_gen = sim.generator
+
+check(
+    "every id in the live population is unique across agents, houses, families, firms",
+    len(set(sim.agents) | set(sim.houses) | set(sim.families) | set(sim.firms))
+    == len(sim.agents) + len(sim.houses) + len(sim.families) + len(sim.firms),
+    "an id shared by two objects makes lookup by id return the wrong one",
+)
+
+check(
+    "house.owner_id resolves to a family that lists the house in owned_houses",
+    all(h in sim.families[h.owner_id].owned_houses
+        for h in sim.houses.values()
+        if h.family_owner and h.owner_id in sim.families),
+    "owner_id and owned_houses disagree, so owned_houses.remove(house) raises",
+)
+
+# A run that loads StoragedAgents gets a Generator whose counter starts at zero
+# while the population already holds ids it would mint.
+_cached = {'i%011d' % i for i in range(1, 51)}
+_gen._next_id = 0
+_gen.resume_ids(_cached)
+_minted = {_gen.gen_id() for _ in range(20)}
+check(
+    "ids minted after loading a population do not collide with it",
+    not (_minted & _cached),
+    f"collisions={sorted(_minted & _cached)[:5]}",
+)
+
+_gen._next_id = 0
+_gen.resume_ids({'0eaf0477-6be', 'f6611467-210'}, {})
+check(
+    "uuid-style and empty populations leave the counter alone",
+    _gen._next_id == 0,
+    f"_next_id={_gen._next_id}",
+)
+
+check(
+    "a failing job is abandoned rather than resubmitted for ever",
+    isinstance(getattr(main, "MAX_JOB_ATTEMPTS", None), int)
+    and main.MAX_JOB_ATTEMPTS >= 1
+    and "MAX_JOB_ATTEMPTS" in inspect.getsource(main._run_jobs_parallel),
+    "_run_jobs_parallel must cap per-job attempts, not just BrokenExecutor restarts",
 )
 
 # ── summary ──────────────────────────────────────────────────────────────────

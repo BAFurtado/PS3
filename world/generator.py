@@ -95,6 +95,22 @@ class Generator:
         self._next_id += 1
         return 'i%011d' % self._next_id
 
+    def resume_ids(self, *collections):
+        """Continue the id sequence past every id already present in `collections`.
+
+        The population a run works on is minted by one Generator and, when it comes
+        from `StoragedAgents`, consumed by another whose counter starts at zero. Every
+        id this Generator hands out afterwards must be one no agent, house, family or
+        firm in that population already holds, or lookups by id resolve to the wrong
+        object.
+        """
+        highest = self._next_id
+        for collection in collections:
+            for _id in collection:
+                if isinstance(_id, str) and _id[:1] == 'i' and _id[1:].isdigit():
+                    highest = max(highest, int(_id[1:]))
+        self._next_id = highest
+
     def create_regions(self):
         """Create regions"""
         idhm = pd.read_csv("input/idhm_2000_2010.csv", sep=";")

@@ -22,6 +22,7 @@ import json
 import logging
 import secrets
 
+from collections import defaultdict
 from glob import glob
 from itertools import product
 
@@ -87,16 +88,27 @@ def single_run(params, path):
                            params=params, logger=logger, sim=sim)
 
 
+MAX_JOB_ATTEMPTS = 3
+
+
 def _run_jobs_parallel(jobs, cpus):
     """
     Run jobs with ProcessPoolExecutor. If a worker is killed (OOM, signal),
     BrokenExecutor is caught and the pool restarts using DONE files as truth.
-    Up to 3 restarts; individual run errors are logged and skipped.
+    Up to 3 restarts.
+
+    A job is resubmitted only while it has attempts left. A run that raises on every
+    attempt -- as opposed to one whose worker was killed -- would otherwise be
+    resubmitted for as long as the batch is allowed to run, since a missing DONE file
+    is the only thing marking it as pending.
     """
     remaining = list(jobs)
     max_restarts = 3
     restarts = 0
+    attempts = defaultdict(int)
     while remaining:
+        for job in remaining:
+            attempts[job['path']] += 1
         try:
             with ProcessPoolExecutor(max_workers=cpus) as executor:
                 futures = {executor.submit(single_run, j['params'], j['path']): j
@@ -112,8 +124,13 @@ def _run_jobs_parallel(jobs, cpus):
             if restarts >= max_restarts:
                 logger.error('Max restarts reached. Giving up on remaining jobs.')
                 break
-        remaining = [j for j in remaining
-                     if not os.path.exists(os.path.join(j['path'], 'DONE'))]
+        pending = [j for j in remaining
+                   if not os.path.exists(os.path.join(j['path'], 'DONE'))]
+        for job in pending:
+            if attempts[job['path']] >= MAX_JOB_ATTEMPTS:
+                logger.error('Abandoning %s after %d failed attempts.',
+                             job['path'], attempts[job['path']])
+        remaining = [j for j in pending if attempts[j['path']] < MAX_JOB_ATTEMPTS]
         if remaining and restarts < max_restarts:
             logger.info('%d job(s) still pending after restart.', len(remaining))
 

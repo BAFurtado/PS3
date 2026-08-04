@@ -164,6 +164,8 @@ class Simulation:
             self.logger.logger.info("Loading existing agents")
             with open(save_file, "rb") as f:
                 agents, houses, families, firms, regions = pickle.load(f)
+            # This Generator did not mint these ids, so its counter is behind them.
+            self.generator.resume_ids(agents, houses, families, firms)
 
         # Initialize populations directly
         for agent in agents.values():
