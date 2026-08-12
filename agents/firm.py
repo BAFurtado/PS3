@@ -437,6 +437,8 @@ class Firm:
         # Resetting amount sold to record monthly amounts
         self.amount_sold = 0
         self.revenue = 0
+        # buy_inputs() only zeroes this when called, which it isn't for firms with no employees.
+        self.input_cost = 0
 
     def sale(self, amount, regions, tax_consumption, consumer_region_id, if_origin, external=False):
         """Sell max amount of products for a given amount of money.

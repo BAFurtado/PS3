@@ -22,16 +22,15 @@ import copy
 import json
 import logging
 import datetime
+from collections import defaultdict
 from glob import glob
 from datetime import datetime
 
 import click
-import joblib
 import numpy as np
 import pandas as pd
 import tqdm
-from contextlib import contextmanager
-from joblib import Parallel, delayed
+from concurrent.futures import ProcessPoolExecutor, as_completed, BrokenExecutor
 from SALib.analyze import sobol as sobol_analyze
 from SALib.sample import sobol as sobol_sampler
 
@@ -69,7 +68,7 @@ def calculate_fitness(sim_df: pd.DataFrame) -> float:
         "inflation_std":     0.031/np.sqrt(12),
     }
 
-    required = {"gdp_growth", "unemployment", "gini_index", "inflation"}
+    required = {"gdp_growth_rate", "unemployment", "gini_index", "inflation"}
     if not required.issubset(sim_df.columns):
         return 999.0
     start, end = settings["target_start_year"],settings["target_end_year"]
@@ -84,8 +83,8 @@ def calculate_fitness(sim_df: pd.DataFrame) -> float:
         return 999.0
 
     SIMULATED = {
-        "gdp_growth_mean":   float((df["gdp_growth"].mean() + 1) ** 12 - 1),
-        "gdp_growth_std":    float(df["gdp_growth"].std())*np.sqrt(12),
+        "gdp_growth_mean":   float((df["gdp_growth_rate"].mean() + 1) ** 12 - 1),
+        "gdp_growth_std":    float(df["gdp_growth_rate"].std())*np.sqrt(12),
         "unemployment_mean": float(df["unemployment"].mean()),
         "unemployment_std":  float(df["unemployment"].std()),
         "gini_mean":         float(df["gini_index"].mean()),
@@ -199,23 +198,6 @@ def resume(root_dir, cpus):
 
 
 # ── EXECUTION ─────────────────────────────────────────────────────────────────
-
-@contextmanager
-def _tqdm_joblib(tqdm_bar):
-    """Patch joblib's batch callback so tqdm updates after each completed job."""
-    class _Callback(joblib.parallel.BatchCompletionCallBack):
-        def __call__(self, *args, **kwargs):
-            tqdm_bar.update(n=self.batch_size)
-            return super().__call__(*args, **kwargs)
-
-    old = joblib.parallel.BatchCompletionCallBack
-    joblib.parallel.BatchCompletionCallBack = _Callback
-    try:
-        yield tqdm_bar
-    finally:
-        joblib.parallel.BatchCompletionCallBack = old
-        tqdm_bar.close()
-
 
 def multiple_runs(overrides: list, runs: int, cpus: int, output_dir: str):
     """Dispatch all (parameter set × Monte Carlo run) jobs in parallel."""
@@ -366,12 +348,45 @@ def compute_sensitivity(root_dir: str) -> pd.DataFrame:
 
 # ── HELPERS ───────────────────────────────────────────────────────────────────
 
+MAX_JOB_ATTEMPTS = 3
+
+
 def _dispatch(job_specs: list, cpus: int, desc: str):
-    """Run a list of {path, params} job specs in parallel with a progress bar."""
-    jobs = [delayed(single_run)(job["params"], job["path"]) for job in job_specs]
-    bar  = tqdm.tqdm(total=len(jobs), desc=desc, unit="sim", dynamic_ncols=True)
-    with _tqdm_joblib(bar):
-        Parallel(n_jobs=cpus, backend="multiprocessing")(jobs)
+    """Run job specs in parallel processes, resubmitting any missing a DONE
+    sentinel after a pass, up to MAX_JOB_ATTEMPTS each."""
+    max_workers = None if cpus is None or cpus < 1 else cpus
+    attempts = defaultdict(int)
+    remaining = list(job_specs)
+    bar = tqdm.tqdm(total=len(job_specs), desc=desc, unit="sim", dynamic_ncols=True)
+    try:
+        while remaining:
+            for job in remaining:
+                attempts[job["path"]] += 1
+            try:
+                with ProcessPoolExecutor(max_workers=max_workers) as executor:
+                    futures = {executor.submit(single_run, j["params"], j["path"]): j
+                               for j in remaining}
+                    for future in as_completed(futures):
+                        try:
+                            future.result()
+                        except Exception as e:
+                            logger.error("Run failed (%s): %s", futures[future]["path"], e)
+            except BrokenExecutor as e:
+                logger.warning("Worker pool broke: %s", e)
+
+            finished = [j for j in remaining if os.path.exists(os.path.join(j["path"], "DONE"))]
+            bar.update(len(finished))
+            remaining = [j for j in remaining if j not in finished]
+
+            abandoned = [j for j in remaining if attempts[j["path"]] >= MAX_JOB_ATTEMPTS]
+            for job in abandoned:
+                logger.error("Abandoning %s after %d attempt(s) without DONE.",
+                             job["path"], attempts[job["path"]])
+            remaining = [j for j in remaining if j not in abandoned]
+            if remaining:
+                logger.info("%d job(s) missing DONE after pass; retrying...", len(remaining))
+    finally:
+        bar.close()
 
 
 def _save_meta(output_dir: str, problem: dict, n_samples: int,
