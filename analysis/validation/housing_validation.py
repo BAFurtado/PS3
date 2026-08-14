@@ -114,7 +114,13 @@ def compute_derived_monthly_indicators(df):
     # Housing stock / family wealth
     # proxy: median family wealth * number of domiciles
     # -----------------------------
-    df["families_permanent_income"] = df["families_median_permanent_income"] * 12 * df["number_domiciles"]
+    # Households again, not the dwelling stock (see the consumption note below):
+    # the numerator is the value of ALL dwellings, vacant included, but the
+    # denominator is aggregate family income, so it scales with families.
+    df["families_permanent_income"] = (
+        df["families_median_permanent_income"] * 12
+        * df["number_domiciles"] * (1 - df["house_vacancy"])
+    )
 
     df["housing_stock_permanent_income"] = safe_ratio(
         df["housing_stock_value"],
@@ -167,10 +173,18 @@ def compute_derived_monthly_indicators(df):
 
     # -----------------------------
     # Consumption / GDP
-    # assumes average_utility is monthly spending
-    # and is already aligned with number_domiciles
+    # average_utility is mean monthly spending over all non-empty families
+    # (stats.py: utility_sum / valid_utility_count, incremented whenever
+    # num_members > 0, so zero-consumption families are included at 0).
+    # The right multiplier is therefore the number of households, not the
+    # dwelling stock: every family occupies exactly one house and vacant
+    # houses hold none, so households = number_domiciles x (1 - vacancy).
+    # Scaling by number_domiciles alone counted the vacant stock as if it
+    # housed spending families, overstating the ratio by ~9% (0.46 vs 0.42).
     # -----------------------------
-    df["total_consumption"] = df["average_utility"] * df["number_domiciles"]
+    df["total_consumption"] = (
+        df["average_utility"] * df["number_domiciles"] * (1 - df["house_vacancy"])
+    )
 
     df["consumption_gdp"] = safe_ratio(
         df["total_consumption"],
