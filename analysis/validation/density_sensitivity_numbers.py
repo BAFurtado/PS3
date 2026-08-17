@@ -219,18 +219,15 @@ def write_table(cells, layout, path):
             L.append(r"\midrule")
     L += [r"\bottomrule", r"\end{tabular}",
           r"\begin{tablenotes}", r"\footnotesize",
-          # Kept deliberately short: the design, the seed-matching scheme and the
-          # HOUSING_FINANCIAL_WEIGHT explanation all live in the appendix prose, and
-          # the full-length version of these notes ran past the bottom of the page.
-          r"\item Notes: improvement policy active, baseline credit-rate scenario; ten "
-          r"replications per cell. Cell means over 2035--2039, with the within-cell "
-          r"seed-to-seed standard deviation in parentheses. Defaults in bold. Levels "
-          r"are comparable within a panel and not across panels, which are different "
-          r"cities: the two parameters that act only on the improvement programme were "
-          r"swept on Bel\'em, because that programme is a structural zero in "
-          r"Goi\^ania; see the text.",
-          r"\item The \texttt{HOUSING\_FINANCIAL\_WEIGHT} cells at 30 and 60 are "
-          r"identical by construction; see the text.",
+          # Trimmed to what cannot be read off the table itself. The design, the
+          # choice of Belem for the improvement-only parameters and the
+          # HOUSING_FINANCIAL_WEIGHT explanation all live in the appendix prose;
+          # repeating them here ran the table past the bottom of the page.
+          r"\item Notes: cell means over 2035--2039, ten replications per cell; "
+          r"within-cell seed-to-seed standard deviation in parentheses; defaults in "
+          r"bold. Panels are different cities, so levels are not comparable across "
+          r"them. The \texttt{HOUSING\_FINANCIAL\_WEIGHT} cells at 30 and 60 coincide "
+          r"by construction. Design and interpretation: see the text.",
           r"\end{tablenotes}", r"\end{threeparttable}", r"\end{table}", ""]
     path.write_text("\n".join(L))
     print(f"\nTable written to {path}")
