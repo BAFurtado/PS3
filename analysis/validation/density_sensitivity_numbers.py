@@ -351,7 +351,7 @@ def main(run_dir):
             print(f"    {c:<34}" + " ".join(f"{v:>12.5g}" for v in means)
                   + f"  sd={sd:>10.4g}  {arrow:<13} d={delta:>+12.5g} {flag}")
 
-    write_table(cells, layout, ROOT / "text/text_density/tables/Table8_sensitivity.tex")
+    write_table(cells, layout, ROOT / "papers/density_housing_inequality/tables/Table8_sensitivity.tex")
 
 
 if __name__ == "__main__":
