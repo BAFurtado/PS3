@@ -72,7 +72,7 @@ SOURCES = {
     'final_stats': {
         'planhab':           'final_stats_planhab_exclude_sp.csv',
         'funds':             'final_stats_funds_exclude_sp.csv',
-        'density_submitted': 'final_stats_agglomeration_submitted.csv',
+        'density_submitted': 'old/final_stats_agglomeration_submitted.csv',
     },
     'regional_stats': {
         # e.g. 'planhab': 'regional_stats_planhab_exclude_sp.csv',

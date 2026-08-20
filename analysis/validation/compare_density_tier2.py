@@ -8,7 +8,7 @@ new batch (corrected model, 6 configs/city):
        = 1596 sims.
 
 submitted batch (the published paper, n=3):
-    output/final_stats_agglomeration_submitted.csv          (raw, for levels)
+    output/old/final_stats_agglomeration_submitted.csv          (raw, for levels)
     private/overleaf/text_density/data_submitted/{acp,capital,periphery}_deltas.csv  (the published
     delta panels themselves -- used verbatim so the "submitted" column is the
     paper's own numbers, not a re-derivation of them).
@@ -62,7 +62,7 @@ PUB_DIR = Path(os.environ.get(
 # launch, and only the timestamp distinguishes the blocks.
 NEW_STATS = [ROOT / "output" / "final_stats_27cities.csv"]
 NEW_REG = [ROOT / "output" / "regional_stats_27cities.csv"]
-OLD_STATS = ROOT / "output" / "final_stats_agglomeration_submitted.csv"
+OLD_STATS = ROOT / "output" / "old" / "final_stats_agglomeration_submitted.csv"
 
 MISSING_CITY = None                 # every published city is present in the new batch
 COMPLETE_MONTHS = 360
