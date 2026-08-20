@@ -1,0 +1,62 @@
+\begin{table}[htbp]
+\centering
+\small
+\caption{One-at-a-time sensitivity of tail-window (2035--2039) outcome levels}
+\label{tab:sensitivity}
+\begin{threeparttable}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+Level & Gini & Unemploy- & House & Zero & Median \\
+ &  & ment & vacancy & consumption & affordability \\
+\midrule
+\multicolumn{6}{@{}l}{\emph{Panel A: Goi\^ania}} \\
+\addlinespace[2pt]
+\multicolumn{6}{@{}l}{\texttt{MAX\_RENT\_TO\_INCOME\_RATIO}} \\
+\quad 0.2 & 0.4456 & 0.0346 & 0.1156 & 0.0733 & 0.0738 \\
+ & (0.0056) & (0.0006) & (0.0050) & (0.0032) & (0.0026) \\
+\quad \textbf{0.3} & 0.4427 & 0.0343 & 0.1180 & 0.0732 & 0.0746 \\
+ & (0.0070) & (0.0005) & (0.0034) & (0.0041) & (0.0027) \\
+\quad 0.4 & 0.4480 & 0.0345 & 0.1171 & 0.0732 & 0.0733 \\
+ & (0.0063) & (0.0006) & (0.0045) & (0.0018) & (0.0022) \\
+\addlinespace
+\multicolumn{6}{@{}l}{\texttt{NEIGHBORHOOD\_EFFECT}} \\
+\quad 0.1 & 0.4424 & 0.0343 & 0.1156 & 0.0713 & 0.0724 \\
+ & (0.0093) & (0.0009) & (0.0026) & (0.0038) & (0.0028) \\
+\quad \textbf{0.2} & 0.4418 & 0.0346 & 0.1137 & 0.0738 & 0.0744 \\
+ & (0.0094) & (0.0010) & (0.0036) & (0.0037) & (0.0024) \\
+\quad 0.3 & 0.4469 & 0.0344 & 0.1143 & 0.0760 & 0.0774 \\
+ & (0.0074) & (0.0006) & (0.0039) & (0.0036) & (0.0029) \\
+\addlinespace
+\multicolumn{6}{@{}l}{\texttt{HOUSING\_FINANCIAL\_WEIGHT}} \\
+\quad 30 & 0.4440 & 0.0346 & 0.1167 & 0.0742 & 0.0733 \\
+ & (0.0072) & (0.0009) & (0.0038) & (0.0030) & (0.0018) \\
+\quad \textbf{60} & 0.4440 & 0.0346 & 0.1167 & 0.0742 & 0.0733 \\
+ & (0.0072) & (0.0009) & (0.0038) & (0.0030) & (0.0018) \\
+\quad 90 & 0.4484 & 0.0348 & 0.1174 & 0.0738 & 0.0741 \\
+ & (0.0080) & (0.0007) & (0.0041) & (0.0026) & (0.0029) \\
+\midrule
+\multicolumn{6}{@{}l}{\emph{Panel B: Bel\'em}} \\
+\addlinespace[2pt]
+\multicolumn{6}{@{}l}{\texttt{UPGRADE\_COST}} \\
+\quad 0.5 & 0.3762 & 0.0335 & 0.1070 & 0.0509 & 0.0620 \\
+ & (0.0043) & (0.0044) & (0.0038) & (0.0056) & (0.0029) \\
+\quad \textbf{1} & 0.3744 & 0.0334 & 0.1079 & 0.0501 & 0.0616 \\
+ & (0.0059) & (0.0043) & (0.0036) & (0.0027) & (0.0016) \\
+\quad 1.5 & 0.3754 & 0.0362 & 0.1058 & 0.0518 & 0.0625 \\
+ & (0.0023) & (0.0047) & (0.0033) & (0.0035) & (0.0018) \\
+\addlinespace
+\multicolumn{6}{@{}l}{\texttt{MELHORIAS\_INCOME\_QUANTILE}} \\
+\quad 0.3 & 0.3769 & 0.0396 & 0.1099 & 0.0516 & 0.0613 \\
+ & (0.0037) & (0.0101) & (0.0043) & (0.0052) & (0.0029) \\
+\quad \textbf{0.38} & 0.3762 & 0.0390 & 0.1100 & 0.0506 & 0.0609 \\
+ & (0.0042) & (0.0104) & (0.0043) & (0.0058) & (0.0029) \\
+\quad 0.46 & 0.3798 & 0.0468 & 0.1069 & 0.0554 & 0.0633 \\
+ & (0.0041) & (0.0134) & (0.0051) & (0.0066) & (0.0030) \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+\footnotesize
+\item Notes: cell means over 2035--2039, ten replications per cell; within-cell seed-to-seed standard deviation in parentheses; defaults in bold. Panels are different cities, so levels are not comparable across them. The \texttt{HOUSING\_FINANCIAL\_WEIGHT} cells at 30 and 60 coincide by construction. Design and interpretation: see the text.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}

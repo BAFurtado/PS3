@@ -1,0 +1,29 @@
+\begin{table}[htbp]
+\centering
+\caption{Phillips curve and Okun's law: baseline specifications}
+\label{tab:phillips_okun_main}
+\begin{threeparttable}
+\begin{tabular}{lcc}
+\toprule
+Specification & $\hat{\beta}$ & $p$-value \\
+\midrule
+\multicolumn{3}{l}{\textit{Phillips curve} (prices on unemployment)} \\[2pt]
+Full panel, contemporaneous & -0.0012*** & $<0.001$ \\
+Full panel, city + scenario FE & -0.0012*** & $<0.001$ \\
+Baseline scenario, full horizon, contemporaneous & -0.0012*** & $<0.001$ \\
+Baseline scenario, full horizon, lagged & -0.0014*** & $<0.001$ \\[4pt]
+\multicolumn{3}{l}{\textit{Okun's law} (unemployment on output)} \\[2pt]
+Full panel & -0.203** & $0.0103$ \\
+Full panel, city + scenario FE & -0.203** & $0.0103$ \\
+Baseline scenario, full horizon & -0.191*** & $0.0089$ \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+\footnotesize
+\item Notes: panel regressions on monthly, city-level simulated series with metropolitan-area fixed effects and standard errors clustered by metropolitan area. The Phillips specification regresses monthly inflation on the unemployment rate; the Okun specification regresses monthly GDP growth on the month-on-month change in unemployment, first-differenced within each simulation so no difference is taken across runs. ``Full panel'' pools all six policy configurations, ``baseline scenario'' restricts to the reference configuration (medium interest rate, improvement policy inactive). ``City + scenario FE'' adds fixed effects for the interest-rate $\times$ improvement-policy cell; ``lagged'' uses $X_{t-1}$ in place of $X_{t}$.
+\item The first 18 months of every run are dropped as burn-in: unemployment falls steeply from its initialisation value over that transient, and including it dominates the estimated relationships.
+\item Both relationships are negative and significant in every specification, consistent with the target stylised facts described in Section~\ref{sec:calibration}.
+\item *** $p<0.01$, ** $p<0.05$, * $p<0.10$.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}

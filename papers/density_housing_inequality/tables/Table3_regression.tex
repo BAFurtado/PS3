@@ -1,0 +1,33 @@
+\begin{table}[htbp]
+\centering
+\caption{Housing wealth and affordability channels: regression results (Equation~3)}
+\label{tab:regression}
+\begin{threeparttable}
+\begin{tabular}{lccc}
+\toprule
+ & ACP & Capital & Periphery \\
+\midrule
+\multicolumn{4}{l}{\textit{Panel A: Primary mechanism} ($\Delta M$ = house price change)} \\[2pt]
+$\hat{\beta} \times 10^{4}$ & -1.959*** & -1.796*** & -1.444 \\
+ & (0.538) & (0.512) & (0.898) \\[4pt]
+$R^2$ & 0.053 & 0.047 & 0.048 \\
+$N$ & 1330 & 1330 & 1080 \\
+Cities & 27 & 27 & 22 \\
+\midrule
+\multicolumn{4}{l}{\textit{Panel B: Secondary check} ($\Delta M$ = median rent/income ratio, renters)} \\[2pt]
+$\hat{\beta}$ & +0.3532*** & +0.3554*** & +0.5453*** \\
+ & (0.0651) & (0.0645) & (0.1024) \\[4pt]
+$R^2$ & 0.074 & 0.076 & 0.083 \\
+$N$ & 1330 & 1330 & 1080 \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+\footnotesize
+\item Notes: OLS with metropolitan-area fixed effects (HC3 standard errors in parentheses).
+\item $\Delta M$ and $\Delta Y$ are 60-month window averages (2035--2039) of policy-induced changes (Eq.~1--2).
+\item Panel A coefficients and standard errors are multiplied by $10^{4}$ for legibility; $\Delta M$ there is a house price in model units, so the coefficient is small by construction.
+\item Periphery excludes five single-municipality ACPs (Boa Vista, Campo Grande, Manaus, Palmas, Rio Branco).
+\item *** $p<0.01$, ** $p<0.05$, * $p<0.10$.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
