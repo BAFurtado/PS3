@@ -1,6 +1,7 @@
 # Simulation outputs
 output/
 StoragedAgents/
+logs/
 
 # Compiled Python
 __pycache__/
@@ -15,10 +16,23 @@ __pycache__/
 analysis/validation/simulated_data/
 analysis/validation/results/
 
-# Internal calibration outputs (wave-specific)
+# Internal calibration outputs (wave-specific).
+# stylized_facts_*.csv is deliberately NOT ignored: it is the input to
+# make_stylized_facts_tables.py and is needed to rebuild Tables 1 and 5.
 analysis/validation/*_full.csv
 analysis/validation/*_pre_2025.csv
 analysis/validation/*.tex
+analysis/validation/all_stats_pooled_*.csv
+analysis/validation/derived_indicators_*.csv
+analysis/validation/pass_fail_*.csv
+analysis/validation/raw_variables_summary_*.csv
+analysis/validation/sanity_checks_*.csv
+analysis/validation/density_tier1_*.csv
+analysis/validation/density_tier2_*.csv
+analysis/validation/table4_windows_*.csv
+analysis/validation/table5_stationarity_*.csv
+analysis/validation/timeseries_delta_gini_*.csv
+analysis/validation/density_tier2_report.txt
 analysis/validation/oat_heatmap_*.png
 analysis/validation/price_inflation_*.png
 analysis/validation/qli_fgts_*.png
@@ -35,22 +49,13 @@ old/runner_sensitivity.py
 *.bak
 
 # Internal documents
-PlanHab_todo.MD
-old/HANDOFF.md
 CLAUDE.md
-old/WAVE27_RESULTS.md
-text/other/memoria_calculo_investimentos_melhorias.txt
-text/ps3/
-text/*.pdf
-text/*.docx
-text/*.zip
-text/*.png
-text/*.html
-text/other/gera_diagramas.py
 
 # OS
 .DS_Store
 Thumbs.db
 
-# text_density has its own separate git repo (synced with Overleaf) — PS3 must not track it
-/text/text_density/
+# Private working notes, agent memory, PS4 planning, and the Overleaf checkouts for
+# text_density and text_planhab — all in a separate private git repo.
+# NEVER un-ignore this: the PS3 remote is public.
+/private/
