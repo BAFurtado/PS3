@@ -146,7 +146,7 @@ class LaborMarket:
         penalty_min = np.min(commute_penalty)
         penalty_max = np.max(commute_penalty)
 
-        t_norm = 1.0 - (commute_penalty - penalty_min) / (penalty_max - penalty_min + 1e6)
+        t_norm = 1.0 - (commute_penalty - penalty_min) / (penalty_max - penalty_min + 1e-6)
 
         # Salário é fixo por firma
         w_norm = (wage - wage_min) / (wage_max - wage_min + 1e-6)

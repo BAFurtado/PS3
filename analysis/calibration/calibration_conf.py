@@ -39,7 +39,7 @@ CALIBRATION_SETTINGS = {
     # Burn-in excluded from fitness; moments computed over [burn_in_end, target_end_year]
     "burn_in_end":       "2012-01-01",
     "target_start_year": "2010-01-01",
-    "target_end_year":   "2015-01-01",
+    "target_end_year":   "2025-01-01",
 
     # Anchor region for calibration
     "calibration_region": "BELO HORIZONTE",

@@ -38,42 +38,92 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import analysis.calibration.calibration_conf as calibration_conf
 import conf
+from analysis.output import OUTPUT_DATA_SPEC
 from checkpoint import save_jobs, pending_jobs
 from simulation import Simulation
 from main import gen_output_dir
-from analysis.output import OUTPUT_DATA_SPEC
 
 logger = logging.getLogger('main')
 
 
 # ── FITNESS ───────────────────────────────────────────────────────────────────
 
+_OBSERVED_DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+
+
+def _period_to_date(period, freq: str):
+    """Convert a fetch_municipal_validation_data.py period code to a date.
+
+    'month' periods are YYYYMM. 'quarter' periods are YYYY0Q (Q = quarter
+    number 1-4, per SIDRA's D3C convention), converted to that quarter's
+    first month. 'year' periods are plain YYYY.
+    """
+    period = str(period)
+    year = int(period[:4])
+    if freq == "month":
+        month = int(period[4:6])
+    elif freq == "quarter":
+        month = (int(period[4:6]) - 1) * 3 + 1
+    elif freq == "year":
+        month = 1
+    else:
+        raise ValueError(freq)
+    return datetime(year, month, 1).date()
+
+
+# Gini has no real observed series yet (needs PNADC microdata processing,
+# tracked separately as a follow-up task) - scored against this placeholder
+# in the meantime, same values as the original pre-2026-08-25 OBSERVED dict.
+_GINI_PLACEHOLDER = {"gini_mean": 0.540, "gini_std": 0.018}
+
+
+def _load_observed_moments(start: str, end: str) -> dict:
+    """
+    Empirical mean/std for each fitness target, over [start, end]. Inflation,
+    unemployment, and gdp_growth are real BH data fetched by
+    fetch_municipal_validation_data.py; gini falls back to _GINI_PLACEHOLDER
+    (see its docstring).
+    """
+    start_date = datetime.strptime(start, "%Y-%m-%d").date()
+    end_date = datetime.strptime(end, "%Y-%m-%d").date()
+
+    def _windowed(fname, value_col, freq):
+        df = pd.read_csv(os.path.join(_OBSERVED_DATA_DIR, fname))
+        dates = df["period"].apply(lambda p: _period_to_date(p, freq))
+        mask = (dates >= start_date) & (dates <= end_date)
+        return df.loc[mask, value_col]
+
+    inflation = _windowed("bh_inflation.csv", "inflation", "month")
+    unemployment = _windowed("bh_unemployment.csv", "unemployment", "quarter")
+    gdp_growth = _windowed("bh_gdp_growth.csv", "gdp_growth", "year")
+
+    return {
+        "gdp_growth_mean":   float(gdp_growth.mean()),
+        "gdp_growth_std":    float(gdp_growth.std()),
+        "unemployment_mean": float(unemployment.mean()),
+        "unemployment_std":  float(unemployment.std()),
+        "inflation_mean":    float(inflation.mean()),
+        "inflation_std":     float(inflation.std()),
+        **_GINI_PLACEHOLDER,
+    }
+
+
 def calculate_fitness(sim_df: pd.DataFrame) -> float:
     """
-    Weighted distance between simulated and observed BH moments (mean, std)
-    over the burn-in window. Returns 999.0 on failure.
+    Weighted distance between simulated and observed BH moments (mean, std),
+    computed over [burn_in_end, target_end_year] - burn-in is excluded. Weights are split evenly across
+    all targets, including gini (still scored against a placeholder - see
+    _GINI_PLACEHOLDER). Returns 999.0 on failure.
     """
     settings = calibration_conf.CALIBRATION_SETTINGS
-    weights  = []#settings["fitness_weights"]
-
-    # TODO: replace with values computed from actual observed series
-    OBSERVED = {
-        "gdp_growth_mean":   0.10,
-        "gdp_growth_std":    0.018,
-        "unemployment_mean": 0.090,
-        "unemployment_std":  0.021,
-        "gini_mean":         0.540,
-        "gini_std":          0.018,
-        "inflation_mean":    0.065/12,
-        "inflation_std":     0.031/np.sqrt(12),
-    }
 
     required = {"gdp_growth_rate", "unemployment", "gini_index", "inflation"}
     if not required.issubset(sim_df.columns):
         return 999.0
-    start, end = settings["target_start_year"],settings["target_end_year"]
+
+    start, end = settings["burn_in_end"], settings["target_end_year"]
     if "month" in sim_df.columns:
-        df = sim_df[(sim_df["month"]>= start) & (sim_df["month"] <= end)]
+        df = sim_df[(sim_df["month"] >= start) & (sim_df["month"] <= end)]
     elif "year" in sim_df.columns:
         df = sim_df[(sim_df["year"] >= start) & (sim_df["year"] <= end)]
     else:
@@ -82,30 +132,23 @@ def calculate_fitness(sim_df: pd.DataFrame) -> float:
     if df.empty:
         return 999.0
 
+    OBSERVED = _load_observed_moments(start, end)
+
     SIMULATED = {
         "gdp_growth_mean":   float((df["gdp_growth_rate"].mean() + 1) ** 12 - 1),
         "gdp_growth_std":    float(df["gdp_growth_rate"].std())*np.sqrt(12),
         "unemployment_mean": float(df["unemployment"].mean()),
         "unemployment_std":  float(df["unemployment"].std()),
-        "gini_mean":         float(df["gini_index"].mean()),
-        "gini_std":          float(df["gini_index"].std()),
         "inflation_mean":    float(df["inflation"].mean()),
         "inflation_std":     float(df["inflation"].std()),
+        "gini_mean":         float(df["gini_index"].mean()),
+        "gini_std":          float(df["gini_index"].std()),
     }
 
-    moment_weights = {
-        "gdp_growth_mean":  1 / 8,
-        "gdp_growth_std":    1 / 8,
-        "unemployment_mean": 1 / 8,
-        "unemployment_std":  1 / 8,
-        "gini_mean":         1/ 8,
-        "gini_std":          1 / 8,
-        "inflation_mean":    1 / 8,
-        "inflation_std":     1 / 8,
-    }
+    moment_weights = {m: 1 / len(OBSERVED) for m in OBSERVED}
 
     return sum(
-        moment_weights[m] * abs(SIMULATED[m] - OBSERVED[m])
+        moment_weights[m] * abs(SIMULATED[m] - OBSERVED[m]) / abs(OBSERVED[m])
         for m in OBSERVED
     )
 
@@ -146,6 +189,7 @@ def run_sample(ctx, samples, cpus):
     scaled_samples = sobol_sampler.sample(
         problem,
         N=n_samples,
+        calc_second_order=settings["sobol_calc_second_order"],
         seed=settings["sobol_seed"],
     )
     start_date = datetime.strptime(calibration_conf.CALIBRATION_SETTINGS['target_start_year'], '%Y-%m-%d').date()
