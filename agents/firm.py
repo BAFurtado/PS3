@@ -199,9 +199,11 @@ class Firm:
         eco_lambda = params['ECO_INVESTMENT_LAMBDA']
         subsidies = params['ECO_INVESTMENT_SUBSIDIES'][self.sector] if is_policy_active else 0
         if is_policy_active and subsidies and tax_cost >= 0:
-            # Check if the government has money to provide subsidies
-            # Only checks if emissions taxes are being levied
-            if regions[self.region_id].treasure['emissions'] <= 0:
+            # The emissions fund is filled only by the emission tax. When a tax
+            # is levied, gate the subsidy on a positive fund balance; in tax-free
+            # (subsidy-only) scenarios pay it regardless, letting the fund go
+            # negative so its balance measures the subsidy's fiscal cost.
+            if params['TAX_EMISSION'] and regions[self.region_id].treasure['emissions'] <= 0:
                 subsidies = 0
 
 

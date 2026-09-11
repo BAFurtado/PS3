@@ -262,7 +262,7 @@ TAX_TRANSPORT = 0
 
 # EMISSIONS POLICIES ######################################################
 # Taxes on emission are given by tax * total_emissions. Roughly R$ * tonCO2. .1 is about R$10
-TAX_EMISSION = 0.01
+TAX_EMISSION = 1
 # Subsidies in (0,1) is the amount of investment paid by the gov(subsidies * total_invested)
 # 0 is none, 1 is full
 ECO_INVESTMENT_SUBSIDIES = 0.2
