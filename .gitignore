@@ -59,3 +59,7 @@ Thumbs.db
 # text_density and text_planhab — all in a separate private git repo.
 # NEVER un-ignore this: the PS3 remote is public.
 /private/
+
+# Calibration archive: 1.7 GB Sobol run bundle, kept locally only.
+# calibrated/README.md is deliberately NOT ignored.
+calibrated/*.zip
