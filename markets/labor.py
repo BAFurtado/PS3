@@ -133,7 +133,7 @@ class LaborMarket:
         # Distâncias ou tempos de deslocamento
         if self.sim.od_matrix is not None:
             commutes = np.array([
-                self.sim.od_matrix.get((c.family.house.region_id, firm.region_id), dist_max)
+                self.commute_time.get((c.family.house.region_id, firm.region_id), dist_max)
                 for c in candidates
             ])
         else:
