@@ -73,12 +73,17 @@ class Agent:
     def is_retired(self):
         return self.age > 70
 
+    # Commute in the units the transit costs are calibrated in (see set_commute). None, the default for
+    # agents unpickled from older caches, charges on distance as before.
+    commute_cost_units = None
+
     def pay_transport(self, money, params, regions):
         # TODO. Check how much money is being collected as well as proportion of distance/wages
+        units = self.distance if self.commute_cost_units is None else self.commute_cost_units
         if self.has_car:
-            cost_transport = self.distance * params['PRIVATE_TRANSIT_COST']
+            cost_transport = units * params['PRIVATE_TRANSIT_COST']
         else:
-            cost_transport = self.distance * params['PUBLIC_TRANSIT_COST']
+            cost_transport = units * params['PUBLIC_TRANSIT_COST']
         # Collect taxes to the municipality
         regions[self.family.house.region_id].collect_taxes(cost_transport, 'transport')
         return money - cost_transport
@@ -105,12 +110,19 @@ class Agent:
     def is_employable(self):
         return not self.is_retired and not self.is_minor and not self.is_employed
 
-    def set_commute(self, firm):
-        """Set (cache) commute according to their employer firm"""
-        if firm is not None:
-            self.distance = self.distance_to_firm(firm)
-        else:
+    def set_commute(self, firm, transport=None):
+        """Set (cache) commute according to their employer firm.
+        With a travel-time matrix, distance holds minutes and the cost is charged on minutes converted to
+        distance units (TransportNetwork.cost_factor), so the transit cost parameters keep their calibration."""
+        if firm is None:
             self.distance = 0
+            self.commute_cost_units = 0
+        elif transport is not None and transport.matrix is not None:
+            self.distance = transport.minutes_between(self.family.house.region_id, firm.region_id)
+            self.commute_cost_units = self.distance * transport.cost_factor
+        else:
+            self.distance = self.distance_to_firm(firm)
+            self.commute_cost_units = self.distance
 
     def __repr__(self):
         return (

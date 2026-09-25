@@ -23,13 +23,7 @@ class LaborMarket:
         self.gov_employees = self.process_gov_employees_year()
         self.available_postings = list()
         self.candidates = list()
-        if self.sim.od_matrix is not None:
-            mode_col = 'TempoRedeNec' if self.sim.PARAMS['TRANSPORT_TIME'] else 'TempoRedeBase'
-            self.commute_time = self.build_commute_time_cache(mode_col)
-            self.max_dist = None
-        else:
-            self.commute_time = None
-            self.max_dist = None
+        self.max_dist = None
 
     def compute_max_distance(self):
         centroids = [r.addresses.centroid for r in self.sim.regions.values()]
@@ -39,9 +33,6 @@ class LaborMarket:
             if dist > max_dist:
                 max_dist = dist
         return max_dist
-
-    def build_commute_time_cache(self, mode_col):
-        return self.sim.od_matrix.set_index(['code_weighting_orig', 'code_weighting_dest'])[mode_col].to_dict()
 
     def process_gov_employees_year(self):
         employees = pd.read_csv('input/qtde_vinc_gov_rais_stable_from_2020_onwards.csv')
@@ -114,7 +105,7 @@ class LaborMarket:
         candidates: lista de candidatos
         firm: firma
         wage: salário da firma
-        od_matrix: dicionário de deslocamentos
+        dist_max: tempo (ou distância) atribuído a pares sem tempo de deslocamento
         *_min, *_max: limites inferiores e superiores para normalização
         alpha, beta: parâmetros Cobb-Douglas
         """
@@ -131,9 +122,10 @@ class LaborMarket:
         transit_cost = np.where(has_car, private_cost, public_cost)
 
         # Distâncias ou tempos de deslocamento
-        if self.sim.od_matrix is not None:
+        if self.sim.transport.matrix is not None:
+            commute_time = self.sim.transport.commute_time
             commutes = np.array([
-                self.commute_time.get((c.family.house.region_id, firm.region_id), dist_max)
+                commute_time.get((c.family.house.region_id, firm.region_id), dist_max)
                 for c in candidates
             ])
         else:
@@ -181,8 +173,8 @@ class LaborMarket:
         # and "size" of a firm, giving by its more recent revenue level
         # Min, Max for score attributes normalization
         qual_min, qual_max = min(c.qualification for c in candidates), max(c.qualification for c in candidates)
-        if self.sim.od_matrix is not None:
-            dist_max = max(self.commute_time.values())
+        if self.sim.transport.matrix is not None:
+            dist_max = self.sim.transport.max_time
         else:
             if self.max_dist is None:
                 self.max_dist = self.compute_max_distance()
@@ -219,9 +211,8 @@ class LaborMarket:
             return cand_still_looking
         return None
 
-    @staticmethod
-    def apply_assign(chosen, firm):
-        chosen.set_commute(firm)
+    def apply_assign(self, chosen, firm):
+        chosen.set_commute(firm, self.sim.transport)
         firm.add_employee(chosen)
 
     def look_for_jobs(self, agents):

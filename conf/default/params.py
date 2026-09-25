@@ -111,6 +111,11 @@ TAX_ON_ORIGIN = True
 # BNDES test with (True) and without (False) TRANSPORT investments.
 # Variation in time_travel implemented in labor market decisions -- BNDES test
 TRANSPORT_TIME = False
+# Opening schedule of the network (world/transport.py): list of [date, spec], date 'YYYY-MM-DD' or a year,
+# spec a matrix state ('base', 'nec', ...) or phi in [0, 1] blending base into nec. Base before the first date.
+# None: static network for the whole run, chosen by TRANSPORT_TIME.
+# E.g. 14-year phase-in from 2026: transport.linear_phase_in(2026, 14)
+TRANSPORT_SCHEDULE = None
 # LOANS ##############################################################################
 # Maximum age of borrower at the end of the contract
 MAX_LOAN_AGE = 70

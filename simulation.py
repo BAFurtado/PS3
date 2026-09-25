@@ -19,6 +19,7 @@ from world import Generator, demographics, clock, population
 from world.firms import firm_growth
 from world.funds import Funds
 from world.geography import Geography, STATES_CODES, state_string
+from world.transport import TransportNetwork
 from markets.goods import RegionalMarket, External
 
 
@@ -65,7 +66,6 @@ class Simulation:
         self.demographics = demographics
         self.grave = list()
         self.mun_to_regions = defaultdict(set)
-        self.od_matrix = None
         # Read necessary files — loaded as dicts for fast O(1) lookup in demographics
         self.m_men, self.m_women, self.f = dict(), dict(), dict()
 
@@ -94,13 +94,10 @@ class Simulation:
             f.columns = f.columns.astype(str)
             self.f[state] = f.to_dict('index')
 
-        # Implement loop when other RMs ODs become available
-        if 'DF' in self.geo.states_on_process:
-            try:
-                self.od_matrix = pd.read_parquet('input/bndes/travel_times_areapond_DF.parquet')
-            except FileNotFoundError:
-                self.od_matrix = None
-                print('No OD matrix found for DF!')
+        # Travel-time matrix between APs, if the processing ACPs have one (world/transport.py)
+        self.transport = TransportNetwork(self.PARAMS, self.geo.processing_acps, self.logger.logger)
+        if self.transport.matrix is not None:
+            self.transport.update(self.PARAMS['STARTING_DAY'])
         self.labor_market = markets.LaborMarket(self, self.seed, self.seed_np)
         self.housing = markets.HousingMarket()
         self.heads = population.HouseholdsHeads(self)
@@ -221,6 +218,10 @@ class Simulation:
             self.central,
         ) = self.generate()
 
+        if self.transport.matrix is not None:
+            self.transport.check_coverage(self.regions.keys())
+            self.transport.calibrate_cost(self.regions, self.reg_pops)
+
         # Group regions into their municipalities
         for region_id in self.regions.keys():
             mun_code = region_id[:7]
@@ -255,6 +256,14 @@ class Simulation:
         pass
 
     def monthly(self):
+        if self.transport.matrix is not None:
+            self.transport.update(self.clock.days)
+            # Keep commutes current with the network in force and with house moves
+            for agent in self.agents.values():
+                if agent.firm_id is not None and agent.family is not None:
+                    firm = self.firms.get(agent.firm_id)
+                    if firm is not None:
+                        agent.set_commute(firm, self.transport)
         # Set interest rates
         interests = self.interest[
             self.interest.index.date == self.clock.days][['interest', 'mortgage', ]].iloc[0]

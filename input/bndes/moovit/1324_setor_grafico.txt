@@ -1,0 +1,105 @@
+Amazônia Inter - (SEMIURBANO) | 1324 | Setor Grafico | Dias úteis | Moovit, última atualização 20 de setembro de 2026
+Estação	Partida #1	Partida #2	Partida #3
+Rua 42 2 Planaltina - Goiás 73751-479 Brasil	04:12	04:55	05:40
+RUA 4 ENTRADA PARA RUA 8 - SENTIDO RODOVIARIA PLANALTINA	04:13	04:55	05:40
+Rua Quatro 35 Planaltina - Goiás 73751-130 Brasil	04:13	04:56	05:41
+Rua Quatro 35 Planaltina - Goiás 73751-130 Brasil	04:13	04:56	05:41
+RUA 4 Q15 MR 1 CASA 19 - SETOR NORTE PLANALTINA	04:14	04:57	05:42
+436210828	04:14	04:57	05:42
+AV. ULISSES GUIMARAES ANTES DA ENTRADA PARA RUA 4 - Q 13 MR 4 PLANALTINA	04:16	04:58	05:43
+AV. ULISSES GUIMARAES Q. 8 MR 3 LOTE 20 - SETOR NORTE PLANALTINA	04:16	04:59	05:44
+AV FRANCISCO MUNDIM GUIMA Q 07 MR 12 LOTE 34 PLANALTINA	04:17	05:00	05:45
+R SEIS (AV PROFA ZAIDA PI MC LOTE 11 LJ 1 S/N - QC - SETOR NORTE PLANALTINA	04:18	05:01	05:46
+Rua Seis Planaltina - Goiás 73751-150 Brasil	04:18	05:01	05:46
+Avenida A 6 Planaltina - Goiás 73752-101 Brasil	04:19	05:02	05:47
+Avenida A 11 Planaltina - Goiás 73753-103 Brasil	04:19	05:02	05:47
+AV ELIZIO VAZ QA 03 MC CASA 10 SETOR OESTE PLANALTINA	04:20	05:03	05:48
+Avenida A 9 Planaltina - Goiás 73753-107 Brasil	04:21	05:04	05:49
+Rua Sem Denominacao 256 1 Planaltina - Goiás 73753-105 Brasil	04:22	05:05	05:50
+Avenida A 11 Planaltina - Goiás 73753-103 Brasil	04:23	05:05	05:50
+AV ELIZIO VAZ QA 01 MC LOTE 08 A SETOR LESTE PLANALTINA	04:23	05:06	05:51
+Avenida A 7 Planaltina - Goiás 73751-202 Brasil	04:24	05:06	05:51
+Quadra A Sete Planaltina - Goiás 73552 Brasil	04:25	05:07	05:52
+Avenida A Planaltina - Goiás 73752-107 Brasil	04:25	05:08	05:53
+Rua Nove 1a Planaltina - Goiás 73752-111 Brasil	04:26	05:08	05:53
+Rua Dois 11 Planaltina - Goiás 73752-060 Brasil	04:28	05:11	05:56
+Rua C Planaltina - Goiás 73751-090 Brasil	04:33	05:16	06:01
+Rua D 6 Planaltina - Goiás 73752-105 Brasil	04:34	05:17	06:02
+Go-534 38 Planaltina - Goiás 73752-101 Brasil	04:34	05:17	06:02
+AV PEDRO LUDOVICO Q 07 MR 07 LOTE 22 PLANALTINA	04:35	05:18	06:03
+Avenida Pedro Ludovico 24 Planaltina - Goiás 73752-080 Brasil	04:36	05:18	06:03
+AV PEDRO LUDOVICO LADO OPOSTO MR 12 LOTE 20 FRENTE M 32 PLANALTINA	04:37	05:19	06:04
+ALAMEDA HERMINIO MAURO LADO OPOSTO QD 230 LOTE 04 JARDIM PAQUETA PLANALTINA	04:38	05:20	06:05
+ALAMEDA HERMINIO MAURO QD 110 JARDIM PAQUETA PLANALTINA	04:39	05:21	06:06
+ALAMEDA HERMINIO MAURO LADO OPOSTO POSTO ITAPUA PLANALTINA	04:39	05:22	06:07
+ALAMEDA HERMINIO MAURO QD 21 LOTE 15 PARQUE ITAPUA II PLANALTINA	04:40	05:22	06:07
+DF 128 FIM DA DF 128 E INICIO DA VIA A-B PLANALTINA	04:42	05:25	06:10
+Df-128 Planaltina - Goiás Brasil	04:44	05:26	06:11
+DF 128 - Norte PLANALTINA DF	04:45	05:27	06:12
+Df-128	04:46	05:28	06:13
+DF 128 LADO OPOSTO FABRICA DE FARINHA PLANALTINA DISTRITO FEDERAL	04:47	05:30	06:15
+Df-128 Brasília - Distrito Federal 73380 Brasil	04:48	05:30	06:15
+DF-128 | UBS Morumbi	04:49	05:31	06:16
+Df-128 Brasília - Distrito Federal 73380 Brasil	04:50	05:32	06:17
+DF-128 | CRUZAMENTO DF-205	04:50	05:32	06:17
+Df-128 Brasília - Distrito Federal 73380 Brasil	04:52	05:34	06:19
+Df-131 Brasília - Distrito Federal 73380 Brasil	05:04	05:46	06:31
+DF-128 | Viaduto BR-020	05:07	05:49	06:34
+BR-020 | Acesso DF-128 (Planaltina de Goiás)	05:08	05:50	06:35
+BR-020 | Condomínio Coohaplan	05:08	05:50	06:35
+BR-010 - Planaltina - Planaltina Brasília - DF Brasil	05:10	05:52	06:37
+BR-010 - Planaltina - Planaltina Brasília - DF 73380-100 Brasil	05:11	05:53	06:38
+BR-010 - Planaltina - Planaltina Brasília - DF Brasil	05:13	05:55	06:40
+BR-020 | Estâncias / Total Ville / Dia a Dia	05:14	05:55	06:40
+BR-010 - Planaltina Brasília - DF Brasil	05:15	05:57	06:42
+BR-010 - Planaltina - Planaltina Brasília - DF Brasil	05:17	05:59	06:44
+BR-020 | Nova Petropolis / Pousada Alfama	05:19	06:01	06:46
+BR-020 | Estância Vila Rica / Córrego do Arrozal	05:24	06:05	06:50
+BR-020 | Cond. Alto da Boa Vista	05:26	06:08	06:53
+BR-020 | Nova Colina	05:27	06:08	06:53
+BR-020 | Quadra 18 / Nova Digneia	05:28	06:09	06:54
+BR-020 | Quadra 16 (Tatico Supermercado)	05:29	06:10	06:55
+BR-020 | Passarela Quadra 16	05:29	06:11	06:56
+BR-020 | Viaduto Padre Jonas (Comper / Dia a Dia)	05:31	06:13	06:58
+BR-020 | Creche João de Barro	05:32	06:13	06:58
+BR-020 | Quadra 2	05:33	06:15	07:00
+BR-020 | Paróquia N. Sra. Aparecida / DNOCS	05:34	06:16	07:01
+BR-020 | Atacadão / Rezende / Atalaia	05:35	06:16	07:01
+BR-020 | Cond. Vivendas Serranas / DF-425	05:38	06:19	07:04
+BR-020 | Cond. Morada dos Nobres	05:40	06:21	07:06
+BR-020 | Cond. Império dos Nobres / RK	05:42	06:23	07:08
+BR-020 | IPEC / Res. Granville	05:43	06:24	07:09
+BR-020 | Setor Habitacional Café Planalto	05:45	06:26	07:11
+BR-020 | Posto Colorado / Altana / Flamingo Shopping	05:46	06:28	07:13
+EPIA | Taquari (Costa Atacadão)	05:49	06:30	07:15
+EPIA	05:59	06:40	07:25
+374180677	06:01	06:42	07:27
+EPIA EM FRENTE A AGUA MINERAL - KM 09 PLANO PILOTO DISTRITO FEDERAL	06:01	06:42	07:27
+EPIA | Parque Nacional de Brasília	06:02	06:43	07:28
+EPIA | SOF Norte	06:03	06:43	07:28
+W7 Norte | CLNW 09/10	06:07	06:48	07:33
+W7 Norte | SQNW 109/110	06:07	06:48	07:33
+W7 Norte | SQNW 107/108	06:09	06:49	07:34
+EPAA | SQNW 302 / SLU	06:13	06:54	07:39
+EPAA | Posto de Combustiveis	06:14	06:55	07:40
+EPAA | DER-DF	06:15	06:55	07:40
+EPAA - Sargento - Brasília DF 70297-400 Brasil	06:16	06:56	07:41
+Via N1 | Memorial JK / Praça do Cruzeiro	06:16	06:57	07:42
+Via N1 | Setor Militar Urbano / SQSW 500	06:18	06:58	07:43
+N1 APOS A SAIDA DO QG EM FRENTE A CATEDRAL DOS MILITARES PLANO PILOTO DISTRITO FEDERAL	06:18	06:59	07:44
+Via S1 | Catedral Militar Rainha da Paz	06:19	07:00	07:45
+Via S1 | INMET / SQSW 500	06:20	07:00	07:45
+Via S1 | Praça do Cruzeiro / Memórial JK	06:21	07:01	07:46
+Via S1 | CLDF / TRE-DF / Clube FM	06:22	07:02	07:47
+EPIG | CLDF / TJDFT / Clube FM	06:22	07:03	07:48
+EPIG | Avidus School / Banco do Brasil / AGU	06:23	07:03	07:48
+EPIG | Pavilhão Parque da Cidade / Oscarito	06:24	07:04	07:49
+EPIG | SQSW 101 / Praça das Fontes	06:25	07:06	07:51
+EPIG | SQSW 102 / Estacionamento 4	06:26	07:06	07:51
+EPIG | SQSW 103/104 (Estacionamento 5)	06:27	07:07	07:52
+EPIG | CLSW 105/106 (IML / Polícia Civil)	06:28	07:08	07:53
+EPIG | Octogonal	06:30	07:10	07:55
+436223694	06:33	07:13	07:58
+EPIA | NOVACAP / Polícia Rodoviária Federal	06:33	07:13	07:58
+EPIA - Guará Brasília - DF 70297-400 Brasil	06:34	07:14	07:59
+# table ends here on the page; the PDF continues to TAS | Estação Metrô / DESEMBARQUE (ParkShopping, SMAS)
