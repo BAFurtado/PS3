@@ -97,10 +97,10 @@ class Simulation:
         # Implement loop when other RMs ODs become available
         if 'DF' in self.geo.states_on_process:
             try:
-                self.od_matrix = pd.read_parquet('input/bndes/travel_times_areapond_%s.parquet' % state)
+                self.od_matrix = pd.read_parquet('input/bndes/travel_times_areapond_DF.parquet')
             except FileNotFoundError:
                 self.od_matrix = None
-                print(f'No matriz OD found for this METRO {state} region!')
+                print('No OD matrix found for DF!')
         self.labor_market = markets.LaborMarket(self, self.seed, self.seed_np)
         self.housing = markets.HousingMarket()
         self.heads = population.HouseholdsHeads(self)
