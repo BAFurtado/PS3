@@ -789,21 +789,17 @@ class ConstructionFirm(Firm):
                 self.cash_flow[date] += amount / acc_months
                 date += relativedelta.relativedelta(months=+1)
 
-    def wage_base(self, unemployment, relevance_unemployment):
-        #TODO: All revenue added before (from intermediate and final consumption) is being ovelooked
-        self.revenue += self.cash_flow[self.present]
+    def make_payment(self, *args, **kwargs):
+        # House sales reach revenue through cash_flow, smoothed over CONSTRUCTION_ACC_CASH_FLOW months.
+        # Added once a month, on top of goods sales already in self.revenue, so that wages (inherited
+        # Firm.wage_base, net of input_cost), taxes and profit all see both streams.
+        # Not done inside wage_base: the labor market calls wage_base repeatedly to rank postings.
+        house_revenue = self.cash_flow[self.present]
         # Using temporary planned income before money starts to flow in
-        if self.cash_flow[self.present] == 0 and self.monthly_planned_revenue:
-            # Adding the last planned house income
-            self.revenue += self.monthly_planned_revenue[-1]
-        # Observing global economic performance has the added advantage of not spending all revenue on salaries
-        if self.num_employees > 0:
-            return ((self.revenue 
-                     - self.input_cost
-                     - self.emission_taxes_paid) / self.num_employees)  * max(
-                    1 - (unemployment * relevance_unemployment), 0)
-        else:
-            return (self.revenue-self.input_cost-self.emission_taxes_paid) * (1 - (unemployment * relevance_unemployment))
+        if house_revenue == 0 and self.monthly_planned_revenue:
+            house_revenue = self.monthly_planned_revenue[-1]
+        self.revenue += house_revenue
+        super().make_payment(*args, **kwargs)
 
     @property
     def n_houses_sold(self):
