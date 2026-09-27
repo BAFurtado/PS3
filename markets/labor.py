@@ -168,7 +168,7 @@ class LaborMarket:
         alpha = self.sim.PARAMS['CB_QUALIFICATION']
         beta = self.sim.PARAMS['CB_COMMUTING']
         public_cost = self.sim.PARAMS['PUBLIC_TRANSIT_COST']
-        private_cost = self.sim.PARAMS['PRIVATE_TRANSIT_COST']
+        public_private = self.sim.PARAMS['PRIVATE_TRANSIT_COST']
         # This organizes a number of offers of candidates per firm, according to their own location
         # and "size" of a firm, giving by its more recent revenue level
         # Min, Max for score attributes normalization
@@ -191,7 +191,7 @@ class LaborMarket:
                 sampled_candidates, firm, wage,
                 qual_min, qual_max, dist_max, wage_min, wage_max,
                 alpha, beta,
-                private_cost, public_cost
+                public_cost, public_private
             )
             for c, s in zip(sampled_candidates, scores):
                 offers.append((firm, c, s))
