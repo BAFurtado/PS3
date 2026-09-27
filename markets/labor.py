@@ -258,17 +258,31 @@ class LaborMarket:
                         f.fire(self.seed)
                         fired += 1
 
-    def hire_fire(self, firms, firm_enter_freq, initialize=False):
-        """Firms adjust their labor force based on profit"""
+    def hire_fire(self, firms, firm_enter_freq, initialize=False, fire_unpaid_months=0, planned_growth=False,
+                  replace_separations=False):
+        """Firms adjust their labor force based on profit.
+        With planned_growth a growing firm posts as many vacancies as its production plan needs. With replace_separations, a firm that is not shrinking
+        also re-posts one vacancy for each worker it lost to natural separation or death since its last adjustment."""
         random_value = self.seed_np.random(size=len(firms.values()))
         n_fired = 0
         for i, firm in enumerate(firms.values()):
             # `firm_enter_freq` is the frequency firms enter the market
             if random_value[i] < firm_enter_freq:
+                fired_before = n_fired
                 if initialize:
-                    self.add_post(firm)
+                    if firm.sector != 'Government':
+                        self.add_post(firm)
+                    continue
                 elif firm.total_balance <= 0:
                     # Insolvent: shed labour regardless of production signal
+                    firm.fire(self.seed_np)
+                    n_fired += 1
+                elif (fire_unpaid_months > 0
+                      and firm.sector != 'Government'
+                      and firm.months_unpaid >= fire_unpaid_months):
+                    # Could not pay its staff for fire_unpaid_months months running: shed one worker
+                    # and stop posting. Short droughts (erratic sales) are tolerated, sustained ones are not.
+                    # Government is excluded: gov_hire_fire sets its headcount.
                     firm.fire(self.seed_np)
                     n_fired += 1
                 elif firm.sector == 'Construction':
@@ -277,18 +291,35 @@ class LaborMarket:
                     # tied directly to the house-building pipeline instead.
                     increase, oversupplied = firm.labor_signals(self.sim.PARAMS)
                     if increase:
-                        self.add_post(firm)
+                        self.add_growth_posts(firm, planned_growth)
                     elif oversupplied:
                         firm.fire(self.seed_np)
                         n_fired += 1
                 elif firm.increase_production and firm.profit >= 0:
-                    self.add_post(firm)
+                    self.add_growth_posts(firm, planned_growth)
                 elif not firm.increase_production and firm.profit < 0:
                     # Fire only when BOTH signals align: surplus inventory AND losing money.
                     # OR-logic fired profitable firms with adequate stock, collapsing demand.
                     firm.fire(self.seed_np)
                     n_fired += 1
+                # Replacement: refill workers lost to natural separation or death, unless the firm is shrinking
+                # (fired this adjustment, or not paying its staff). Government's headcount is set by gov_hire_fire.
+                if (replace_separations and firm.sector != 'Government'
+                        and n_fired == fired_before and firm.months_unpaid == 0):
+                    for _ in range(firm.pending_replacements):
+                        self.add_post(firm)
+                firm.pending_replacements = 0
         # print('N of fired: ',n_fired)
+
+    def add_growth_posts(self, firm, planned_growth):
+        # With planned_growth, a growing firm posts the workers its production decision says it needs
+        # (firm.workers_needed), at least one and at most its current headcount (no more than doubling in a month).
+        # Builders plan on the house pipeline, not on goods sales, and keep one post. Otherwise one post a month.
+        n = 1
+        if planned_growth and firm.sector != 'Construction':
+            n = max(1, min(firm.workers_needed, firm.num_employees))
+        for _ in range(n):
+            self.add_post(firm)
 
     def __repr__(self):
         return self.available_postings, self.candidates
