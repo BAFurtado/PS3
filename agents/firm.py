@@ -3,6 +3,8 @@ import datetime
 from collections import defaultdict
 from unicodedata import category
 
+import math
+
 import numpy as np
 import pandas as pd
 from dateutil import relativedelta
@@ -34,6 +36,13 @@ class Firm:
     well as cash flow. Decisions are based on endogenous variables and products are available when
     searched for by consumers.
     """
+    # Consecutive staffed months with no wages paid (see FIRE_UNPAID_MONTHS). Class-level default so
+    # firms restored from population pickles made before the counter existed start at 0.
+    months_unpaid = 0
+    # Workers lost to natural separation or death since the firm's last labour adjustment (REPLACE_SEPARATIONS).
+    pending_replacements = 0
+    # Growth vacancies from the last production decision: workers needed to meet sales plus the stock target.
+    workers_needed = 1
 
     def __init__(
             self,
@@ -422,6 +431,12 @@ class Firm:
                 low_inventory = (self.total_quantity + productive_capacity) <= self.amount_sold * (1 + inventory_target_ratio)
                 if low_inventory:
                     self.increase_production = True
+                    # Workers needed to close the gap at current output per worker (see LaborMarket.add_growth_posts)
+                    if self.num_employees > 0 and productive_capacity > 0:
+                        gap = self.amount_sold * (1 + inventory_target_ratio) - self.total_quantity - productive_capacity
+                        self.workers_needed = math.ceil(max(gap, 0) / (productive_capacity / self.num_employees))
+                    else:
+                        self.workers_needed = 1
                     # Rise freely up to avg_prices * (1 + cap); spatial monopoly premium bounded.
                     ceiling = avg_prices * (1 + price_markup_cap)
                     if p.price < ceiling:
@@ -556,8 +571,12 @@ class Firm:
                 regions[self.region_id].collect_taxes(labor_tax, "labor")
                 self.total_balance -= total_salary_paid
                 self.wages_paid = total_salary_paid
+                self.months_unpaid = 0
             else:
                 self.wages_paid = 0
+                self.months_unpaid += 1
+        else:
+            self.months_unpaid = 0
 
     # Human resources department #################
     def add_employee(self, employee):
@@ -568,6 +587,7 @@ class Firm:
 
     def obit(self, employee):
         del self.employees[employee.id]
+        self.pending_replacements += 1
 
     def fire(self, seed):
         if self.employees:

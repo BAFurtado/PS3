@@ -35,6 +35,14 @@ LABOR_MARKET = 0.8
 
 # Monthly probability an employed worker separates (quits, contract end, etc.).
 NATURAL_SEPARATION_RATE = 0.010
+# Firms that pay no wages for this many consecutive months fire one worker per adjustment (0 = off).
+# Tolerates short revenue droughts from erratic, small-sample demand; sheds staff only when they persist.
+FIRE_UNPAID_MONTHS = 3
+# Firms refill workers lost to natural separation or death (one post each) unless shrinking. False = off.
+REPLACE_SEPARATIONS = True
+# Growing firms post the vacancies their production plan needs (gap between sales plus stock target and current
+# output, over output per worker), capped at doubling headcount in a month. False = original one post a month.
+PLANNED_GROWTH_POSTS = True
 # Percentage of employees' firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter

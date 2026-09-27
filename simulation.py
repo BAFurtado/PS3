@@ -238,6 +238,9 @@ class Simulation:
         actual_unemployment = self.stats.global_unemployment_rate
         # Simple average of 6 Metropolitan regions Brazil January 2000
         while actual / total > 0.086:
+            # Government is staffed to its RAIS headcount by gov_hire_fire, not by one post per firm:
+            # otherwise it takes start-up hires in proportion to its firm count, and sheds the excess in month 1.
+            self.labor_market.gov_hire_fire(self)
             self.labor_market.hire_fire(self.firms, 1, initialize=True)
             self.labor_market.assign_post(actual_unemployment, None, self.PARAMS)
             self.labor_market.look_for_jobs(self.agents)
@@ -442,7 +445,10 @@ class Simulation:
         self.labor_market.gov_hire_fire(self)
         # Check if new employee needed. Check if firing is necessary
         # 3-way criteria: Wages/sales, profits, and increase production
-        self.labor_market.hire_fire(self.firms, self.PARAMS["LABOR_MARKET"])
+        self.labor_market.hire_fire(self.firms, self.PARAMS["LABOR_MARKET"],
+                                    fire_unpaid_months=self.PARAMS.get("FIRE_UNPAID_MONTHS", 0),
+                                    planned_growth=self.PARAMS.get("PLANNED_GROWTH_POSTS", False),
+                                    replace_separations=self.PARAMS.get("REPLACE_SEPARATIONS", False))
 
         # Job Matching
         # Sample used only to calculate wage deciles
@@ -465,6 +471,7 @@ class Simulation:
                 firm = self.firms.get(agent.firm_id)
                 if firm is not None and agent.id in firm.employees:
                     del firm.employees[agent.id]
+                    firm.pending_replacements += 1
                 agent.firm_id = None
                 agent.set_commute(None)
 

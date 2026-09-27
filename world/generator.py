@@ -5,7 +5,7 @@ areas. Then, Agents are created and bundled into families, given population meas
 and families are allocated to their first houses.
 """
 import logging
-import math
+from collections import defaultdict
 import uuid
 
 import pandas as pd
@@ -134,6 +134,10 @@ class Generator:
         if self.sim.geo.year == 2010:
             avg_num_fam = pd.read_csv("input/average_num_members_families_2010.csv")
 
+        # Initial firms' sectors are apportioned once for the whole ACP, then dealt to regions (see sector_deck).
+        firm_quotas = {rid: self.region_num_firms(rid) for rid in regions}
+        self.firm_deck = self.sector_deck(sum(firm_quotas.values()))
+
         for region_id, region in regions.items():
             logger.info("Generating region {}".format(region_id))
 
@@ -159,14 +163,11 @@ class Generator:
             else:
                 num_families = max(1, int(num_agents / self.sim.PARAMS["MEMBERS_PER_FAMILY"]))
             num_houses = int(num_families * (1 + self.sim.PARAMS["HOUSE_VACANCY"]))
-            num_firms = int(
-                self.firm_data.num_emp_t0[int(region.id)]
-                * self.sim.PARAMS["PERCENTAGE_ACTUAL_POP"]
-            )
+            num_firms = firm_quotas[region_id]
 
             regional_families = self.create_families(num_families)
             regional_houses = self.create_houses(num_houses, region)
-            regional_firms = self.create_firms(num_firms, region)
+            regional_firms = self.create_firms(num_firms, region, self.deal_sectors(num_firms))
 
             regional_agents, regional_families = self.allocate_to_family(
                 regional_agents, regional_families
@@ -213,6 +214,17 @@ class Generator:
                 )
             except AssertionError:
                 print("Houses without ownership")
+
+        # Regions skipped for having no agents leave their share of the deck undealt. Give any sector that
+        # lost all of its firms that way one firm, in a random region that has firms.
+        present = {f.sector for f in my_firms.values()}
+        missing = [s for s in self.sector_shares().index if s not in present and s in self.firm_deck]
+        if missing and my_firms:
+            host_ids = sorted({f.region_id for f in my_firms.values()})
+            for s in missing:
+                region = regions[host_ids[self.seed_np.randint(len(host_ids))]]
+                my_firms.update(self.create_firms(1, region, [s]))
+        self.firm_deck = []
 
         return my_agents, my_houses, my_families, my_firms
 
@@ -415,23 +427,48 @@ class Generator:
             house.owner_id = family.id
             family.owned_houses.append(house)
 
-    def create_firms(self, num_firms, region):
+    def sector_shares(self):
+        # RAIS 2010 employment share by sector for the ACP (input/CONCURBs_SECTOR.csv), normalised to sum to 1
         acp = self.sim.geo.processing_acps[0]
-        p_firms_sector = \
-            perc_firms_sector[perc_firms_sector['concurb_name'] == acp].set_index('sector').drop('concurb_name',
-                                                                                                 axis=1).to_dict()[
-                'participation']
-        sector = dict()
+        p = perc_firms_sector[perc_firms_sector['concurb_name'] == acp].set_index('sector')['participation']
+        return p / p.sum()
 
-        if num_firms == 1:
-            key = self.sim.seed_np.choice(list(p_firms_sector.keys()),
-                                          p=list(p_firms_sector.values()))
-            num_firms_by_sector = {key: 1}
-        else:
-            num_firms_by_sector = {
-                key: math.ceil(num_firms * p_firms_sector[key])
-                for key in p_firms_sector
-            }
+    def region_num_firms(self, region_id):
+        return int(self.firm_data.num_emp_t0.get(int(region_id), 0) * self.sim.PARAMS["PERCENTAGE_ACTUAL_POP"])
+
+    def sector_deck(self, n):
+        """Sectors of the ACP's n initial firms, shuffled. Counts follow the RAIS shares at ACP level
+        (largest-remainder rounding), with at least one firm in every sector present in RAIS, so that no sector
+        of the input-output matrix is left without firms. Rounding per region (math.ceil) used to give every
+        sector at least one firm in every region, inflating thin sectors (Mining ~84x in Belém)."""
+        p = self.sector_shares()
+        p = p[p > 0]
+        if n <= 0:
+            return []
+        quota = p * max(n, len(p))
+        counts = np.floor(quota).astype(int)
+        remainder = int(max(n, len(p)) - counts.sum())
+        counts[(quota - counts).sort_values(ascending=False).index[:remainder]] += 1
+        for s in counts.index[counts == 0]:
+            counts[s] = 1
+            counts[counts.idxmax()] -= 1
+        deck = [s for s in counts.index for _ in range(counts[s])]
+        return list(self.seed_np.permutation(deck))
+
+    def deal_sectors(self, num_firms):
+        dealt, self.firm_deck = self.firm_deck[:num_firms], self.firm_deck[num_firms:]
+        return dealt
+
+    def create_firms(self, num_firms, region, firm_sectors=None):
+        """Creates num_firms firms in region. Sectors are firm_sectors when given (initial population, dealt from
+        sector_deck); otherwise each firm's sector is drawn from the ACP's RAIS shares (firms entering later)."""
+        sector = dict()
+        if firm_sectors is None:
+            p = self.sector_shares()
+            firm_sectors = list(self.sim.seed_np.choice(list(p.index), size=num_firms, p=list(p.values)))
+        num_firms_by_sector = defaultdict(int)
+        for key in firm_sectors:
+            num_firms_by_sector[key] += 1
         num_firms = sum(num_firms_by_sector.values())
         addresses = self.get_random_points_in_polygon(region, number_addresses=num_firms)
         # Scale initial capital by regional IDHM so firms in lower-income regions start
