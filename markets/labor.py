@@ -156,7 +156,9 @@ class LaborMarket:
 
 
     def matching_firm_offers(self, lst_firms, params, cand_looking=None, flag=None):
-        if cand_looking:
+        # An empty still-looking list means the first pass hired everyone: fall back to the
+        # full pool only when no list was passed, or the second pass re-hires the just-hired.
+        if cand_looking is not None:
             candidates = cand_looking
         else:
             candidates = self.candidates
