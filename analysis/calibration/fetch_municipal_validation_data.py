@@ -52,6 +52,12 @@ PNADC_START_PERIOD = 201201
 PIB_MUNICIPAL_TABLE = "5938"
 PIB_MUNICIPAL_VAR = "37"  # "Produto Interno Bruto a preços correntes" (Mil Reais)
 
+# PNADC annual Gini of per-capita household income. SIDRA publishes it down to the state only (N1-N3), so this is
+# Minas Gerais, not the BH ACP; a metro-level series needs the PNADC microdata.
+PNADC_GINI_TABLE = "7435"
+PNADC_GINI_VAR = "10681"
+MG_N3 = "31"
+
 MISSING_MARKERS = {"...", "-", "X", ".."}
 
 
@@ -99,6 +105,18 @@ def fetch_unemployment() -> dict:
     return dict(sorted(series.items()))
 
 
+def fetch_gini() -> dict:
+    """Annual Gini of per-capita household income for Minas Gerais (PNADC), 2012-present."""
+    url = (f"https://apisidra.ibge.gov.br/values/t/{PNADC_GINI_TABLE}/n3/{MG_N3}"
+           f"/v/{PNADC_GINI_VAR}/p/all")
+    series = {}
+    for row in _fetch_json(url)[1:]:
+        year, val = row["D3C"], row["V"]
+        if val not in MISSING_MARKERS:
+            series[year] = float(val)
+    return dict(sorted(series.items()))
+
+
 def fetch_gdp_level() -> dict:
     """Annual nominal GDP (thousand R$), summed across all BH ACP municipalities."""
     codes = load_bh_municipality_codes()
@@ -113,13 +131,10 @@ def fetch_gdp_level() -> dict:
 
 
 def gdp_growth_from_levels(levels: dict) -> dict:
-    """Year-over-year real... (nominal, see note) growth rate from annual GDP levels.
+    """Year-over-year nominal growth rate from annual GDP levels.
 
-    NOTE: PIB Municipal is nominal (current prices). A real-terms comparison
-    would need an IPCA deflator applied before differencing; left as nominal
-    for now since the model's own gdp_growth is not obviously real vs.
-    nominal either (TODO: confirm against agents/firm.py's price-setting
-    before treating this target as final).
+    PIB Municipal is nominal (current prices) and the model runs in real terms, so
+    sample.py deflates this series by the calendar-year IPCA-BH before scoring.
     """
     years = sorted(levels)
     growth = {}
@@ -154,6 +169,16 @@ def main():
     gdp_level = fetch_gdp_level()
     gdp_growth = gdp_growth_from_levels(gdp_level)
 
+    print("Fetching Minas Gerais Gini (PNADC, annual, 2012-present; no metro-level series in SIDRA)...")
+    gini = fetch_gini()
+    path = OUT_DIR / "mg_gini.csv"
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["period", "gini"])
+        for k, v in gini.items():
+            w.writerow([k, v])
+    print(f"  Saved: {path}")
+
     for name, series in [("inflation", inflation), ("unemployment", unemployment),
                           ("gdp_level", gdp_level), ("gdp_growth", gdp_growth)]:
         path = OUT_DIR / f"bh_{name}.csv"
@@ -168,7 +193,7 @@ def main():
     summarize(inflation, "inflation (monthly)")
     summarize(unemployment, "unemployment (quarterly)")
     summarize(gdp_growth, "gdp_growth (annual)")
-    print("\nGini: NOT included (needs PNADC microdata processing - separate task).")
+    summarize(gini, "gini (annual, Minas Gerais)")
 
 
 if __name__ == "__main__":
