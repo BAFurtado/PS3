@@ -204,6 +204,17 @@ check(
     f"re-hired={_rehired}",
 )
 
+# A month with fewer than two posts returns before matching; it must still clear both lists, or next
+# month's look_for_jobs appends to a stale pool (duplicates, agents who died in between).
+_lm.available_postings = [_firm]
+_lm.candidates = list(_hired_before[:1])
+_lm.assign_post(0.05, None, sim.PARAMS)
+check(
+    "A month with fewer than two posts leaves no candidates or posts for the next month",
+    _lm.candidates == [] and _lm.available_postings == [],
+    f"candidates={len(_lm.candidates)}, posts={len(_lm.available_postings)}",
+)
+
 # ── sweep-safety guard ───────────────────────────────────────────────────────
 # Sensitivity sweeps (main.py multiple_runs) override a per-run params dict that
 # becomes sim.PARAMS; conf.PARAMS keeps its defaults. So any model code reading
