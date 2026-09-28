@@ -176,6 +176,34 @@ check(
     f"employed={len(employed)}/{len(sim.agents)}",
 )
 
+# One job per worker. Unemployment is read from agent.firm_id, employment and wages from
+# firm.employees; an agent listed by two firms is paid by both and produces for both.
+_listings = [(aid, a, f) for f in sim.firms.values() for aid, a in f.employees.items()]
+_listed_ids = [aid for aid, _, _ in _listings]
+_mismatched = [aid for aid, a, f in _listings if a.firm_id != f.id]
+check(
+    "Every employee is on exactly one payroll, the firm its firm_id names",
+    len(_listed_ids) == len(set(_listed_ids)) and not _mismatched
+    and len(_listed_ids) == sum(1 for a in sim.agents.values() if a.firm_id is not None),
+    f"listings={len(_listed_ids)}, distinct={len(set(_listed_ids))}, mismatched={len(_mismatched)}",
+)
+
+# The distance pass receives the candidates the qualification pass left. When that list
+# is empty, it must hire no one rather than fall back to the full, just-hired pool.
+_lm = sim.labor_market
+_hired_before = [a for a in sim.agents.values() if a.firm_id is not None][:5]
+_firm = next(f for f in sim.firms.values() if f.sector != "Government")
+_saved_cands, _saved_emp = _lm.candidates, dict(_firm.employees)
+_lm.candidates = list(_hired_before)
+_lm.matching_firm_offers([(_firm, 1.0)], sim.PARAMS, cand_looking=[])
+_rehired = [a.id for a in _hired_before if a.id in _firm.employees and a.id not in _saved_emp]
+_lm.candidates = _saved_cands
+check(
+    "An empty still-looking list after the first matching pass hires no one",
+    not _rehired,
+    f"re-hired={_rehired}",
+)
+
 # ── sweep-safety guard ───────────────────────────────────────────────────────
 # Sensitivity sweeps (main.py multiple_runs) override a per-run params dict that
 # becomes sim.PARAMS; conf.PARAMS keeps its defaults. So any model code reading
