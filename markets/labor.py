@@ -79,6 +79,10 @@ class LaborMarket:
             by_qual = self.available_postings[0:split]
             by_dist = self.available_postings[split:]
         else:
+            # Clear as the matching path does: a list left over is appended to next month, carrying
+            # duplicates and agents whose status changed in between (e.g. died) into the matching.
+            self.available_postings = []
+            self.candidates = []
             return
 
         # Choosing by qualification
