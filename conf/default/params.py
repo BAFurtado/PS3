@@ -219,6 +219,10 @@ PERCENTAGE_ENTERING_ESTATE_MARKET = 0.005
 NEIGHBORHOOD_EFFECT = 0.2
 
 # RENTAL #######################
+# Reais (2010) per model money unit (κ). Converts Census income into each family's initial permanent income, which
+# drives the first rental market at generation (#30). Step 1 of the units plan measured κ ≈ 880-1,100 from household
+# income in Goiânia (≈ 1,100 from rents, 1,300-1,500 from wages)
+REAIS_PER_MONEY_UNIT = 1000
 INITIAL_RENTAL_SHARE = 0.40
 # Monthly rent as a fraction of house price.
 # At 0.003 this is 3.6% annual gross yield — in line with Brazilian urban rental markets.

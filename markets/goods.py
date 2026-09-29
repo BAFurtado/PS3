@@ -191,7 +191,7 @@ class External:
         Choose local firms to buy inputs from
         """
         params = self.sim.PARAMS
-        chosen_firms, chosen_firm = {}, None
+        chosen_firms = {}
 
         for sector in self.sim.regional_market.technical_matrix.index:
             n_firms = len([f for f in firms.values() if (f.sector == sector)])
@@ -199,11 +199,10 @@ class External:
                 [f for f in firms.values() if f.sector == sector],
                 min(n_firms, 3 * int(params['SIZE_MARKET'])))
             market = [firm for firm in market if firm.total_quantity > 0]
-            if market:
-                # Choose 10 firms with the cheapest prices
-                market.sort(key=lambda firm: firm.prices)
-                chosen_firm = market[0: min(10, n_firms)]
-            chosen_firms[sector] = chosen_firm
+            # Choose 10 firms with the cheapest prices. None when no firm of the sector has stock, so its exports are
+            # not sold by the previous sector's firms (#29)
+            market.sort(key=lambda firm: firm.prices)
+            chosen_firms[sector] = market[0: min(10, n_firms)] or None
         return chosen_firms
 
     def final_consumption(self, internal_final_demand, seed):

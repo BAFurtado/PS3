@@ -131,8 +131,15 @@ class Generator:
         my_houses = {}
         my_firms = {}
 
+        income = None
         if self.sim.geo.year == 2010:
             avg_num_fam = pd.read_csv("input/average_num_members_families_2010.csv")
+            income = pd.read_csv("input/income_per_person_AP_2010.csv", dtype={"AREAP": str})
+            income = income.set_index("AREAP")["income_per_person"]
+            # Fallbacks: a region's municipality, then the ACP as a whole
+            muns = {rid[:7] for rid in regions}
+            income = {"area": income, "mun": income.groupby(income.index.str[:7]).mean(),
+                      "acp": income[income.index.str[:7].isin(muns)].mean()}
 
         # Initial firms' sectors are apportioned once for the whole ACP, then dealt to regions (see sector_deck).
         firm_quotas = {rid: self.region_num_firms(rid) for rid in regions}
@@ -172,6 +179,8 @@ class Generator:
             regional_agents, regional_families = self.allocate_to_family(
                 regional_agents, regional_families
             )
+            if income is not None:
+                self.set_initial_income(regional_families.values(), region_id, income)
 
             # Allocating only percentage of houses to ownership.
             owners_size = int(
@@ -281,6 +290,17 @@ class Generator:
             family_id = self.gen_id()
             community[family_id] = Family(family_id)
         return community
+
+    def set_initial_income(self, families, region_id, income):
+        """Initial permanent income from the 2010 Census (#30): the area's mean income per resident aged 10+ (V009,
+        zero incomes included) times the family's members aged 10+, in model money. It used to be 1 for every family,
+        so the first rental market ignored income. From the first monthly update it is wages plus returns on wealth."""
+        per_person = income["area"].get(region_id)
+        if per_person is None or np.isnan(per_person):
+            per_person = income["mun"].get(region_id[:7], income["acp"])
+        per_person /= self.sim.PARAMS["REAIS_PER_MONEY_UNIT"]
+        for family in families:
+            family.permanent_income = per_person * sum(1 for m in family.members.values() if m.age >= 10)
 
     def allocate_to_family(self, agents, families):
         """Allocate agents to families"""
