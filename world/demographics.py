@@ -70,7 +70,8 @@ def birth(sim):
     age = 0
     qualification = int(sim.seed.gammavariate(3, 3))
     qualification = [qualification if qualification < 21 else 20][0]
-    money = sim.seed_np.randint(20, 41)
+    # Newborns hold no money: the family carries the child (they used to get 20-40 created from nothing)
+    money = 0
     month = sim.seed.randrange(1, 13, 1)
     gender = sim.seed.choice(['Male', 'Female'])
     sim.total_pop += 1

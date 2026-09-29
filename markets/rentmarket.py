@@ -36,7 +36,7 @@ def collect_rent(houses, sim):
                 if payment < rent:
                     if sim.central.wallet[tenant]:
                         cash = tenant.grab_savings(sim.central, sim.clock.year, sim.clock.months)
-                        difference = payment - rent
+                        difference = rent - payment
                         if cash > difference:
                             tenant.savings += cash - difference
                             payment += difference
