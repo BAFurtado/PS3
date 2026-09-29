@@ -903,6 +903,13 @@ class OtherServicesFirm(Firm):
 class GovernmentFirm(Firm):
     # Include special method for hiring/firing = fixed number
     # Include special method for setting prices, wages paying, profits, consume (supply total_balance)
+    # GOV_REVISED state, set by Funds.settle_government_budget. Class-level defaults so firms unpickled from
+    # an older population cache have them.
+    budget_first = False
+    public_wage = 0.0
+    purchase_fund = 0.0
+    investment_fund = 0.0
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.budget_proportion = 0
@@ -920,6 +927,14 @@ class GovernmentFirm(Firm):
         total_consumption = defaultdict(float)
 
         execution_rate = sim.PARAMS.get('GOVERNMENT_EXECUTION_RATE', 1.0)
+        if self.budget_first:
+            demand = sim.regional_market.final_demand
+            self.purchase_fund = self.spend_fund(sim, self.purchase_fund * execution_rate,
+                                                 demand['GovernmentConsumption'].drop('Government'),
+                                                 total_consumption) + self.purchase_fund * (1 - execution_rate)
+            self.investment_fund = self.spend_fund(sim, self.investment_fund * execution_rate, demand['FBCF'],
+                                                   total_consumption) + self.investment_fund * (1 - execution_rate)
+            return total_consumption
         money_to_spend = self.total_balance * execution_rate
         self.total_balance -= money_to_spend
         for sector in sim.regional_market.final_demand.index:
@@ -948,7 +963,40 @@ class GovernmentFirm(Firm):
                 self.total_balance += money_this_sector.copy()
         return total_consumption
 
+    def spend_fund(self, sim, money, shares, total_consumption):
+        """GOV_REVISED: buy goods with a budget fund (not the firm's capital), split over sectors by shares, from the
+        cheapest of a sample of local firms. Returns the money that found no stock, which stays in the fund."""
+        left = 0.0
+        if money <= 0 or shares.sum() <= 0:
+            return money
+        for sector, share in (shares / shares.sum()).items():
+            money_this_sector = money * share
+            if money_this_sector == 0:
+                continue
+            sector_firms = [f for f in sim.firms.values() if f.sector == sector]
+            market = sim.seed.sample(sector_firms, min(len(sector_firms), int(sim.PARAMS['SIZE_MARKET'])))
+            market = [firm for firm in market if firm.total_quantity > 0]
+            if market:
+                chosen_firm = min(market, key=lambda firm: firm.prices)
+                change = chosen_firm.sale(money_this_sector, sim.regions, sim.PARAMS['TAX_CONSUMPTION'],
+                                          self.region_id, sim.PARAMS["TAX_ON_ORIGIN"])
+                left += change
+                total_consumption[sector] += money_this_sector - change
+            else:
+                left += money_this_sector
+        return left
+
+    def pay_taxes(self, regions, tax_firm):
+        # Under GOV_REVISED the government does not tax its own budget
+        if self.budget_first:
+            self.taxes_paid = 0
+            return
+        super().pay_taxes(regions, tax_firm)
+
     def wage_base(self, unemployment, relevance_unemployment):
+        if self.budget_first:
+            # Set by Funds.settle_government_budget and funded by its payroll transfer
+            return self.public_wage
         # Wages are funded by last month's tax transfer, not total_balance.
         # total_balance conflates initial firm capitalization (large, from world generation)
         # with ongoing tax revenue, causing a massive month-1 wage spike if used directly.

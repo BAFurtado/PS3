@@ -265,8 +265,8 @@ class LaborMarket:
                         fired += 1
 
     def hire_fire(self, firms, firm_enter_freq, initialize=False, fire_unpaid_months=0, planned_growth=False,
-                  replace_separations=False):
-        """Firms adjust their labor force based on profit.
+                  replace_separations=False, gov_headcount_only=False):
+        """Firms adjust their labor force based on profit. With gov_headcount_only, Government firms are skipped.
         With planned_growth a growing firm posts as many vacancies as its production plan needs. With replace_separations, a firm that is not shrinking
         also re-posts one vacancy for each worker it lost to natural separation or death since its last adjustment."""
         random_value = self.seed_np.random(size=len(firms.values()))
@@ -278,6 +278,11 @@ class LaborMarket:
                 if initialize:
                     if firm.sector != 'Government':
                         self.add_post(firm)
+                    continue
+                elif gov_headcount_only and firm.sector == 'Government':
+                    # gov_hire_fire alone sets its headcount: Government profit is always negative (wages are
+                    # funded by tax transfers), so the profit rule below would fire its staff every month.
+                    firm.pending_replacements = 0
                     continue
                 elif firm.total_balance <= 0:
                     # Insolvent: shed labour regardless of production signal

@@ -439,7 +439,8 @@ class Simulation:
         self.labor_market.hire_fire(self.firms, self.PARAMS["LABOR_MARKET"],
                                     fire_unpaid_months=self.PARAMS.get("FIRE_UNPAID_MONTHS", 0),
                                     planned_growth=self.PARAMS.get("PLANNED_GROWTH_POSTS", False),
-                                    replace_separations=self.PARAMS.get("REPLACE_SEPARATIONS", False))
+                                    replace_separations=self.PARAMS.get("REPLACE_SEPARATIONS", False),
+                                    gov_headcount_only=self.PARAMS.get("GOV_REVISED", False))
 
         # Job Matching
         # Sample used only to calculate wage deciles

@@ -215,6 +215,63 @@ check(
     f"candidates={len(_lm.candidates)}, posts={len(_lm.available_postings)}",
 )
 
+# Government headcount is exogenous (RAIS target, gov_hire_fire). Its profit is always negative, so the profit and
+# insolvency rules of hire_fire used to fire its staff every month and empty it within a few years.
+_gov = next(f for f in sim.firms.values() if f.sector == "Government" and f.employees)
+_saved = (_gov.profit, _gov.increase_production, _gov.total_balance, dict(_gov.employees))
+_gov.profit, _gov.increase_production, _gov.total_balance = -1.0, False, -1.0
+_lm.hire_fire({_gov.id: _gov}, 1.0, gov_headcount_only=True)
+_kept = len(_gov.employees) == len(_saved[3])
+_gov.profit, _gov.increase_production, _gov.total_balance = _saved[:3]
+for _a in _saved[3].values():
+    _gov.add_employee(_a)
+check(
+    "hire_fire leaves a loss-making, insolvent Government firm's staff alone",
+    _kept,
+    f"employees {len(_saved[3])} -> {len(_gov.employees)}",
+)
+
+_gov_target = np.ceil(_lm.gov_employees[_lm.gov_employees.ano == sim.clock.year].qtde_vinc_ativos.sum()
+                      * sim.PARAMS["PERCENTAGE_ACTUAL_POP"])
+_gov_emp = sum(f.num_employees for f in sim.firms.values() if f.sector == "Government")
+if sim.PARAMS.get("GOV_REVISED", False):
+    # Balanced budget: every unit of public revenue ends as payroll transfer, purchase fund, investment fund or policy
+    # money; the investment is also recorded as the regions' applied public money (bookkeeping, not a second payment).
+    _funds = sim.funds
+    _gov_all = [f for f in sim.firms.values() if f.sector == "Government"]
+    _snap = lambda: (sum(f._transfer_current for f in _gov_all), sum(f.purchase_fund for f in _gov_all),
+                     sum(f.investment_fund for f in _gov_all), sum(_funds.policy_money.values()),
+                     sum(r.applied_flow for r in sim.regions.values()))
+    _before = _snap()
+    for _i, _rid in enumerate(sim.regions):
+        _funds.pending_public_money[_rid]["equally"] += 10.0 + _i
+    _put = sum(10.0 + _i for _i in range(len(sim.regions)))
+    _funds.settle_government_budget(sim.regions)
+    _d = [a - b for a, b in zip(_snap(), _before)]
+    check(
+        "Balanced government budget neither creates nor loses money",
+        abs(sum(_d[:4]) - _put) < 1e-6 * _put and _d[0] > 0 and abs(_d[4] - _d[2]) < 1e-6 * _put,
+        f"in={_put:.4f}, out={sum(_d[:4]):.4f} (payroll {_d[0]:.2f}, purchases {_d[1]:.2f}, "
+        f"investment {_d[2]:.2f}, policy {_d[3]:.2f}, recorded for regions {_d[4]:.2f})",
+    )
+    _gov_wage = [f.public_wage for f in _gov_all if f.employees]
+    _priv = [f.wages_paid / f.num_employees for f in sim.firms.values()
+             if f.sector != "Government" and f.num_employees > 0 and f.wages_paid > 0]
+    check(
+        "Public wage is set and positive for staffed Government firms",
+        _gov_wage and min(_gov_wage) > 0,
+        f"public wage range={min(_gov_wage, default=0):.3f}-{max(_gov_wage, default=0):.3f}, "
+        f"private median={np.median(_priv) if _priv else 0:.3f}",
+    )
+
+# Not exact: in a tight labour market Government refills a little slower than it loses staff. Without the fix
+# it tends to zero.
+check(
+    "Government headcount does not collapse below its RAIS target",
+    _gov_emp >= 0.75 * _gov_target,
+    f"government employees={_gov_emp}, target={_gov_target:.0f}",
+)
+
 # ── sweep-safety guard ───────────────────────────────────────────────────────
 # Sensitivity sweeps (main.py multiple_runs) override a per-run params dict that
 # becomes sim.PARAMS; conf.PARAMS keeps its defaults. So any model code reading

@@ -16,6 +16,9 @@ class Funds:
         self.money_applied_policy = 0
         self.carbon_tax_recycled_money = 0
         self.mun_gov_firms = defaultdict(list)
+        # GOV_REVISED: public revenue per region and channel ('fpm', 'locally', 'equally'), held until
+        # settle_government_budget pays the public payroll and purchases and passes the rest on to the regions.
+        self.pending_public_money = defaultdict(lambda: defaultdict(float))
         self.gov_consumption_parameter = self.sim.regional_market.final_demand['GovernmentConsumption']['Government']
         self.perc_policy_money_spent = 0
         self.allocated_money = 0
@@ -482,6 +485,10 @@ class Funds:
             else:
                 regional_fpm = fpm_region[id] / total_fpm * value * pop_t[id] / pop_mun_t[mun_code]
 
+            if self.sim.PARAMS.get('GOV_REVISED', False):
+                self.pending_public_money[id]['fpm'] += regional_fpm
+                continue
+
             # Dividing government investment between intermediate consumption and own consumption
             gov_firms_money = (1 - self.gov_consumption_parameter) * regional_fpm
             [f.government_transfer(gov_firms_money * f.budget_proportion) for f in self.mun_gov_firms[mun_code]]
@@ -498,6 +505,9 @@ class Funds:
         for mun in mun_code.keys():
             for id_ in mun_code[mun]:
                 amount = value[mun] * pop_t[id_] / pop_mun_t[mun] if pop_mun_t[mun] > 0 else 0.0
+                if self.sim.PARAMS.get('GOV_REVISED', False):
+                    self.pending_public_money[id_]['locally'] += amount
+                    continue
                 # Dividing government investment between intermediate consumption and own consumption
                 # Check whether there are gov. firms in this municipality at all.
                 # When there are no firms, amount is unchanged and goes all to policies and infrastructure
@@ -517,6 +527,10 @@ class Funds:
                 regions[id_].update_applied_taxes(amount, 'locally')
 
     def equally(self, value, regions, pop_t, pop_total):
+        if self.sim.PARAMS.get('GOV_REVISED', False):
+            for id in regions:
+                self.pending_public_money[id]['equally'] += value * pop_t[id] / pop_total if pop_total > 0 else 0.0
+            return
         # Dividing government investment between intermediate consumption and own consumption
         gov_firms_money = (1 - self.gov_consumption_parameter) * value
         value = self.gov_consumption_parameter * value
@@ -627,6 +641,69 @@ class Funds:
         # Taxes charged from interests paid by the bank are equally distributed
         v_equal += bank_taxes
         self.equally(v_equal, regions, pop_t, sum(pop_mun_t.values()))
+        if self.sim.PARAMS.get('GOV_REVISED', False):
+            self.settle_government_budget(regions)
+
+    def settle_government_budget(self, regions):
+        """GOV_REVISED: balanced budget. A municipality's public revenue (its FPM, local taxes and share of the taxes
+        divided equally) is spent, in order, on: (1) its public payroll, the Government headcount at GOV_WAGE_RATIO
+        times the municipality's mean private wage per worker, capped by what the budget affords; (2) government
+        purchases, in the input-output ratio of goods to own output in government consumption; (3) policy money
+        (POLICY_COEFFICIENT); (4) public investment with the rest, bought in the input-output FBCF shares. (2) and (4)
+        go to funds the Government firms spend on goods (GovernmentFirm.spend_funds), never their start-up capital.
+        (3) and (4) are also recorded as the regions' applied public money, which the QLI fiscal leg reads.
+        Nothing is created or lost. A municipality without Government firms has its purchases and investment
+        spent by the ACP's Government firms. The old path gave each municipality's firms the whole 'equally'
+        share (x number of municipalities), none of the FPM and local shares (str/int key mismatch), and
+        destroyed the regions' share."""
+        params = self.sim.PARAMS
+        gcp = self.gov_consumption_parameter
+        goods_per_wage = (1 - gcp) / gcp
+
+        # Reference private wage: last month's wage bill per worker of staffed, paying non-Government firms
+        bill, heads = defaultdict(float), defaultdict(int)
+        for f in self.sim.firms.values():
+            if f.sector != 'Government' and f.num_employees > 0 and f.wages_paid > 0:
+                bill[f.region_id[:7]] += f.wages_paid
+                heads[f.region_id[:7]] += f.num_employees
+        acp_wage = sum(bill.values()) / sum(heads.values()) if heads else 0.0
+        all_gov = [f for firms in self.mun_gov_firms.values() for f in firms]
+
+        by_mun = defaultdict(list)
+        for id in self.pending_public_money:
+            by_mun[id[:7]].append(id)
+        for mun, ids in by_mun.items():
+            budget = max(0.0, sum(sum(self.pending_public_money[id].values()) for id in ids))
+            firms = self.mun_gov_firms[int(mun)]
+            staff = sum(f.num_employees for f in firms)
+            wage = params['GOV_WAGE_RATIO'] * (bill[mun] / heads[mun] if heads[mun] else acp_wage)
+            if staff > 0:
+                wage = min(wage, budget / (staff * (1 + goods_per_wage)))
+            payroll = wage * staff
+            purchases = payroll * goods_per_wage
+            for f in firms:
+                f.budget_first = True
+                # Empty firms offer the same wage, so they can be staffed again
+                f.public_wage = wage
+                if staff > 0 and f.num_employees > 0:
+                    f.government_transfer(payroll * f.num_employees / staff)
+                    f.purchase_fund += purchases * f.num_employees / staff
+            rest = budget - payroll - purchases
+            share = rest / budget if budget > 0 else 0.0
+            investment = 0.0
+            for id in ids:
+                for key, amount in self.pending_public_money[id].items():
+                    amount *= share
+                    if self.needs_policy_funding():
+                        self.policy_money[mun] += amount * params['POLICY_COEFFICIENT']
+                        amount *= 1 - params['POLICY_COEFFICIENT']
+                    regions[id].update_applied_taxes(amount, key)
+                    investment += amount
+            spenders = firms or all_gov
+            if spenders:
+                for f in spenders:
+                    f.investment_fund += investment / len(spenders)
+        self.pending_public_money = defaultdict(lambda: defaultdict(float))
 
     def recycle_carbon_tax(self,regions):
         # group families by municipality using existing regional structure
