@@ -89,6 +89,13 @@ GOV_WAGE_RATIO = 1.0
 # funded from outside the ACP, up to the non-municipal share of that cost; the inflow is counted in
 # Funds.external_public_funding. False: the budget caps the public wage.
 GOV_EXTERNAL_FUNDING = True
+# The taxes pooled 'equally' (labour and firm taxes net of the FPM share, the state share of consumption tax, tax on
+# bank interest, the import tax that returns) are federal and state revenue. True: they leave the ACP through the
+# external account (money_public_taxes_out), so the net public transfer is GOV_EXTERNAL_FUNDING minus these. False: they
+# stay and fund the municipalities' budgets, while GOV_EXTERNAL_FUNDING still pays in (money grows ~25 %/yr in PALMAS).
+# Off until the model has the federal spending that comes back (pensions, Bolsa Família, SUS): with only the payroll
+# transfer, BH and Goiânia pay out ~10x what returns and unemployment reaches 35 % (step test 2026-09-29).
+PUBLIC_TAXES_OUT = False
 # Percentage of employees' firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter

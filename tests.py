@@ -364,6 +364,48 @@ check(
     f"count {_st.firms_count.iloc[0]} -> {_st.firms_count.iloc[-1]}, live={len(sim.firms)}",
 )
 
+# Money is created or destroyed only through the ledger channels (analysis/money.py). Every leak found by the
+# 2026-09-29 money audit (#35-#42) showed up here as a drift of money_unexplained.
+_unexplained = _st.money_unexplained.abs().max()
+check(
+    "The money stock changes only through the ledger channels (#35-#42)",
+    _unexplained < 1e-6 * _st.money_total.max(),
+    f"max |unexplained| = {_unexplained:.3g}, stock up to {_st.money_total.max():.3g}",
+)
+
+# FPM hands out exactly what was collected. It divided by the sum of the *distinct* municipal FPM values, so
+# municipalities in the same FPM band counted once: ARACAJU at 1 % (6 municipalities) got 4-5 % more than was
+# collected from 2011 (#41)
+if sim.PARAMS.get("GOV_REVISED", False) and sim.PARAMS["FPM_DISTRIBUTION"]:
+    _saved_pending = sim.funds.pending_public_money
+    sim.funds.pending_public_money = defaultdict(lambda: defaultdict(float))
+    _pop_mun = defaultdict(int)
+    for _rid, _p in sim.reg_pops.items():
+        _pop_mun[_rid[:7]] += _p
+    sim.funds.distribute_fpm(100.0, sim.regions, sim.reg_pops, _pop_mun, 2012)
+    _paid = sum(d['fpm'] for d in sim.funds.pending_public_money.values())
+    sim.funds.pending_public_money = _saved_pending
+    check("FPM distributes exactly the amount collected (#41)", abs(_paid - 100.0) < 1e-9, f"paid {_paid:.6f} of 100")
+
+# Rent comes out of savings once, and a family short of money with no bank deposits still consumes what is left after
+# rent (#35, #36)
+_fam = next((f for f in sim.families.values() if f.is_renting and not f.rent_voucher and not f.have_loan
+             and not sim.central.wallet.get(f) and f.members), None)
+if _fam is not None:
+    _saved = (_fam.savings, _fam.permanent_income, {k: m.money for k, m in _fam.members.items()})
+    _rent = _fam.house.rent_data[0]
+    _fam.savings, _fam.permanent_income = 0.0, 4 * _rent
+    for _i, _m in enumerate(_fam.members.values()):
+        _m.money = 2 * _rent if _i == 0 else 0.0
+    _p = dict(sim.PARAMS, PUBLIC_TRANSIT_COST=0, PRIVATE_TRANSIT_COST=0, CONSUMPTION_PROPENSITY=1.0)
+    _c = _fam.decision_on_consumption(sim.central, sim.clock.year, sim.clock.months, _p, sim.regions)
+    _kept = _fam.savings
+    _fam.savings, _fam.permanent_income = _saved[0], _saved[1]
+    for _k, _m in _fam.members.items():
+        _m.money = _saved[2][_k]
+    check("Consumption leaves the rent in savings and spends the rest (#35, #36)",
+          abs(_c - _rent) < 1e-9 and abs(_kept - _rent) < 1e-9, f"rent {_rent:.4f}, consumed {_c:.4f}, kept {_kept:.4f}")
+
 # A firm that loses its last worker has no wage bill. The last month's value used to stay in wages_paid and keep
 # lowering its profit and firm tax.
 _emptied = next(f for f in sim.firms.values() if f.sector != "Government" and f.employees)
@@ -657,7 +699,7 @@ def _external_after(share, imports=100.0):
     _market = SimpleNamespace(technical_matrix=pd.DataFrame(index=['Agriculture', 'Manufacturing']),
                               external_demand_multiplier={'Agriculture': 0.5, 'Manufacturing': 0.1})
     _stub = SimpleNamespace(PARAMS=dict(sim.PARAMS, EXTERNAL_RECYCLING_SHARE=share), firms=_firms,
-                            regional_market=_market, regions={})
+                            regional_market=_market, regions={}, ledger=defaultdict(float))
     _ext = External(_stub, sim.PARAMS["TAXES_STRUCTURE"]["consumption_equal"])
     _ext.intermediate_consumption(imports)
     _net_imports = imports - _ext.import_tax_month

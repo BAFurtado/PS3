@@ -286,7 +286,7 @@ class HousingMarket:
 
             # Withdraw the money of buying family from the bank and from savings
             cash += family.grab_savings(sim.central, sim.clock.year, sim.clock.months)
-            change = round(cash - price, 2)
+            change = cash - price
 
             # Register the transaction, collect taxes and consider moving
             self.notarial_procedures(family, house, price, change, sim)

@@ -276,29 +276,16 @@ class Family:
         propensity = params.get('CONSUMPTION_PROPENSITY', 1.0)
         target = max(0, permanent_income - rent - loan) * propensity
 
-        # Guard the cases that family expenses exceed resources
-        if money >= permanent_income:
-            consumption = target
-        # Getting extra funds
-        else:
-            # If not enough, grab reserve money, savings which are not in the bank.
-            money += self.savings
-            self.savings = 0
-            if money >= permanent_income - rent - loan:
-                consumption = target
-            else:
-                # If still not enough, grab actual savings in the bank.
-                if central.wallet[self]:
-                    money += self.grab_savings(central, year, month)
-                    if money >= permanent_income - rent - loan:
-                        consumption = target
-                    else:
-                        consumption = max(0, money - rent - loan)
-
-        # If we grabbed more than planned
-        if money > consumption + rent + loan:
-            # Deposit money above that of expenses
-            self.savings += max(0, money - consumption - rent - loan)
+        # Wages and the savings kept at home first; bank deposits only if they fall short
+        money += self.savings
+        self.savings = 0
+        if money < permanent_income - rent - loan and central.wallet[self]:
+            money += self.grab_savings(central, year, month)
+        # Rent and the loan instalment come first, and stay in savings: collect_rent and collect_loan_payments take
+        # them from there. They used to be subtracted here as well, so they were paid twice (#35), and a family with
+        # no bank deposits that fell short consumed nothing (#36)
+        consumption = min(target, max(0, money - rent - loan))
+        self.savings = money - consumption
         return consumption
 
     def consume(self, regional_market, seed, seed_np, central, regions, params, year, month,
@@ -335,6 +322,8 @@ class Family:
 
             sector_firms = firms_by_sector.get(sector)
             if not sector_firms:
+                # No firm of the sector has stock: the money stays with the family
+                savings += money_this_sector
                 continue
 
             n_firms = len(sector_firms)

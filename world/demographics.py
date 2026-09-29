@@ -107,7 +107,9 @@ def die(sim, agent):
             h.owner_id = None
             agent.family.owned_houses.remove(h)
 
-        savings = agent.family.grab_savings(sim.central, sim.clock.year, sim.clock.months)
+        # The wallet too: it holds the wage paid after the last consumption (it used to be lost with the agent, #39)
+        savings = agent.family.grab_savings(sim.central, sim.clock.year, sim.clock.months) + agent.money
+        agent.money = 0
         # Inheritance and debt are drawn from this list, so its order must be stable.
         relatives = [sim.families[i] for i in sorted(agent.family.relatives)
                      if i in sim.families]
@@ -150,11 +152,16 @@ def die(sim, agent):
         else:
             # Assign randomly
             sim.generator.randomly_assign_houses(inheritance, sim.families.values())
+            # A vacant estate goes to the municipality (Código Civil art. 1.822); it used to be lost (#39)
+            sim.regions[old_region_id].collect_taxes(savings, 'transaction')
 
             # Delete debt
             if _id in sim.central.loans:
                 del sim.central.loans[_id]
     else:
+        # The wallet stays with the family (it used to be lost with the agent, #39)
+        agent.family.savings += agent.money
+        agent.money = 0
         agent.family.remove_agent(agent)
 
     sim.update_pop(old_region_id, None)

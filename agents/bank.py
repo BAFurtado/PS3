@@ -99,6 +99,8 @@ class Central:
         self.tax_firm = self.params['TAX_FIRM']
 
         self.loan_to_income = self.params['LOAN_PAYMENT_TO_PERMANENT_INCOME']
+        # Money created or received from outside the ACP (Simulation replaces it with its own ledger)
+        self.ledger = defaultdict(float)
 
         # Track remaining loan balances
         self.loans = defaultdict(list)
@@ -135,16 +137,18 @@ class Central:
                                amount * -1)
             interest -= amount
 
-        # Compute taxes
+        # Compute taxes. The bank pays the whole interest: the client gets it net of tax, the tax is collected
+        # later (it used to leave the balance only net of tax, so the tax was paid from nothing)
         tax = interest * self.tax_firm
         self.taxes += tax
-        self.balance -= interest - tax
+        self.balance -= interest
 
         return interest - tax
 
     def remunerate_liquid_balance(self):
         # Remunerate idle capital at economy's basic rate
         if self.balance > 0:
+            self.ledger['bank_interest'] += self.balance * self.interest
             self.balance += self.balance * self.interest
 
     def collect_taxes(self):
@@ -321,6 +325,7 @@ class Central:
             region = int(house.region_id[:6])
             loan_type = 'recursos_' + family.loan_rate
             self.funding[(ano, region)][loan_type] -= amount
+            self.ledger['fgts_sbpe'] += amount
             self.monthly_funding_used[(ano, month, region, loan_type)] += amount
 
         return True, amount
@@ -362,8 +367,11 @@ class Central:
                     continue
                 loan.age += 1
                 if family.savings < sum(loan.payment[:loan.age]):
-                    family.savings += family.grab_savings(self, sim.clock.year, sim.clock.months)
-                payment = min(family.savings, sum(loan.payment[:loan.age]))
+                    # grab_savings returns the savings kept at home too, so they are replaced, not added to (#42: the
+                    # augmented assignment read them before grab_savings zeroed them and counted them twice)
+                    family.savings = family.grab_savings(self, sim.clock.year, sim.clock.months)
+                # Savings below zero are a debt and pay nothing
+                payment = max(0, min(family.savings, sum(loan.payment[:loan.age])))
                 done = loan.pay(payment)
                 if done:
                     family.have_loan = None

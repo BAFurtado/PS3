@@ -51,8 +51,9 @@ class Region:
 
     def save_and_clear_treasure(self):
         for key in self.treasure.keys():
-            if key == 'emissions':
-                # Keep emissions treasure persistent so subsidy gate can check it
+            if key in ('emissions', 'transport'):
+                # Keep emissions treasure persistent so subsidy gate can check it; transport charges are spent by
+                # RegionalMarket.transport_fares
                 continue
             self.cumulative_treasure[key] += self.treasure[key]
             self.treasure[key] = 0

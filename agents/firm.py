@@ -178,6 +178,7 @@ class Firm:
         # Check if firm has enough balance
         eco_investment = max(0, min(self.total_balance, eco_investment))
         self.total_balance -= eco_investment
+        regional_market.sim.ledger['eco_investment'] -= eco_investment
 
         # Stochastic process to actually reduce firm-level parameter
         params = regional_market.sim.PARAMS
