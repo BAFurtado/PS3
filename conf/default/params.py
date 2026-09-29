@@ -350,6 +350,14 @@ WAGE_TO_CAR_OWNERSHIP_QUANTILES = [
 PRIVATE_TRANSIT_COST = .25
 PUBLIC_TRANSIT_COST = .05
 REGIONAL_FREIGHT_COST = .3
+# Trade with the rest of Brazil (defect #27). True: firms buy the imported part of their inputs, from the external->local
+# block of the regional input-output matrix, so local + imported inputs sum to the national coefficients. False (old
+# model): they read the local->external block, which is ~0, and buy only the local share of their inputs.
+IO_IMPORTS = False
+# Share of the ACP's monthly import bill (net of the import tax that returns) that comes back as demand for its products
+# from the rest of Brazil, split across sectors like its exports. 1: balanced trade. 0: imports leave the ACP for good
+# (old model). Between: a trade deficit, recorded in stats.csv ext_net_position.
+EXTERNAL_RECYCLING_SHARE = 0.0
 
 # RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation
