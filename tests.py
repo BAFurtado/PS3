@@ -769,6 +769,54 @@ if sim.PARAMS["FIRM_EXIT_MONTHS"] > 0:
         f"written off {sim.firm_exit_writeoff - _writeoff:.4f}",
     )
 
+# ── Money creation and unit-free statistics (#31-#33) ────────────────────────
+print("\n── Money creation and unit-free statistics ──────────────────────────")
+from types import SimpleNamespace  # noqa: E402
+from markets.rentmarket import collect_rent  # noqa: E402
+from world.demographics import birth  # noqa: E402
+
+_baby = birth(sim)
+sim.total_pop -= 1
+check("A newborn holds no money (#31)", _baby.money == 0, f"money {_baby.money}")
+
+
+class _RentFamily:
+    def __init__(self, savings, deposit):
+        self.savings, self.deposit, self.rent_voucher, self.received = savings, deposit, 0, 0.0
+
+    def grab_savings(self, bank, y, m):
+        s, self.savings, self.deposit = self.savings + self.deposit, 0, 0
+        return s
+
+    def update_balance(self, amount):
+        self.received += amount
+
+
+def _pay_rent(savings, deposit, rent=0.4):
+    tenant, landlord, taxes = _RentFamily(savings, deposit), _RentFamily(0, 0), []
+    house = SimpleNamespace(rent_data=[np.float64(rent)], family_id='t', owner_id='l', region_id='r')
+    stub = SimpleNamespace(families={'t': tenant, 'l': landlord}, PARAMS={'TAX_LABOR': sim.PARAMS['TAX_LABOR']},
+                           central=SimpleNamespace(wallet={tenant: True}), clock=sim.clock,
+                           regions={'r': SimpleNamespace(collect_taxes=lambda a, k: taxes.append(a))})
+    collect_rent([house], stub)
+    return tenant.savings, landlord.received + sum(taxes), savings + deposit
+
+
+_rent_ok = []
+for _cash in (0.1, 0.3):
+    _kept, _paid, _before = _pay_rent(_cash, 5.0)
+    _rent_ok.append(abs(_paid - 0.4) < 1e-9 and abs(_kept + _paid - _before) < 1e-9)
+check("Rent paid from bank deposits is paid in full and conserves money (#32)", all(_rent_ok), f"{_rent_ok}")
+
+_renters = [f for f in sim.families.values() if f.is_renting and f.get_permanent_income() > 0]
+if len(_renters) > 20:
+    _pi, _renters[0].permanent_income = _renters[0].permanent_income, 0
+    _with = sim.stats.calculate_families_metrics(_renters)["rent_burden_decis"]
+    _renters[0].permanent_income = _pi
+    _without = sim.stats.calculate_families_metrics(_renters[1:])["rent_burden_decis"]
+    check("Zero-income renters are left out of the rent-burden deciles (#33)", np.allclose(_with, _without),
+          f"{_with} vs {_without}")
+
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")
 print(f"Results: {PASS} PASS  |  {FAIL} FAIL  |  {PASS + FAIL} total")

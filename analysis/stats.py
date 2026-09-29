@@ -294,12 +294,12 @@ class Statistics(object):
                 if family.rent_voucher:
                     total_voucher += 1
                 if pi <= 0:
-                    # Rent burden is undefined for these; the line below divides
-                    # by 1 instead, which parks them in the top decile at
-                    # rent-sized values. Counted so that tail is interpretable.
+                    # Rent burden is undefined for these: counted here and left out of the deciles and the median
+                    # (dividing by 1 made those statistics depend on the money unit)
                     total_renting_zero_income += 1
-
-                rr = family.house.rent_data[0] / (pi if pi > 0 else 1)
+                    rr = 0
+                else:
+                    rr = family.house.rent_data[0] / pi
                 rent_ratio[i] = rr
                 if (not family.rent_voucher) and pi > 0 and rr < 0.3:
                     affordable += 1
@@ -352,7 +352,6 @@ class Statistics(object):
             min_x = np.min(x)
             if min_x < 0:
                 x = x - min_x  # shift only if needed
-            x = x + 1e-6  # avoid zeros
             sorted_income = np.sort(x)
             n = sorted_income.size
             cumindex = np.arange(1, n + 1)
@@ -397,7 +396,6 @@ class Statistics(object):
         min_x = np.min(x)
         if min_x < 0:
             x = x - min_x  # shift only if needed
-        x = x + 1e-7  # avoid zeros
         sorted_income = np.sort(x)
         n = sorted_income.size
         total = np.sum(sorted_income)
