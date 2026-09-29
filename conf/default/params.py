@@ -68,12 +68,27 @@ PLANNED_GROWTH_POSTS = True
 # equally-divided share by the number of municipalities, never paid the FPM and local shares, destroyed the regions'
 # share, and let Government firms spend their start-up capital as demand.
 GOV_REVISED = True
-# Public wage per worker as a multiple of the municipality's mean private wage per worker.
-# GOV_WAGE_RATIO_BY_MUN = True: each municipality's observed public/private ratio (input/gov_wage_ratio.csv, IBGE
-# CEMPRE 2010-2019, public administration vs the rest; built by auxiliary/gov_wage_ratio.py), times GOV_WAGE_RATIO as
-# a scale. False = GOV_WAGE_RATIO alone, the same in every municipality.
-GOV_WAGE_RATIO_BY_MUN = True
+# Public wage rule (GOV_REVISED).
+# 'premium': Government pays what private firms pay per unit of qualification (qualification ** PRODUCTIVITY_EXPONENT,
+#   the same split as make_payment) times (1 + P), for the qualification it actually employs; it offers job seekers
+#   (1 + P) x the municipality's mean private wage. P is the municipality's mix of public jobs by level of government
+#   (input/gov_levels.csv, Ipea Atlas do Estado Brasileiro 2021; auxiliary/gov_levels.py) weighted by the premia below,
+#   which are conditional on schooling, age, gender and race (World Bank, Um Ajuste Justo, 2017: federal 67 %, state
+#   over 30 %, municipal none). Composition comes from the model's own sorting, not from the observed raw ratio.
+# 'cempre_ratio': GOV_WAGE_RATIO x the observed raw public/private wage ratio (input/gov_wage_ratio.csv, IBGE CEMPRE;
+#   auxiliary/gov_wage_ratio.py) x the mean private wage. It counts composition twice, as higher-paying firms also hire
+#   the most qualified candidates first.
+# 'uniform': GOV_WAGE_RATIO x the mean private wage.
+GOV_WAGE_RULE = 'premium'
+GOV_PREMIUM_FEDERAL = 0.67
+GOV_PREMIUM_STATE = 0.30
+GOV_PREMIUM_MUNICIPAL = 0.0
 GOV_WAGE_RATIO = 1.0
+# Federal and state staff are paid from national and state revenue, not from the taxes raised in the ACP. True: when a
+# municipality's budget cannot pay its public payroll (and the purchases and inputs that go with it), the shortfall is
+# funded from outside the ACP, up to the non-municipal share of that cost; the inflow is counted in
+# Funds.external_public_funding. False: the budget caps the public wage.
+GOV_EXTERNAL_FUNDING = True
 # Percentage of employees' firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter

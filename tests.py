@@ -243,14 +243,22 @@ if sim.PARAMS.get("GOV_REVISED", False):
     # second payment).
     _funds = sim.funds
     _gov_all = [f for f in sim.firms.values() if f.sector == "Government"]
+    # These checks call settle_government_budget on made-up revenue; the state is restored at the end of the block
+    _gov_attrs = ("total_balance", "revenue", "_transfer_current", "purchase_fund", "input_fund", "investment_fund",
+                  "public_wage", "public_offer")
+    _gov_state = {_f.id: {_a: getattr(_f, _a) for _a in _gov_attrs} for _f in _gov_all}
+    _state_before = (_funds.external_public_funding, dict(_funds.gov_budget_diag))
     _snap = lambda: (sum(f._transfer_current for f in _gov_all), sum(f.purchase_fund for f in _gov_all),
                      sum(f.investment_fund for f in _gov_all), sum(_funds.policy_money.values()),
                      sum(r.applied_flow for r in sim.regions.values()), sum(f.input_fund for f in _gov_all))
     _before = _snap()
+    _ext_before = _funds.external_public_funding
     for _i, _rid in enumerate(sim.regions):
         _funds.pending_public_money[_rid]["equally"] += 10.0 + _i
+    # money in = revenue put in + what GOV_EXTERNAL_FUNDING paid from outside the ACP
     _put = sum(10.0 + _i for _i in range(len(sim.regions)))
     _funds.settle_government_budget(sim.regions)
+    _put += _funds.external_public_funding - _ext_before
     _d = [a - b for a, b in zip(_snap(), _before)]
     check(
         "Balanced government budget neither creates nor loses money",
@@ -287,24 +295,60 @@ if sim.PARAMS.get("GOV_REVISED", False):
         f"public wage range={min(_gov_wage, default=0):.3f}-{max(_gov_wage, default=0):.3f}, "
         f"private median={np.median(_priv) if _priv else 0:.3f}",
     )
-    # GOV_WAGE_RATIO_BY_MUN: each municipality's wage target is its observed public/private ratio times its own
-    # mean private wage (before the budget cap)
-    _bill, _heads = defaultdict(float), defaultdict(int)
+    # GOV_WAGE_RULE 'premium': each municipality's target payroll is private pay per unit of qualification ** alpha
+    # times one plus its level-weighted premium, for the qualification its Government firms employ; the offer seen by
+    # job seekers is one plus the premium times the mean private wage, not the pay per worker
+    _alpha = sim.PARAMS["PRODUCTIVITY_EXPONENT"]
+    _bill, _heads, _quals = defaultdict(float), defaultdict(int), defaultdict(float)
     for _f in sim.firms.values():
         if _f.sector != "Government" and _f.num_employees > 0 and _f.wages_paid > 0:
             _bill[_f.region_id[:7]] += _f.wages_paid
             _heads[_f.region_id[:7]] += _f.num_employees
-    _dev = [abs(_v["target_wage"] / (_bill[_m] / _heads[_m])
-                - sim.PARAMS["GOV_WAGE_RATIO"] * _funds.gov_wage_ratio[_m]) for _m, _v in _funds.gov_budget_diag.items()
-            if _heads[_m]]
-    _by_mun = sim.PARAMS.get("GOV_WAGE_RATIO_BY_MUN", False)
-    check(
-        "Public wage target is the municipality's observed public/private ratio times its private wage",
-        _dev and max(_dev) < 1e-9 and (not _by_mun or len({_funds.gov_wage_ratio[_m] for _m in
-                                                           _funds.gov_budget_diag}) > 1 or len(_dev) == 1),
-        f"municipalities={len(_dev)}, max deviation={max(_dev, default=0):.2e}, "
-        f"ratios={sorted({round(_funds.gov_wage_ratio[_m], 2) for _m in _funds.gov_budget_diag})}",
-    )
+            _quals[_f.region_id[:7]] += _f.total_qualification(_alpha)
+    _prem = {"federal": sim.PARAMS["GOV_PREMIUM_FEDERAL"], "estadual": sim.PARAMS["GOV_PREMIUM_STATE"],
+             "municipal": sim.PARAMS["GOV_PREMIUM_MUNICIPAL"]}
+    _dev, _markups = [], set()
+    for _m, _v in _funds.gov_budget_diag.items():
+        _gq = sum(_f.total_qualification(_alpha) for _f in _funds.mun_gov_firms[int(_m)])
+        if not (_quals[_m] and _gq):
+            continue
+        _mk = 1 + sum(_funds.gov_levels[_m][_k] * _prem[_k] for _k in _prem)
+        _markups.add(round(_mk, 3))
+        _dev.append(abs(_v["target"] / (_bill[_m] / _quals[_m] * _gq) - _mk))
+    _offers = [(_f.offer_wage(0.05, 1.0), _f.wage_base(0.05, 1.0)) for _f in _gov_all if _f.employees]
+    if sim.PARAMS.get("GOV_WAGE_RULE") == "premium":
+        check(
+            "Public payroll is private pay per unit of qualification times the level-weighted premium",
+            _dev and max(_dev) < 1e-9 and max(_markups) >= 1.0,
+            f"municipalities={len(_dev)}, max deviation={max(_dev, default=0):.2e}, markups={sorted(_markups)}",
+        )
+        check(
+            "Government ranks job posts on its offer, set apart from its pay per worker",
+            _offers and all(_o > 0 for _o, _w in _offers) and any(abs(_o - _w) > 1e-9 for _o, _w in _offers),
+            f"offer/pay pairs (first 3)={[(round(_o, 3), round(_w, 3)) for _o, _w in _offers[:3]]}",
+        )
+    # GOV_EXTERNAL_FUNDING: a municipality whose budget cannot pay its public payroll gets the shortfall from outside
+    # the ACP only up to the non-municipal share of the cost; a purely municipal public sector gets nothing
+    _mun = next(_m for _m, _v in _funds.gov_budget_diag.items() if _v["staff"] > 0)
+    _saved_levels = _funds.gov_levels[_mun]
+    _ext = []
+    for _lv in ({"federal": 0.5, "estadual": 0.5, "municipal": 0.0}, {"federal": 0.0, "estadual": 0.0, "municipal": 1.0}):
+        _funds.gov_levels[_mun] = _lv
+        _e0 = _funds.external_public_funding
+        _funds.pending_public_money[next(_r for _r in sim.regions if _r[:7] == _mun)]["equally"] += 1e-6
+        _funds.settle_government_budget(sim.regions)
+        _ext.append(_funds.external_public_funding - _e0)
+    _funds.gov_levels[_mun] = _saved_levels
+    for _f in _gov_all:
+        for _a, _val in _gov_state[_f.id].items():
+            setattr(_f, _a, _val)
+    _funds.external_public_funding, _funds.gov_budget_diag = _state_before[0], _state_before[1]
+    if sim.PARAMS.get("GOV_EXTERNAL_FUNDING", False):
+        check(
+            "An underfunded public payroll is paid from outside the ACP only for federal and state staff",
+            _ext[0] > 0 and _ext[1] == 0,
+            f"external funding: non-municipal {_ext[0]:.4f}, municipal-only {_ext[1]:.4f}",
+        )
 
 # Firm demography in stats.csv reconciles with the firm stock: entries - exits = change in the number of firms
 from analysis.output import columns_for  # noqa: E402
