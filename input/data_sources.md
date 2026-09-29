@@ -83,6 +83,7 @@ lista completa não cabe na nota de rodapé.
 | 23 | Arrecadação tributária municipal (usada na validação da primeira geração) | STN, Siconfi/Finbra (<https://siconfi.tesouro.gov.br>) | — | — | PS1 p. 45 |
 | 24 | Emissões setoriais e intensidade de emissão | Alvarenga Junior, M. *Towards a structural carbonization of the Brazilian economy*. Tese (doutorado), IE/UFRJ, 2024 (<https://www.ie.ufrj.br/images/IE/PPGE/teses/2024/Marcio%20Alverenga%20Junior%20-%20PhD%20Dissertation%20-%20TOWARDS%20A%20STRUCTURAL%20CARBONIZATION%20OF%20THE%20BRAZILIAN%20ECONOMY%20(26.02).pdf>) | — | `input/emissions_sectors.csv` | — |
 | 25 | IDHM (referência para o QLI) | Atlas do Desenvolvimento Humano no Brasil — PNUD, Ipea e FJP (<http://atlasbrasil.org.br/2013>) | 2000 e 2010 | `input/idhm_2000_2010.csv` | PS1 p. 45; PS2 Tab. 4 |
+| 26 | Razão entre o salário médio do setor público e o do restante da economia, por município | IBGE, Cadastro Central de Empresas (Cempre), Sidra tabela 6450: salários e outras remunerações e pessoal ocupado assalariado, seção O da CNAE 2.0 (administração pública, defesa e seguridade social) contra o total menos a seção O | 2010–2019 (mediana dos anos) | `input/gov_wage_ratio.csv` | script `auxiliary/gov_wage_ratio.py` |
 
 Sobre o item 24: a intensidade de emissão setorial usada no artigo de emissões
 (Rocha Lima, Furtado e Lopes, 2026) é construída a partir do RAPP do Ibama (2010)
@@ -97,6 +98,16 @@ O total nacional quase não muda (13,44 para 13,40 milhões). Quinze municípios
 mantêm o valor original. A partir de 2020 a série repete o valor de 2020, de modo que a pandemia não
 aparece nesse dado. O número de vínculos públicos é exógeno no modelo: define a meta de emprego das
 firmas do setor Governo, escalada por `PERCENTAGE_ACTUAL_POP`.
+
+Sobre o item 26: o salário público de cada município no modelo é a razão observada vezes o salário médio
+privado que o próprio modelo gera naquele município (parâmetro `GOV_WAGE_RATIO_BY_MUN`, com
+`GOV_WAGE_RATIO` como fator de escala). A razão é a mediana dos anos de 2010 a 2019 com as duas células
+publicadas. O IBGE omite células de municípios pequenos (sigilo); municípios com menos de três anos
+publicados (143 dos 660 das ACPs) recebem a razão da própria ACP, calculada sobre os municípios
+publicados, e na falta dela a nacional (1,72). Mediana entre os municípios das ACPs: 1,47; capitais
+entre 1,5 (São Paulo) e 3,3 (Fortaleza), porque a seção O inclui os servidores estaduais e federais lotados
+na capital, como também o fazem os vínculos da Rais do item 8. A seção O não inclui educação e saúde
+públicas, que o Cempre classifica nas seções P e Q junto com as privadas.
 
 Texto sugerido: "O emprego público municipal segue os vínculos ativos da Rais (2010 a 2020, mantido
 constante depois de 2020); o ano de 2019, afetado pela transição para o eSocial, foi interpolado entre

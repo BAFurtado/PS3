@@ -293,8 +293,11 @@ def multiple_runs(overrides: list, runs: int, cpus: int, output_dir: str):
         p.update(o)
         param_list.append(p)
 
+    # Common random numbers: replication i uses the same seed in every set, so sets differ by their parameters,
+    # not their draws, and every run is reproducible from its conf.json
+    seed_base = calibration_conf.CALIBRATION_SETTINGS.get("seed_base", 1000)
     job_specs = [
-        {"path": os.path.join(path, str(i)), "params": p}
+        {"path": os.path.join(path, str(i)), "params": {**p, "SEED": seed_base + i}}
         for p, path in zip(param_list, paths)
         for i in range(runs)
     ]

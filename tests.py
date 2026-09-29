@@ -287,6 +287,24 @@ if sim.PARAMS.get("GOV_REVISED", False):
         f"public wage range={min(_gov_wage, default=0):.3f}-{max(_gov_wage, default=0):.3f}, "
         f"private median={np.median(_priv) if _priv else 0:.3f}",
     )
+    # GOV_WAGE_RATIO_BY_MUN: each municipality's wage target is its observed public/private ratio times its own
+    # mean private wage (before the budget cap)
+    _bill, _heads = defaultdict(float), defaultdict(int)
+    for _f in sim.firms.values():
+        if _f.sector != "Government" and _f.num_employees > 0 and _f.wages_paid > 0:
+            _bill[_f.region_id[:7]] += _f.wages_paid
+            _heads[_f.region_id[:7]] += _f.num_employees
+    _dev = [abs(_v["target_wage"] / (_bill[_m] / _heads[_m])
+                - sim.PARAMS["GOV_WAGE_RATIO"] * _funds.gov_wage_ratio[_m]) for _m, _v in _funds.gov_budget_diag.items()
+            if _heads[_m]]
+    _by_mun = sim.PARAMS.get("GOV_WAGE_RATIO_BY_MUN", False)
+    check(
+        "Public wage target is the municipality's observed public/private ratio times its private wage",
+        _dev and max(_dev) < 1e-9 and (not _by_mun or len({_funds.gov_wage_ratio[_m] for _m in
+                                                           _funds.gov_budget_diag}) > 1 or len(_dev) == 1),
+        f"municipalities={len(_dev)}, max deviation={max(_dev, default=0):.2e}, "
+        f"ratios={sorted({round(_funds.gov_wage_ratio[_m], 2) for _m in _funds.gov_budget_diag})}",
+    )
 
 # Firm demography in stats.csv reconciles with the firm stock: entries - exits = change in the number of firms
 from analysis.output import columns_for  # noqa: E402

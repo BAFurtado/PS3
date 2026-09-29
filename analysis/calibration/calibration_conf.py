@@ -36,6 +36,7 @@ CALIBRATION_SETTINGS = {
     "samples":        64,
     "runs_per_sample": 2,   # seeds per set; >= 2 needed for noise weights and implausibility
     "lhs_seed":       42,
+    "seed_base":      1000, # model seed of replication i is seed_base + i, the same in every set
 
     # Burn-in excluded from fitness; moments computed over [burn_in_end, target_end_year]
     "burn_in_end":       "2012-01-01",
