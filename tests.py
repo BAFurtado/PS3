@@ -28,11 +28,13 @@ def check(label, cond, detail=""):
 
 # ── shared short run ─────────────────────────────────────────────────────────
 print("Initializing simulation (1 000-day run on ARACAJU @ 1%)...")
-conf.RUN["TOTAL_DAYS"] = 1_000
+# TOTAL_DAYS is a model parameter; setting it in conf.RUN had no effect and the tests ran 30 years
+conf.PARAMS["TOTAL_DAYS"] = 1_000
 conf.PARAMS["PROCESSING_ACPS"] = ["ARACAJU"]
 conf.PARAMS["PERCENTAGE_ACTUAL_POP"] = 0.01
 
-path = tempfile.gettempdir()
+# Own directory: parallel test runs (e.g. two worktrees) must not append to the same stats.csv
+path = tempfile.mkdtemp(prefix="ps3_tests_")
 sim = Simulation(conf.PARAMS, path)
 sim.initialize()
 
@@ -263,6 +265,37 @@ if sim.PARAMS.get("GOV_REVISED", False):
         f"public wage range={min(_gov_wage, default=0):.3f}-{max(_gov_wage, default=0):.3f}, "
         f"private median={np.median(_priv) if _priv else 0:.3f}",
     )
+
+# Firm demography in stats.csv reconciles with the firm stock: entries - exits = change in the number of firms
+from analysis.output import columns_for  # noqa: E402
+import pandas as pd  # noqa: E402
+_st = pd.read_csv(sim.output.stats_path, sep=";", header=None)
+_st.columns = columns_for("stats", _st.shape[1])
+_net = _st.firms_entered.iloc[1:].sum() - _st.firms_exited.iloc[1:].sum()
+check(
+    "Firm entries minus exits in stats.csv equal the change in the firm count",
+    _net == _st.firms_count.iloc[-1] - _st.firms_count.iloc[0] and _st.firms_entered.sum() > 0
+    and _st.firms_count.iloc[-1] == len(sim.firms),
+    f"entered={_st.firms_entered.sum()}, exited={_st.firms_exited.sum()}, "
+    f"count {_st.firms_count.iloc[0]} -> {_st.firms_count.iloc[-1]}, live={len(sim.firms)}",
+)
+
+# A firm that loses its last worker has no wage bill. The last month's value used to stay in wages_paid and keep
+# lowering its profit and firm tax.
+_emptied = next(f for f in sim.firms.values() if f.sector != "Government" and f.employees)
+_saved_staff, _saved_wp = dict(_emptied.employees), _emptied.wages_paid
+_emptied.wages_paid = 123.0
+_emptied.employees.clear()
+_emptied.make_payment(sim.regions, 0.05, sim.PARAMS["PRODUCTIVITY_EXPONENT"], sim.PARAMS["TAX_LABOR"],
+                      sim.PARAMS["RELEVANCE_UNEMPLOYMENT_SALARIES"])
+_stale = _emptied.wages_paid
+_emptied.employees.update(_saved_staff)
+_emptied.wages_paid = _saved_wp
+check(
+    "A firm with no employees records no wage bill",
+    _stale == 0,
+    f"wages_paid={_stale}",
+)
 
 # Not exact: in a tight labour market Government refills a little slower than it loses staff. Without the fix
 # it tends to zero.
