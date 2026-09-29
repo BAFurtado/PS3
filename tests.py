@@ -610,6 +610,73 @@ check(
     "_run_jobs_parallel must cap per-job attempts, not just BrokenExecutor restarts",
 )
 
+# ── Trade with the rest of Brazil (#26, #27, #28) ────────────────────────────────────────────────────────────────
+print("\n── Trade with the rest of Brazil ────────────────────────────────────")
+import glob  # noqa: E402
+import random  # noqa: E402
+import pandas as pd  # noqa: E402
+from types import SimpleNamespace  # noqa: E402
+from markets.goods import read_technical_matrix, RegionalMarket, External  # noqa: E402
+
+# Local + imported inputs of every buying sector sum to the national coefficient, in every ACP. A transposed file
+# (#26, Brasília) has these sums in its rows; NaN coefficients (#28, 8 small ACPs) break them.
+_national = pd.read_csv('input/technical_matrix.csv').set_index('sector')
+_bad = []
+for _p in glob.glob('input/technical_matrices/*_matrix_io.json'):
+    _acp = os.path.basename(_p)[:-len('_matrix_io.json')]
+    _ll, _el, _le, _ee = read_technical_matrix(_acp)
+    _sums = (_ll + _el).sum(axis=0) - _national.loc[_ll.index, _ll.columns].sum(axis=0)
+    if _ll.isna().values.any() or _el.isna().values.any() or _sums.abs().max() > 1e-6:
+        _bad.append(_acp)
+check("every ACP matrix: local + imported inputs = national coefficients, no NaN", not _bad, f"{_bad[:5]}")
+
+# IO_IMPORTS picks the block firms and Government import from: external->local when on, the old local->external
+# block (~0) when off
+_markets = {flag: RegionalMarket(SimpleNamespace(PARAMS=dict(sim.PARAMS, IO_IMPORTS=flag), geo=sim.geo))
+            for flag in (False, True)}
+_ll, _el, _le, _ee = read_technical_matrix(sim.geo.processing_acps)
+check("IO_IMPORTS on: firms import from the external->local block",
+      _markets[True].ext_local_matrix.equals(_el) and _el.values.sum() > _le.values.sum())
+check("IO_IMPORTS off: firms read the local->external block, as the old model did",
+      _markets[False].ext_local_matrix.equals(_le))
+
+
+# EXTERNAL_RECYCLING_SHARE = 1 returns the whole net import bill as demand for local firms, and a share in (0, 1)
+# leaves the rest as a deficit in net_position. Stub firms with ample stock, so the only limit is the money.
+class _StubFirm:
+    def __init__(self, sector):
+        self.sector, self.region_id, self.total_quantity, self.prices, self.sold = sector, 'r', 1e9, 1.0, 0.0
+
+    def sale(self, amount, *args, **kwargs):
+        self.sold += amount
+        return 0.0
+
+
+def _external_after(share, imports=100.0):
+    _firms = {i: _StubFirm(s) for i, s in enumerate(['Agriculture', 'Manufacturing'])}
+    _market = SimpleNamespace(technical_matrix=pd.DataFrame(index=['Agriculture', 'Manufacturing']),
+                              external_demand_multiplier={'Agriculture': 0.5, 'Manufacturing': 0.1})
+    _stub = SimpleNamespace(PARAMS=dict(sim.PARAMS, EXTERNAL_RECYCLING_SHARE=share), firms=_firms,
+                            regional_market=_market, regions={})
+    _ext = External(_stub, sim.PARAMS["TAXES_STRUCTURE"]["consumption_equal"])
+    _ext.intermediate_consumption(imports)
+    _net_imports = imports - _ext.import_tax_month
+    _ext.final_consumption({'Agriculture': 10.0, 'Manufacturing': 10.0}, random.Random(0))
+    return _ext, _net_imports, sum(f.sold for f in _firms.values())
+
+
+_ext, _net, _sold = _external_after(1.0)
+check("recycling share 1: the net import bill returns as demand, trade balanced",
+      abs(_ext.last_month['recycled'] - _net) < 1e-9 and abs(_ext.net_position - _ext.last_month['exports']) < 1e-9
+      and abs(_sold - _ext.last_month['exports'] - _net) < 1e-9,
+      f"recycled={_ext.last_month['recycled']:.4f} net imports={_net:.4f} net_position={_ext.net_position:.4f}")
+_ext, _net, _sold = _external_after(0.5)
+check("recycling share 0.5: half the net import bill is a deficit in net_position",
+      abs(_ext.net_position - (_ext.last_month['exports'] - 0.5 * _net)) < 1e-9)
+_ext, _net, _sold = _external_after(0.0)
+check("recycling share 0: exports only, the old model",
+      _ext.last_month['recycled'] == 0 and abs(_sold - 0.5 * 10 - 0.1 * 10) < 1e-9)
+
 # ── Firm capital and demography (#21, #24). Last: these remove firms from the shared run ─────────────────────────
 print("\n── Firm capital, entry and exit ─────────────────────────────────────")
 from world.firms import fund_entrant, firm_exit  # noqa: E402

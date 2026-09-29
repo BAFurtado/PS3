@@ -12,30 +12,30 @@ final_demand = pd.read_csv('input/final_demand.csv')
 
 
 def read_technical_matrix(mun_codes):
+    """ Returns the four blocks of the regionalized technical matrix, each with rows = selling sector and columns =
+        buying sector: local->local, external->local (the ACP's imports), local->external, external->external.
+        The files are {buyer: {seller: coefficient}}, so read_json gives rows = seller, first 12 = the ACP.
+        For every buying column, local->local + external->local is the national coefficient (IO_rest builds the import
+        block as national minus local)."""
     if not isinstance(mun_codes, list):
         mun_codes = [mun_codes, ]
     tech_matrix = pd.read_json('input/technical_matrices/' + mun_codes[0] + '_matrix_io.json')
     # Using matrix to get sector names
     n = 12
     sector_names = [j.split('_')[1] for j in [i for i in tech_matrix.index][:n]]
-    # Splitting the matrix into the 4 region destination and origin
-    # Input direction origin->destination:
-    # LOCAL->LOCAL, EXTERNAL->LOCAL, LOCAL->EXTERNAL, EXTERNAL->EXTERNAL
-
-    matrix_list = [
-        tech_matrix.iloc[:n, :n],
-        tech_matrix.iloc[n:, :n],
-        tech_matrix.iloc[:n, n:],
-        tech_matrix.iloc[n:, n:]
-    ]
-    # Fixing matrices names
-    new_matrix_list = list()
-    for m in matrix_list:
+    blocks = [tech_matrix.iloc[:n, :n], tech_matrix.iloc[n:, :n], tech_matrix.iloc[:n, n:], tech_matrix.iloc[n:, n:]]
+    for m in blocks:
         m.index = sector_names
         m.columns = sector_names
-        new_matrix_list.append(m)
-    local_local, loc_ext_matrix, ext_local_matrix, ext_ext_matrix = new_matrix_list
-    return local_local, loc_ext_matrix, ext_local_matrix, ext_ext_matrix
+    local_local, ext_local, local_ext, ext_ext = [m.astype(float) for m in blocks]
+    # Where both sectors have no local wage mass the location quotients are 0/0 and the file holds NaN (8 small ACPs).
+    # Nothing is bought locally from a sector that is absent, so the whole national coefficient is imported.
+    missing = local_local.isna() | ext_local.isna()
+    if missing.values.any():
+        national = pd.read_csv('input/technical_matrix.csv').set_index('sector').loc[sector_names, sector_names]
+        local_local = local_local.mask(missing, 0.0)
+        ext_local = ext_local.mask(missing, national)
+    return local_local, ext_local, local_ext.fillna(0.0), ext_ext.fillna(0.0)
 
 
 def read_final_demand_matrix(mun_codes):
@@ -79,8 +79,12 @@ class RegionalMarket:
 
     def __init__(self, sim):
         self.sim = sim
-        self.technical_matrix, self.loc_ext_matrix, self.ext_local_matrix, self.ext_ext_matrix = read_technical_matrix(
+        self.technical_matrix, self.ext_local_matrix, self.loc_ext_matrix, self.ext_ext_matrix = read_technical_matrix(
             sim.geo.processing_acps)
+        if not sim.PARAMS.get('IO_IMPORTS', False):
+            # Old behaviour: firms read the local->external block as their imports, which is ~0, so every ACP bought
+            # only the local share of its inputs
+            self.ext_local_matrix = self.loc_ext_matrix
 
         self.if_origin = self.sim.PARAMS["TAX_ON_ORIGIN"]
         self.final_demand = final_demand
@@ -154,6 +158,15 @@ class External:
         self.taxes_paid = 0
         self.cumulative_taxes_paid = 0
         self.tax_consumption = tax_consumption
+        # External account of the ACP. Monthly flows: imports (inputs bought outside, freight included), the part of
+        # their tax that returns to the municipalities, exports (final demand from the rest of Brazil) and recycled
+        # demand (EXTERNAL_RECYCLING_SHARE). net_position accumulates exports + recycled - net imports: negative is a
+        # cumulative deficit, i.e. money that left the ACP
+        self.imports_month = 0.0
+        self.import_tax_month = 0.0
+        self.recycle_pending = 0.0
+        self.net_position = 0.0
+        self.last_month = {'imports': 0.0, 'exports': 0.0, 'recycled': 0.0}
 
     def get_external_amount_sold(self):
         return self.amount_sold
@@ -169,6 +182,9 @@ class External:
             self.total_quantity -= bought_quantity
             self.taxes_paid += amount_per_product * self.tax_consumption
             self.cumulative_taxes_paid += self.taxes_paid
+            self.imports_month += amount
+            # collect_transfer_consumption_tax returns taxes_paid * tax_consumption
+            self.import_tax_month += amount_per_product * self.tax_consumption ** 2
 
     def choose_firms_per_sector(self, firms, seed):
         """
@@ -194,26 +210,44 @@ class External:
         """Consumes from local firms according to the regionalized SAM"""
         # Selects a subset of firms to buy from playing the role of rest of Brazil demand from simulated region.
         chosen_firms = self.choose_firms_per_sector(self.sim.firms, seed)
+        multiplier = self.sim.regional_market.external_demand_multiplier
 
+        # External demand is a LINEAR FUNCTION of the internal demand
+        demand = {}
         for sector in self.sim.regional_market.technical_matrix.index:
+            if chosen_firms[sector] and multiplier[sector] and internal_final_demand[sector]:
+                demand[sector] = multiplier[sector] * internal_final_demand[sector]
+        total_demand = sum(demand.values())
+
+        # EXTERNAL_RECYCLING_SHARE: that share of what the ACP paid for imports this month, net of the import tax that
+        # returns to the municipalities, comes back as demand for its products, split across sectors like the exports.
+        # What its firms cannot serve waits for next month. 1 = balanced trade, 0 = imports leave for good (old model)
+        share = self.sim.PARAMS.get('EXTERNAL_RECYCLING_SHARE', 0.0)
+        if share > 0:
+            self.recycle_pending += share * (self.imports_month - self.import_tax_month)
+        recycle = self.recycle_pending if (share > 0 and total_demand > 0) else 0.0
+
+        exported, recycled = 0.0, 0.0
+        for sector, amount in demand.items():
             # Sticking to a SINGLE product for firm
-            # External demand is a LINEAR FUNCTION of the internal demand
-            if chosen_firms[sector]:
-                if ((self.sim.regional_market.external_demand_multiplier[sector]) and
-                        (internal_final_demand[sector])):
-                    amount_per_product = (self.sim.regional_market.external_demand_multiplier[sector] *
-                                          internal_final_demand[sector])
-                else:
-                    continue
-                amount_per_firm = amount_per_product / len(chosen_firms[sector])
-                # Buys from firms
-                for firm in chosen_firms[sector]:
-                    firm.sale(amount_per_firm,
-                              self.sim.regions,
-                              self.sim.PARAMS['TAX_CONSUMPTION'],
-                              firm.region_id,
-                              if_origin=self.sim.PARAMS['TAX_ON_ORIGIN'],
-                              external=True)
+            extra = recycle * amount / total_demand if recycle else 0.0
+            amount_per_firm = (amount + extra) / len(chosen_firms[sector])
+            sold = 0.0
+            # Buys from firms
+            for firm in chosen_firms[sector]:
+                sold += amount_per_firm - firm.sale(amount_per_firm,
+                                                    self.sim.regions,
+                                                    self.sim.PARAMS['TAX_CONSUMPTION'],
+                                                    firm.region_id,
+                                                    if_origin=self.sim.PARAMS['TAX_ON_ORIGIN'],
+                                                    external=True)
+            exported += sold * amount / (amount + extra)
+            recycled += sold * extra / (amount + extra)
+        self.recycle_pending -= recycled
+
+        self.net_position += exported + recycled - (self.imports_month - self.import_tax_month)
+        self.last_month = {'imports': self.imports_month, 'exports': exported, 'recycled': recycled}
+        self.imports_month, self.import_tax_month = 0.0, 0.0
 
     def collect_transfer_consumption_tax(self):
         taxes = self.taxes_paid * self.tax_consumption

@@ -128,6 +128,13 @@ OUTPUT_DATA_SPEC = {
                     "firms_count",
                     "firms_entered",
                     "firms_exited",
+                    # External account (defect #27): monthly imports, exports and recycled demand; cumulative net
+                    # position and external public funding
+                    "ext_imports",
+                    "ext_exports",
+                    "ext_recycled",
+                    "ext_net_position",
+                    "ext_public_funding",
                     ]
     },
     'families': {
@@ -259,11 +266,17 @@ OUTPUT_DATA_SPEC = {
 
 
 FIRM_DEMOGRAPHY_COLUMNS = ('firms_count', 'firms_entered', 'firms_exited')
+EXTERNAL_ACCOUNT_COLUMNS = ('ext_imports', 'ext_exports', 'ext_recycled', 'ext_net_position', 'ext_public_funding')
+
+
+def _legacy_stats_columns_no_external_account():
+    """`stats` layout before 2026-09-29: no external account columns."""
+    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c not in EXTERNAL_ACCOUNT_COLUMNS]
 
 
 def _legacy_stats_columns_no_firm_demography():
     """`stats` layout before 2026-09-28: no firm demography columns."""
-    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c not in FIRM_DEMOGRAPHY_COLUMNS]
+    return [c for c in _legacy_stats_columns_no_external_account() if c not in FIRM_DEMOGRAPHY_COLUMNS]
 
 
 def _legacy_stats_columns():
@@ -271,7 +284,7 @@ def _legacy_stats_columns():
     denied_zero_capped_amount, no pct_renters_zero_income, and the decile block
     carries affordability_decis_* rather than rent_burden_decis_*."""
     dropped = {'denied_zero_capped_amount', 'denied_no_loan_needed',
-               'pct_renters_zero_income', *FIRM_DEMOGRAPHY_COLUMNS}
+               'pct_renters_zero_income', *FIRM_DEMOGRAPHY_COLUMNS, *EXTERNAL_ACCOUNT_COLUMNS}
     cols = [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c not in dropped]
     return [c.replace('rent_burden_decis_', 'affordability_decis_') for c in cols]
 
@@ -307,7 +320,8 @@ def _legacy_regional_columns_single_pot():
 
 
 LEGACY_COLUMNS = {
-    'stats': [_legacy_stats_columns_no_firm_demography(), _legacy_stats_columns()],
+    'stats': [_legacy_stats_columns_no_external_account(), _legacy_stats_columns_no_firm_demography(),
+              _legacy_stats_columns()],
     'regional': [_legacy_regional_columns_no_qli_drivers(),
                  _legacy_regional_columns_no_melhorias_stops(),
                  _legacy_regional_columns_single_pot(),
@@ -499,6 +513,12 @@ class Output:
         stats_row["firms_count"] = len(firm_ids)
         stats_row["firms_entered"] = len(firm_ids - prev_ids) if prev_ids is not None else 0
         stats_row["firms_exited"] = len(prev_ids - firm_ids) if prev_ids is not None else 0
+        ext = sim.external
+        stats_row["ext_imports"] = ext.last_month['imports']
+        stats_row["ext_exports"] = ext.last_month['exports']
+        stats_row["ext_recycled"] = ext.last_month['recycled']
+        stats_row["ext_net_position"] = ext.net_position
+        stats_row["ext_public_funding"] = sim.funds.external_public_funding
         self._prev_firm_ids = firm_ids
 
         for i, v in enumerate(families_results["rent_burden_decis"], start=1):
