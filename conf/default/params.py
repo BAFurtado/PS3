@@ -292,10 +292,12 @@ TAX_TRANSPORT = 0
 
 # EMISSIONS POLICIES ######################################################
 # Taxes on emission are given by tax * total_emissions. Roughly R$ * tonCO2. .1 is about R$10
-TAX_EMISSION = 0.01
+# Brazil taxes no emissions: 0 in the baseline; policy arms set it (runner_emissions.py)
+TAX_EMISSION = 0
 # Subsidies in (0,1) is the amount of investment paid by the gov(subsidies * total_invested)
-# 0 is none, 1 is full
-ECO_INVESTMENT_SUBSIDIES = 0.2
+# 0 is none, 1 is full. With TAX_EMISSION = 0 a subsidy is paid unfunded (Firm.decision_on_eco_efficiency),
+# so the baseline keeps both off
+ECO_INVESTMENT_SUBSIDIES = 0
 TARGETED_SUBSIDIES = False
 TARGETED_SECTORS = ['Agriculture', 'Transport', 'Utilities']
 CARBON_TAX_RECYCLING = False
