@@ -16,7 +16,7 @@ import analysis
 import conf
 import markets
 from world import Generator, demographics, clock, population
-from world.firms import firm_growth
+from world.firms import firm_growth, firm_exit, size_initial_capital
 from world.funds import Funds
 from world.geography import Geography, STATES_CODES, state_string
 from world.transport import TransportNetwork
@@ -65,6 +65,12 @@ class Simulation:
         self.reg_pops = defaultdict(int)
         self.demographics = demographics
         self.grave = list()
+        # Exited firms by id (FIRM_EXIT_MONTHS), with exit_date and exit_reason set
+        self.firm_grave = dict()
+        # Negative balances written off at exit (money already paid out that the firm did not have)
+        self.firm_exit_writeoff = 0.0
+        # Entries skipped because the sector's incumbents had too little capital above their buffer
+        self.firm_entry_unfunded = 0
         self.mun_to_regions = defaultdict(set)
         # Read necessary files — loaded as dicts for fast O(1) lookup in demographics
         self.m_men, self.m_women, self.f = dict(), dict(), dict()
@@ -246,6 +252,7 @@ class Simulation:
             self.labor_market.look_for_jobs(self.agents)
             actual = self.labor_market.num_candidates
         self.labor_market.reset()
+        size_initial_capital(self)
 
         for i, family in enumerate(self.families.values()):
             head_family = max(family.members.values(), key=lambda x: x.last_wage)
@@ -289,7 +296,8 @@ class Simulation:
         for region in self.regions.values():
             region.licenses += self.seed_np.poisson(lam=licenses_per_region)
 
-        # Create new firms according to average historical growth
+        # Firms that stayed insolvent or idle leave, then new firms enter according to average historical growth
+        firm_exit(self)
         firm_growth(self)
 
         # Update firm products

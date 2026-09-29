@@ -648,9 +648,11 @@ class Funds:
         """GOV_REVISED: balanced budget. A municipality's public revenue (its FPM, local taxes and share of the taxes
         divided equally) is spent, in order, on: (1) its public payroll, the Government headcount at GOV_WAGE_RATIO
         times the municipality's mean private wage per worker, capped by what the budget affords; (2) government
-        purchases, in the input-output ratio of goods to own output in government consumption; (3) policy money
+        purchases, in the input-output ratio of goods to own output in government consumption, and the inputs of
+        public production, in the Government column's input share of output; (3) policy money
         (POLICY_COEFFICIENT); (4) public investment with the rest, bought in the input-output FBCF shares. (2) and (4)
-        go to funds the Government firms spend on goods (GovernmentFirm.spend_funds), never their start-up capital.
+        go to funds the Government firms spend on goods (GovernmentFirm.spend_fund, buy_inputs), never their
+        start-up capital.
         (3) and (4) are also recorded as the regions' applied public money, which the QLI fiscal leg reads.
         Nothing is created or lost. A municipality without Government firms has its purchases and investment
         spent by the ACP's Government firms. The old path gave each municipality's firms the whole 'equally'
@@ -659,6 +661,11 @@ class Funds:
         params = self.sim.PARAMS
         gcp = self.gov_consumption_parameter
         goods_per_wage = (1 - gcp) / gcp
+        # Public production inputs per unit of payroll: the Government column of the technical matrices (local and
+        # external) is the input share of public output, which is valued at cost (payroll + inputs)
+        market = self.sim.regional_market
+        input_share = float(market._tech_np['Government'].sum() + market._ext_local_np['Government'].sum())
+        inputs_per_wage = input_share / (1 - input_share)
 
         # Reference private wage: last month's wage bill per worker of staffed, paying non-Government firms
         bill, heads = defaultdict(float), defaultdict(int)
@@ -678,9 +685,10 @@ class Funds:
             staff = sum(f.num_employees for f in firms)
             wage = params['GOV_WAGE_RATIO'] * (bill[mun] / heads[mun] if heads[mun] else acp_wage)
             if staff > 0:
-                wage = min(wage, budget / (staff * (1 + goods_per_wage)))
+                wage = min(wage, budget / (staff * (1 + goods_per_wage + inputs_per_wage)))
             payroll = wage * staff
             purchases = payroll * goods_per_wage
+            inputs = payroll * inputs_per_wage
             for f in firms:
                 f.budget_first = True
                 # Empty firms offer the same wage, so they can be staffed again
@@ -688,7 +696,8 @@ class Funds:
                 if staff > 0 and f.num_employees > 0:
                     f.government_transfer(payroll * f.num_employees / staff)
                     f.purchase_fund += purchases * f.num_employees / staff
-            rest = budget - payroll - purchases
+                    f.input_fund += inputs * f.num_employees / staff
+            rest = budget - payroll - purchases - inputs
             share = rest / budget if budget > 0 else 0.0
             investment = 0.0
             for id in ids:

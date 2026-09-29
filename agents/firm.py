@@ -43,6 +43,13 @@ class Firm:
     pending_replacements = 0
     # Growth vacancies from the last production decision: workers needed to meet sales plus the stock target.
     workers_needed = 1
+    # Share of capital advanced as revenue in a month without sales (FIRM_CAPITAL_MONTHS sets it to 1/months)
+    cold_start_share = 0.001
+    # Consecutive months insolvent / idle (FIRM_EXIT_MONTHS); set when the firm exits
+    months_insolvent = 0
+    months_idle = 0
+    exit_date = None
+    exit_reason = None
 
     def __init__(
             self,
@@ -528,7 +535,7 @@ class Firm:
         # Cold-start fallback: in months with zero sales revenue (typically month 1),
         # advance a small fraction of capital as implicit revenue so workers receive
         # non-zero wages and bootstrap household permanent income.
-        effective_revenue = self.revenue if self.revenue > 0 else self.total_balance * 0.001
+        effective_revenue = self.revenue if self.revenue > 0 else self.total_balance * self.cold_start_share
         # Exponential discount: labor_share = exp(-u * relevance). Approaches 0 asymptotically
         # as unemployment rises; equals ~0.94 at equilibrium 4% unemployment (same as old linear).
         # Replaces linear (1 - u*relevance) which crossed zero at u = 1/relevance ≈ 67%.
@@ -609,6 +616,12 @@ class Firm:
     def get_total_balance(self):
         return self.total_balance
 
+    def capacity_value(self, prod_exponent, prod_divisor):
+        """Value of a month's output of the current staff at the current price, the scale of its monthly cost"""
+        if not self.employees or not self.inventory:
+            return 0.0
+        return self.total_qualification(prod_exponent) / prod_divisor * self.prices
+
     def __repr__(self):
         return "FirmID: %s, $ %d, Emp. %d, Quant. %d, Address: %s at %s" % (
             self.id,
@@ -637,6 +650,9 @@ class UtilitiesFirm(Firm):
 
 
 class ConstructionFirm(Firm):
+    # Land bought, spread by month over CONSTRUCTION_ACC_CASH_FLOW months and recovered before wages (with
+    # FIRM_CAPITAL_MONTHS > 0). Class-level default so builders unpickled from an older cache have it.
+    land_schedule = None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -731,13 +747,17 @@ class ConstructionFirm(Firm):
             params['MAX_OFFER_PREMIUM']), params['MAX_OFFER_DISCOUNT'])
 
         profitable_regions = []
+        free_cash = self.free_cash() - params.get('FIRM_CAPITAL_MONTHS', 0) * self.capacity_value(
+            params['PRODUCTIVITY_EXPONENT'], params['PRODUCTIVITY_MAGNITUDE_DIVISOR'])
         for r in regions:
             expected_price = building_quality * r.index * building_size * vacancy_factor
             profit = expected_price - (
                     r.license_price * building_cost * (1 + params["LOT_COST"])
             )
 
-            if profit > 0:
+            # The firm must be able to pay for the land (LOT_COST share) from cash not owed as wages and above its
+            # working-capital buffer (FIRM_CAPITAL_MONTHS), not just hold one license price
+            if profit > 0 and free_cash >= r.license_price * building_cost * params["LOT_COST"]:
                 profitable_regions.append(r)
 
         if not profitable_regions:
@@ -768,6 +788,17 @@ class ConstructionFirm(Firm):
         cost_of_land = region.license_price * building_cost * params["LOT_COST"]
         self.total_balance -= cost_of_land
         region.collect_taxes(cost_of_land, "transaction")
+        if params.get('FIRM_CAPITAL_MONTHS', 0) > 0:
+            # Land is recovered from the next months' revenue before wages, as sales are paid out through
+            # cash_flow, so the builder keeps enough back to buy the next plot. Planning runs after this month's
+            # payment, so recovery starts next month.
+            if self.land_schedule is None:
+                self.land_schedule = defaultdict(float)
+            months = int(params['CONSTRUCTION_ACC_CASH_FLOW'])
+            date = self.present
+            for _ in range(months):
+                date += relativedelta.relativedelta(months=+1)
+                self.land_schedule[date] += cost_of_land / months
 
     def labor_signals(self, params):
         """
@@ -855,15 +886,29 @@ class ConstructionFirm(Firm):
                 self.cash_flow[date] += amount / acc_months
                 date += relativedelta.relativedelta(months=+1)
 
+    def wage_base(self, unemployment, relevance_unemployment):
+        # This month's land recovery is a cost before wages, like inputs; not booked as input_cost, so GDP is unchanged
+        land = self.land_schedule.get(self.present, 0.0) if self.land_schedule else 0.0
+        self.input_cost += land
+        try:
+            return super().wage_base(unemployment, relevance_unemployment)
+        finally:
+            self.input_cost -= land
+
+    def free_cash(self):
+        """Balance not yet owed as wages: sale proceeds are banked at once but paid out through cash_flow over
+        CONSTRUCTION_ACC_CASH_FLOW months, so the months still to come are already committed"""
+        return self.total_balance - sum(v for d, v in self.cash_flow.items() if d >= self.present)
+
     def make_payment(self, *args, **kwargs):
         # House sales reach revenue through cash_flow, smoothed over CONSTRUCTION_ACC_CASH_FLOW months.
         # Added once a month, on top of goods sales already in self.revenue, so that wages (inherited
         # Firm.wage_base, net of input_cost), taxes and profit all see both streams.
         # Not done inside wage_base: the labor market calls wage_base repeatedly to rank postings.
         house_revenue = self.cash_flow[self.present]
-        # Using temporary planned income before money starts to flow in
+        # Using temporary planned income before money starts to flow in, advanced from capital only as far as it goes
         if house_revenue == 0 and self.monthly_planned_revenue:
-            house_revenue = self.monthly_planned_revenue[-1]
+            house_revenue = min(self.monthly_planned_revenue[-1], max(self.free_cash(), 0))
         self.revenue += house_revenue
         super().make_payment(*args, **kwargs)
 
@@ -911,6 +956,7 @@ class GovernmentFirm(Firm):
     public_wage = 0.0
     purchase_fund = 0.0
     investment_fund = 0.0
+    input_fund = 0.0
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -922,6 +968,24 @@ class GovernmentFirm(Firm):
         super().reset_amount_sold()
         self._transfer_prev = self._transfer_current
         self._transfer_current = 0.0
+
+    def buy_inputs(self, desired_quantity, regional_market, firms, seed,
+                   technical_matrix, external_technical_matrix,
+                   prebuilt_sector_map=None):
+        if not self.budget_first:
+            return super().buy_inputs(desired_quantity, regional_market, firms, seed, technical_matrix,
+                                      external_technical_matrix, prebuilt_sector_map)
+        # GOV_REVISED: inputs are paid from the budget's input fund, not the start-up capital. Public output is valued
+        # at cost, so what is spent on inputs is also revenue and public value added stays equal to the payroll.
+        # What the fund does not buy joins this month's purchases (consume runs after production).
+        capital = self.total_balance
+        self.total_balance = self.input_fund
+        super().buy_inputs(desired_quantity, regional_market, firms, seed, technical_matrix,
+                           external_technical_matrix, prebuilt_sector_map)
+        self.purchase_fund += self.total_balance
+        self.input_fund = 0.0
+        self.total_balance = capital
+        self.revenue += self.input_cost
 
     def consume(self, sim):
         # As long as we provide labor and total_balance, the other methods are OK to use methods from regular firm

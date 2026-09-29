@@ -465,6 +465,10 @@ class Generator:
         sector = dict()
         if firm_sectors is None:
             p = self.sector_shares()
+            if self.sim.PARAMS.get('GOV_REVISED', False):
+                # Public headcount is exogenous (RAIS) and its budget is shared by the existing Government firms
+                p = p.drop('Government', errors='ignore')
+                p = p / p.sum()
             firm_sectors = list(self.sim.seed_np.choice(list(p.index), size=num_firms, p=list(p.values)))
         num_firms_by_sector = defaultdict(int)
         for key in firm_sectors:
