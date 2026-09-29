@@ -124,6 +124,10 @@ OUTPUT_DATA_SPEC = {
                     "denied_funding_keyerror",
                     "denied_liquidity_reserve",
                     "denied_bank_limit",
+                    # Firm demography: stock, and entries and exits since the previous month
+                    "firms_count",
+                    "firms_entered",
+                    "firms_exited",
                     ]
     },
     'families': {
@@ -254,12 +258,20 @@ OUTPUT_DATA_SPEC = {
 }
 
 
+FIRM_DEMOGRAPHY_COLUMNS = ('firms_count', 'firms_entered', 'firms_exited')
+
+
+def _legacy_stats_columns_no_firm_demography():
+    """`stats` layout before 2026-09-28: no firm demography columns."""
+    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c not in FIRM_DEMOGRAPHY_COLUMNS]
+
+
 def _legacy_stats_columns():
     """`stats` layout used by batches before 2026-08-01: no
     denied_zero_capped_amount, no pct_renters_zero_income, and the decile block
     carries affordability_decis_* rather than rent_burden_decis_*."""
     dropped = {'denied_zero_capped_amount', 'denied_no_loan_needed',
-               'pct_renters_zero_income'}
+               'pct_renters_zero_income', *FIRM_DEMOGRAPHY_COLUMNS}
     cols = [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c not in dropped]
     return [c.replace('rent_burden_decis_', 'affordability_decis_') for c in cols]
 
@@ -295,7 +307,7 @@ def _legacy_regional_columns_single_pot():
 
 
 LEGACY_COLUMNS = {
-    'stats': [_legacy_stats_columns()],
+    'stats': [_legacy_stats_columns_no_firm_demography(), _legacy_stats_columns()],
     'regional': [_legacy_regional_columns_no_qli_drivers(),
                  _legacy_regional_columns_no_melhorias_stops(),
                  _legacy_regional_columns_single_pot(),
@@ -480,6 +492,14 @@ class Output:
             "denied_liquidity_reserve": bank.loan_stats["denied_liquidity_reserve"],
             "denied_bank_limit": bank.loan_stats["denied_bank_limit"],
         }
+
+        # Firm demography, by id so that any removal counts as an exit
+        firm_ids = set(sim.firms)
+        prev_ids = getattr(self, '_prev_firm_ids', None)
+        stats_row["firms_count"] = len(firm_ids)
+        stats_row["firms_entered"] = len(firm_ids - prev_ids) if prev_ids is not None else 0
+        stats_row["firms_exited"] = len(prev_ids - firm_ids) if prev_ids is not None else 0
+        self._prev_firm_ids = firm_ids
 
         for i, v in enumerate(families_results["rent_burden_decis"], start=1):
             stats_row[f"rent_burden_decis_{i}"] = v

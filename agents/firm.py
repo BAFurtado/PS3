@@ -576,6 +576,8 @@ class Firm:
                 self.wages_paid = 0
                 self.months_unpaid += 1
         else:
+            # No staff, no wage bill: a stale value would keep entering calculate_profit and pay_taxes
+            self.wages_paid = 0
             self.months_unpaid = 0
 
     # Human resources department #################
