@@ -69,7 +69,10 @@ PLANNED_GROWTH_POSTS = True
 # share, and let Government firms spend their start-up capital as demand.
 GOV_REVISED = True
 # Public wage per worker as a multiple of the municipality's mean private wage per worker.
-# 1.0 is a placeholder until the RAIS public/private ratio is sourced.
+# GOV_WAGE_RATIO_BY_MUN = True: each municipality's observed public/private ratio (input/gov_wage_ratio.csv, IBGE
+# CEMPRE 2010-2019, public administration vs the rest; built by auxiliary/gov_wage_ratio.py), times GOV_WAGE_RATIO as
+# a scale. False = GOV_WAGE_RATIO alone, the same in every municipality.
+GOV_WAGE_RATIO_BY_MUN = True
 GOV_WAGE_RATIO = 1.0
 # Percentage of employees' firms hired by distance
 PCT_DISTANCE_HIRING = 0.2

@@ -20,6 +20,11 @@ class Funds:
         # settle_government_budget pays the public payroll and purchases and passes the rest on to the regions.
         self.pending_public_money = defaultdict(lambda: defaultdict(float))
         self.gov_consumption_parameter = self.sim.regional_market.final_demand['GovernmentConsumption']['Government']
+        # GOV_WAGE_RATIO_BY_MUN: observed public/private wage ratio per municipality (7-digit code as str)
+        self.gov_wage_ratio = defaultdict(lambda: 1.0)
+        if sim.PARAMS.get('GOV_WAGE_RATIO_BY_MUN', False):
+            ratios = pd.read_csv('input/gov_wage_ratio.csv', sep=';')
+            self.gov_wage_ratio.update(zip(ratios.cod_mun.astype(str), ratios.ratio))
         self.perc_policy_money_spent = 0
         self.allocated_money = 0
         # Per-municipality diagnostics of the two OGU programmes, refreshed every
@@ -28,6 +33,9 @@ class Funds:
         # *why* the programme stopped; these can.
         self.mcmv_diag = {}
         self.melhorias_diag = {}
+        # GOV_REVISED: per municipality, last month's public budget, wage target (ratio x private wage), wage paid,
+        # payroll and public investment
+        self.gov_budget_diag = {}
         if sim.PARAMS['FPM_DISTRIBUTION']:
             self.fpm = {
                 state: pd.read_csv('input/fpm/%s.csv' % state, sep=',', header=0, decimal='.', encoding='latin1')
@@ -647,7 +655,8 @@ class Funds:
     def settle_government_budget(self, regions):
         """GOV_REVISED: balanced budget. A municipality's public revenue (its FPM, local taxes and share of the taxes
         divided equally) is spent, in order, on: (1) its public payroll, the Government headcount at GOV_WAGE_RATIO
-        times the municipality's mean private wage per worker, capped by what the budget affords; (2) government
+        (times the municipality's observed ratio, GOV_WAGE_RATIO_BY_MUN) times its mean private wage per worker,
+        capped by what the budget affords; (2) government
         purchases, in the input-output ratio of goods to own output in government consumption, and the inputs of
         public production, in the Government column's input share of output; (3) policy money
         (POLICY_COEFFICIENT); (4) public investment with the rest, bought in the input-output FBCF shares. (2) and (4)
@@ -683,7 +692,9 @@ class Funds:
             budget = max(0.0, sum(sum(self.pending_public_money[id].values()) for id in ids))
             firms = self.mun_gov_firms[int(mun)]
             staff = sum(f.num_employees for f in firms)
-            wage = params['GOV_WAGE_RATIO'] * (bill[mun] / heads[mun] if heads[mun] else acp_wage)
+            wage = (params['GOV_WAGE_RATIO'] * self.gov_wage_ratio[mun]
+                    * (bill[mun] / heads[mun] if heads[mun] else acp_wage))
+            target = wage
             if staff > 0:
                 wage = min(wage, budget / (staff * (1 + goods_per_wage + inputs_per_wage)))
             payroll = wage * staff
@@ -708,6 +719,8 @@ class Funds:
                         amount *= 1 - params['POLICY_COEFFICIENT']
                     regions[id].update_applied_taxes(amount, key)
                     investment += amount
+            self.gov_budget_diag[mun] = dict(budget=budget, target_wage=target, wage=wage, staff=staff,
+                                             payroll=payroll, investment=investment)
             spenders = firms or all_gov
             if spenders:
                 for f in spenders:

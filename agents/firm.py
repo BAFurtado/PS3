@@ -356,7 +356,9 @@ class Firm:
                 self.total_balance -= freight_extra
                 money_external += freight_cost * change
             else:
-                money_external += self.total_balance
+                # Not enough left for the freight: what local sellers did not sell, plus the rest of the balance,
+                # buys externally (it used to be dropped, destroying the unsold local money)
+                money_external += change + self.total_balance
                 self.total_balance = 0.0
 
             # External purchase
