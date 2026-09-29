@@ -87,9 +87,9 @@ class LaborMarket:
 
         # Choosing by qualification
         # Firms paying higher wages first
-        by_qual = [(f, f.wage_base(unemployment, relevance_unemployment)) for f in by_qual]
+        by_qual = [(f, f.offer_wage(unemployment, relevance_unemployment)) for f in by_qual]
         by_qual.sort(key=lambda p: p[1], reverse=True)
-        by_dist = [(f, f.wage_base(unemployment, relevance_unemployment)) for f in by_dist]
+        by_dist = [(f, f.offer_wage(unemployment, relevance_unemployment)) for f in by_dist]
         by_dist.sort(key=lambda p: p[1], reverse=True)
 
         # Two matching processes. 1. By qualification 2. By distance only, if candidates left

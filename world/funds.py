@@ -20,11 +20,20 @@ class Funds:
         # settle_government_budget pays the public payroll and purchases and passes the rest on to the regions.
         self.pending_public_money = defaultdict(lambda: defaultdict(float))
         self.gov_consumption_parameter = self.sim.regional_market.final_demand['GovernmentConsumption']['Government']
-        # GOV_WAGE_RATIO_BY_MUN: observed public/private wage ratio per municipality (7-digit code as str)
+        # GOV_WAGE_RULE inputs, keyed by 7-digit municipality code as str: observed raw public/private wage ratio
+        # ('cempre_ratio') and the share of public jobs by level of government ('premium', GOV_EXTERNAL_FUNDING)
         self.gov_wage_ratio = defaultdict(lambda: 1.0)
-        if sim.PARAMS.get('GOV_WAGE_RATIO_BY_MUN', False):
+        self.gov_levels = defaultdict(lambda: {'federal': 0.0, 'estadual': 0.0, 'municipal': 1.0})
+        rule = sim.PARAMS.get('GOV_WAGE_RULE', 'uniform')
+        if rule == 'cempre_ratio':
             ratios = pd.read_csv('input/gov_wage_ratio.csv', sep=';')
             self.gov_wage_ratio.update(zip(ratios.cod_mun.astype(str), ratios.ratio))
+        if rule == 'premium' or sim.PARAMS.get('GOV_EXTERNAL_FUNDING', False):
+            levels = pd.read_csv('input/gov_levels.csv', sep=';')
+            self.gov_levels.update({str(r.cod_mun): {'federal': r.federal, 'estadual': r.estadual,
+                                                     'municipal': r.municipal} for r in levels.itertuples()})
+        # GOV_EXTERNAL_FUNDING: money paid in from outside the ACP for federal and state public staff, cumulative
+        self.external_public_funding = 0.0
         self.perc_policy_money_spent = 0
         self.allocated_money = 0
         # Per-municipality diagnostics of the two OGU programmes, refreshed every
@@ -33,8 +42,8 @@ class Funds:
         # *why* the programme stopped; these can.
         self.mcmv_diag = {}
         self.melhorias_diag = {}
-        # GOV_REVISED: per municipality, last month's public budget, wage target (ratio x private wage), wage paid,
-        # payroll and public investment
+        # GOV_REVISED: per municipality, last month's public budget, external funding, target payroll, wage paid per
+        # worker, payroll and public investment
         self.gov_budget_diag = {}
         if sim.PARAMS['FPM_DISTRIBUTION']:
             self.fpm = {
@@ -654,19 +663,21 @@ class Funds:
 
     def settle_government_budget(self, regions):
         """GOV_REVISED: balanced budget. A municipality's public revenue (its FPM, local taxes and share of the taxes
-        divided equally) is spent, in order, on: (1) its public payroll, the Government headcount at GOV_WAGE_RATIO
-        (times the municipality's observed ratio, GOV_WAGE_RATIO_BY_MUN) times its mean private wage per worker,
-        capped by what the budget affords; (2) government
-        purchases, in the input-output ratio of goods to own output in government consumption, and the inputs of
-        public production, in the Government column's input share of output; (3) policy money
-        (POLICY_COEFFICIENT); (4) public investment with the rest, bought in the input-output FBCF shares. (2) and (4)
-        go to funds the Government firms spend on goods (GovernmentFirm.spend_fund, buy_inputs), never their
-        start-up capital.
+        divided equally) is spent, in order, on: (1) its public payroll, set by GOV_WAGE_RULE ('premium': private
+        pay per unit of qualification times one plus the premium of its mix of federal, state and municipal jobs, for
+        the qualification Government employs; 'cempre_ratio' or 'uniform': a ratio times the mean private wage per
+        worker); (2) government purchases, in the input-output ratio of goods to own output in government
+        consumption, and the inputs of public production, in the Government column's input share of output;
+        (3) policy money (POLICY_COEFFICIENT); (4) public investment with the rest, bought in the input-output FBCF
+        shares. (2) and (4) go to funds the Government firms spend on goods (GovernmentFirm.spend_fund,
+        buy_inputs), never their start-up capital. If (1) and (2) cost more than the budget, GOV_EXTERNAL_FUNDING
+        pays the shortfall from outside the ACP up to the non-municipal share of that cost (federal and state staff
+        are paid from national and state revenue); whatever is still short scales the payroll down.
         (3) and (4) are also recorded as the regions' applied public money, which the QLI fiscal leg reads.
-        Nothing is created or lost. A municipality without Government firms has its purchases and investment
-        spent by the ACP's Government firms. The old path gave each municipality's firms the whole 'equally'
-        share (x number of municipalities), none of the FPM and local shares (str/int key mismatch), and
-        destroyed the regions' share."""
+        Nothing is created or lost except the external inflow, counted in external_public_funding. A municipality
+        without Government firms has its purchases and investment spent by the ACP's Government firms. The old path
+        gave each municipality's firms the whole 'equally' share (x number of municipalities), none of the FPM and
+        local shares (str/int key mismatch), and destroyed the regions' share."""
         params = self.sim.PARAMS
         gcp = self.gov_consumption_parameter
         goods_per_wage = (1 - gcp) / gcp
@@ -676,14 +687,22 @@ class Funds:
         input_share = float(market._tech_np['Government'].sum() + market._ext_local_np['Government'].sum())
         inputs_per_wage = input_share / (1 - input_share)
 
-        # Reference private wage: last month's wage bill per worker of staffed, paying non-Government firms
-        bill, heads = defaultdict(float), defaultdict(int)
+        # Reference private wage: last month's wage bill per worker, and per unit of qualification ** alpha (the split
+        # make_payment uses), of staffed, paying non-Government firms
+        alpha = params['PRODUCTIVITY_EXPONENT']
+        rule = params.get('GOV_WAGE_RULE', 'uniform')
+        bill, heads, quals = defaultdict(float), defaultdict(int), defaultdict(float)
         for f in self.sim.firms.values():
             if f.sector != 'Government' and f.num_employees > 0 and f.wages_paid > 0:
                 bill[f.region_id[:7]] += f.wages_paid
                 heads[f.region_id[:7]] += f.num_employees
+                quals[f.region_id[:7]] += f.total_qualification(alpha)
         acp_wage = sum(bill.values()) / sum(heads.values()) if heads else 0.0
+        acp_unit = sum(bill.values()) / sum(quals.values()) if quals else 0.0
         all_gov = [f for firms in self.mun_gov_firms.values() for f in firms]
+        premia = {'federal': params.get('GOV_PREMIUM_FEDERAL', 0.0), 'estadual': params.get('GOV_PREMIUM_STATE', 0.0),
+                  'municipal': params.get('GOV_PREMIUM_MUNICIPAL', 0.0)}
+        per_wage = 1 + goods_per_wage + inputs_per_wage
 
         by_mun = defaultdict(list)
         for id in self.pending_public_money:
@@ -692,24 +711,40 @@ class Funds:
             budget = max(0.0, sum(sum(self.pending_public_money[id].values()) for id in ids))
             firms = self.mun_gov_firms[int(mun)]
             staff = sum(f.num_employees for f in firms)
-            wage = (params['GOV_WAGE_RATIO'] * self.gov_wage_ratio[mun]
-                    * (bill[mun] / heads[mun] if heads[mun] else acp_wage))
-            target = wage
-            if staff > 0:
-                wage = min(wage, budget / (staff * (1 + goods_per_wage + inputs_per_wage)))
-            payroll = wage * staff
+            private_wage = bill[mun] / heads[mun] if heads[mun] else acp_wage
+            levels = self.gov_levels[mun]
+            if rule == 'premium':
+                markup = 1 + sum(levels[k] * premia[k] for k in premia)
+                unit = bill[mun] / quals[mun] if quals[mun] else acp_unit
+                offer = markup * private_wage
+                target = markup * unit * sum(f.total_qualification(alpha) for f in firms)
+            else:
+                ratio = params['GOV_WAGE_RATIO'] * (self.gov_wage_ratio[mun] if rule == 'cempre_ratio' else 1.0)
+                offer = ratio * private_wage
+                target = offer * staff
+            # Federal and state staff are paid from outside the ACP when the municipality's budget falls short
+            need = target * per_wage
+            external = 0.0
+            if params.get('GOV_EXTERNAL_FUNDING', False) and need > budget:
+                external = min(need - budget, (1 - levels['municipal']) * need)
+                self.external_public_funding += external
+            available = budget + external
+            payroll = target * min(1.0, available / need) if need > 0 else 0.0
+            wage = payroll / staff if staff > 0 else offer
             purchases = payroll * goods_per_wage
             inputs = payroll * inputs_per_wage
             for f in firms:
                 f.budget_first = True
-                # Empty firms offer the same wage, so they can be staffed again
+                # Per-worker pay (wage_base, make_payment) and the offer job seekers see (offer_wage); empty firms
+                # offer the same, so they can be staffed again
                 f.public_wage = wage
+                f.public_offer = offer * min(1.0, available / need) if need > 0 else offer
                 if staff > 0 and f.num_employees > 0:
                     f.government_transfer(payroll * f.num_employees / staff)
                     f.purchase_fund += purchases * f.num_employees / staff
                     f.input_fund += inputs * f.num_employees / staff
-            rest = budget - payroll - purchases - inputs
-            share = rest / budget if budget > 0 else 0.0
+            rest = max(0.0, available - payroll - purchases - inputs)
+            share = min(1.0, rest / budget) if budget > 0 else 0.0
             investment = 0.0
             for id in ids:
                 for key, amount in self.pending_public_money[id].items():
@@ -719,7 +754,7 @@ class Funds:
                         amount *= 1 - params['POLICY_COEFFICIENT']
                     regions[id].update_applied_taxes(amount, key)
                     investment += amount
-            self.gov_budget_diag[mun] = dict(budget=budget, target_wage=target, wage=wage, staff=staff,
+            self.gov_budget_diag[mun] = dict(budget=budget, external=external, target=target, wage=wage, staff=staff,
                                              payroll=payroll, investment=investment)
             spenders = firms or all_gov
             if spenders:

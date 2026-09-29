@@ -528,6 +528,10 @@ class Firm:
             [employee.qualification ** alpha for employee in self.employees.values()]
         )
 
+    def offer_wage(self, unemployment, relevance_unemployment):
+        # The wage job seekers compare when the labour market ranks postings: the wage per worker, except for Government
+        return self.wage_base(unemployment, relevance_unemployment)
+
     def wage_base(self, unemployment, relevance_unemployment):
         # Observing global economic performance to set salaries,
         # guarantees that firms do not spend all revenue on salaries
@@ -956,6 +960,7 @@ class GovernmentFirm(Firm):
     # an older population cache have them.
     budget_first = False
     public_wage = 0.0
+    public_offer = 0.0
     purchase_fund = 0.0
     investment_fund = 0.0
     input_fund = 0.0
@@ -1060,6 +1065,14 @@ class GovernmentFirm(Firm):
             self.taxes_paid = 0
             return
         super().pay_taxes(regions, tax_firm)
+
+    def offer_wage(self, unemployment, relevance_unemployment):
+        # Under GOV_REVISED the offer is the public wage for an average private worker, set apart from the pay per
+        # worker, which rises with the qualification Government already employs (GOV_WAGE_RULE 'premium'). Ranking
+        # on the pay per worker would let a well-staffed public sector outbid every firm for the best candidates.
+        if self.budget_first and self.public_offer > 0:
+            return self.public_offer
+        return self.wage_base(unemployment, relevance_unemployment)
 
     def wage_base(self, unemployment, relevance_unemployment):
         if self.budget_first:
