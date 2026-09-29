@@ -92,5 +92,148 @@ def firm_growth(sim):
         for _ in range(growth):
             region_id = sim.seed_np.choice(regions, size=1, replace=True, p=region_ps)[0]
             region = sim.regions[region_id]
+            if sim.PARAMS.get('FIRM_CAPITAL_MONTHS', 0) > 0:
+                fund_entrant(sim, region)
+                continue
             firm = list(sim.generator.create_firms(1, region).values())[0]
             sim.firms[firm.id] = firm
+
+
+def project_floor(sim):
+    """Cost of one median project (ConstructionFirm.plan_house) at the dearest license price: its land (LOT_COST
+    share) plus the building cost it advances as wages before the first sale. Fixed at start-up, like the other
+    capital scales."""
+    if not hasattr(sim, '_project_floor'):
+        costs = [h.size * h.quality for h in sim.houses.values()]
+        licence = max(r.license_price for r in sim.regions.values())
+        cost = licence * float(np.median(costs)) if costs else 0.0
+        sim._project_floor = cost * (sim.PARAMS['LOT_COST'] + 1 / sim.PARAMS['HOUSE_PRODUCTION_ADEQUACY'])
+    return sim._project_floor
+
+
+def capital_need(sim, sector, capacity):
+    """FIRM_CAPITAL_MONTHS of monthly cost; a builder CONSTRUCTION_CAPITAL_MONTHS, and at least one median project"""
+    need = sim.PARAMS['FIRM_CAPITAL_MONTHS'] * capacity
+    if sector == 'Construction':
+        need = max(sim.PARAMS['CONSTRUCTION_CAPITAL_MONTHS'] * capacity, project_floor(sim))
+    return need
+
+
+def sector_capacity(sim):
+    """Median capacity value of the staffed firms of each sector, the scale of a new firm's monthly cost"""
+    pe, pd_ = sim.PARAMS['PRODUCTIVITY_EXPONENT'], sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR']
+    values = defaultdict(list)
+    for f in sim.firms.values():
+        v = f.capacity_value(pe, pd_)
+        if v > 0:
+            values[f.sector].append(v)
+    return {k: float(np.median(v)) for k, v in values.items()}
+
+
+def size_initial_capital(sim):
+    """After start-up hiring: FIRM_CAPITAL_MONTHS > 0 sizes each firm's capital to its months of cost (unstaffed
+    firms: the sector median); GOV_REVISED leaves Government with none, as it spends only its budget."""
+    months = sim.PARAMS.get('FIRM_CAPITAL_MONTHS', 0)
+    gov_revised = sim.PARAMS.get('GOV_REVISED', False)
+    if months <= 0 and not gov_revised:
+        return
+    pe, pd_ = sim.PARAMS['PRODUCTIVITY_EXPONENT'], sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR']
+    medians = sector_capacity(sim) if months > 0 else {}
+    for f in sim.firms.values():
+        if gov_revised and f.sector == 'Government':
+            f.total_balance = 0.0
+            continue
+        if months > 0:
+            capacity = f.capacity_value(pe, pd_) or medians.get(f.sector, 0.0)
+            f.total_balance = capital_need(sim, f.sector, capacity)
+            f.cold_start_share = 1 / months
+
+
+def surplus(sim, firm, pe, pd_):
+    """Capital above the firm's own buffer"""
+    return max(0.0, firm.total_balance - capital_need(sim, firm.sector, firm.capacity_value(pe, pd_)))
+
+
+def fund_entrant(sim, region):
+    """FIRM_CAPITAL_MONTHS > 0: a new firm enters in a sector drawn from the RAIS shares only if that sector's
+    incumbents hold, above their own buffers, the capital it needs; they pay in proportion to their surplus."""
+    p = sim.generator.sector_shares()
+    if sim.PARAMS.get('GOV_REVISED', False):
+        p = p.drop('Government', errors='ignore')
+        p = p / p.sum()
+    sector = sim.seed_np.choice(list(p.index), p=list(p.values))
+    pe, pd_ = sim.PARAMS['PRODUCTIVITY_EXPONENT'], sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR']
+    capacity = sector_capacity(sim).get(sector, 0.0)
+    incumbents = [f for f in sim.firms.values() if f.sector == sector]
+    surpluses = [surplus(sim, f, pe, pd_) for f in incumbents]
+    need = capital_need(sim, sector, capacity)
+    available = sum(surpluses)
+    if need <= 0 or available < need:
+        sim.firm_entry_unfunded += 1
+        return None
+    firm = list(sim.generator.create_firms(1, region, firm_sectors=[sector]).values())[0]
+    for f, s in zip(incumbents, surpluses):
+        f.total_balance -= need * s / available
+    firm.total_balance = need
+    firm.cold_start_share = 1 / sim.PARAMS['FIRM_CAPITAL_MONTHS']
+    sim.firms[firm.id] = firm
+    return firm
+
+
+def firm_exit(sim):
+    """FIRM_EXIT_MONTHS > 0: firms insolvent (balance <= 0) or idle (no staff, no sales) for that many months in a
+    row exit. Reads last month's sales (before reset_amount_sold). Government never exits; Construction only when it
+    has no house for sale or under construction."""
+    months = sim.PARAMS.get('FIRM_EXIT_MONTHS', 0)
+    if months <= 0:
+        return
+    leaving = []
+    for firm in sim.firms.values():
+        if firm.sector == 'Government':
+            continue
+        firm.months_insolvent = firm.months_insolvent + 1 if firm.total_balance <= 0 else 0
+        firm.months_idle = firm.months_idle + 1 if not firm.employees and firm.amount_sold == 0 else 0
+        if firm.sector == 'Construction' and (firm.houses_for_sale or firm.building):
+            continue
+        if firm.months_insolvent >= months:
+            leaving.append((firm, 'insolvent'))
+        elif firm.months_idle >= months:
+            leaving.append((firm, 'idle'))
+    for firm, reason in leaving:
+        exit_firm(sim, firm, reason)
+
+
+def exit_firm(sim, firm, reason):
+    """Removes firm from every structure that holds firms and moves it to sim.firm_grave. Staff become
+    unemployed; remaining capital goes in equal parts to the surviving firms of its sector (or, if none, to the
+    families); a negative balance is written off and recorded in sim.firm_exit_writeoff."""
+    for agent in list(firm.employees.values()):
+        agent.firm_id = None
+        agent.set_commute(None)
+    firm.employees.clear()
+    del sim.firms[firm.id]
+    if firm.total_balance > 0:
+        heirs = [f for f in sim.firms.values() if f.sector == firm.sector]
+        if heirs:
+            for f in heirs:
+                f.total_balance += firm.total_balance / len(heirs)
+        else:
+            families = [f for f in sim.families.values() if f.members]
+            for f in families:
+                f.update_balance(firm.total_balance / len(families))
+    else:
+        sim.firm_exit_writeoff -= firm.total_balance
+    firm.total_balance = 0.0
+    for product in firm.inventory.values():
+        product.quantity = 0
+    firm.exit_date = sim.clock.days
+    firm.exit_reason = reason
+    sim.firm_grave[firm.id] = firm
+    # Structures that keep firms across months
+    for house in sim.houses.values():
+        house._firm_distances.pop(firm.id, None)
+    lm = sim.labor_market
+    lm.available_postings = [f for f in lm.available_postings if f is not firm]
+    for mun, firms in sim.funds.mun_gov_firms.items():
+        if firm in firms:
+            firms.remove(firm)

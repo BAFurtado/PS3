@@ -8,6 +8,7 @@ import conf
 import inspect
 import tempfile
 import numpy as np
+from collections import defaultdict
 import main
 from simulation import Simulation
 
@@ -237,13 +238,14 @@ _gov_target = np.ceil(_lm.gov_employees[_lm.gov_employees.ano == sim.clock.year]
                       * sim.PARAMS["PERCENTAGE_ACTUAL_POP"])
 _gov_emp = sum(f.num_employees for f in sim.firms.values() if f.sector == "Government")
 if sim.PARAMS.get("GOV_REVISED", False):
-    # Balanced budget: every unit of public revenue ends as payroll transfer, purchase fund, investment fund or policy
-    # money; the investment is also recorded as the regions' applied public money (bookkeeping, not a second payment).
+    # Balanced budget: every unit of public revenue ends as payroll transfer, purchase fund, investment fund, policy
+    # money or input fund; the investment is also recorded as the regions' applied public money (bookkeeping, not a
+    # second payment).
     _funds = sim.funds
     _gov_all = [f for f in sim.firms.values() if f.sector == "Government"]
     _snap = lambda: (sum(f._transfer_current for f in _gov_all), sum(f.purchase_fund for f in _gov_all),
                      sum(f.investment_fund for f in _gov_all), sum(_funds.policy_money.values()),
-                     sum(r.applied_flow for r in sim.regions.values()))
+                     sum(r.applied_flow for r in sim.regions.values()), sum(f.input_fund for f in _gov_all))
     _before = _snap()
     for _i, _rid in enumerate(sim.regions):
         _funds.pending_public_money[_rid]["equally"] += 10.0 + _i
@@ -252,9 +254,29 @@ if sim.PARAMS.get("GOV_REVISED", False):
     _d = [a - b for a, b in zip(_snap(), _before)]
     check(
         "Balanced government budget neither creates nor loses money",
-        abs(sum(_d[:4]) - _put) < 1e-6 * _put and _d[0] > 0 and abs(_d[4] - _d[2]) < 1e-6 * _put,
-        f"in={_put:.4f}, out={sum(_d[:4]):.4f} (payroll {_d[0]:.2f}, purchases {_d[1]:.2f}, "
-        f"investment {_d[2]:.2f}, policy {_d[3]:.2f}, recorded for regions {_d[4]:.2f})",
+        abs(sum(_d[:4]) + _d[5] - _put) < 1e-6 * _put and _d[0] > 0 and _d[5] > 0
+        and abs(_d[4] - _d[2]) < 1e-6 * _put,
+        f"in={_put:.4f}, out={sum(_d[:4]) + _d[5]:.4f} (payroll {_d[0]:.2f}, purchases {_d[1]:.2f}, "
+        f"inputs {_d[5]:.2f}, investment {_d[2]:.2f}, policy {_d[3]:.2f}, recorded for regions {_d[4]:.2f})",
+    )
+    # Public production inputs come from the input fund, never the start-up capital; unspent input money joins
+    # the purchases, and what is spent counts as revenue (output at cost)
+    _g = next(f for f in _gov_all if f.employees and f.inventory)
+    _saved = (_g.total_balance, _g.input_fund, _g.purchase_fund, _g.revenue, dict(_g.input_inventory))
+    _g.input_fund = 50.0
+    _sector_map = defaultdict(list)
+    for _f in sim.firms.values():
+        _sector_map[_f.sector].append(_f)
+    _g.buy_inputs(1e6, sim.regional_market, sim.firms, sim.seed, None, None, _sector_map)
+    _res = (_g.total_balance - _saved[0], _g.input_fund, _g.input_cost, _g.purchase_fund - _saved[2],
+            _g.revenue - _saved[3])
+    _g.total_balance, _g.input_fund, _g.purchase_fund, _g.revenue = _saved[:4]
+    _g.input_inventory.update(_saved[4])
+    check(
+        "Government buys its production inputs from the budget's input fund, not its capital",
+        _res[0] == 0 and _res[1] == 0 and 0 < _res[2] and abs(_res[2] + _res[3] - 50.0) < 1e-6
+        and abs(_res[4] - _res[2]) < 1e-9,
+        f"capital change={_res[0]}, input cost={_res[2]:.3f}, to purchases={_res[3]:.3f}, revenue +{_res[4]:.3f}",
     )
     _gov_wage = [f.public_wage for f in _gov_all if f.employees]
     _priv = [f.wages_paid / f.num_employees for f in sim.firms.values()
@@ -525,6 +547,98 @@ check(
     and "MAX_JOB_ATTEMPTS" in inspect.getsource(main._run_jobs_parallel),
     "_run_jobs_parallel must cap per-job attempts, not just BrokenExecutor restarts",
 )
+
+# ── Firm capital and demography (#21, #24). Last: these remove firms from the shared run ─────────────────────────
+print("\n── Firm capital, entry and exit ─────────────────────────────────────")
+from world.firms import fund_entrant, firm_exit  # noqa: E402
+
+if sim.PARAMS["FIRM_CAPITAL_MONTHS"] > 0:
+    _priv = [f for f in sim.firms.values() if f.sector != "Government"]
+    _months = sum(f.total_balance for f in _priv) / max(sum(f.revenue for f in _priv), 1e-9)
+    check(
+        "Firm capital is months, not millennia, of revenue",
+        _months < 120,
+        f"private firm balances = {_months:.0f} months of this month's revenue (original sizing ~5,000)",
+    )
+    _gov_bal = sum(f.total_balance for f in sim.firms.values() if f.sector == "Government")
+    _gov_pay = sum(f.wages_paid for f in sim.firms.values() if f.sector == "Government")
+    check(
+        "Government holds no start-up capital, only its budget in transit",
+        _gov_bal <= 2 * _gov_pay + 1e-6,
+        f"Government balances {_gov_bal:.2f} vs monthly payroll {_gov_pay:.2f}",
+    )
+    # Entry moves capital from the sector's incumbents to the entrant; it creates none
+    _bal = lambda: sum(f.total_balance for f in sim.firms.values())
+    _before, _n, _unf = _bal(), len(sim.firms), sim.firm_entry_unfunded
+    _entered = [fund_entrant(sim, _r) for _r in list(sim.regions.values())[:20]]
+    check(
+        "Firm entry is funded by incumbents and creates no money",
+        abs(_bal() - _before) < 1e-6 * max(_before, 1)
+        and len(sim.firms) - _n + sim.firm_entry_unfunded - _unf == 20
+        and all(e is None or e.sector != "Government" for e in _entered),
+        f"balances {_before:.4f} -> {_bal():.4f}, entered {len(sim.firms) - _n}, "
+        f"unfunded {sim.firm_entry_unfunded - _unf}",
+    )
+
+    # A builder recovers the land it bought from revenue before wages, so it can buy the next plot
+    _b = next(f for f in sim.firms.values() if f.sector == "Construction" and f.employees)
+    _saved_sched, _saved_rev = _b.land_schedule, _b.revenue
+    _b.revenue = 1e3
+    _b.land_schedule = None
+    _w0 = _b.wage_base(0.05, sim.PARAMS["RELEVANCE_UNEMPLOYMENT_SALARIES"])
+    _b.land_schedule = defaultdict(float, {_b.present: 12.0})
+    _w1 = _b.wage_base(0.05, sim.PARAMS["RELEVANCE_UNEMPLOYMENT_SALARIES"])
+    _ic = _b.input_cost
+    _b.land_schedule, _b.revenue = _saved_sched, _saved_rev
+    _share = np.exp(-0.05 * sim.PARAMS["RELEVANCE_UNEMPLOYMENT_SALARIES"])
+    check(
+        "A builder deducts this month's land recovery from its wage base, and not from input_cost",
+        abs((_w0 - _w1) * _b.num_employees - 12.0 * _share) < 1e-9 and _ic == _b.input_cost,
+        f"wage bill {_w0 * _b.num_employees:.3f} -> {_w1 * _b.num_employees:.3f}",
+    )
+
+if sim.PARAMS["FIRM_EXIT_MONTHS"] > 0:
+    _exit_months = sim.PARAMS["FIRM_EXIT_MONTHS"]
+    _cands = [f for f in sim.firms.values() if f.sector not in ("Government", "Construction") and f.employees]
+    _broke = _cands[0]
+    _idle = next(f for f in _cands[1:] if f.sector != _broke.sector
+                 and sum(g.sector == f.sector for g in sim.firms.values()) > 1)
+    _staff = list(_broke.employees.values())
+    # Make them look like exits, and every structure that keeps firms hold them
+    _broke.total_balance, _broke.months_insolvent = -2.0, _exit_months - 1
+    _idle_heirs = [f for f in sim.firms.values() if f.sector == _idle.sector and f is not _idle]
+    _heirs_before = sum(f.total_balance for f in _idle_heirs)
+    for _a in list(_idle.employees.values()):
+        _idle.employees.pop(_a.id)
+        _a.firm_id = None
+    _idle.amount_sold, _idle.months_idle, _idle.total_balance = 0, _exit_months - 1, 7.0
+    _house = next(iter(sim.houses.values()))
+    _house.distance_to_firm(_broke)
+    sim.labor_market.available_postings = [_broke, _idle]
+    _writeoff = sim.firm_exit_writeoff
+    firm_exit(sim)
+    _gone = [_broke, _idle]
+    check(
+        "An insolvent or idle firm exits into sim.firm_grave, with its date and reason",
+        all(f.id not in sim.firms and sim.firm_grave.get(f.id) is f for f in _gone)
+        and _broke.exit_reason == "insolvent" and _idle.exit_reason == "idle" and _broke.exit_date == sim.clock.days,
+        f"reasons {_broke.exit_reason}/{_idle.exit_reason}",
+    )
+    check(
+        "An exiting firm is removed from every structure that holds firms",
+        all(a.firm_id is None for a in _staff) and not _broke.employees
+        and not any(f.id in h._firm_distances for h in sim.houses.values() for f in _gone)
+        and not any(f in _gone for f in sim.labor_market.available_postings)
+        and not any(f in _gone for fs in sim.funds.mun_gov_firms.values() for f in fs),
+        f"staff still attached: {sum(a.firm_id is not None for a in _staff)}",
+    )
+    check(
+        "Exit conserves money: capital goes to the sector's firms, a negative balance is written off",
+        abs(sum(f.total_balance for f in _idle_heirs) - _heirs_before - 7.0) < 1e-9
+        and abs(sim.firm_exit_writeoff - _writeoff - 2.0) < 1e-9 and _idle.total_balance == 0,
+        f"heirs +{sum(f.total_balance for f in _idle_heirs) - _heirs_before:.4f}, "
+        f"written off {sim.firm_exit_writeoff - _writeoff:.4f}",
+    )
 
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")

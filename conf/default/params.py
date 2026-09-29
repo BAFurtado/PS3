@@ -38,6 +38,23 @@ NATURAL_SEPARATION_RATE = 0.010
 # Firms that pay no wages for this many consecutive months fire one worker per adjustment (0 = off).
 # Tolerates short revenue droughts from erratic, small-sample demand; sheds staff only when they persist.
 FIRE_UNPAID_MONTHS = 3
+# Firm capital, in months of a firm's monthly cost (its staff's output at current price; Construction at least one
+# median project: land plus the building cost it advances as wages before the first sale). Initial firms are sized
+# after start-up hiring; entrants are funded from their sector's incumbents' capital above this buffer (reinvested
+# earnings) and do not enter when that surplus is short, so entry creates no money; builders buy land only from cash
+# above the buffer and not owed as wages; firms with no revenue advance 1/FIRM_CAPITAL_MONTHS of capital as wages.
+# 0 = original: beta(1.5, 10) x 1e6 x IDHM for initial firms and entrants alike (~5,000 months of revenue, created
+# at entry), 0.1% advanced.
+FIRM_CAPITAL_MONTHS = 3
+# With FIRM_CAPITAL_MONTHS > 0: a construction firm's capital in months of its cost, and at least one median project
+# (land plus the wages it advances before the first sale). Builders have no production credit and a 2-3 year project
+# cycle, so they hold more than other firms. Their land purchases are recovered from revenue before wages over
+# CONSTRUCTION_ACC_CASH_FLOW months, which rebuilds the buffer; the land gate itself keeps FIRM_CAPITAL_MONTHS.
+CONSTRUCTION_CAPITAL_MONTHS = 12
+# A firm exits after this many consecutive months insolvent (balance <= 0) or idle (no staff and no sales); its staff
+# become unemployed, its remaining capital goes to its sector's firms, and it moves to sim.firm_grave. Government never
+# exits; Construction only with no house for sale or under construction. 0 = original, no exit.
+FIRM_EXIT_MONTHS = 6
 # Firms refill workers lost to natural separation or death (one post each) unless shrinking. False = off.
 REPLACE_SEPARATIONS = True
 # Growing firms post the vacancies their production plan needs (gap between sales plus stock target and current
