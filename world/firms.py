@@ -97,6 +97,7 @@ def firm_growth(sim):
                 continue
             firm = list(sim.generator.create_firms(1, region).values())[0]
             sim.firms[firm.id] = firm
+            sim.ledger['firm_entry'] += firm.total_balance
 
 
 def project_floor(sim):
@@ -223,6 +224,7 @@ def exit_firm(sim, firm, reason):
                 f.update_balance(firm.total_balance / len(families))
     else:
         sim.firm_exit_writeoff -= firm.total_balance
+        sim.ledger['firm_writeoff'] -= firm.total_balance
     firm.total_balance = 0.0
     for product in firm.inventory.values():
         product.quantity = 0

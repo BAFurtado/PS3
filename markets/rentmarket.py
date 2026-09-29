@@ -27,8 +27,9 @@ def collect_rent(houses, sim):
                     tenant.savings -= difference
                     # And add to payment made
                     payment += difference
-                else:
-                    # Take whatever savings are available
+                elif tenant.savings > 0:
+                    # Take whatever savings are available. Savings below zero are a debt (commuting costs above the
+                    # wage) and stay; zeroing them used to write the debt off, creating money
                     payment += tenant.savings
                     tenant.savings = 0
 
@@ -55,12 +56,12 @@ def collect_rent(houses, sim):
                 # Landlord gets what's left after taxes
                 landlord_payment = payment - actual_taxes
                 if landlord_payment > 0:
-                    land_family.update_balance(round(landlord_payment, 2))
+                    land_family.update_balance(landlord_payment)
 
                 # If tenant overpaid, return the difference
                 if payment > rent:
                     overpayment = payment - rent
-                    tenant.update_balance(round(overpayment, 2))
+                    tenant.update_balance(overpayment)
 
 
 class RentalMarket:

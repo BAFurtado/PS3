@@ -153,6 +153,7 @@ def immigration(sim):
             # Has to come after we allocate households so that we know where the agents live
             for a in agents:
                 sim.agents[a.id] = a
+                sim.ledger['immigrants'] += a.money
                 sim.update_pop(None, a.region_id)
 
         elif pop > estimated_pop:
@@ -242,8 +243,13 @@ def marriage(sim):
                     a.family.owned_houses.append(house)
                     house.owner_id = a.family.id
 
-                _id = b.family.id
-                b.family.house.empty()
+                # b.family changes as soon as b moves, so B's family is held here (#40: the loop below used to move
+                # only b's population, and B's savings and deposits were taken from A and given back to A, while B's
+                # were destroyed or orphaned in the bank)
+                old_b = b.family
+                old_region_id = old_b.region_id
+                _id = old_b.id
+                old_b.house.empty()
 
                 # Move out of existing rental
                 for house in sim.houses.values():
@@ -251,11 +257,11 @@ def marriage(sim):
                         house.family_id = None
                         house.rent_data = None
 
-                for each in b.family.members.values():
+                for each in list(old_b.members.values()):
                     a.family.add_agent(each)
-                    sim.update_pop(b.region_id, a.family.region_id)
+                    sim.update_pop(old_region_id, a.family.region_id)
 
-                savings = b.family.grab_savings(sim.central, sim.clock.year, sim.clock.months)
+                savings = old_b.grab_savings(sim.central, sim.clock.year, sim.clock.months)
                 a.family.update_balance(savings)
                 if _id in sim.central.loans:
                     loans = sim.central.loans.pop(_id)

@@ -229,9 +229,11 @@ class Funds:
 
         if self.sim.PARAMS['POLICY_MCMV']:
             # MCMV FAIXA 1
-            self.allocated_money += self.top_up(
+            topped = self.top_up(
                 self.policy_money_mcmv, self.mcmv.monthly_allocation(self.sim.clock.year),
                 self.mcmv_diag, self.blank_mcmv_diag)
+            self.allocated_money += topped
+            self.sim.ledger['ogu'] += topped
             quantile = self.sim.PARAMS['INCOME_MODALIDADES']['faixa1']
             self.update_policy_families(quantile)
             self.buy_houses_give_to_families(self.policy_money_mcmv, self.mcmv_diag)
@@ -242,9 +244,11 @@ class Funds:
             #     self.policy_families[mun] = [f for f in self.policy_families[mun] if f.house.rural]
             # self.buy_houses_give_to_families(self.policy_money_mcmv, self.mcmv_diag)
         if self.sim.PARAMS['POLICY_MELHORIAS']:
-            self.allocated_money += self.top_up(
+            topped = self.top_up(
                 self.policy_money_melhorias, self.mcmv.monthly_allocation(self.sim.clock.year),
                 self.melhorias_diag, self.blank_melhorias_diag)
+            self.allocated_money += topped
+            self.sim.ledger['ogu'] += topped
             quantile = self.sim.PARAMS['MELHORIAS_INCOME_QUANTILE']
             self.update_policy_families(quantile)
             for mun in self.policy_families.keys():
@@ -494,7 +498,11 @@ class Funds:
                     fpm_region[id] = self.fpm[state][(self.fpm[state].ano == float(year)) &
                                                      (self.fpm[state].cod == float(mun_code))].fpm.iloc[0]
 
-        total_fpm = sum(set(fpm_region.values()))
+        # One value per municipality, and only municipalities with people, which are the ones paid below. It used to be
+        # sum(set(values)), which also merged municipalities in the same FPM band (equal values), so the shares summed
+        # to more than one and FPM money was created (#41)
+        fpm_mun = {region_id[:7]: v for region_id, v in fpm_region.items()}
+        total_fpm = sum(v for mun, v in fpm_mun.items() if pop_mun_t[mun] > 0)
         for id, region in regions.items():
             mun_code = region.id[:7]
             if total_fpm == 0 or pop_mun_t[mun_code] == 0:
@@ -544,6 +552,11 @@ class Funds:
                 regions[id_].update_applied_taxes(amount, 'locally')
 
     def equally(self, value, regions, pop_t, pop_total):
+        if self.sim.PARAMS.get('PUBLIC_TAXES_OUT', False):
+            # Federal and state revenue raised in the ACP leaves it; federal and state staff are paid from outside
+            # (GOV_EXTERNAL_FUNDING)
+            self.sim.ledger['public_taxes_out'] -= value
+            return
         if self.sim.PARAMS.get('GOV_REVISED', False):
             for id in regions:
                 self.pending_public_money[id]['equally'] += value * pop_t[id] / pop_total if pop_total > 0 else 0.0
@@ -728,6 +741,7 @@ class Funds:
             if params.get('GOV_EXTERNAL_FUNDING', False) and need > budget:
                 external = min(need - budget, (1 - levels['municipal']) * need)
                 self.external_public_funding += external
+                self.sim.ledger['public_transfers'] += external
             available = budget + external
             payroll = target * min(1.0, available / need) if need > 0 else 0.0
             wage = payroll / staff if staff > 0 else offer

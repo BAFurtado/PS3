@@ -125,6 +125,27 @@ class RegionalMarket:
             )
             for key, value in consumption.items():
                 self.monthly_hh_consumption[key] += value
+        self.transport_fares(firms_by_sector.get('Transport'))
+
+    def transport_fares(self, transport_firms):
+        """Commuting costs (Agent.pay_transport) and the employer transport tax (TAX_TRANSPORT) are collected per
+        region in treasure['transport'] and paid here as household purchases from Transport firms, the cheapest of a
+        sample, like other household consumption. What finds no stock waits for next month. They used to be wiped at
+        month end with the other treasure, destroying the money (#38)."""
+        if not transport_firms:
+            return
+        params = self.sim.PARAMS
+        size_market = int(params['SIZE_MARKET'])
+        for region in self.sim.regions.values():
+            money = region.treasure['transport']
+            if money <= 0:
+                continue
+            market = transport_firms if len(transport_firms) <= size_market else \
+                self.sim.seed.sample(transport_firms, size_market)
+            firm = min(market, key=lambda f: f.inventory[0].price)
+            change = firm.sale(money, self.sim.regions, params['TAX_CONSUMPTION'], region.id, self.if_origin)
+            region.treasure['transport'] = change
+            self.monthly_hh_consumption['Transport'] += money - change
 
     def government_consumption(self):
         self.monthly_gov_consumption = defaultdict(float)
@@ -183,6 +204,7 @@ class External:
             self.taxes_paid += amount_per_product * self.tax_consumption
             self.cumulative_taxes_paid += self.taxes_paid
             self.imports_month += amount
+            self.sim.ledger['imports'] -= amount
             # collect_transfer_consumption_tax returns taxes_paid * tax_consumption
             self.import_tax_month += amount_per_product * self.tax_consumption ** 2
 
@@ -240,6 +262,9 @@ class External:
                                                     firm.region_id,
                                                     if_origin=self.sim.PARAMS['TAX_ON_ORIGIN'],
                                                     external=True)
+            # The consumption tax stays in the ACP only when it is charged at origin
+            self.sim.ledger['exports'] += sold * (1 if self.sim.PARAMS['TAX_ON_ORIGIN']
+                                                  else 1 - self.sim.PARAMS['TAX_CONSUMPTION'])
             exported += sold * amount / (amount + extra)
             recycled += sold * extra / (amount + extra)
         self.recycle_pending -= recycled
@@ -251,6 +276,7 @@ class External:
     def collect_transfer_consumption_tax(self):
         taxes = self.taxes_paid * self.tax_consumption
         self.taxes_paid = 0
+        self.sim.ledger['import_tax'] += taxes
         self.cumulative_taxes_paid += taxes
         return taxes
 

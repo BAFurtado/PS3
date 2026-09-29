@@ -8,6 +8,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 import conf
+from analysis.money import LEDGER_CHANNELS, money_stock
 
 # Files written as CSV (small, used by averaging pipeline)
 _CSV_FILES = {'stats', 'regional', 'time', 'head', 'neighbourhood'}
@@ -136,6 +137,17 @@ OUTPUT_DATA_SPEC = {
                     "ext_recycled",
                     "ext_net_position",
                     "ext_public_funding",
+                    # Money (analysis/money.py): stock by holder at month end, household bank deposits (held as cash
+                    # by the bank), money crossing the ACP's boundary by channel (cumulative, inflows positive) and
+                    # the change of the stock no channel explains, which must stay at rounding level
+                    "money_total",
+                    "money_households",
+                    "money_firms",
+                    "money_public",
+                    "money_bank",
+                    "money_deposits",
+                    *[f"money_{c}" for c in LEDGER_CHANNELS],
+                    "money_unexplained",
                     ]
     },
     'families': {
@@ -268,11 +280,17 @@ OUTPUT_DATA_SPEC = {
 
 FIRM_DEMOGRAPHY_COLUMNS = ('firms_count', 'firms_entered', 'firms_exited')
 EXTERNAL_ACCOUNT_COLUMNS = ('ext_imports', 'ext_exports', 'ext_recycled', 'ext_net_position', 'ext_public_funding')
+MONEY_COLUMNS = tuple(c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c.startswith('money_'))
+
+
+def _legacy_stats_columns_no_money():
+    """`stats` layout before 2026-09-29 (evening): no money stock and ledger columns."""
+    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c not in MONEY_COLUMNS]
 
 
 def _legacy_stats_columns_no_external_account():
     """`stats` layout before 2026-09-29: no external account columns."""
-    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c not in EXTERNAL_ACCOUNT_COLUMNS]
+    return [c for c in _legacy_stats_columns_no_money() if c not in EXTERNAL_ACCOUNT_COLUMNS]
 
 
 def _legacy_stats_columns_no_firm_demography():
@@ -285,7 +303,7 @@ def _legacy_stats_columns():
     denied_zero_capped_amount, no pct_renters_zero_income, and the decile block
     carries affordability_decis_* rather than rent_burden_decis_*."""
     dropped = {'denied_zero_capped_amount', 'denied_no_loan_needed',
-               'pct_renters_zero_income', *FIRM_DEMOGRAPHY_COLUMNS, *EXTERNAL_ACCOUNT_COLUMNS}
+               'pct_renters_zero_income', *FIRM_DEMOGRAPHY_COLUMNS, *EXTERNAL_ACCOUNT_COLUMNS, *MONEY_COLUMNS}
     cols = [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c not in dropped]
     return [c.replace('rent_burden_decis_', 'affordability_decis_') for c in cols]
 
@@ -321,7 +339,8 @@ def _legacy_regional_columns_single_pot():
 
 
 LEGACY_COLUMNS = {
-    'stats': [_legacy_stats_columns_no_external_account(), _legacy_stats_columns_no_firm_demography(),
+    'stats': [_legacy_stats_columns_no_money(), _legacy_stats_columns_no_external_account(),
+              _legacy_stats_columns_no_firm_demography(),
               _legacy_stats_columns()],
     'regional': [_legacy_regional_columns_no_qli_drivers(),
                  _legacy_regional_columns_no_melhorias_stops(),
@@ -520,6 +539,14 @@ class Output:
         stats_row["ext_recycled"] = ext.last_month['recycled']
         stats_row["ext_net_position"] = ext.net_position
         stats_row["ext_public_funding"] = sim.funds.external_public_funding
+        stock = money_stock(sim)
+        stats_row["money_total"] = sum(stock.values())
+        for k, v in stock.items():
+            stats_row[f"money_{k}"] = v
+        stats_row["money_deposits"] = bank.total_deposits()
+        for c in LEDGER_CHANNELS:
+            stats_row[f"money_{c}"] = sim.ledger[c]
+        stats_row["money_unexplained"] = stats_row["money_total"] - sim.money_initial - sum(sim.ledger.values())
         self._prev_firm_ids = firm_ids
 
         for i, v in enumerate(families_results["rent_burden_decis"], start=1):

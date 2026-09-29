@@ -18,6 +18,7 @@ import markets
 from world import Generator, demographics, clock, population
 from world.firms import firm_growth, firm_exit, size_initial_capital
 from world.funds import Funds
+from analysis.money import money_stock_total
 from world.geography import Geography, STATES_CODES, state_string
 from markets.goods import RegionalMarket, External
 
@@ -68,6 +69,9 @@ class Simulation:
         self.firm_grave = dict()
         # Negative balances written off at exit (money already paid out that the firm did not have)
         self.firm_exit_writeoff = 0.0
+        # Money crossing the ACP's boundary, cumulative by channel (analysis/money.py), and the stock it started with
+        self.ledger = defaultdict(float)
+        self.money_initial = 0.0
         # Entries skipped because the sector's incumbents had too little capital above their buffer
         self.firm_entry_unfunded = 0
         self.mun_to_regions = defaultdict(set)
@@ -226,6 +230,7 @@ class Simulation:
             self.firms,
             self.central,
         ) = self.generate()
+        self.central.ledger = self.ledger
 
         # Group regions into their municipalities
         for region_id in self.regions.keys():
@@ -260,6 +265,7 @@ class Simulation:
         # Update initial pop
         for region in self.regions.values():
             region.pop = self.reg_pops[region.id]
+        self.money_initial = money_stock_total(self)
 
     def daily(self):
         pass
