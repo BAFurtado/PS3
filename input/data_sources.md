@@ -65,7 +65,7 @@ lista completa não cabe na nota de rodapé.
 | 5 | Proporção da população urbana por município | IBGE, Censos 2000, 2010 e 2022 (Sidra, tabela 202, <https://sidra.ibge.gov.br/tabela/202> — "População residente, por sexo e situação do domicílio") | 2000, 2010, 2022 | `input/Demografia/3_Percent_Urban/` | `LEIA-ME.txt` |
 | 6 | Número de firmas por área de ponderação | Rais — Ministério do Trabalho e Emprego | 2000 e 2010 (cortes t0/t1) | `input/firms_by_APs{2000,2010}_t*_full.csv` | PS1 p. 45; PS2 Tab. 4 |
 | 7 | Participação setorial do emprego por ACP (12 setores) | Rais — Ministério do Trabalho e Emprego | 2010 | `input/CONCURBs_SECTOR.csv` | PS2; paper de emissões |
-| 8 | Vínculos ativos do setor Governo por município | Rais — Ministério do Trabalho e Emprego (série estabilizada a partir de 2020) | 2010–2045 | `input/qtde_vinc_gov_rais_stable_from_2020_onwards.csv` | — |
+| 8 | Vínculos ativos do setor Governo por município | Rais — Ministério do Trabalho e Emprego (série estabilizada a partir de 2020; 2019 interpolado, ver nota abaixo) | 2010–2045 | `input/qtde_vinc_gov_rais_stable_from_2020_onwards.csv` | — |
 | 9 | Tábuas de fecundidade por UF e idade quinquenal (10–50 anos) | IBGE, Projeção da População do Brasil e Unidades da Federação | 2000–2070 | `input/Demografia/1_Fertility/` | PS1 p. 44; `LEIA-ME.txt` |
 | 10 | Tábuas de mortalidade por UF, sexo e idade quinquenal (0–90+) | IBGE, mesma projeção; extrapolação acima de 90 anos conforme Castro (2015)/MPS | 2000–2070 | `input/Demografia/2_Mortality/` | PS1 p. 44 |
 | 11 | Estimativas de população total por município | IBGE, estimativas populacionais enviadas ao TCU; projeções Cedeplar/UFMG na série estendida | 2001–2024 (TCU); 2000–2050 (Cedeplar) | `input/Demografia/4_Pop_Estimatives_Munic/` | `LEIA-ME.txt`; PS2 Tab. 4 |
@@ -88,6 +88,19 @@ Sobre o item 24: a intensidade de emissão setorial usada no artigo de emissões
 (Rocha Lima, Furtado e Lopes, 2026) é construída a partir do RAPP do Ibama (2010)
 combinado à massa salarial da Rais. Se a nota do Quadro 1 mencionar as duas
 gerações do módulo, vale citar ambas as origens.
+
+Sobre o item 8: o valor de 2019 de cada município foi substituído pela média de 2018 e 2020 (arredondada),
+em setembro de 2026. Em 2019 a série da Rais cai e volta no ano seguinte em vários municípios (Brasília,
+549.774 em 2018, 418.237 em 2019 e 612.958 em 2020; Aracaju, 88.030, 59.026 e 83.194), padrão compatível
+com problema de declaração no ano de transição para o eSocial, e não com variação real do emprego público.
+O total nacional quase não muda (13,44 para 13,40 milhões). Quinze municípios sem algum dos três anos
+mantêm o valor original. A partir de 2020 a série repete o valor de 2020, de modo que a pandemia não
+aparece nesse dado. O número de vínculos públicos é exógeno no modelo: define a meta de emprego das
+firmas do setor Governo, escalada por `PERCENTAGE_ACTUAL_POP`.
+
+Texto sugerido: "O emprego público municipal segue os vínculos ativos da Rais (2010 a 2020, mantido
+constante depois de 2020); o ano de 2019, afetado pela transição para o eSocial, foi interpolado entre
+2018 e 2020."
 
 ---
 

@@ -43,6 +43,17 @@ REPLACE_SEPARATIONS = True
 # Growing firms post the vacancies their production plan needs (gap between sales plus stock target and current
 # output, over output per worker), capped at doubling headcount in a month. False = original one post a month.
 PLANNED_GROWTH_POSTS = True
+# Revised public sector. (1) Government headcount is set only by gov_hire_fire (RAIS target), not by the profit and
+# insolvency firing, which emptied Government within a few years. (2) Balanced budget, per municipality
+# (Funds.settle_government_budget): public revenue pays the public payroll, then government purchases (input-output
+# ratio to payroll), then policy money, and the rest is spent as public investment (input-output FBCF shares), also
+# recorded as the regions' applied public money for the QLI fiscal leg. False = original, which multiplied the
+# equally-divided share by the number of municipalities, never paid the FPM and local shares, destroyed the regions'
+# share, and let Government firms spend their start-up capital as demand.
+GOV_REVISED = True
+# Public wage per worker as a multiple of the municipality's mean private wage per worker.
+# 1.0 is a placeholder until the RAIS public/private ratio is sourced.
+GOV_WAGE_RATIO = 1.0
 # Percentage of employees' firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
