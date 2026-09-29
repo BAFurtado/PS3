@@ -303,15 +303,16 @@ class Firm:
             prebuilt_sector_map
         )
 
+        # One price per sector for budgeting and purchase alike. A sector with no stocked local firm is bought at the
+        # average price; it used to be skipped here but bought below, creating the money that paid for it
+        prices = [chosen_firms[sector][0].inventory[0].price if chosen_firms[sector]
+                  else regional_market.sim.avg_prices for sector in sectors]
+
         # Compute total money needed
         money_local_inputs = 0.0
         money_external_inputs = 0.0
 
-        for i, sector in enumerate(sectors):
-            firms_sector = chosen_firms[sector]
-            if not firms_sector:
-                continue
-            price = firms_sector[0].inventory[0].price
+        for i, price in enumerate(prices):
             money_local_inputs += local_needed[i] * price
             money_external_inputs += external_needed[i] * price * freight_cost
 
@@ -327,11 +328,7 @@ class Firm:
         # Purchase loop
         for i, sector in enumerate(sectors):
             firms_sector = chosen_firms[sector]
-
-            if firms_sector:
-                price = firms_sector[0].inventory[0].price
-            else:
-                price = regional_market.sim.avg_prices
+            price = prices[i]
 
             money_local = reduction_factor * local_needed[i] * price
             money_external = reduction_factor * external_needed[i] * price * freight_cost
