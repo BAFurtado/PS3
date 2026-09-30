@@ -267,6 +267,7 @@ class Simulation:
         for region in self.regions.values():
             region.pop = self.reg_pops[region.id]
         self.money_initial = money_stock_total(self)
+        self.central.equity_target = self.central.equity()
 
     def daily(self):
         pass
@@ -519,8 +520,12 @@ class Simulation:
         for fam in self.families.values():
             fam.invest(self.central, self.clock.year, self.clock.months, self.PARAMS)
 
-        # Remunerate central bank idle liquid assets
-        self.central.remunerate_liquid_balance()
+        if self.PARAMS.get('BANK_NATIONAL', False):
+            self.central.accrue_deposit_interest(datetime.date(self.clock.year, self.clock.months, 1))
+            self.central.settle_with_national_bank()
+        else:
+            # Remunerate central bank idle liquid assets
+            self.central.remunerate_liquid_balance()
         # Using all collected taxes to improve public services
         bank_taxes = self.central.collect_taxes()
 

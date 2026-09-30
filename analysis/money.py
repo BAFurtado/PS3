@@ -15,6 +15,7 @@ LEDGER_CHANNELS = (
     'public_transfers',  # GOV_EXTERNAL_FUNDING: federal and state payroll paid in from outside the ACP
     'public_taxes_out',  # PUBLIC_TAXES_OUT: the federal and state share of the taxes collected in the ACP
     'bank_interest',     # Central.remunerate_liquid_balance: the bank's liquid balance remunerated at the policy rate
+    'bank_profit_out',   # BANK_NATIONAL: bank equity above its target sent out (negative), a shortfall covered (positive)
     'ogu',               # MCMV and melhorias budget lines (federal)
     'fgts_sbpe',         # FGTS and SBPE loans, funded outside the local bank
     'fgts_sbpe_repaid',  # FUNDS_REAL: FGTS and SBPE instalments paid back to the national funds

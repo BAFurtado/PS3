@@ -1249,6 +1249,41 @@ check("FUNDS_REAL: FGTS instalments leave the ACP, market instalments stay in th
       f"bank balance change off/on {_paid[False][0]:.4f}/{_paid[True][0]:.4f}, "
       f"unexplained {_paid[False][1]:.2e}/{_paid[True][1]:.2e}")
 
+# BANK_NATIONAL: a deposit earns each month's rate net of tax, and settlement returns equity to its target with money
+# conserved
+import datetime as _dt  # noqa: E402
+_bank = sim.central
+_saved_bank = (_bank.wallet, _bank.balance, _bank.taxes, _bank.interest, _bank.equity_target, dict(sim.ledger))
+sim.PARAMS["BANK_NATIONAL"] = True
+_fam = next(iter(sim.families.values()))
+_bank.wallet = defaultdict(list)
+_stock0, _ledger0 = money_stock_total(sim), sum(sim.ledger.values())
+_bank.deposit(_fam, 100.0, _dt.date(2011, 1, 1))
+_fam.savings -= 100.0
+_bank.equity_target = _bank.equity() - 5.0
+_other = next(f for f in sim.families.values() if f is not _fam)
+_bank.wallet[_other]
+_rates = (0.01, -0.02)
+for _r in _rates:
+    _bank.interest = _r
+    _bank.accrue_deposit_interest(_dt.date(2011, 2, 1))
+_owed = _bank.sum_deposits(_fam)
+_empty_kept = not _bank.wallet[_other]
+_expect = 100.0 * (1 + 0.01 * (1 - _bank.tax_firm)) * (1 - 0.02)
+_bank.settle_with_national_bank()
+_eq_gap = _bank.equity() - _bank.equity_target
+_paid = _bank.withdraw(_fam, 2011, 3)
+_fam.savings += _paid
+_cons = money_stock_total(sim) - _stock0 - (sum(sim.ledger.values()) - _ledger0)
+_fam.savings -= _paid - 100.0
+(_bank.wallet, _bank.balance, _bank.taxes, _bank.interest, _bank.equity_target), _ld = _saved_bank[:5], _saved_bank[5]
+sim.ledger.clear()
+sim.ledger.update(_ld)
+sim.PARAMS["BANK_NATIONAL"] = False
+check("BANK_NATIONAL: deposits accrue monthly, withdrawal pays them, settlement restores equity, money conserved",
+      _empty_kept and abs(_owed - _expect) < 1e-9 and abs(_paid - _expect) < 1e-9 and abs(_eq_gap) < 1e-9 and abs(_cons) < 1e-9,
+      f"owed {_owed:.6f} vs {_expect:.6f}, paid {_paid:.6f}, equity gap {_eq_gap:.2e}, unexplained {_cons:.2e}")
+
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")
 print(f"Results: {PASS} PASS  |  {FAIL} FAIL  |  {PASS + FAIL} total")

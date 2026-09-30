@@ -229,6 +229,11 @@ MAX_LOAN_TO_VALUE_SBPE = 0.90
 # This parameter refers to the total amount of resources available at the bank.
 MAX_LOAN_BANK_PERCENT = 0.6
 BANK_DEPOSIT_RESERVE = .2
+# The bank's relation with the rest of Brazil. False: the bank's cash earns the policy rate every month, and a
+# deposit earns, when withdrawn, that month's rate compounded over its age. True: deposits earn each month's rate every
+# month; the cash earns nothing; every month the bank's equity (cash plus the remaining principal of market loans,
+# minus deposits) returns to its initial value, the difference leaving the ACP or covered from outside.
+BANK_NATIONAL = False
 
 # HOUSING AND REAL ESTATE MARKET #############################################################
 CAPPED_TOP_VALUE = 1.3

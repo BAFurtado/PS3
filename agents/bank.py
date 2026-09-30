@@ -104,6 +104,37 @@ class Central:
 
         # Track remaining loan balances
         self.loans = defaultdict(list)
+        # BANK_NATIONAL: equity kept by the bank, set at the start of the run
+        self.equity_target = None
+
+    def outstanding_principal(self, loan):
+        """Remaining principal of a loan: its unpaid instalments discounted at its rate from their due month"""
+        r = loan.my_mortgage_rate
+        return sum(p / (1 + r) ** max(0, k + 1 - loan.age) for k, p in enumerate(loan.payment) if p > 0)
+
+    def equity(self):
+        """Cash plus the remaining principal of market loans, minus deposits"""
+        loans = sum(self.outstanding_principal(l) for l in self.active_loans() if l.loan_type == 'market')
+        return self.balance + loans - self.total_deposits()
+
+    def accrue_deposit_interest(self, date):
+        """BANK_NATIONAL: each client's deposits earn this month's rate, net of the tax on positive interest, and are
+        kept as one tranche"""
+        for client, tranches in self.wallet.items():
+            if not tranches:
+                continue
+            amount = sum(a for a, _ in tranches)
+            interest = amount * self.interest
+            tax = max(0.0, interest) * self.tax_firm
+            self.taxes += tax
+            self.balance -= tax
+            self.wallet[client] = [(amount + interest - tax, date)]
+
+    def settle_with_national_bank(self):
+        """BANK_NATIONAL: equity above its target leaves the ACP, a shortfall is covered from outside"""
+        surplus = self.equity() - self.equity_target
+        self.balance -= surplus
+        self.ledger['bank_profit_out'] -= surplus
 
     def funding_usage_month(self, year, month, regions):
         fgts_used = 0
@@ -128,6 +159,8 @@ class Central:
     def pay_interest(self, client, y, m):
         """ Updates interest to the client
         """
+        if self.params.get('BANK_NATIONAL', False):
+            return 0
         # Compute future values
         interest = 0
         for amount, date in self.wallet[client]:
