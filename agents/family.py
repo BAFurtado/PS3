@@ -134,8 +134,12 @@ class Family:
         if self.permanent_income > 0 and self.house:
             self.affordability_ratio = self.house.price / self.permanent_income
 
+    def start_permanent_income(self):
+        """PI_START 'census': the permanent-income window starts full of the initial permanent income"""
+        self.last_permanent_income.extend([self.permanent_income] * self.last_permanent_window)
+
     def update_permanent_income(self, bank, r):
-        t0 = self.total_wage()
+        t0 = self.total_wage() + sum(m.last_profit_share for m in self.members.values())
         EPS = 1e-4
         r_eff = max(r, EPS)
         wealth = self.get_wealth(bank)

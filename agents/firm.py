@@ -641,6 +641,19 @@ class Firm:
             self.wages_paid = 0
             self.months_unpaid = 0
 
+    def pay_profit_share(self, surplus, rate, alpha):
+        """FIRM_PAYOUT 'staff': `rate` of `surplus` goes to the staff in the wage weights; returns the amount paid"""
+        if not self.employees or surplus <= 0:
+            return 0.0
+        paid = rate * surplus
+        total_qualification = self.total_qualification(alpha)
+        for employee in self.employees.values():
+            share = paid * employee.qualification ** alpha / total_qualification
+            employee.money += share
+            employee.last_profit_share = share
+        self.total_balance -= paid
+        return paid
+
     # Human resources department #################
     def add_employee(self, employee):
         # Adds a new employee to firms' set

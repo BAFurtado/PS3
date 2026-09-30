@@ -16,7 +16,7 @@ import analysis
 import conf
 import markets
 from world import Generator, demographics, clock, population
-from world.firms import firm_growth, firm_exit, size_initial_capital
+from world.firms import firm_growth, firm_exit, size_initial_capital, pay_profit_shares
 from world.funds import Funds
 from analysis.money import money_stock_total
 from world.geography import Geography, STATES_CODES, state_string
@@ -83,6 +83,8 @@ class Simulation:
         self.money_initial = 0.0
         # INITIAL_MONEY 'target': the ACP's Census income per person aged 10+ at the start, in model money
         self.income_per_person = 0.0
+        # FIRM_PAYOUT: profit shares paid this month
+        self.profit_share_paid = 0.0
         # Entries skipped because the sector's incumbents had too little capital above their buffer
         self.firm_entry_unfunded = 0
         self.mun_to_regions = defaultdict(set)
@@ -240,6 +242,9 @@ class Simulation:
         self.central.ledger = self.ledger
         if self.PARAMS.get('INITIAL_MONEY', 'lognormal') == 'target':
             self.initial_money_from_income()
+        if self.PARAMS.get('PI_START', 'reset') == 'census':
+            for family in self.families.values():
+                family.start_permanent_income()
 
         if self.transport.matrix is not None:
             self.transport.check_coverage(self.regions.keys())
@@ -467,6 +472,9 @@ class Simulation:
                 self.regional_market,
                 self.regions,
                 self.seed_np)
+
+        if self.PARAMS.get('FIRM_PAYOUT', 'none') == 'staff':
+            pay_profit_shares(self)
 
         # Construction firms
         # Probability depends (strongly) on market supply

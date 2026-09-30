@@ -155,6 +155,22 @@ def surplus(sim, firm, pe, pd_):
     return max(0.0, firm.total_balance - capital_need(sim, firm.sector, firm.capacity_value(pe, pd_)))
 
 
+def pay_profit_shares(sim):
+    """FIRM_PAYOUT 'staff': each private firm pays FIRM_PAYOUT_RATE of its cash above its capital buffer (a builder's
+    cash net of wages already owed) to its staff"""
+    for agent in sim.agents.values():
+        agent.last_profit_share = 0.0
+    pe, pd_ = sim.PARAMS['PRODUCTIVITY_EXPONENT'], sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR']
+    rate = sim.PARAMS['FIRM_PAYOUT_RATE']
+    paid = 0.0
+    for firm in sim.firms.values():
+        if firm.sector == 'Government':
+            continue
+        cash = firm.free_cash() if firm.sector == 'Construction' else firm.total_balance
+        paid += firm.pay_profit_share(cash - capital_need(sim, firm.sector, firm.capacity_value(pe, pd_)), rate, pe)
+    sim.profit_share_paid = paid
+
+
 def fund_entrant(sim, region):
     """FIRM_CAPITAL_MONTHS > 0: a new firm enters in a sector drawn from the RAIS shares only if that sector's
     incumbents hold, above their own buffers, the capital it needs; they pay in proportion to their surplus."""

@@ -28,6 +28,10 @@ class Agent:
     firm_id, utility, address, distance, region_id.
     """
 
+    # FIRM_PAYOUT: last month's profit share from the employer. Class-level default so agents unpickled from an older
+    # cache have it.
+    last_profit_share = 0.0
+
     # Class for Agents. Citizens of the model
     # Agents live in families, work in firms, consume
     def __init__(

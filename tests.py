@@ -1350,6 +1350,32 @@ check("CLOSURE: 'open' sets the CLOSURE_OPEN bundle, 'legacy' leaves parameters 
       and all(_open[k] == v for k, v in sim.PARAMS['CLOSURE_OPEN'].items()),
       f"{[k for k, v in sim.PARAMS['CLOSURE_OPEN'].items() if _open[k] != v]}")
 
+# FIRM_PAYOUT: a firm pays `rate` of its surplus to its staff in the wage weights, and money only changes hands
+_pf = next(f for f in sim.firms.values() if f.sector != "Government" and len(f.employees) > 1)
+_alpha = sim.PARAMS["PRODUCTIVITY_EXPONENT"]
+_saved_pf = (_pf.total_balance, {k: (e.money, e.last_profit_share) for k, e in _pf.employees.items()})
+_stock0 = money_stock_total(sim)
+_paid = _pf.pay_profit_share(60.0, 1 / 6, _alpha)
+_shares = {k: e.last_profit_share for k, e in _pf.employees.items()}
+_tq = _pf.total_qualification(_alpha)
+_weights_ok = all(abs(_shares[k] - 10.0 * e.qualification ** _alpha / _tq) < 1e-12 for k, e in _pf.employees.items())
+_cons = money_stock_total(sim) - _stock0
+_none = _pf.pay_profit_share(-5.0, 1 / 6, _alpha)
+_pf.total_balance = _saved_pf[0]
+for _k, _e in _pf.employees.items():
+    _e.money, _e.last_profit_share = _saved_pf[1][_k]
+check("FIRM_PAYOUT: rate x surplus paid to staff in the wage weights, nothing when below the buffer, money conserved",
+      abs(_paid - 10.0) < 1e-12 and abs(sum(_shares.values()) - 10.0) < 1e-9 and _weights_ok and _none == 0.0
+      and abs(_cons) < 1e-12 * max(1.0, _stock0), f"paid {_paid}, shares {sum(_shares.values())}, unexplained {_cons}")
+
+# PI_START 'census': the permanent-income window starts full of the initial permanent income
+from agents.family import Family  # noqa: E402
+_nf = Family("pi_start_test")
+_nf.permanent_income = 5.0
+_nf.start_permanent_income()
+check("PI_START 'census': permanent-income window full of the initial value",
+      list(_nf.last_permanent_income) == [5.0] * _nf.last_permanent_window, f"{list(_nf.last_permanent_income)}")
+
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")
 print(f"Results: {PASS} PASS  |  {FAIL} FAIL  |  {PASS + FAIL} total")

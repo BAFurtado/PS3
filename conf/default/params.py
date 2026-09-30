@@ -20,6 +20,8 @@ CLOSURE_OPEN = {
     'BANK_NATIONAL': True,
     'WEALTH_NORM': 'symmetric',
     'INITIAL_MONEY': 'target',
+    'FIRM_PAYOUT': 'staff',
+    'PI_START': 'census',
 }
 
 # FIRMS #########################################################
@@ -83,6 +85,10 @@ FIRE_UNPAID_MONTHS = 3
 # 0 = original: beta(1.5, 10) x 1e6 x IDHM for initial firms and entrants alike (~5,000 months of revenue, created
 # at entry), 0.1% advanced.
 FIRM_CAPITAL_MONTHS = 3
+# Firm cash above the capital buffer. 'none': kept by the firm. 'staff': each month a private firm pays FIRM_PAYOUT_RATE
+# of it to its employees, split as wages; the share counts in their families' permanent income.
+FIRM_PAYOUT = 'none'
+FIRM_PAYOUT_RATE = 1 / 6
 # With FIRM_CAPITAL_MONTHS > 0: a construction firm's capital in months of its cost, and at least one median project
 # (land plus the wages it advances before the first sale). Builders have no production credit and a 2-3 year project
 # cycle, so they hold more than other firms. Their land purchases are recovered from revenue before wages over
@@ -379,6 +385,9 @@ WEALTH_TARGET_MONTHS = 4.5
 WEALTH_ADJUSTMENT = 1 / 12
 # Months from the start before the norm applies
 WEALTH_NORM_BURN_IN = 24
+# Start of the permanent-income average. 'reset': the first monthly update, before any wage is paid, replaces the
+# Census permanent income. 'census': the 24-month average starts full of the Census permanent income.
+PI_START = 'reset'
 # Initial money. 'lognormal': each agent holds a lognormal(3, 0.5) draw of model money. 'target': agents aged 10+ hold
 # WEALTH_TARGET_MONTHS of their area's Census income per person, times their draw over its mean; younger ones none.
 # Immigrants hold the same, at the ACP's initial income per person.
