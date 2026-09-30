@@ -1339,6 +1339,15 @@ check("INITIAL_MONEY 'target': money = months × income per person × draw / mea
       abs(_ags[0].money - 9.0) < 1e-9 and abs(_ags[1].money - 18.0) < 1e-9 and _ags[2].money == 0.0,
       f"{[a.money for a in _ags]}")
 
+# CLOSURE: 'open' applies every CLOSURE_OPEN value, 'legacy' changes nothing
+from simulation import apply_closure  # noqa: E402
+_legacy = apply_closure(dict(sim.PARAMS, CLOSURE='legacy'))
+_open = apply_closure(dict(sim.PARAMS, CLOSURE='open'))
+check("CLOSURE: 'open' sets the CLOSURE_OPEN bundle, 'legacy' leaves parameters as given",
+      _legacy == dict(sim.PARAMS, CLOSURE='legacy')
+      and all(_open[k] == v for k, v in sim.PARAMS['CLOSURE_OPEN'].items()),
+      f"{[k for k, v in sim.PARAMS['CLOSURE_OPEN'].items() if _open[k] != v]}")
+
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")
 print(f"Results: {PASS} PASS  |  {FAIL} FAIL  |  {PASS + FAIL} total")

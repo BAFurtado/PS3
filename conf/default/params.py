@@ -2,6 +2,26 @@ import datetime
 
 # MODEL PARAMETERS
 
+# CLOSURE ######################################################
+# Closure of the ACP's money and goods circuit. 'legacy': every parameter as set. 'open': the ACP as a small open
+# economy, CLOSURE_OPEN overriding the parameters it names.
+CLOSURE = 'legacy'
+CLOSURE_OPEN = {
+    'EXTERNAL_DEMAND_SPREAD': 'stock',
+    'EXPORTS_REAL': True,
+    'EXTERNAL_RECYCLING_SHARE': 0.0,
+    'SHORTAGE_IMPORTS': True,
+    'PRICE_DEMAND_RESPONSE': 0.1,
+    'PRICE_INDEX': 'staffed',
+    'IMPORT_PARITY_PRICING': True,
+    'GOV_EXTERNAL_WAGE': 'national',
+    'FUNDS_REAL': True,
+    'INTEREST_HOUSING': 'real',
+    'BANK_NATIONAL': True,
+    'WEALTH_NORM': 'symmetric',
+    'INITIAL_MONEY': 'target',
+}
+
 # FIRMS #########################################################
 # Production function, labor with decaying exponent, Alpha for K. [0, 1]
 PRODUCTIVITY_EXPONENT = 0.65

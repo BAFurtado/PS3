@@ -24,6 +24,13 @@ from world.transport import TransportNetwork
 from markets.goods import RegionalMarket, External
 
 
+def apply_closure(params):
+    """CLOSURE 'open': the parameters named in CLOSURE_OPEN take its values; 'legacy' leaves them as given"""
+    if params.get('CLOSURE', 'legacy') == 'open':
+        params = {**params, **params['CLOSURE_OPEN']}
+    return params
+
+
 def resolve_seed(params):
     """Return the seed for this run.
 
@@ -45,6 +52,7 @@ def resolve_seed(params):
 
 class Simulation:
     def __init__(self, params, output_path):
+        params = apply_closure(params)
         self.PARAMS = copy.copy(params)
         self.geo = Geography(params, self.PARAMS["STARTING_DAY"].year)
         self.regional_market = RegionalMarket(self)
