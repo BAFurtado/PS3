@@ -278,7 +278,8 @@ class Family:
         needed = permanent_income - rent - loan
 
         norm = params.get('WEALTH_NORM', 'off')
-        if norm != 'off':
+        start = params['STARTING_DAY']
+        if norm != 'off' and (year - start.year) * 12 + month - start.month >= params['WEALTH_NORM_BURN_IN']:
             # Liquid wealth against its target in months of permanent income
             wealth = money + self.savings + central.sum_deposits(self)
             gap = wealth - params['WEALTH_TARGET_MONTHS'] * max(0.0, permanent_income)

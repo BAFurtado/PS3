@@ -377,6 +377,8 @@ CONSUMPTION_PROPENSITY = 1
 WEALTH_NORM = 'off'
 WEALTH_TARGET_MONTHS = 4.5
 WEALTH_ADJUSTMENT = 1 / 12
+# Months from the start before the norm applies
+WEALTH_NORM_BURN_IN = 24
 # Initial money. 'lognormal': each agent holds a lognormal(3, 0.5) draw of model money. 'target': agents aged 10+ hold
 # WEALTH_TARGET_MONTHS of their area's Census income per person, times their draw over its mean; younger ones none.
 # Immigrants hold the same, at the ACP's initial income per person.

@@ -1294,7 +1294,7 @@ if _fam is not None:
               list(_bank.wallet.get(_fam, [])), _bank.balance, _bank.taxes)
     _today = _dt.date(sim.clock.year, sim.clock.months, 1)
 
-    def _norm_case(norm, cash, deposits):
+    def _norm_case(norm, cash, deposits, burn_in=0):
         _fam.savings, _fam.permanent_income = 0.0, 10.0
         for _i, _m in enumerate(_fam.members.values()):
             _m.money = cash if _i == 0 else 0.0
@@ -1302,7 +1302,8 @@ if _fam is not None:
         if deposits:
             _bank.deposit(_fam, deposits, _today)
         _p = dict(sim.PARAMS, PUBLIC_TRANSIT_COST=0, PRIVATE_TRANSIT_COST=0, CONSUMPTION_PROPENSITY=1.0,
-                  WEALTH_NORM=norm, WEALTH_TARGET_MONTHS=6, WEALTH_ADJUSTMENT=1 / 24)
+                  WEALTH_NORM=norm, WEALTH_TARGET_MONTHS=6, WEALTH_ADJUSTMENT=1 / 24,
+                  WEALTH_NORM_BURN_IN=burn_in)
         _c = _fam.decision_on_consumption(_bank, sim.clock.year, sim.clock.months, _p, sim.regions)
         _left = _fam.savings + _bank.sum_deposits(_fam)
         _bank.wallet.pop(_fam, None)
@@ -1312,6 +1313,7 @@ if _fam is not None:
     _above_off = _norm_case('off', 5.0, 200.0)
     _below = _norm_case('dissave', 30.0, 0.0)
     _below_sym = _norm_case('symmetric', 30.0, 0.0)
+    _burning = _norm_case('symmetric', 5.0, 200.0, burn_in=10 ** 6)
     _fam.savings, _fam.permanent_income = _saved[0], _saved[1]
     for _k, _m in _fam.members.items():
         _m.money = _saved[2][_k]
@@ -1320,11 +1322,11 @@ if _fam is not None:
     _bank.balance, _bank.taxes = _saved[4], _saved[5]
     _exp_above = 10.0 + (205.0 - 60.0) / 24
     check("WEALTH_NORM: excess liquid wealth is spent at WEALTH_ADJUSTMENT, from deposits; below target 'dissave' "
-          "spends permanent income, 'symmetric' cuts it",
+          "spends permanent income, 'symmetric' cuts it; no norm during the burn-in",
           abs(_above[0] - _exp_above) < 1e-9 and abs(_above[0] + _above[1] - 205.0) < 1e-9
           and abs(_above_off[0] - 10.0) < 1e-9 and abs(_below[0] - 10.0) < 1e-9
-          and abs(_below_sym[0] - (10.0 - 30.0 / 24)) < 1e-9,
-          f"above {_above}, off {_above_off}, below {_below}, symmetric {_below_sym}")
+          and abs(_below_sym[0] - (10.0 - 30.0 / 24)) < 1e-9 and abs(_burning[0] - 10.0) < 1e-9,
+          f"above {_above}, off {_above_off}, below {_below}, symmetric {_below_sym}, burn-in {_burning}")
 
 # INITIAL_MONEY 'target': agents aged 10+ hold WEALTH_TARGET_MONTHS of income per person times their draw over its
 # mean, younger ones none
