@@ -29,6 +29,10 @@ INVENTORY_TARGET_RATIO = 0.2
 # Demand signal for production and hiring (step 2b). True: sales plus the quantity refused for lack of stock, so demand a
 # firm could not serve (household, input or external) asks for more output. False (old model): sales only.
 DEMAND_SIGNAL_UNMET = False
+# Price response to refused demand, θ (step 2b/3). A firm that refused buyers for lack of stock this month raises its
+# price, when it revises it (STICKY_PRICES), by θ × refused / (sold + refused), beyond PRICE_MARKUP_CAP, and does not
+# lower it that month. Goods firms only (not Construction). 0 (old model): refusals do not move prices.
+PRICE_DEMAND_RESPONSE = 0.0
 # Number of firms consulted before consumption
 SIZE_MARKET = 5
 # A household refused (or served only in part) for lack of stock by the firm it picked tries the other stocked firms of

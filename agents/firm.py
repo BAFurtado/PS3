@@ -442,6 +442,7 @@ class Firm:
             inventory_target_ratio=0.0,
             price_markup_cap=0.25,
             demand_signal_unmet=False,
+            price_demand_response=0.0,
     ):
         """ Update prices based on inventory and average prices
             Save signal for the labor market """
@@ -450,6 +451,11 @@ class Firm:
             # DEMAND_SIGNAL_UNMET: demand is what was sold plus what was refused for lack of stock. Buyers do not try
             # another local firm after a refusal, so the refused quantity is not served elsewhere in the ACP
             demand = self.amount_sold + self.unmet_quantity if demand_signal_unmet else self.amount_sold
+            # PRICE_DEMAND_RESPONSE: share of this month's demand refused for lack of stock. Construction's
+            # amount_sold mixes house sales in money with quantities, so it keeps the old rule
+            refused_share = 0.0
+            if price_demand_response > 0 and self.unmet_quantity > 0 and self.sector != 'Construction':
+                refused_share = self.unmet_quantity / (self.amount_sold + self.unmet_quantity)
             for p in self.inventory.values():
                 delta_price = seed_np.randint(0, int(2 * markup * 100) + 1) / 100
                 productive_capacity = self.total_qualification(prod_exponent) / prod_magnitude_divisor
@@ -469,9 +475,13 @@ class Firm:
                         p.price = min(p.price * (1 + delta_price), ceiling)
                 else:
                     self.increase_production = False  # Lengnick
-                    # Fall only if above average, damped by price_ruggedness.
-                    if p.price > avg_prices:
+                    # Fall only if above average, damped by price_ruggedness; never in a month with refused demand
+                    if p.price > avg_prices and not refused_share:
                         p.price *= 1 - delta_price * price_ruggedness
+                # Refused demand raises the price by θ × refused share, beyond PRICE_MARKUP_CAP (which bounds only the
+                # inventory rule): the rationing that labour-bound supply cannot provide
+                if refused_share:
+                    p.price *= 1 + price_demand_response * refused_share
         self.prices = sum(p.price for p in self.inventory.values()) / len(
             self.inventory
         )

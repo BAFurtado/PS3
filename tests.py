@@ -987,6 +987,17 @@ for _on in (False, True):
     _signal.append((_f.increase_production, _f.workers_needed))
 check("Refused demand asks for more workers only with DEMAND_SIGNAL_UNMET on",
       _signal[0][0] is False and _signal[1][0] is True and _signal[1][1] > 1, f"{_signal}")
+# PRICE_DEMAND_RESPONSE θ: refused demand raises the price by θ × refused share, above the markup cap, and blocks the
+# month's fall; θ = 0 keeps the old rule (an above-average, well-stocked firm lowers its price)
+_theta = []
+for _t in (0.0, 0.5):
+    _prod.quantity, _prod.price, _f.amount_sold, _f.unmet_quantity = 1e12, 1.2, 1.0, 3.0
+    _f.decision_on_prices_production(1, 0.1, np.random.RandomState(1), 1.0,
+                                     sim.PARAMS["PRODUCTIVITY_EXPONENT"], sim.PARAMS["PRODUCTIVITY_MAGNITUDE_DIVISOR"],
+                                     price_markup_cap=0.0875, price_demand_response=_t)
+    _theta.append(_prod.price)
+check("PRICE_DEMAND_RESPONSE: refused demand raises the price beyond the cap; off keeps the old fall",
+      _theta[0] < 1.2 and abs(_theta[1] - 1.2 * (1 + 0.5 * 0.75)) < 1e-12, f"{_theta}")
 (_prod.quantity, _prod.price, _f.amount_sold, _f.unmet_quantity, _f.total_balance, _f.revenue, _f.prices,
  _f.increase_production, _f.workers_needed) = _saved
 
