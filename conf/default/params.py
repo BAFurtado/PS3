@@ -382,6 +382,13 @@ EXTERNAL_RECYCLING_SHARE = 0.0
 # the sector with stock, in proportion to the value of its stock. 'cheapest' (old model): split equally over the 10
 # cheapest stocked firms of a sample of 3 x SIZE_MARKET, which run out while the rest of the sector keeps its stock.
 EXTERNAL_DEMAND_SPREAD = 'cheapest'
+# Households buy a share of their consumption of each tradable sector from the rest of Brazil (step 2b): the ACP's import
+# share of that product in the regionalised technical matrix, imported / (local + imported) over all buying sectors (the
+# location quotients IO_IMPORTS uses). Services stay local. Household totals: BH 0.15, GYN 0.17, BSB 0.22, PMW 0.24,
+# SP 0.05. The final-demand files cannot give it: their rest-of-Brazil -> local household block is 0 in every ACP.
+# False (old model): households buy only from local firms.
+HOUSEHOLD_IMPORTS = False
+HOUSEHOLD_IMPORT_SECTORS = ['Agriculture', 'Mining', 'Manufacturing']
 # Price of imported inputs (step 2b). 'exogenous': 1, the initial goods price held in real terms, plus freight, so local
 # price rises do not feed back into import prices. 'local' (old model): the local seller's price plus freight.
 IMPORT_PRICE = 'local'

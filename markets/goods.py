@@ -96,6 +96,14 @@ class RegionalMarket:
         self.sim = sim
         self.technical_matrix, self.ext_local_matrix, self.loc_ext_matrix, self.ext_ext_matrix = read_technical_matrix(
             sim.geo.processing_acps)
+        # HOUSEHOLD_IMPORTS: the ACP's import share of each tradable product, from the import block as read (before the
+        # old behaviour below replaces it)
+        self.household_import_share = {}
+        if sim.PARAMS.get('HOUSEHOLD_IMPORTS', False):
+            local, imported = self.technical_matrix.sum(axis=1), self.ext_local_matrix.sum(axis=1)
+            share = (imported / (local + imported)).fillna(0.0)
+            self.household_import_share = {s: float(share[s]) for s in sim.PARAMS['HOUSEHOLD_IMPORT_SECTORS']
+                                           if share[s] > 0}
         if not sim.PARAMS.get('IO_IMPORTS', False):
             # Old behaviour: firms read the local->external block as their imports, which is ~0, so every ACP bought
             # only the local share of its inputs
@@ -114,6 +122,8 @@ class RegionalMarket:
         self.household_refused_coverable = 0.0
         # Diagnostic: household money this month that firms returned for lack of stock, after any retries
         self.household_unserved = 0.0
+        # Household money this month spent outside the ACP (HOUSEHOLD_IMPORTS)
+        self.household_imports = 0.0
         # Pre-compute numpy column arrays to avoid pandas.loc overhead in the per-firm hot loop
         self._sector_order = list(self.technical_matrix.index)
         self._tech_np = {s: self.technical_matrix[s].values.copy() for s in self._sector_order}
@@ -123,6 +133,7 @@ class RegionalMarket:
         self.monthly_hh_consumption = defaultdict(float)
         self.household_no_stock = 0.0
         self.household_unserved = 0.0
+        self.household_imports = 0.0
         # Household consumption
 
         # Single pass over firms to group by sector, then filter by inventory availability

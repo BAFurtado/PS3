@@ -790,7 +790,7 @@ def _retry_case(retry, by_price):
     fam = SimpleNamespace(savings=0.0, house=house, region_id=None, average_utility=0.0,
                           decision_on_consumption=lambda *a: 5.0)
     rm = SimpleNamespace(final_demand={'HouseholdConsumption': {'Agriculture': 1.0}}, household_no_stock=0.0,
-                         household_unserved=0.0)
+                         household_unserved=0.0, household_import_share={})
     seed = SimpleNamespace(randint=lambda a, b: int(by_price), sample=None)
     Family.consume(fam, rm, seed, None, None, {}, dict(sim.PARAMS, SIZE_MARKET=5, HOUSEHOLD_RETRY=retry), 2010, 1,
                    False, {'Agriculture': firms})
@@ -803,6 +803,31 @@ check("HOUSEHOLD_RETRY: short-served households buy the rest from the next stock
       _cases[(False, True)] == ([1.0, 0.0, 0.0], 4.0, 4.0) and _cases[(False, False)] == ([1.0, 0.0, 0.0], 4.0, 4.0)
       and _cases[(True, True)] == ([1.0, 2.0, 0.0], 0.0, 0.0) and _cases[(True, False)] == ([1.0, 0.0, 1.0], 0.0, 0.0),
       f"{_cases}")
+
+# HOUSEHOLD_IMPORTS: the import share of a product goes to the rest of Brazil at once, the rest to the local firm, and
+# all of it counts as consumption; the market's share comes from the import block of the technical matrix
+_imp_ext = External(SimpleNamespace(PARAMS=sim.PARAMS, ledger=defaultdict(float)), 0.0)
+_imp_firm = _ShelfFirm('a', 1.0, 100.0)
+_imp_fam = SimpleNamespace(savings=0.0, house=SimpleNamespace(address=None, _firm_distances={'a': 1.0}), region_id=None,
+                           average_utility=0.0, decision_on_consumption=lambda *a: 10.0)
+_imp_rm = SimpleNamespace(final_demand={'HouseholdConsumption': {'Agriculture': 0.6, 'Trade': 0.4}},
+                          household_no_stock=0.0, household_unserved=0.0, household_imports=0.0,
+                          household_import_share={'Agriculture': 0.25}, sim=SimpleNamespace(external=_imp_ext))
+_imp_cons = Family.consume(_imp_fam, _imp_rm, SimpleNamespace(randint=lambda a, b: 1), None, None, {},
+                           dict(sim.PARAMS, SIZE_MARKET=5), 2010, 1, False,
+                           {'Agriculture': [_imp_firm], 'Trade': [_ShelfFirm('t', 1.0, 100.0)]})
+_rm_on = RegionalMarket(SimpleNamespace(PARAMS=dict(sim.PARAMS, HOUSEHOLD_IMPORTS=True), geo=sim.geo))
+_ll, _el = read_technical_matrix(sim.geo.processing_acps)[:2]
+_m = (_el.sum(axis=1) / (_ll.sum(axis=1) + _el.sum(axis=1)))
+check("HOUSEHOLD_IMPORTS: the tradable import share is bought outside and counted as consumption; services stay local",
+      abs(_imp_ext.imports_month - 1.5) < 1e-12 and abs(_imp_rm.household_imports - 1.5) < 1e-12
+      and abs(100 - _imp_firm.inventory[0].quantity - 4.5) < 1e-12 and abs(_imp_cons['Agriculture'] - 6.0) < 1e-12
+      and abs(_imp_ext.sim.ledger['imports'] + 1.5) < 1e-12
+      and set(_rm_on.household_import_share) <= set(sim.PARAMS['HOUSEHOLD_IMPORT_SECTORS'])
+      and all(abs(_rm_on.household_import_share[k] - _m[k]) < 1e-12 for k in _rm_on.household_import_share)
+      and sim.regional_market.household_import_share == {},
+      f"imports {_imp_ext.imports_month}, local sold {100 - _imp_firm.inventory[0].quantity}, "
+      f"shares {_rm_on.household_import_share}")
 
 # ── Firm capital and demography (#21, #24). Last: these remove firms from the shared run ─────────────────────────
 print("\n── Firm capital, entry and exit ─────────────────────────────────────")

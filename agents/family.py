@@ -303,6 +303,7 @@ class Family:
         size_market = int(params['SIZE_MARKET'])
         tax_consumption = params['TAX_CONSUMPTION']
         retry = params.get('HOUSEHOLD_RETRY', False)
+        import_share = regional_market.household_import_share
 
         household_demand = regional_market.final_demand['HouseholdConsumption']
         total_consumption = defaultdict(float)
@@ -320,6 +321,17 @@ class Family:
             money_this_sector = money_to_spend * sector_share
             if money_this_sector <= 0:
                 continue
+
+            # HOUSEHOLD_IMPORTS: the import share of the product is bought from the rest of Brazil, which always has
+            # stock. It counts as consumption, and in the internal demand exports scale with
+            imported = money_this_sector * import_share.get(sector, 0.0)
+            if imported > 0:
+                regional_market.sim.external.intermediate_consumption(
+                    imported, price=1.0 + params['REGIONAL_FREIGHT_COST'])
+                regional_market.household_imports += imported
+                avg_utility += imported
+                total_consumption[sector] += imported
+                money_this_sector -= imported
 
             sector_firms = firms_by_sector.get(sector)
             if not sector_firms:
