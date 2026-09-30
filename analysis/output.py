@@ -9,6 +9,7 @@ import pyarrow.parquet as pq
 
 import conf
 from analysis.money import LEDGER_CHANNELS, money_stock
+from markets.goods import household_refused_coverable
 
 # Files written as CSV (small, used by averaging pipeline)
 _CSV_FILES = {'stats', 'regional', 'time', 'head', 'neighbourhood'}
@@ -140,6 +141,9 @@ OUTPUT_DATA_SPEC = {
                     "demand_input", "unmet_input",
                     "demand_external", "unmet_external",
                     "household_no_stock",
+                    # Diagnostic of matching: household refused quantity that the same sector's leftover stock could
+                    # have covered, right after the household round and at month end (after government and external)
+                    "unmet_household_coverable", "unmet_household_coverable_end",
                     # External account (defect #27): monthly imports, exports and recycled demand; cumulative net
                     # position and external public funding
                     "ext_imports",
@@ -293,11 +297,17 @@ EXTERNAL_ACCOUNT_COLUMNS = ('ext_imports', 'ext_exports', 'ext_recycled', 'ext_n
 MONEY_COLUMNS = tuple(c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c.startswith('money_'))
 DEMAND_BY_BUYER_COLUMNS = tuple(f'{k}_{b}' for b in ('household', 'government', 'input', 'external')
                                 for k in ('demand', 'unmet')) + ('household_no_stock',)
+MATCHING_COLUMNS = ('unmet_household_coverable', 'unmet_household_coverable_end')
+
+
+def _legacy_stats_columns_no_matching():
+    """`stats` layout of d74a535 (2026-09-30): demand by buyer type but no matching diagnostic."""
+    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c not in MATCHING_COLUMNS]
 
 
 def _legacy_stats_columns_no_demand_by_buyer():
     """`stats` layout of 1830dcd (2026-09-30): firms_unmet_share but no demand by buyer type."""
-    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c not in DEMAND_BY_BUYER_COLUMNS]
+    return [c for c in _legacy_stats_columns_no_matching() if c not in DEMAND_BY_BUYER_COLUMNS]
 
 
 def _legacy_stats_columns_no_unmet():
@@ -361,7 +371,7 @@ def _legacy_regional_columns_single_pot():
 
 
 LEGACY_COLUMNS = {
-    'stats': [_legacy_stats_columns_no_demand_by_buyer(), _legacy_stats_columns_no_unmet(),
+    'stats': [_legacy_stats_columns_no_matching(), _legacy_stats_columns_no_demand_by_buyer(), _legacy_stats_columns_no_unmet(),
               _legacy_stats_columns_no_money(), _legacy_stats_columns_no_external_account(),
               _legacy_stats_columns_no_firm_demography(),
               _legacy_stats_columns()],
@@ -565,6 +575,8 @@ class Output:
             stats_row[f"unmet_{b}"] = sum(r[1] for r in recs)
             stats_row[f"demand_{b}"] = sum(r[0] + r[1] for r in recs)
         stats_row["household_no_stock"] = getattr(sim.regional_market, 'household_no_stock', 0.0)
+        stats_row["unmet_household_coverable"] = getattr(sim.regional_market, 'household_refused_coverable', 0.0)
+        stats_row["unmet_household_coverable_end"] = household_refused_coverable(goods)
         ext = sim.external
         stats_row["ext_imports"] = ext.last_month['imports']
         stats_row["ext_exports"] = ext.last_month['exports']

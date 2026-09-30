@@ -386,6 +386,13 @@ check("Refused demand by buyer adds up to the firms' refused quantity and to fir
       f"per firm {_by_ok}; last month shares by buyer "
       f"{[round(_st[f'unmet_{b}'].iloc[-1] / max(_st[f'demand_{b}'].iloc[-1], 1e-12), 3) for b in _b]}")
 
+# Matching diagnostic: the household refusals the same sector's leftover stock could cover are between 0 and the
+# refusals themselves, after the household round and at month end
+_cov = _st[['unmet_household_coverable', 'unmet_household_coverable_end']]
+check("Coverable household refusals are between 0 and unmet_household",
+      bool((_cov.values >= 0).all() and (_cov.values <= _st[['unmet_household']].values * (1 + 1e-9) + 1e-9).all()),
+      f"last month coverable / refused {round(_st.unmet_household_coverable.iloc[-1] / max(_st.unmet_household.iloc[-1], 1e-12), 3)}")
+
 # FPM hands out exactly what was collected. It divided by the sum of the *distinct* municipal FPM values, so
 # municipalities in the same FPM band counted once: ARACAJU at 1 % (6 municipalities) got 4-5 % more than was
 # collected from 2011 (#41)

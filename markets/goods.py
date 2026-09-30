@@ -68,6 +68,21 @@ def read_final_demand_matrix(mun_codes):
     return external_demand_multiplier
 
 
+def household_refused_coverable(firms):
+    """Household quantity refused for lack of stock that the leftover stock of the same sector could have covered:
+    sum over sectors of min(refused, leftover). Goods firms only, as unmet_household. Diagnostic of matching: a
+    household is refused by the firm it picked while other firms of the sector still hold stock."""
+    refused = defaultdict(float)
+    leftover = defaultdict(float)
+    for f in firms:
+        if f.sector == 'Construction':
+            continue
+        leftover[f.sector] += max(0.0, f.inventory[0].quantity)
+        if f.demand_by_buyer and 'household' in f.demand_by_buyer:
+            refused[f.sector] += f.demand_by_buyer['household'][1]
+    return sum(min(r, leftover[s]) for s, r in refused.items())
+
+
 class RegionalMarket:
     """
     The regional market contains interactions between productive sectors such as production functions from the
@@ -94,6 +109,9 @@ class RegionalMarket:
         self.monthly_gov_consumption = defaultdict(float)
         # Diagnostic: household money this month that found no firm of the sector with stock (Family.consume)
         self.household_no_stock = 0.0
+        # Diagnostic: household refused quantity that the same sector's leftover stock could have covered, right after
+        # the household round (household_refused_coverable)
+        self.household_refused_coverable = 0.0
         # Pre-compute numpy column arrays to avoid pandas.loc overhead in the per-firm hot loop
         self._sector_order = list(self.technical_matrix.index)
         self._tech_np = {s: self.technical_matrix[s].values.copy() for s in self._sector_order}
@@ -129,6 +147,7 @@ class RegionalMarket:
             for key, value in consumption.items():
                 self.monthly_hh_consumption[key] += value
         self.transport_fares(firms_by_sector.get('Transport'))
+        self.household_refused_coverable = household_refused_coverable(self.sim.firms.values())
 
     def transport_fares(self, transport_firms):
         """Commuting costs (Agent.pay_transport) and the employer transport tax (TAX_TRANSPORT) are collected per
