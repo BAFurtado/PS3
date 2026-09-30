@@ -275,11 +275,22 @@ class Family:
 
         propensity = params.get('CONSUMPTION_PROPENSITY', 1.0)
         target = max(0, permanent_income - rent - loan) * propensity
+        needed = permanent_income - rent - loan
+
+        norm = params.get('WEALTH_NORM', 'off')
+        if norm != 'off':
+            # Liquid wealth against its target in months of permanent income
+            wealth = money + self.savings + central.sum_deposits(self)
+            gap = wealth - params['WEALTH_TARGET_MONTHS'] * max(0.0, permanent_income)
+            if norm == 'dissave':
+                gap = max(0.0, gap)
+            target = max(0.0, target + params['WEALTH_ADJUSTMENT'] * gap)
+            needed = target + rent + loan
 
         # Wages and the savings kept at home first; bank deposits only if they fall short
         money += self.savings
         self.savings = 0
-        if money < permanent_income - rent - loan and central.wallet[self]:
+        if money < needed and central.wallet[self]:
             money += self.grab_savings(central, year, month)
         # Rent and the loan instalment come first, and stay in savings: collect_rent and collect_loan_payments take
         # them from there. They used to be subtracted here as well, so they were paid twice (#35), and a family with

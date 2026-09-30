@@ -73,6 +73,8 @@ class Simulation:
         # Money crossing the ACP's boundary, cumulative by channel (analysis/money.py), and the stock it started with
         self.ledger = defaultdict(float)
         self.money_initial = 0.0
+        # INITIAL_MONEY 'target': the ACP's Census income per person aged 10+ at the start, in model money
+        self.income_per_person = 0.0
         # Entries skipped because the sector's incumbents had too little capital above their buffer
         self.firm_entry_unfunded = 0
         self.mun_to_regions = defaultdict(set)
@@ -228,6 +230,8 @@ class Simulation:
             self.central,
         ) = self.generate()
         self.central.ledger = self.ledger
+        if self.PARAMS.get('INITIAL_MONEY', 'lognormal') == 'target':
+            self.initial_money_from_income()
 
         if self.transport.matrix is not None:
             self.transport.check_coverage(self.regions.keys())
@@ -268,6 +272,18 @@ class Simulation:
             region.pop = self.reg_pops[region.id]
         self.money_initial = money_stock_total(self)
         self.central.equity_target = self.central.equity()
+
+    def initial_money_from_income(self):
+        """INITIAL_MONEY 'target': each family's members aged 10+ hold WEALTH_TARGET_MONTHS of its Census income per
+        person (its initial permanent income over them), times their own draw over the draw's mean"""
+        income, adults = 0.0, 0
+        for family in self.families.values():
+            n = sum(1 for m in family.members.values() if m.age >= 10)
+            if n:
+                self.generator.money_from_income(family.members.values(), family.permanent_income / n)
+                income += family.permanent_income
+                adults += n
+        self.income_per_person = income / adults if adults else 0.0
 
     def daily(self):
         pass

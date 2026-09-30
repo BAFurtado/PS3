@@ -422,6 +422,7 @@ class Statistics(object):
         return {
             "affordability_ratio": affordability_ratio,
             "median_permanent_income": median_permanent_income,
+            "total_permanent_income": float(permanent_income.sum()),
             "median_affordability": median_affordability,
             "rent_burden_decis": rent_burden_decis,
             "zero_income_renter_share": (

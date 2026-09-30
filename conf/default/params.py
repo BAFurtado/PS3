@@ -350,6 +350,17 @@ MARRIAGE_CHECK_PROBABILITY = 0.03
 # CONSUMPTION #############################################################
 # Fraction of permanent income actually spent on goods; remainder flows to savings.
 CONSUMPTION_PROPENSITY = 1
+# Household wealth norm, on liquid wealth (cash and bank deposits) against WEALTH_TARGET_MONTHS of permanent income.
+# 'off': families consume their permanent income. 'symmetric': spending moves by WEALTH_ADJUSTMENT of the gap each
+# month, up above the target and down below it, drawing on deposits for any spending cash cannot cover. 'dissave': only
+# the excess above the target is spent.
+WEALTH_NORM = 'off'
+WEALTH_TARGET_MONTHS = 4.5
+WEALTH_ADJUSTMENT = 1 / 12
+# Initial money. 'lognormal': each agent holds a lognormal(3, 0.5) draw of model money. 'target': agents aged 10+ hold
+# WEALTH_TARGET_MONTHS of their area's Census income per person, times their draw over its mean; younger ones none.
+# Immigrants hold the same, at the ACP's initial income per person.
+INITIAL_MONEY = 'lognormal'
 # Fraction of accumulated balance government firms spend each month; remainder carried forward.
 GOVERNMENT_EXECUTION_RATE = 1
 

@@ -1281,8 +1281,63 @@ sim.ledger.clear()
 sim.ledger.update(_ld)
 sim.PARAMS["BANK_NATIONAL"] = False
 check("BANK_NATIONAL: deposits accrue monthly, withdrawal pays them, settlement restores equity, money conserved",
-      _empty_kept and abs(_owed - _expect) < 1e-9 and abs(_paid - _expect) < 1e-9 and abs(_eq_gap) < 1e-9 and abs(_cons) < 1e-9,
+      _empty_kept and abs(_owed - _expect) < 1e-9 and abs(_paid - _expect) < 1e-9 and abs(_eq_gap) < 1e-9 and abs(_cons) < 1e-12 * max(1.0, _stock0),
       f"owed {_owed:.6f} vs {_expect:.6f}, paid {_paid:.6f}, equity gap {_eq_gap:.2e}, unexplained {_cons:.2e}")
+
+# WEALTH_NORM: a family above its liquid-wealth target also spends WEALTH_ADJUSTMENT of the excess, from its deposits
+# if needed; below it, 'dissave' spends permanent income and 'symmetric' cuts spending by the same share of the gap
+_fam = next((f for f in sim.families.values() if (not f.is_renting or f.rent_voucher) and not f.have_loan
+             and f.members), None)
+if _fam is not None:
+    _bank = sim.central
+    _saved = (_fam.savings, _fam.permanent_income, {k: m.money for k, m in _fam.members.items()},
+              list(_bank.wallet.get(_fam, [])), _bank.balance, _bank.taxes)
+    _today = _dt.date(sim.clock.year, sim.clock.months, 1)
+
+    def _norm_case(norm, cash, deposits):
+        _fam.savings, _fam.permanent_income = 0.0, 10.0
+        for _i, _m in enumerate(_fam.members.values()):
+            _m.money = cash if _i == 0 else 0.0
+        _bank.wallet.pop(_fam, None)
+        if deposits:
+            _bank.deposit(_fam, deposits, _today)
+        _p = dict(sim.PARAMS, PUBLIC_TRANSIT_COST=0, PRIVATE_TRANSIT_COST=0, CONSUMPTION_PROPENSITY=1.0,
+                  WEALTH_NORM=norm, WEALTH_TARGET_MONTHS=6, WEALTH_ADJUSTMENT=1 / 24)
+        _c = _fam.decision_on_consumption(_bank, sim.clock.year, sim.clock.months, _p, sim.regions)
+        _left = _fam.savings + _bank.sum_deposits(_fam)
+        _bank.wallet.pop(_fam, None)
+        return _c, _left
+
+    _above = _norm_case('dissave', 5.0, 200.0)
+    _above_off = _norm_case('off', 5.0, 200.0)
+    _below = _norm_case('dissave', 30.0, 0.0)
+    _below_sym = _norm_case('symmetric', 30.0, 0.0)
+    _fam.savings, _fam.permanent_income = _saved[0], _saved[1]
+    for _k, _m in _fam.members.items():
+        _m.money = _saved[2][_k]
+    if _saved[3]:
+        _bank.wallet[_fam] = _saved[3]
+    _bank.balance, _bank.taxes = _saved[4], _saved[5]
+    _exp_above = 10.0 + (205.0 - 60.0) / 24
+    check("WEALTH_NORM: excess liquid wealth is spent at WEALTH_ADJUSTMENT, from deposits; below target 'dissave' "
+          "spends permanent income, 'symmetric' cuts it",
+          abs(_above[0] - _exp_above) < 1e-9 and abs(_above[0] + _above[1] - 205.0) < 1e-9
+          and abs(_above_off[0] - 10.0) < 1e-9 and abs(_below[0] - 10.0) < 1e-9
+          and abs(_below_sym[0] - (10.0 - 30.0 / 24)) < 1e-9,
+          f"above {_above}, off {_above_off}, below {_below}, symmetric {_below_sym}")
+
+# INITIAL_MONEY 'target': agents aged 10+ hold WEALTH_TARGET_MONTHS of income per person times their draw over its
+# mean, younger ones none
+from types import SimpleNamespace as _NS  # noqa: E402
+_mean_draw = np.exp(3 + 0.5 ** 2 / 2)
+_ags = [_NS(age=30, money=_mean_draw), _NS(age=10, money=2 * _mean_draw), _NS(age=9, money=_mean_draw)]
+_saved_months = sim.PARAMS["WEALTH_TARGET_MONTHS"]
+sim.PARAMS["WEALTH_TARGET_MONTHS"] = 6
+sim.generator.money_from_income(_ags, 1.5)
+sim.PARAMS["WEALTH_TARGET_MONTHS"] = _saved_months
+check("INITIAL_MONEY 'target': money = months × income per person × draw / mean draw, none under 10",
+      abs(_ags[0].money - 9.0) < 1e-9 and abs(_ags[1].money - 18.0) < 1e-9 and _ags[2].money == 0.0,
+      f"{[a.money for a in _ags]}")
 
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")

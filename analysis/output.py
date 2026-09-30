@@ -170,6 +170,8 @@ OUTPUT_DATA_SPEC = {
                     # Average price of firms in TRADABLE_SECTORS and of the others (PRICE_INDEX inclusion rule)
                     "price_tradable",
                     "price_nontradable",
+                    # Sum of families' permanent income
+                    "families_total_permanent_income",
                     ]
     },
     'families': {
@@ -308,9 +310,14 @@ DEMAND_BY_BUYER_COLUMNS = tuple(f'{k}_{b}' for b in ('household', 'government', 
 MATCHING_COLUMNS = ('unmet_household_coverable', 'unmet_household_coverable_end')
 
 
+def _legacy_stats_columns_no_total_income():
+    """`stats` layout of 08e0835 (2026-09-30): no families_total_permanent_income."""
+    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c != 'families_total_permanent_income']
+
+
 def _legacy_stats_columns_no_bank_profit():
     """`stats` layout of 0ddb69e (2026-09-30): no money_bank_profit_out."""
-    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c != 'money_bank_profit_out']
+    return [c for c in _legacy_stats_columns_no_total_income() if c != 'money_bank_profit_out']
 
 
 def _legacy_stats_columns_no_fgts_repaid():
@@ -404,7 +411,7 @@ def _legacy_regional_columns_single_pot():
 
 
 LEGACY_COLUMNS = {
-    'stats': [_legacy_stats_columns_no_bank_profit(), _legacy_stats_columns_no_fgts_repaid(), _legacy_stats_columns_no_group_prices(), _legacy_stats_columns_no_household_imports(), _legacy_stats_columns_no_unserved(), _legacy_stats_columns_no_matching(), _legacy_stats_columns_no_demand_by_buyer(), _legacy_stats_columns_no_unmet(),
+    'stats': [_legacy_stats_columns_no_total_income(), _legacy_stats_columns_no_bank_profit(), _legacy_stats_columns_no_fgts_repaid(), _legacy_stats_columns_no_group_prices(), _legacy_stats_columns_no_household_imports(), _legacy_stats_columns_no_unserved(), _legacy_stats_columns_no_matching(), _legacy_stats_columns_no_demand_by_buyer(), _legacy_stats_columns_no_unmet(),
               _legacy_stats_columns_no_money(), _legacy_stats_columns_no_external_account(),
               _legacy_stats_columns_no_firm_demography(),
               _legacy_stats_columns()],
@@ -534,6 +541,7 @@ class Output:
             "firms_median_employment": firm_results["workers"],
             "firms_total_employment": firm_results["firms_total_employment"],
             "families_median_permanent_income": families_results["median_permanent_income"],
+            "families_total_permanent_income": families_results["total_permanent_income"],
             "families_wages_received": families_results["median_wages"],
             "families_commuting": commuting,
             "families_savings": families_results["total_savings"],

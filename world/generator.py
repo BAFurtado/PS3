@@ -282,7 +282,16 @@ class Generator:
                 agent_id, a.gender, a.age, a.qualification, moneys[i], a.month
             )
             new_agents[agent_id] = new_agent
+        if self.sim.PARAMS.get('INITIAL_MONEY', 'lognormal') == 'target':
+            self.money_from_income(new_agents.values(), self.sim.income_per_person)
         return new_agents
+
+    def money_from_income(self, agents, per_person):
+        """INITIAL_MONEY 'target': agents aged 10+ hold WEALTH_TARGET_MONTHS of `per_person` income times their
+        lognormal(3, 0.5) draw over its mean; younger ones hold none"""
+        scale = self.sim.PARAMS['WEALTH_TARGET_MONTHS'] * per_person / np.exp(3 + 0.5 ** 2 / 2)
+        for a in agents:
+            a.money = a.money * scale if a.age >= 10 else 0.0
 
     def create_families(self, num_families):
         community = {}
