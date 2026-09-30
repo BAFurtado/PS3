@@ -8,6 +8,7 @@ import conf
 import inspect
 import tempfile
 import numpy as np
+import pandas as pd
 from collections import defaultdict
 import main
 from simulation import Simulation
@@ -357,10 +358,46 @@ if sim.PARAMS.get("GOV_REVISED", False):
         _real.append((sum(_v["outside"] or 0 for _v in _funds.gov_budget_diag.values()),
                       sum(_v["target"] for _v in _funds.gov_budget_diag.values()),
                       _funds.external_public_funding - _e0))
+    # GOV_EXTERNAL_WAGE 'national': once the reference private pay is fixed, the cost of federal and state staff is
+    # that reference times each level's observed multiple times their share of the staff, whatever private pay and
+    # prices do afterwards
+    sim.PARAMS["GOV_EXTERNAL_WAGE"] = "national"
+    _saved_gov_pay = (_funds.gov_pay, _funds.gov_pay_months, _funds.gov_pay_reference)
+    _funds.gov_pay = {str(_r.cod_mun): {"federal": _r.federal, "estadual": _r.estadual}
+                      for _r in pd.read_csv("input/gov_pay.csv", sep=";").itertuples()}
+    _funds.gov_pay_months, _funds.gov_pay_reference = [], None
+    _burn, _base = sim.PARAMS["GOV_PAY_BURN_IN"], sim.PARAMS["GOV_PAY_BASE_MONTHS"]
+    _refs = [_funds.national_pay_reference(float(_i)) for _i in range(_burn + _base + 3)]
+    _frozen = np.mean(range(_burn, _burn + _base))
+    _nat = []
+    for _scale in (1.0, 2.0):
+        for _f in sim.firms.values():
+            if _f.sector != "Government":
+                _f.wages_paid = _saved_pay[_f.id] * _scale
+        sim.avg_prices = _saved_price * _scale
+        for _rid in sim.regions:
+            _funds.pending_public_money[_rid]["equally"] += 1e-6
+        _funds.settle_government_budget(sim.regions)
+        _nat.append((sum(_v["outside"] or 0 for _v in _funds.gov_budget_diag.values()),
+                     sum(_v["target"] for _v in _funds.gov_budget_diag.values())))
+    _expected = _frozen * sum(_v["staff"] * sum(_funds.gov_levels[_m][_k] * _funds.gov_pay[_m][_k]
+                                                for _k in ("federal", "estadual"))
+                              for _m, _v in _funds.gov_budget_diag.items())
+    _funds.gov_pay, _funds.gov_pay_months, _funds.gov_pay_reference = _saved_gov_pay
     for _f in sim.firms.values():
         if _f.sector != "Government":
             _f.wages_paid = _saved_pay[_f.id]
     sim.PARAMS["GOV_EXTERNAL_WAGE"], sim.avg_prices = _saved_rule, _saved_price
+    check(
+        "Federal and state staff at the observed multiple of a private pay reference fixed after the base months",
+        _refs[:_burn + _base - 1] == [float(_i) for _i in range(_burn + _base - 1)]
+        and all(_r == _frozen for _r in _refs[_burn + _base - 1:])
+        and _nat[0][0] > 0 and abs(_nat[0][0] - _expected) < 1e-9 * _expected
+        and abs(_nat[1][0] - _nat[0][0]) < 1e-9 * _nat[0][0] and _nat[1][1] > _nat[0][1],
+        f"reference {_frozen:.1f}, outside cost {_nat[0][0]:.3f} -> {_nat[1][0]:.3f} (expected {_expected:.3f}), "
+        f"payroll target "
+        f"{_nat[0][1]:.3f} -> {_nat[1][1]:.3f}",
+    )
     if sim.PARAMS.get("GOV_EXTERNAL_FUNDING", False):
         check(
             "Federal and state staff at real private pay: outside funding does not follow the price level",

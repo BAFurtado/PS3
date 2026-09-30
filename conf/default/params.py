@@ -107,8 +107,13 @@ GOV_EXTERNAL_FUNDING = True
 # What federal and state staff are paid. 'local': the municipality's private pay per unit of qualification (per worker
 # for 'cempre_ratio'/'uniform'), as municipal staff. 'real': the ACP's private pay divided by the average goods price
 # (avg_prices, see PRICE_INDEX), in units of the import price (P_imp = 1); municipal staff keep local pay, and
-# GOV_EXTERNAL_FUNDING pays at most the federal and state staff's cost.
+# GOV_EXTERNAL_FUNDING pays at most the federal and state staff's cost. 'national': the observed multiple of private
+# pay for each level (input/gov_pay.csv: Ipea Atlas do Estado Brasileiro state pay per level over the ACP's CEMPRE
+# private pay, 2010; auxiliary/gov_pay.py) times the ACP's private pay per worker, the mean over GOV_PAY_BASE_MONTHS
+# months after GOV_PAY_BURN_IN, then fixed in real terms; municipal staff and the cap as for 'real'.
 GOV_EXTERNAL_WAGE = 'local'
+GOV_PAY_BURN_IN = 12
+GOV_PAY_BASE_MONTHS = 12
 # The taxes pooled 'equally' (labour and firm taxes net of the FPM share, the state share of consumption tax, tax on
 # bank interest, the import tax that returns) are federal and state revenue. True: they leave the ACP through the
 # external account (money_public_taxes_out), so the net public transfer is GOV_EXTERNAL_FUNDING minus these. False: they

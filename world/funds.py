@@ -32,6 +32,15 @@ class Funds:
             levels = pd.read_csv('input/gov_levels.csv', sep=';')
             self.gov_levels.update({str(r.cod_mun): {'federal': r.federal, 'estadual': r.estadual,
                                                      'municipal': r.municipal} for r in levels.itertuples()})
+        # GOV_EXTERNAL_WAGE 'national': federal and state pay per municipality as multiples of its ACP's private pay,
+        # and the ACP private pay per worker they apply to: this month's until GOV_PAY_BURN_IN + GOV_PAY_BASE_MONTHS
+        # settlements, then the mean over the base months, fixed
+        self.gov_pay = {}
+        self.gov_pay_months = []
+        self.gov_pay_reference = None
+        if sim.PARAMS.get('GOV_EXTERNAL_WAGE', 'local') == 'national':
+            pay = pd.read_csv('input/gov_pay.csv', sep=';')
+            self.gov_pay = {str(r.cod_mun): {'federal': r.federal, 'estadual': r.estadual} for r in pay.itertuples()}
         # GOV_EXTERNAL_FUNDING: money paid in from outside the ACP for federal and state public staff, cumulative
         self.external_public_funding = 0.0
         self.perc_policy_money_spent = 0
@@ -674,6 +683,18 @@ class Funds:
         if self.sim.PARAMS.get('GOV_REVISED', False):
             self.settle_government_budget(regions)
 
+    def national_pay_reference(self, acp_wage):
+        """GOV_EXTERNAL_WAGE 'national': the ACP private pay per worker federal and state pay multiply. This month's
+        during GOV_PAY_BURN_IN + GOV_PAY_BASE_MONTHS settlements, then the base months' mean."""
+        if self.gov_pay_reference is not None:
+            return self.gov_pay_reference
+        params = self.sim.PARAMS
+        self.gov_pay_months.append(acp_wage)
+        if len(self.gov_pay_months) >= params['GOV_PAY_BURN_IN'] + params['GOV_PAY_BASE_MONTHS']:
+            self.gov_pay_reference = float(np.mean(self.gov_pay_months[params['GOV_PAY_BURN_IN']:]))
+            return self.gov_pay_reference
+        return acp_wage
+
     def settle_government_budget(self, regions):
         """GOV_REVISED: balanced budget. A municipality's public revenue (its FPM, local taxes and share of the taxes
         divided equally) is spent, in order, on: (1) its public payroll, set by GOV_WAGE_RULE ('premium': private
@@ -687,7 +708,8 @@ class Funds:
         pays the shortfall from outside the ACP up to the non-municipal share of that cost (federal and state staff
         are paid from national and state revenue); whatever is still short scales the payroll down.
         GOV_EXTERNAL_WAGE 'real' pays federal and state staff the ACP's private pay deflated by the average goods price
-        instead of local pay, and caps the outside funding at their cost.
+        instead of local pay, 'national' the observed multiple of private pay for each level (national_pay_reference),
+        fixed in real terms after the base months; both cap the outside funding at their cost.
         (3) and (4) are also recorded as the regions' applied public money, which the QLI fiscal leg reads.
         Nothing is created or lost except the external inflow, counted in external_public_funding. A municipality
         without Government firms has its purchases and investment spent by the ACP's Government firms. The old path
@@ -721,6 +743,9 @@ class Funds:
         # GOV_EXTERNAL_WAGE 'real': federal and state staff are paid the ACP's private pay deflated by the average goods
         # price (avg_prices), in units of the import price (P_imp = 1)
         ref_unit = ref_wage = None
+        national = params.get('GOV_EXTERNAL_WAGE', 'local') == 'national'
+        if national:
+            reference = self.national_pay_reference(acp_wage)
         if params.get('GOV_EXTERNAL_WAGE', 'local') == 'real' and quals:
             price = self.sim.avg_prices if self.sim.avg_prices > 0 else 1.0
             ref_unit, ref_wage = acp_unit / price, acp_wage / price
@@ -735,11 +760,20 @@ class Funds:
             private_wage = bill[mun] / heads[mun] if heads[mun] else acp_wage
             levels = self.gov_levels[mun]
             outside = None
+            if national:
+                # Pay per worker of the federal and state staff, weighted by their share of public jobs
+                pay = self.gov_pay.get(mun, {'federal': 0.0, 'estadual': 0.0})
+                pay_out = reference * sum(levels[k] * pay[k] for k in ('federal', 'estadual'))
             if rule == 'premium':
                 markup = 1 + sum(levels[k] * premia[k] for k in premia)
                 unit = bill[mun] / quals[mun] if quals[mun] else acp_unit
                 qual = sum(f.total_qualification(alpha) for f in firms)
-                if ref_unit is None:
+                if national:
+                    w_mun = levels['municipal'] * (1 + premia['municipal'])
+                    offer = w_mun * private_wage + pay_out
+                    outside = pay_out * staff
+                    target = w_mun * unit * qual + outside
+                elif ref_unit is None:
                     offer = markup * private_wage
                     target = markup * unit * qual
                 else:
@@ -751,7 +785,10 @@ class Funds:
                     target = w_mun * unit * qual + outside
             else:
                 ratio = params['GOV_WAGE_RATIO'] * (self.gov_wage_ratio[mun] if rule == 'cempre_ratio' else 1.0)
-                if ref_wage is None:
+                if national:
+                    offer = ratio * levels['municipal'] * private_wage + pay_out
+                    outside = pay_out * staff
+                elif ref_wage is None:
                     offer = ratio * private_wage
                 else:
                     offer = ratio * (levels['municipal'] * private_wage + (1 - levels['municipal']) * ref_wage)
