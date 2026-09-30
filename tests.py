@@ -766,6 +766,44 @@ check("EXTERNAL_DEMAND_SPREAD 'stock': demand split by stock value over every st
       and abs(_ext.last_month['exports'] - 6.0) < 1e-12,
       f"{[f.sold for f in _firms.values()]}, exports {_ext.last_month['exports']}")
 
+# HOUSEHOLD_RETRY: a household short-served by the firm it picked tries the rest of its sample, in its strategy's order
+# (price, or distance); off, the rest goes back to savings
+from agents.family import Family  # noqa: E402
+
+
+class _ShelfFirm:
+    def __init__(self, fid, price, quantity):
+        self.id, self.address = fid, None
+        self.inventory = {0: SimpleNamespace(price=price, quantity=quantity)}
+
+    def sale(self, amount, *args, **kwargs):
+        p = self.inventory[0]
+        q = min(amount / p.price, p.quantity)
+        p.quantity -= q
+        return amount - q * p.price
+
+
+def _retry_case(retry, by_price):
+    firms = [_ShelfFirm('a', 1.0, 1.0), _ShelfFirm('b', 2.0, 10.0), _ShelfFirm('c', 3.0, 0.0), _ShelfFirm('d', 4.0, 10.0)]
+    # Distance order a, c, d, b: by distance the retry skips c (no stock) and buys from d
+    house = SimpleNamespace(address=None, _firm_distances={'a': 1.0, 'c': 2.0, 'd': 3.0, 'b': 4.0})
+    fam = SimpleNamespace(savings=0.0, house=house, region_id=None, average_utility=0.0,
+                          decision_on_consumption=lambda *a: 5.0)
+    rm = SimpleNamespace(final_demand={'HouseholdConsumption': {'Agriculture': 1.0}}, household_no_stock=0.0,
+                         household_unserved=0.0)
+    seed = SimpleNamespace(randint=lambda a, b: int(by_price), sample=None)
+    Family.consume(fam, rm, seed, None, None, {}, dict(sim.PARAMS, SIZE_MARKET=5, HOUSEHOLD_RETRY=retry), 2010, 1,
+                   False, {'Agriculture': firms})
+    return [round(10 - f.inventory[0].quantity, 9) if f.id != 'a' else round(1 - f.inventory[0].quantity, 9)
+            for f in firms if f.id != 'c'], fam.savings, rm.household_unserved
+
+
+_cases = {(r, p): _retry_case(r, p) for r in (False, True) for p in (True, False)}
+check("HOUSEHOLD_RETRY: short-served households buy the rest from the next stocked firm of their sample; off unchanged",
+      _cases[(False, True)] == ([1.0, 0.0, 0.0], 4.0, 4.0) and _cases[(False, False)] == ([1.0, 0.0, 0.0], 4.0, 4.0)
+      and _cases[(True, True)] == ([1.0, 2.0, 0.0], 0.0, 0.0) and _cases[(True, False)] == ([1.0, 0.0, 1.0], 0.0, 0.0),
+      f"{_cases}")
+
 # ── Firm capital and demography (#21, #24). Last: these remove firms from the shared run ─────────────────────────
 print("\n── Firm capital, entry and exit ─────────────────────────────────────")
 from world.firms import fund_entrant, firm_exit  # noqa: E402

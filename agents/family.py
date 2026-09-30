@@ -302,6 +302,7 @@ class Family:
 
         size_market = int(params['SIZE_MARKET'])
         tax_consumption = params['TAX_CONSUMPTION']
+        retry = params.get('HOUSEHOLD_RETRY', False)
 
         household_demand = regional_market.final_demand['HouseholdConsumption']
         total_consumption = defaultdict(float)
@@ -334,7 +335,8 @@ class Family:
             else:
                 market = seed.sample(sector_firms, size_market)
 
-            if seed.randint(0, 1):
+            by_price = seed.randint(0, 1)
+            if by_price:
                 # Price strategy: direct inventory[0].price access avoids property dispatch
                 chosen_firm = min(market, key=lambda f: f.inventory[0].price)
             else:
@@ -356,6 +358,17 @@ class Family:
                 money_this_sector, regions, tax_consumption,
                 self.region_id, if_origin
             )
+            if retry and change > 0:
+                # The other firms of the sample, next cheapest or next nearest first (distances already cached)
+                others = [f for f in market if f is not chosen_firm]
+                others.sort(key=(lambda f: f.inventory[0].price) if by_price else
+                            (lambda f: house_dist_cache.get(f.id, float('inf'))))
+                for f in others:
+                    if change <= 0:
+                        break
+                    if f.inventory[0].quantity > 0:
+                        change = f.sale(change, regions, tax_consumption, self.region_id, if_origin)
+            regional_market.household_unserved += change
 
             savings += change
             utility_gain = money_this_sector - change

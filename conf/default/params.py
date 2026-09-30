@@ -31,6 +31,10 @@ INVENTORY_TARGET_RATIO = 0.2
 DEMAND_SIGNAL_UNMET = False
 # Number of firms consulted before consumption
 SIZE_MARKET = 5
+# A household refused (or served only in part) for lack of stock by the firm it picked tries the other stocked firms of
+# the same sample, in the order of its strategy (price or distance), until the money is spent. False (old model): the
+# rest goes back to savings. Refused quantity stays recorded at each firm that refused it (its demand signal).
+HOUSEHOLD_RETRY = False
 # Number of firms to buy from in the INTERMEDIATE market
 INTERMEDIATE_SIZE_MARKET = 10
 # Frequency firms enter the market

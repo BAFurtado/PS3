@@ -144,6 +144,9 @@ OUTPUT_DATA_SPEC = {
                     # Diagnostic of matching: household refused quantity that the same sector's leftover stock could
                     # have covered, right after the household round and at month end (after government and external)
                     "unmet_household_coverable", "unmet_household_coverable_end",
+                    # Household money firms returned for lack of stock, after any HOUSEHOLD_RETRY (not counting
+                    # household_no_stock)
+                    "household_unserved",
                     # External account (defect #27): monthly imports, exports and recycled demand; cumulative net
                     # position and external public funding
                     "ext_imports",
@@ -300,9 +303,14 @@ DEMAND_BY_BUYER_COLUMNS = tuple(f'{k}_{b}' for b in ('household', 'government', 
 MATCHING_COLUMNS = ('unmet_household_coverable', 'unmet_household_coverable_end')
 
 
+def _legacy_stats_columns_no_unserved():
+    """`stats` layout of 9ec883b (2026-09-30): matching diagnostic but no household_unserved."""
+    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c != 'household_unserved']
+
+
 def _legacy_stats_columns_no_matching():
     """`stats` layout of d74a535 (2026-09-30): demand by buyer type but no matching diagnostic."""
-    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c not in MATCHING_COLUMNS]
+    return [c for c in _legacy_stats_columns_no_unserved() if c not in MATCHING_COLUMNS]
 
 
 def _legacy_stats_columns_no_demand_by_buyer():
@@ -371,7 +379,7 @@ def _legacy_regional_columns_single_pot():
 
 
 LEGACY_COLUMNS = {
-    'stats': [_legacy_stats_columns_no_matching(), _legacy_stats_columns_no_demand_by_buyer(), _legacy_stats_columns_no_unmet(),
+    'stats': [_legacy_stats_columns_no_unserved(), _legacy_stats_columns_no_matching(), _legacy_stats_columns_no_demand_by_buyer(), _legacy_stats_columns_no_unmet(),
               _legacy_stats_columns_no_money(), _legacy_stats_columns_no_external_account(),
               _legacy_stats_columns_no_firm_demography(),
               _legacy_stats_columns()],
@@ -577,6 +585,7 @@ class Output:
         stats_row["household_no_stock"] = getattr(sim.regional_market, 'household_no_stock', 0.0)
         stats_row["unmet_household_coverable"] = getattr(sim.regional_market, 'household_refused_coverable', 0.0)
         stats_row["unmet_household_coverable_end"] = household_refused_coverable(goods)
+        stats_row["household_unserved"] = getattr(sim.regional_market, 'household_unserved', 0.0)
         ext = sim.external
         stats_row["ext_imports"] = ext.last_month['imports']
         stats_row["ext_exports"] = ext.last_month['exports']

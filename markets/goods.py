@@ -112,6 +112,8 @@ class RegionalMarket:
         # Diagnostic: household refused quantity that the same sector's leftover stock could have covered, right after
         # the household round (household_refused_coverable)
         self.household_refused_coverable = 0.0
+        # Diagnostic: household money this month that firms returned for lack of stock, after any retries
+        self.household_unserved = 0.0
         # Pre-compute numpy column arrays to avoid pandas.loc overhead in the per-firm hot loop
         self._sector_order = list(self.technical_matrix.index)
         self._tech_np = {s: self.technical_matrix[s].values.copy() for s in self._sector_order}
@@ -120,6 +122,7 @@ class RegionalMarket:
     def consume(self):
         self.monthly_hh_consumption = defaultdict(float)
         self.household_no_stock = 0.0
+        self.household_unserved = 0.0
         # Household consumption
 
         # Single pass over firms to group by sector, then filter by inventory availability
