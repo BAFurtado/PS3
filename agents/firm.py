@@ -1087,6 +1087,8 @@ class GovernmentFirm(Firm):
         left = 0.0
         if money <= 0 or shares.sum() <= 0:
             return money
+        # SHORTAGE_IMPORTS: tradable purchases no local firm served are bought outside at P_imp = 1 plus freight
+        shortage_sectors = sim.PARAMS['TRADABLE_SECTORS'] if sim.PARAMS.get('SHORTAGE_IMPORTS', False) else ()
         for sector, share in (shares / shares.sum()).items():
             money_this_sector = money * share
             if money_this_sector == 0:
@@ -1098,10 +1100,13 @@ class GovernmentFirm(Firm):
                 chosen_firm = min(market, key=lambda firm: firm.prices)
                 change = chosen_firm.sale(money_this_sector, sim.regions, sim.PARAMS['TAX_CONSUMPTION'],
                                           self.region_id, sim.PARAMS["TAX_ON_ORIGIN"], buyer='government')
-                left += change
-                total_consumption[sector] += money_this_sector - change
             else:
-                left += money_this_sector
+                change = money_this_sector
+            if change > 0 and sector in shortage_sectors:
+                sim.external.intermediate_consumption(change, 1.0 + sim.PARAMS['REGIONAL_FREIGHT_COST'])
+                change = 0.0
+            left += change
+            total_consumption[sector] += money_this_sector - change
         return left
 
     def pay_taxes(self, regions, tax_firm):

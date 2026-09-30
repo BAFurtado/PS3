@@ -410,6 +410,11 @@ IMPORT_PRICE = 'local'
 # quantity, times the national real GDP index (input/national_real_gdp.csv) relative to the base months, times
 # (sector price / P_imp) ** -EXPORTS_PRICE_ELASTICITY, with P_imp = 1.
 EXPORTS_REAL = False
+# Sectors whose goods are traded with the rest of Brazil at P_imp = 1 plus REGIONAL_FREIGHT_COST.
+TRADABLE_SECTORS = ['Agriculture', 'Mining', 'Manufacturing']
+# True: household and government spending on TRADABLE_SECTORS that no local firm served (no stock, or refused after
+# the retry) is bought outside at P_imp plus freight. False: households keep it, government funds carry it over.
+SHORTAGE_IMPORTS = False
 EXPORTS_BURN_IN = 12
 EXPORTS_BASE_MONTHS = 12
 EXPORTS_PRICE_ELASTICITY = 1.0

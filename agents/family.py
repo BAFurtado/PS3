@@ -304,6 +304,9 @@ class Family:
         tax_consumption = params['TAX_CONSUMPTION']
         retry = params.get('HOUSEHOLD_RETRY', False)
         import_share = regional_market.household_import_share
+        # SHORTAGE_IMPORTS: tradable spending no local firm served is bought outside at P_imp = 1 plus freight
+        shortage_sectors = params['TRADABLE_SECTORS'] if params.get('SHORTAGE_IMPORTS', False) else ()
+        import_price = 1.0 + params['REGIONAL_FREIGHT_COST']
 
         household_demand = regional_market.final_demand['HouseholdConsumption']
         total_consumption = defaultdict(float)
@@ -336,9 +339,15 @@ class Family:
 
             sector_firms = firms_by_sector.get(sector)
             if not sector_firms:
+                regional_market.household_no_stock += money_this_sector
+                if sector in shortage_sectors:
+                    regional_market.sim.external.intermediate_consumption(money_this_sector, price=import_price)
+                    regional_market.household_imports += money_this_sector
+                    avg_utility += money_this_sector
+                    total_consumption[sector] += money_this_sector
+                    continue
                 # No firm of the sector has stock: the money stays with the family
                 savings += money_this_sector
-                regional_market.household_no_stock += money_this_sector
                 continue
 
             n_firms = len(sector_firms)
@@ -381,6 +390,11 @@ class Family:
                         break
                     if f.inventory[0].quantity > 0:
                         change = f.sale(change, regions, tax_consumption, self.region_id, if_origin)
+            if change > 0 and sector in shortage_sectors:
+                # Counted as consumption below, with the local purchase
+                regional_market.sim.external.intermediate_consumption(change, price=import_price)
+                regional_market.household_imports += change
+                change = 0.0
             regional_market.household_unserved += change
 
             savings += change

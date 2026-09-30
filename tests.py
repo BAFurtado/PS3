@@ -881,6 +881,46 @@ check("HOUSEHOLD_RETRY: short-served households buy the rest from the next stock
       and _cases[(True, True)] == ([1.0, 2.0, 0.0], 0.0, 0.0) and _cases[(True, False)] == ([1.0, 0.0, 1.0], 0.0, 0.0),
       f"{_cases}")
 
+# SHORTAGE_IMPORTS: tradable spending no local firm served (refused, or no stocked firm) is bought outside at 1 plus
+# freight and counted as consumption; non-tradable spending refused goes back to savings
+_sh_ext = External(SimpleNamespace(PARAMS=sim.PARAMS, ledger=defaultdict(float)), 0.0)
+_sh_fam = SimpleNamespace(savings=0.0, house=SimpleNamespace(address=None, _firm_distances={'a': 1.0, 't': 1.0}),
+                          region_id=None, average_utility=0.0, decision_on_consumption=lambda *a: 10.0)
+_sh_rm = SimpleNamespace(final_demand={'HouseholdConsumption': {'Agriculture': 0.4, 'Manufacturing': 0.2, 'Trade': 0.4}},
+                         household_no_stock=0.0, household_unserved=0.0, household_imports=0.0,
+                         household_import_share={}, sim=SimpleNamespace(external=_sh_ext),
+                         monthly_hh_intended=defaultdict(float))
+_sh_cons = Family.consume(_sh_fam, _sh_rm, SimpleNamespace(randint=lambda a, b: 1), None, None, {},
+                          dict(sim.PARAMS, SIZE_MARKET=5, SHORTAGE_IMPORTS=True), 2010, 1, False,
+                          {'Agriculture': [_ShelfFirm('a', 1.0, 2.0)], 'Trade': [_ShelfFirm('t', 1.0, 1.0)]})
+# Government: with no stocked Manufacturing firm the whole purchase is imported and nothing stays in the fund
+_ext = sim.external
+_ext_saved = {k: v for k, v in vars(_ext).items() if isinstance(v, (int, float))}
+_led_saved = sim.ledger['imports']
+_manu = [f for f in sim.firms.values() if f.sector == 'Manufacturing']
+_manu_q = [f.total_quantity for f in _manu]
+for _f in _manu:
+    _f.total_quantity = 0.0
+_gf = next(f for f in sim.firms.values() if f.sector == 'Government')
+_sh_tc = defaultdict(float)
+_sh_left = _gf.spend_fund(type("S", (), {"firms": sim.firms, "seed": sim.seed, "regions": sim.regions,
+                                         "external": _ext, "PARAMS": dict(sim.PARAMS, SHORTAGE_IMPORTS=True)})(),
+                          5.0, pd.Series({'Manufacturing': 1.0}), _sh_tc)
+_sh_gov_imports = _ext.imports_month - _ext_saved['imports_month']
+for _f, _q in zip(_manu, _manu_q):
+    _f.total_quantity = _q
+for _k, _v in _ext_saved.items():
+    setattr(_ext, _k, _v)
+sim.ledger['imports'] = _led_saved
+check("SHORTAGE_IMPORTS: unserved tradable spending is imported (households and government); services go to savings",
+      abs(_sh_ext.imports_month - 4.0) < 1e-12 and abs(_sh_rm.household_imports - 4.0) < 1e-12
+      and abs(_sh_fam.savings - 3.0) < 1e-12 and abs(_sh_rm.household_unserved - 3.0) < 1e-12
+      and abs(_sh_cons['Agriculture'] - 4.0) < 1e-12 and abs(_sh_cons['Manufacturing'] - 2.0) < 1e-12
+      and abs(_sh_cons['Trade'] - 1.0) < 1e-12
+      and _sh_left == 0.0 and abs(_sh_gov_imports - 5.0) < 1e-12 and abs(_sh_tc['Manufacturing'] - 5.0) < 1e-12,
+      f"household imports {_sh_ext.imports_month}, savings {_sh_fam.savings}, consumption {dict(_sh_cons)}; "
+      f"government left {_sh_left}, imports {_sh_gov_imports}")
+
 # HOUSEHOLD_IMPORTS: the import share of a product goes to the rest of Brazil at once, the rest to the local firm, and
 # all of it counts as consumption; the market's share comes from the import block of the technical matrix
 _imp_ext = External(SimpleNamespace(PARAMS=sim.PARAMS, ledger=defaultdict(float)), 0.0)
