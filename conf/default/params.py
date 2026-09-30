@@ -10,7 +10,9 @@ PRODUCTIVITY_MAGNITUDE_DIVISOR = 1
 # GENERAL CALIBRATION PARAMETERS
 # INTEREST: market/SELIC scenario. Choose: 'real', 'media', 'fixed'
 INTEREST = "real"
-# INTEREST_HOUSING: SBPE/FGTS regulated rate scenario for PlanHab. Choose: 'alta', 'media', 'baixa'
+# INTEREST_HOUSING: SBPE/FGTS regulated rate scenario for PlanHab. Choose: 'alta', 'media', 'baixa', or 'real': the
+# 'media' SBPE and FGTS rates and the market mortgage rate deflated by expected inflation (auxiliary/real_housing_rates.py),
+# the mortgage rate replacing the INTEREST file's
 INTEREST_HOUSING = "media"
 # By how much percentage to increase prices
 MARKUP = 0.1
@@ -163,6 +165,14 @@ OGU_INVESTMENT = {'otimista': .25,
 # FUNDS AVAILABILITY can be 'otimista', 'tendencial' or 'pessimista' [positive, tendencial or negative perspectives].
 # NOTICE: It interferes on both OGU investment and FGTS AND SBPE investments
 FUNDS_AVAILABILITY = 'tendencial'
+# Programme funds from outside the ACP. False: the OGU and the FGTS and SBPE lines are their shares of last month's
+# municipal GDP, and FGTS and SBPE instalments are paid to the local bank. True: the same shares of last month's GDP
+# for FUNDS_BURN_IN + FUNDS_BASE_MONTHS months; then of the municipality's real GDP over the base months (GDP / the
+# national real GDP index, input/national_real_gdp.csv) times this year's index; FGTS and SBPE instalments go back to
+# the national funds, out of the ACP.
+FUNDS_REAL = False
+FUNDS_BURN_IN = 12
+FUNDS_BASE_MONTHS = 12
 INCOME_MODALIDADES = {'faixa1': .38,
                       # 'rural': .38,
                       'melhorias': .38,

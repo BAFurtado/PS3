@@ -96,7 +96,7 @@ class HousingMarket:
             for loan_type in ['recursos_fgts', 'recursos_sbpe',]:
                 value = max(0,
                             self.policy_percentages[(sim.clock.year, r)][loan_type]
-                            * sim.stats.last_gdp[r])
+                            * sim.stats.funds_gdp(r, sim.clock.year))
                 sim.central.funding[(sim.clock.year, r)][loan_type] = value
                 sim.central.monthly_funding_available[(sim.clock.year, sim.clock.months, r, loan_type)] = value
 

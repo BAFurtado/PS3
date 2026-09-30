@@ -17,6 +17,7 @@ LEDGER_CHANNELS = (
     'bank_interest',     # Central.remunerate_liquid_balance: the bank's liquid balance remunerated at the policy rate
     'ogu',               # MCMV and melhorias budget lines (federal)
     'fgts_sbpe',         # FGTS and SBPE loans, funded outside the local bank
+    'fgts_sbpe_repaid',  # FUNDS_REAL: FGTS and SBPE instalments paid back to the national funds
     'immigrants',        # money immigrants bring
     'exports',           # sales to the rest of Brazil, recycled demand included
     'imports',           # inputs bought from the rest of Brazil, freight included

@@ -377,8 +377,11 @@ class Central:
                     family.have_loan = None
                 family.savings -= payment
 
-                # Add to bank balance
-                self.balance += payment
+                # Market instalments go to the bank; with FUNDS_REAL, FGTS and SBPE instalments to the national funds
+                if loan.loan_type == 'market' or not self.params.get('FUNDS_REAL', False):
+                    self.balance += payment
+                else:
+                    self.ledger['fgts_sbpe_repaid'] -= payment
 
                 # Remove loans that are paid off
                 if not done:

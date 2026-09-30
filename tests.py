@@ -1203,6 +1203,52 @@ check("IMPORT_PRICE 'exogenous': inputs bought outside cost 1 + freight, and buy
 _rm._ext_local_np[_f.sector][:] = _ext_col
 sim.PARAMS['IMPORT_PRICE'] = _old_ip
 
+# FUNDS_REAL: after the base months the programme funds follow the municipality's base real GDP times the national
+# index, not its current GDP; FGTS and SBPE instalments leave the ACP, market ones stay in the bank, money conserved
+_st = sim.stats
+_st_saved = (_st.funds_real, _st.funds_months, _st.funds_base_sum, _st.funds_base, _st.national_gdp,
+             getattr(_st, "funds_burn_in", None), getattr(_st, "funds_base_months", None), _st.last_gdp)
+_st.funds_real, _st.funds_months, _st.funds_base_sum, _st.funds_base = True, 0, defaultdict(float), None
+_st.national_gdp = _pd.read_csv("input/national_real_gdp.csv", sep=";").set_index("year")["index"]
+_st.funds_burn_in, _st.funds_base_months = 1, 2
+_mun = next(iter(_st_saved[7]))
+_st.last_gdp = defaultdict(float, {_mun: 10.0})
+_before = []
+for _ in range(3):
+    _before.append(_st.funds_gdp(_mun, 2014))
+    _st.update_funds_base(2011)
+_st.last_gdp[_mun] = 99.0
+_after = _st.funds_gdp(_mun, 2014)
+_expect = 10.0 / _st.national_index(2011) * _st.national_index(2014)
+(_st.funds_real, _st.funds_months, _st.funds_base_sum, _st.funds_base, _st.national_gdp, _st.funds_burn_in,
+ _st.funds_base_months, _st.last_gdp) = _st_saved
+check("FUNDS_REAL: funds follow current GDP until the base is fixed, then base real GDP times the national index",
+      all(v == 10.0 for v in _before) and abs(_after - _expect) < 1e-9, f"before {_before}, after {_after:.4f}")
+
+from agents.bank import Loan  # noqa: E402
+_bank = sim.central
+_fam = next(f for f in sim.families.values() if f.house is not None)
+_saved_loans, _saved_savings, _saved_have = _bank.loans, _fam.savings, _fam.have_loan
+_paid = {}
+for _flag in (False, True):
+    sim.PARAMS["FUNDS_REAL"] = _flag
+    _bank.loans = defaultdict(list, {_fam.id: [Loan(12.0, 0.0, 12, _fam.house, loan_type="fgts", table_type="price"),
+                                              Loan(12.0, 0.0, 12, _fam.house, loan_type="market", table_type="price")]})
+    _fam.savings = 100.0
+    _bal0, _stock0, _ledger0 = _bank.balance, money_stock_total(sim), sum(sim.ledger.values())
+    _bank.collect_loan_payments(sim)
+    _paid[_flag] = (_bank.balance - _bal0, money_stock_total(sim) - _stock0 - (sum(sim.ledger.values()) - _ledger0))
+    _bank.balance = _bal0
+    sim.ledger["fgts_sbpe_repaid"] = 0.0
+sim.PARAMS["FUNDS_REAL"] = False
+_bank.loans, _fam.savings, _fam.have_loan = _saved_loans, _saved_savings, _saved_have
+_bank.recompute_outstanding_market_loans()
+check("FUNDS_REAL: FGTS instalments leave the ACP, market instalments stay in the bank, money conserved",
+      abs(_paid[False][0] - 2.0) < 1e-9 and abs(_paid[True][0] - 1.0) < 1e-9
+      and abs(_paid[False][1]) < 1e-9 and abs(_paid[True][1]) < 1e-9,
+      f"bank balance change off/on {_paid[False][0]:.4f}/{_paid[True][0]:.4f}, "
+      f"unexplained {_paid[False][1]:.2e}/{_paid[True][1]:.2e}")
+
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")
 print(f"Results: {PASS} PASS  |  {FAIL} FAIL  |  {PASS + FAIL} total")

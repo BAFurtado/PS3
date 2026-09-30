@@ -1,6 +1,7 @@
 import conf
 import logging
 import numpy as np
+import pandas as pd
 from collections import defaultdict
 logger = logging.getLogger('stats')
 
@@ -23,6 +24,16 @@ class Statistics(object):
         self.price_index_stocked = params.get('PRICE_INDEX', 'stocked') == 'stocked'
         self.global_unemployment_rate = .086
         self.last_gdp = defaultdict(float)
+        # FUNDS_REAL: settled months, municipal real GDP summed over the base months, and the fixed base once set
+        self.funds_real = params.get('FUNDS_REAL', False)
+        self.funds_months = 0
+        self.funds_base_sum = defaultdict(float)
+        self.funds_base = None
+        self.national_gdp = None
+        if self.funds_real:
+            self.funds_burn_in = params['FUNDS_BURN_IN']
+            self.funds_base_months = params['FUNDS_BASE_MONTHS']
+            self.national_gdp = pd.read_csv('input/national_real_gdp.csv', sep=';').set_index('year')['index']
         self.vacancy_rate = params['HOUSE_VACANCY']
         self.head_rate = defaultdict(lambda: defaultdict(int))
         self.class_ranges = self._generate_class_ranges()
@@ -187,6 +198,31 @@ class Statistics(object):
         logger.info(f'GDP growth: {gdp_growth_rate * 100:.2f}%')
 
         return total_gdp, gdp_growth_rate, gdp_change
+
+    def national_index(self, year):
+        """National real GDP index (2010 = 1); the last published value after it, the first before it"""
+        s = self.national_gdp
+        return float(s.loc[min(max(year, s.index.min()), s.index.max())])
+
+    def update_funds_base(self, year):
+        """FUNDS_REAL: after this month's GDP, add each municipality's real GDP to the base during the base months;
+        fix the base as their mean at the end"""
+        if not self.funds_real or self.funds_base is not None:
+            return
+        self.funds_months += 1
+        if self.funds_months > self.funds_burn_in:
+            index = self.national_index(year)
+            for mun, gdp in self.last_gdp.items():
+                self.funds_base_sum[mun] += gdp / index
+        if self.funds_months >= self.funds_burn_in + self.funds_base_months:
+            self.funds_base = {mun: max(0.0, v / self.funds_base_months) for mun, v in self.funds_base_sum.items()}
+
+    def funds_gdp(self, mun, year):
+        """Monthly municipal GDP the programme funds are shares of: last month's, or with FUNDS_REAL once the base is
+        fixed, the base times the national real GDP index of the year"""
+        if self.funds_base is None:
+            return self.last_gdp[mun]
+        return self.funds_base.get(mun, 0.0) * self.national_index(year)
 
     def calculate_avg_regional_house_price(self, regional_families):
         if regional_families:

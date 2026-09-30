@@ -284,9 +284,10 @@ class Simulation:
         interests = self.interest[
             self.interest.index.date == self.clock.days][['interest', 'mortgage', ]].iloc[0]
         mask = self.housing_interest.index.normalize() == pd.to_datetime(self.clock.days)
-        housing_interests = self.housing_interest.loc[mask, ['sbpe', 'fgts']].iloc[0]
+        housing_interests = self.housing_interest.loc[mask].iloc[0]
 
-        values = [interests['interest'], interests['mortgage'], housing_interests['sbpe'], housing_interests['fgts']]
+        mortgage = housing_interests['mortgage'] if 'mortgage' in housing_interests else interests['mortgage']
+        values = [interests['interest'], mortgage, housing_interests['sbpe'], housing_interests['fgts']]
         self.central.set_interest(*values)
 
         current_unemployment = self.stats.global_unemployment_rate
@@ -531,6 +532,7 @@ class Simulation:
 
         # Pass monthly information to be stored in Statistics
         self.output.save_stats_report(self, bank_taxes)
+        self.stats.update_funds_base(self.clock.year)
         # Getting regional GDP
         self.output.save_regional_report(self)
 
