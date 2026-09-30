@@ -397,6 +397,14 @@ class Simulation:
         price_demand_response = self.PARAMS.get("PRICE_DEMAND_RESPONSE", 0.0)
         tax_transport = self.PARAMS["TAX_TRANSPORT"]
         self.avg_prices, _ = self.stats.update_price(self.firms, mid_simulation_calculus=True)
+        # IMPORT_PARITY_PRICING: tradable firms price against the tradable average, capped at import parity, with no
+        # price response to refused demand; the others against the non-tradable average
+        parity = self.PARAMS.get('IMPORT_PARITY_PRICING', False)
+        if parity:
+            tradables = set(self.PARAMS['TRADABLE_SECTORS'])
+            avg_t, avg_n = self.stats.group_prices(self.firms, tradables)
+            avg_t, avg_n = avg_t or self.avg_prices, avg_n or self.avg_prices
+            import_parity = 1.0 + self.PARAMS['REGIONAL_FREIGHT_COST']
         for firm in self.firms.values():
             # Tax workers when paying salaries
             firm.make_payment(
@@ -413,11 +421,12 @@ class Simulation:
             # Profits are after taxes
             firm.calculate_profit()
             # Check whether it is necessary to update prices
+            tradable = parity and firm.sector in tradables
             firm.decision_on_prices_production(
                 sticky,
                 markup,
                 self.seed_np,
-                self.avg_prices,
+                (avg_t if tradable else avg_n) if parity else self.avg_prices,
                 prod_exponent,
                 prod_magnitude_divisor,
                 const_cash_flow,
@@ -425,7 +434,8 @@ class Simulation:
                 inventory_target_ratio,
                 price_markup_cap,
                 demand_signal_unmet,
-                price_demand_response,
+                0.0 if tradable else price_demand_response,
+                import_parity if tradable else None,
             )
             firm.invest_eco_efficiency(
                 self.regional_market,

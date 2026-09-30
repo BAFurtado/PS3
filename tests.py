@@ -420,6 +420,14 @@ for _mode in (True, False):
 sim.stats.price_index_stocked = _pi_saved
 _pi_stk = [i.price for f in sim.firms.values() for i in f.inventory.values() if f.num_employees > 0 and i.quantity > 0]
 _pi_stf = [i.price for f in sim.firms.values() for i in f.inventory.values() if f.num_employees > 0]
+_gp = sim.stats.group_prices(sim.firms, {"Agriculture", "Mining", "Manufacturing"})
+_gp_t = [i.price for f in sim.firms.values() for i in f.inventory.values()
+         if f.num_employees > 0 and i.quantity > 0 and f.sector in ("Agriculture", "Mining", "Manufacturing")]
+_gp_n = [i.price for f in sim.firms.values() for i in f.inventory.values()
+         if f.num_employees > 0 and i.quantity > 0 and f.sector not in ("Agriculture", "Mining", "Manufacturing")]
+check("Tradable and non-tradable average prices split the firms of the price index",
+      abs(_gp[0] - (np.mean(_gp_t) if _gp_t else 0)) < 1e-12 and abs(_gp[1] - np.mean(_gp_n)) < 1e-12,
+      f"tradable {_gp[0]:.4f} ({len(_gp_t)}), non-tradable {_gp[1]:.4f} ({len(_gp_n)})")
 check(
     "Price index averages the firms PRICE_INDEX names",
     abs(_pi[True] - np.mean(_pi_stk)) < 1e-12 and abs(_pi[False] - np.mean(_pi_stf)) < 1e-12
@@ -1116,6 +1124,16 @@ for _t in (0.0, 0.5):
     _theta.append(_prod.price)
 check("PRICE_DEMAND_RESPONSE: refused demand raises the price beyond the cap; off keeps the old fall",
       _theta[0] < 1.2 and abs(_theta[1] - 1.2 * (1 + 0.5 * 0.75)) < 1e-12, f"{_theta}")
+# IMPORT_PARITY_PRICING: an absolute ceiling below avg × (1 + cap) stops a low-inventory firm's rise at the ceiling
+_parity = []
+for _ceil in (None, 1.3):
+    _prod.quantity, _prod.price, _f.amount_sold, _f.unmet_quantity = 0.0, 1.3, 1e6, 0.0
+    _f.decision_on_prices_production(1, 0.1, np.random.RandomState(2), 1.25,
+                                     sim.PARAMS["PRODUCTIVITY_EXPONENT"], sim.PARAMS["PRODUCTIVITY_MAGNITUDE_DIVISOR"],
+                                     price_markup_cap=0.0875, price_ceiling=_ceil)
+    _parity.append(_prod.price)
+check("IMPORT_PARITY_PRICING: the import-parity ceiling caps the inventory-driven rise",
+      1.3 < _parity[0] <= 1.25 * 1.0875 + 1e-12 and _parity[1] == 1.3, f"{_parity}")
 (_prod.quantity, _prod.price, _f.amount_sold, _f.unmet_quantity, _f.total_balance, _f.revenue, _f.prices,
  _f.increase_production, _f.workers_needed) = _saved
 

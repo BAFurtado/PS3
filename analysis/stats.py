@@ -102,6 +102,18 @@ class Statistics(object):
 
         return results
 
+    def group_prices(self, firms, tradables):
+        """Average price of the firms in TRADABLE_SECTORS and of the others, with the inclusion rule of update_price
+        (0 for a group with no firm included)"""
+        stocked = self.price_index_stocked
+        groups = ([], [])
+        for firm in firms.values():
+            if firm.num_employees > 0:
+                for item in firm.inventory.values():
+                    if item.quantity > 0 or not stocked:
+                        groups[firm.sector in tradables].append(item.price)
+        return tuple(np.mean(g) if g else 0 for g in (groups[1], groups[0]))
+
     def update_price(self, firms, mid_simulation_calculus=False):
         """Compute average price and inflation"""
         stocked = self.price_index_stocked

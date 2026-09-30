@@ -167,6 +167,9 @@ OUTPUT_DATA_SPEC = {
                     "money_deposits",
                     *[f"money_{c}" for c in LEDGER_CHANNELS],
                     "money_unexplained",
+                    # Average price of firms in TRADABLE_SECTORS and of the others (PRICE_INDEX inclusion rule)
+                    "price_tradable",
+                    "price_nontradable",
                     ]
     },
     'families': {
@@ -305,9 +308,14 @@ DEMAND_BY_BUYER_COLUMNS = tuple(f'{k}_{b}' for b in ('household', 'government', 
 MATCHING_COLUMNS = ('unmet_household_coverable', 'unmet_household_coverable_end')
 
 
+def _legacy_stats_columns_no_group_prices():
+    """`stats` layout of 9144723 (2026-09-30): no price_tradable / price_nontradable."""
+    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c not in ('price_tradable', 'price_nontradable')]
+
+
 def _legacy_stats_columns_no_household_imports():
     """`stats` layout of 0ff157f (2026-09-30): household_unserved but no household_imports."""
-    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c != 'household_imports']
+    return [c for c in _legacy_stats_columns_no_group_prices() if c != 'household_imports']
 
 
 def _legacy_stats_columns_no_unserved():
@@ -386,7 +394,7 @@ def _legacy_regional_columns_single_pot():
 
 
 LEGACY_COLUMNS = {
-    'stats': [_legacy_stats_columns_no_household_imports(), _legacy_stats_columns_no_unserved(), _legacy_stats_columns_no_matching(), _legacy_stats_columns_no_demand_by_buyer(), _legacy_stats_columns_no_unmet(),
+    'stats': [_legacy_stats_columns_no_group_prices(), _legacy_stats_columns_no_household_imports(), _legacy_stats_columns_no_unserved(), _legacy_stats_columns_no_matching(), _legacy_stats_columns_no_demand_by_buyer(), _legacy_stats_columns_no_unmet(),
               _legacy_stats_columns_no_money(), _legacy_stats_columns_no_external_account(),
               _legacy_stats_columns_no_firm_demography(),
               _legacy_stats_columns()],
@@ -608,6 +616,8 @@ class Output:
         for c in LEDGER_CHANNELS:
             stats_row[f"money_{c}"] = sim.ledger[c]
         stats_row["money_unexplained"] = stats_row["money_total"] - sim.money_initial - sum(sim.ledger.values())
+        stats_row["price_tradable"], stats_row["price_nontradable"] = sim.stats.group_prices(
+            sim.firms, set(sim.PARAMS.get('TRADABLE_SECTORS', ('Agriculture', 'Mining', 'Manufacturing'))))
         self._prev_firm_ids = firm_ids
 
         for i, v in enumerate(families_results["rent_burden_decis"], start=1):

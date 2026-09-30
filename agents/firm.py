@@ -443,6 +443,7 @@ class Firm:
             price_markup_cap=0.25,
             demand_signal_unmet=False,
             price_demand_response=0.0,
+            price_ceiling=None,
     ):
         """ Update prices based on inventory and average prices
             Save signal for the labor market """
@@ -471,6 +472,8 @@ class Firm:
                         self.workers_needed = 1
                     # Rise freely up to avg_prices * (1 + cap); spatial monopoly premium bounded.
                     ceiling = avg_prices * (1 + price_markup_cap)
+                    if price_ceiling is not None:
+                        ceiling = min(ceiling, price_ceiling)
                     if p.price < ceiling:
                         p.price = min(p.price * (1 + delta_price), ceiling)
                 else:

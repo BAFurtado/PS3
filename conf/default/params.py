@@ -415,6 +415,11 @@ TRADABLE_SECTORS = ['Agriculture', 'Mining', 'Manufacturing']
 # True: household and government spending on TRADABLE_SECTORS that no local firm served (no stock, or refused after
 # the retry) is bought outside at P_imp plus freight. False: households keep it, government funds carry it over.
 SHORTAGE_IMPORTS = False
+# True: firms in TRADABLE_SECTORS price against the tradable average, their ceiling is the lower of that average times
+# (1 + PRICE_MARKUP_CAP) and import parity (P_imp = 1 plus REGIONAL_FREIGHT_COST), and refused demand does not raise
+# their price (PRICE_DEMAND_RESPONSE); the other firms price against the non-tradable average. False: every firm
+# prices against the average of all firms.
+IMPORT_PARITY_PRICING = False
 EXPORTS_BURN_IN = 12
 EXPORTS_BASE_MONTHS = 12
 EXPORTS_PRICE_ELASTICITY = 1.0
