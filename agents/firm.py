@@ -43,6 +43,8 @@ class Firm:
     pending_replacements = 0
     # Growth vacancies from the last production decision: workers needed to meet sales plus the stock target.
     workers_needed = 1
+    # Quantity refused this month for lack of stock (DEMAND_SIGNAL_UNMET); reset with amount_sold
+    unmet_quantity = 0.0
     # Share of capital advanced as revenue in a month without sales (FIRM_CAPITAL_MONTHS sets it to 1/months)
     cold_start_share = 0.001
     # Consecutive months insolvent / idle (FIRM_EXIT_MONTHS); set when the firm exits
@@ -308,6 +310,10 @@ class Firm:
         # average price; it used to be skipped here but bought below, creating the money that paid for it
         prices = [chosen_firms[sector][0].inventory[0].price if chosen_firms[sector]
                   else regional_market.sim.avg_prices for sector in sectors]
+        # IMPORT_PRICE 'exogenous': imports cost 1, the initial goods price held in real terms, plus freight, whatever
+        # local prices do. 'local' (old model): the price of the local seller the firm would have bought from
+        exogenous = params.get('IMPORT_PRICE', 'local') == 'exogenous'
+        ext_prices = [1.0] * len(prices) if exogenous else prices
 
         # Compute total money needed
         money_local_inputs = 0.0
@@ -315,7 +321,7 @@ class Firm:
 
         for i, price in enumerate(prices):
             money_local_inputs += local_needed[i] * price
-            money_external_inputs += external_needed[i] * price * freight_cost
+            money_external_inputs += external_needed[i] * ext_prices[i] * freight_cost
 
         total_money_needed = money_local_inputs + money_external_inputs
 
@@ -330,9 +336,10 @@ class Firm:
         for i, sector in enumerate(sectors):
             firms_sector = chosen_firms[sector]
             price = prices[i]
+            ext_price = ext_prices[i]
 
             money_local = reduction_factor * local_needed[i] * price
-            money_external = reduction_factor * external_needed[i] * price * freight_cost
+            money_external = reduction_factor * external_needed[i] * ext_price * freight_cost
 
             if money_local == 0 and money_external == 0:
                 continue
@@ -348,11 +355,17 @@ class Firm:
             else:
                 change = money_local
 
-            # Freight adjustment
-            freight_extra = (freight_cost - 1.0) * change
+            # What local sellers refused is bought outside: the same quantity at the import price plus freight. The
+            # difference is paid from (or, with a cheaper import, returned to) the balance
+            if exogenous:
+                import_cost = change / price * ext_price * freight_cost
+                freight_extra = import_cost - change
+            else:
+                import_cost = freight_cost * change
+                freight_extra = (freight_cost - 1.0) * change
             if self.total_balance > freight_extra:
                 self.total_balance -= freight_extra
-                money_external += freight_cost * change
+                money_external += import_cost
             else:
                 # Not enough left for the freight: what local sellers did not sell, plus the rest of the balance,
                 # buys externally (it used to be dropped, destroying the unsold local money)
@@ -361,13 +374,13 @@ class Firm:
 
             # External purchase
             regional_market.sim.external.intermediate_consumption(
-                money_external, price * freight_cost
+                money_external, ext_price * freight_cost
             )
 
             # Inventory + cost update
             self.input_inventory[sector] += (
                     (money_local - change) / price +
-                    money_external / (price * freight_cost)
+                    money_external / (ext_price * freight_cost)
             )
 
             self.input_cost += money_local - change + money_external
@@ -426,21 +439,25 @@ class Firm:
             price_ruggedness=1,
             inventory_target_ratio=0.0,
             price_markup_cap=0.25,
+            demand_signal_unmet=False,
     ):
         """ Update prices based on inventory and average prices
             Save signal for the labor market """
         # Sticky prices (KLENOW, MALIN, 2010)
         if seed_np.rand() < sticky_prices:
+            # DEMAND_SIGNAL_UNMET: demand is what was sold plus what was refused for lack of stock. Buyers do not try
+            # another local firm after a refusal, so the refused quantity is not served elsewhere in the ACP
+            demand = self.amount_sold + self.unmet_quantity if demand_signal_unmet else self.amount_sold
             for p in self.inventory.values():
                 delta_price = seed_np.randint(0, int(2 * markup * 100) + 1) / 100
                 productive_capacity = self.total_qualification(prod_exponent) / prod_magnitude_divisor
                 # Firms target a safety-stock buffer above bare productive capacity.
-                low_inventory = (self.total_quantity + productive_capacity) <= self.amount_sold * (1 + inventory_target_ratio)
+                low_inventory = (self.total_quantity + productive_capacity) <= demand * (1 + inventory_target_ratio)
                 if low_inventory:
                     self.increase_production = True
                     # Workers needed to close the gap at current output per worker (see LaborMarket.add_growth_posts)
                     if self.num_employees > 0 and productive_capacity > 0:
-                        gap = self.amount_sold * (1 + inventory_target_ratio) - self.total_quantity - productive_capacity
+                        gap = demand * (1 + inventory_target_ratio) - self.total_quantity - productive_capacity
                         self.workers_needed = math.ceil(max(gap, 0) / (productive_capacity / self.num_employees))
                     else:
                         self.workers_needed = 1
@@ -460,6 +477,7 @@ class Firm:
     def reset_amount_sold(self):
         # Resetting amount sold to record monthly amounts
         self.amount_sold = 0
+        self.unmet_quantity = 0.0
         self.revenue = 0
         # buy_inputs() only zeroes this when called, which it isn't for firms with no employees.
         self.input_cost = 0
@@ -475,6 +493,7 @@ class Firm:
                 bought_quantity = amount / product.price
                 actual_amount = amount
                 if bought_quantity > product.quantity:
+                    self.unmet_quantity += bought_quantity - product.quantity
                     bought_quantity = product.quantity
                     actual_amount = bought_quantity * product.price
 
@@ -491,6 +510,7 @@ class Firm:
 
                 self.amount_sold += bought_quantity
                 return amount - actual_amount  # change/refund to buyer
+            self.unmet_quantity += amount / product.price
         # No stock or zero amount: full refund
         return amount
 

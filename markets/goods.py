@@ -227,10 +227,33 @@ class External:
             chosen_firms[sector] = market[0: min(10, n_firms)] or None
         return chosen_firms
 
+    def stocked_firms_per_sector(self, firms):
+        """EXTERNAL_DEMAND_SPREAD = 'stock': every firm of the sector with stock, each with its share of the sector's
+        stock value. Every firm is served in full whenever the sector's demand does not exceed that value"""
+        stocked = defaultdict(list)
+        for f in firms.values():
+            if f.total_quantity > 0:
+                stocked[f.sector].append(f)
+        chosen = {}
+        for sector in self.sim.regional_market.technical_matrix.index:
+            market = stocked.get(sector)
+            if not market:
+                chosen[sector] = None
+                continue
+            values = [f.total_quantity * f.prices for f in market]
+            total = sum(values)
+            chosen[sector] = [(f, v / total) for f, v in zip(market, values)]
+        return chosen
+
     def final_consumption(self, internal_final_demand, seed):
         """Consumes from local firms according to the regionalized SAM"""
         # Selects a subset of firms to buy from playing the role of rest of Brazil demand from simulated region.
-        chosen_firms = self.choose_firms_per_sector(self.sim.firms, seed)
+        if self.sim.PARAMS.get('EXTERNAL_DEMAND_SPREAD', 'cheapest') == 'stock':
+            chosen_firms = self.stocked_firms_per_sector(self.sim.firms)
+        else:
+            # Equal split: weight None divides by the number of firms, as the old model did
+            chosen_firms = {sector: [(f, None) for f in market] if market else None
+                            for sector, market in self.choose_firms_per_sector(self.sim.firms, seed).items()}
         multiplier = self.sim.regional_market.external_demand_multiplier
 
         # External demand is a LINEAR FUNCTION of the internal demand
@@ -252,10 +275,11 @@ class External:
         for sector, amount in demand.items():
             # Sticking to a SINGLE product for firm
             extra = recycle * amount / total_demand if recycle else 0.0
-            amount_per_firm = (amount + extra) / len(chosen_firms[sector])
             sold = 0.0
             # Buys from firms
-            for firm in chosen_firms[sector]:
+            for firm, weight in chosen_firms[sector]:
+                amount_per_firm = (amount + extra) / len(chosen_firms[sector]) if weight is None \
+                    else (amount + extra) * weight
                 sold += amount_per_firm - firm.sale(amount_per_firm,
                                                     self.sim.regions,
                                                     self.sim.PARAMS['TAX_CONSUMPTION'],

@@ -719,6 +719,33 @@ _ext, _net, _sold = _external_after(0.0)
 check("recycling share 0: exports only, the old model",
       _ext.last_month['recycled'] == 0 and abs(_sold - 0.5 * 10 - 0.1 * 10) < 1e-9)
 
+
+# EXTERNAL_DEMAND_SPREAD = 'stock': the sector's external demand is split over every stocked firm by stock value, so
+# nothing is refused while demand fits in that value. Stub firms sell at most their stock
+class _StockedFirm(_StubFirm):
+    def __init__(self, sector, quantity, price):
+        super().__init__(sector)
+        self.total_quantity, self.prices = quantity, price
+
+    def sale(self, amount, *args, **kwargs):
+        sold = min(amount, self.total_quantity * self.prices)
+        self.sold += sold
+        return amount - sold
+
+
+_firms = {0: _StockedFirm('Agriculture', 1.0, 1.0), 1: _StockedFirm('Agriculture', 3.0, 2.0),
+          2: _StockedFirm('Agriculture', 0.0, 1.0)}
+_market = SimpleNamespace(technical_matrix=pd.DataFrame(index=['Agriculture']),
+                          external_demand_multiplier={'Agriculture': 0.5})
+_stub = SimpleNamespace(PARAMS=dict(sim.PARAMS, EXTERNAL_DEMAND_SPREAD='stock', EXTERNAL_RECYCLING_SHARE=0.0),
+                        firms=_firms, regional_market=_market, regions={}, ledger=defaultdict(float))
+_ext = External(_stub, sim.PARAMS["TAXES_STRUCTURE"]["consumption_equal"])
+_ext.final_consumption({'Agriculture': 12.0}, random.Random(0))
+check("EXTERNAL_DEMAND_SPREAD 'stock': demand split by stock value over every stocked firm, none refused",
+      abs(_firms[0].sold - 6 / 7) < 1e-12 and abs(_firms[1].sold - 36 / 7) < 1e-12 and _firms[2].sold == 0
+      and abs(_ext.last_month['exports'] - 6.0) < 1e-12,
+      f"{[f.sold for f in _firms.values()]}, exports {_ext.last_month['exports']}")
+
 # ── Firm capital and demography (#21, #24). Last: these remove firms from the shared run ─────────────────────────
 print("\n── Firm capital, entry and exit ─────────────────────────────────────")
 from world.firms import fund_entrant, firm_exit  # noqa: E402
@@ -858,6 +885,56 @@ if len(_renters) > 20:
     _without = sim.stats.calculate_families_metrics(_renters[1:])["rent_burden_decis"]
     check("Zero-income renters are left out of the rent-burden deciles (#33)", np.allclose(_with, _without),
           f"{_with} vs {_without}")
+
+_f = next(f for f in sim.firms.values() if f.sector not in ("Government", "Construction") and f.employees)
+_prod = _f.inventory[0]
+_saved = (_prod.quantity, _prod.price, _f.amount_sold, _f.unmet_quantity, _f.total_balance, _f.revenue, _f.prices,
+          _f.increase_production, _f.workers_needed)
+_prod.quantity, _prod.price, _f.unmet_quantity = 2.0, 1.0, 0.0
+_change = _f.sale(5.0, sim.regions, 0.0, _f.region_id, True) + _f.sale(4.0, sim.regions, 0.0, _f.region_id, True)
+check("Firm.sale records the quantity it refuses for lack of stock (DEMAND_SIGNAL_UNMET)",
+      abs(_change - 7.0) < 1e-12 and abs(_f.unmet_quantity - 7.0) < 1e-12, f"change {_change}, unmet {_f.unmet_quantity}")
+_cap = _f.total_qualification(sim.PARAMS["PRODUCTIVITY_EXPONENT"]) / sim.PARAMS["PRODUCTIVITY_MAGNITUDE_DIVISOR"]
+_prod.quantity, _f.amount_sold, _f.unmet_quantity = 0.0, 0.0, 10 * _cap + 1
+_signal = []
+for _on in (False, True):
+    _f.decision_on_prices_production(1, 0.1, np.random.RandomState(0), _prod.price,
+                                     sim.PARAMS["PRODUCTIVITY_EXPONENT"], sim.PARAMS["PRODUCTIVITY_MAGNITUDE_DIVISOR"],
+                                     inventory_target_ratio=0.2, demand_signal_unmet=_on)
+    _signal.append((_f.increase_production, _f.workers_needed))
+check("Refused demand asks for more workers only with DEMAND_SIGNAL_UNMET on",
+      _signal[0][0] is False and _signal[1][0] is True and _signal[1][1] > 1, f"{_signal}")
+(_prod.quantity, _prod.price, _f.amount_sold, _f.unmet_quantity, _f.total_balance, _f.revenue, _f.prices,
+ _f.increase_production, _f.workers_needed) = _saved
+
+# IMPORT_PRICE 'exogenous': imported inputs cost 1 + freight whatever local prices are, and buying them conserves
+# money. An external coefficient of 0.1 per sector is set on one firm's column so that it imports.
+from analysis.money import money_stock_total  # noqa: E402
+_rm = sim.regional_market
+_ext_col = _rm._ext_local_np[_f.sector].copy()
+_rm._ext_local_np[_f.sector][:] = 0.1
+_old_ip = sim.PARAMS.get('IMPORT_PRICE', 'local')
+sim.PARAMS['IMPORT_PRICE'] = 'exogenous'
+for _s in _f.input_inventory:
+    _f.input_inventory[_s] = 0.0
+_f.total_balance = 1e7
+_inv0, _stock0, _ledger0 = dict(_f.input_inventory), money_stock_total(sim), sum(sim.ledger.values())
+_imports0 = sim.external.imports_month
+_sector_map = defaultdict(list)
+for _g in sim.firms.values():
+    _sector_map[_g.sector].append(_g)
+_desired = 3.0
+_f.buy_inputs(_desired, _rm, sim.firms, sim.seed, None, None, _sector_map)
+_freight = 1 + sim.PARAMS['REGIONAL_FREIGHT_COST']
+_d_stock = money_stock_total(sim) - _stock0
+_d_ledger = sum(sim.ledger.values()) - _ledger0
+_n = len(_rm._sector_order)
+check("IMPORT_PRICE 'exogenous': inputs bought outside cost 1 + freight, and buying them conserves money",
+      abs(_d_stock - _d_ledger) < 1e-6 and sim.external.imports_month - _imports0 >= _n * _desired * 0.1 * _freight - 1e-9
+      and all(_f.input_inventory[_s] - _inv0[_s] >= _desired * 0.1 - 1e-9 for _s in _rm._sector_order),
+      f"stock change {_d_stock:.6f} vs ledger {_d_ledger:.6f}, imports {sim.external.imports_month - _imports0:.4f}")
+_rm._ext_local_np[_f.sector][:] = _ext_col
+sim.PARAMS['IMPORT_PRICE'] = _old_ip
 
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")

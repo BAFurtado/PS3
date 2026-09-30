@@ -26,6 +26,9 @@ PRICE_MARKUP_CAP = 0.0875
 # Safety-stock buffer: fraction of monthly sales firms want to hold above productive capacity.
 # Higher values keep more firms in "low inventory" mode → more hiring signals, less deflation risk.
 INVENTORY_TARGET_RATIO = 0.2
+# Demand signal for production and hiring (step 2b). True: sales plus the quantity refused for lack of stock, so demand a
+# firm could not serve (household, input or external) asks for more output. False (old model): sales only.
+DEMAND_SIGNAL_UNMET = False
 # Number of firms consulted before consumption
 SIZE_MARKET = 5
 # Number of firms to buy from in the INTERMEDIATE market
@@ -366,6 +369,13 @@ IO_IMPORTS = False
 # from the rest of Brazil, split across sectors like its exports. 1: balanced trade. 0: imports leave the ACP for good
 # (old model). Between: a trade deficit, recorded in stats.csv ext_net_position.
 EXTERNAL_RECYCLING_SHARE = 0.0
+# How the rest of Brazil's demand (exports and recycled imports) reaches local firms (step 2b). 'stock': every firm of
+# the sector with stock, in proportion to the value of its stock. 'cheapest' (old model): split equally over the 10
+# cheapest stocked firms of a sample of 3 x SIZE_MARKET, which run out while the rest of the sector keeps its stock.
+EXTERNAL_DEMAND_SPREAD = 'cheapest'
+# Price of imported inputs (step 2b). 'exogenous': 1, the initial goods price held in real terms, plus freight, so local
+# price rises do not feed back into import prices. 'local' (old model): the local seller's price plus freight.
+IMPORT_PRICE = 'local'
 
 # RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation

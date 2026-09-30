@@ -130,6 +130,9 @@ OUTPUT_DATA_SPEC = {
                     "firms_count",
                     "firms_entered",
                     "firms_exited",
+                    # Quantity refused for lack of stock / (sold + refused), goods firms (Construction's amount_sold
+                    # also counts house sales in money). Recorded whether or not DEMAND_SIGNAL_UNMET acts on it
+                    "firms_unmet_share",
                     # External account (defect #27): monthly imports, exports and recycled demand; cumulative net
                     # position and external public funding
                     "ext_imports",
@@ -533,6 +536,10 @@ class Output:
         stats_row["firms_count"] = len(firm_ids)
         stats_row["firms_entered"] = len(firm_ids - prev_ids) if prev_ids is not None else 0
         stats_row["firms_exited"] = len(prev_ids - firm_ids) if prev_ids is not None else 0
+        goods = [f for f in sim.firms.values() if f.sector != 'Construction']
+        unmet = sum(f.unmet_quantity for f in goods)
+        demanded = unmet + sum(f.amount_sold for f in goods)
+        stats_row["firms_unmet_share"] = unmet / demanded if demanded > 0 else 0.0
         ext = sim.external
         stats_row["ext_imports"] = ext.last_month['imports']
         stats_row["ext_exports"] = ext.last_month['exports']
@@ -711,7 +718,7 @@ class Output:
             'stocks': [], 'amount_produced': [], 'price': [], 'amount_sold': [],
             'revenue': [], 'profit': [], 'wages_paid': [], 'input_cost': [],
             'emissions': [], 'eco_eff': [], 'innov_investment': [], 'sector': [],
-            'increase_production': []
+            'increase_production': [], 'unmet_quantity': []
         }
         construction_data = {
             'month': [], 'firm_id': [], 'region_id': [], 'mun_id': [],
@@ -741,6 +748,7 @@ class Output:
             firms_data['innov_investment'].append(float(firm.inno_inv))
             firms_data['sector'].append(firm.sector)
             firms_data['increase_production'].append(firm.increase_production)
+            firms_data['unmet_quantity'].append(float(firm.unmet_quantity))
             if firm.sector == 'Construction':
                 construction_data['month'].append(day)
                 construction_data['firm_id'].append(firm.id)
