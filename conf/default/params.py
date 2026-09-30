@@ -405,6 +405,14 @@ HOUSEHOLD_IMPORT_SECTORS = ['Agriculture', 'Mining', 'Manufacturing']
 # Price of imported inputs (step 2b). 'exogenous': 1, the initial goods price held in real terms, plus freight, so local
 # price rises do not feed back into import prices. 'local' (old model): the local seller's price plus freight.
 IMPORT_PRICE = 'local'
+# Exports. False: each sector's external demand is its export multiplier (final-demand files) times this month's
+# internal demand. True: that rule for EXPORTS_BURN_IN + EXPORTS_BASE_MONTHS months; then the base months' mean
+# quantity, times the national real GDP index (input/national_real_gdp.csv) relative to the base months, times
+# (sector price / P_imp) ** -EXPORTS_PRICE_ELASTICITY, with P_imp = 1.
+EXPORTS_REAL = False
+EXPORTS_BURN_IN = 12
+EXPORTS_BASE_MONTHS = 12
+EXPORTS_PRICE_ELASTICITY = 1.0
 
 # RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation

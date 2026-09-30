@@ -380,6 +380,37 @@ if sim.PARAMS.get("GOV_REVISED", False):
             f"external funding: non-municipal {_ext[0]:.4f}, municipal-only {_ext[1]:.4f}",
         )
 
+# EXPORTS_REAL: after the base months, a sector's external demand is its base quantity times national growth times
+# (price / P_imp) ** -elasticity, at its price; at elasticity 1 a doubled price leaves the money unchanged, at 0 doubles it
+_ext = sim.external
+_ex_saved = (dict(sim.PARAMS), _ext.months, dict(_ext.export_base), _ext.export_base_index, _ext.national_gdp)
+import pandas as _pd  # noqa: E402
+_ext.national_gdp = _pd.read_csv("input/national_real_gdp.csv", sep=";").set_index("year")["index"]
+sim.PARAMS.update(EXPORTS_REAL=True, EXPORTS_BURN_IN=12, EXPORTS_BASE_MONTHS=12)
+_chosen = _ext.stocked_firms_per_sector(sim.firms)
+_sec = next(s for s, v in _chosen.items() if v and sim.regional_market.external_demand_multiplier[s])
+_ex_money = {}
+for _sigma in (1.0, 0.0):
+    sim.PARAMS["EXPORTS_PRICE_ELASTICITY"] = _sigma
+    for _scale in (1.0, 2.0):
+        for _f, _ in _chosen[_sec]:
+            _f.inventory[0].price *= _scale
+        _ext.months, _ext.export_base, _ext.export_base_index = 24, defaultdict(float, {_sec: 12 * 5.0}), 12 * 1.0
+        _ex_money[(_sigma, _scale)] = _ext.export_demand(_chosen, defaultdict(float),
+                                                         sim.regional_market.external_demand_multiplier)[_sec]
+        for _f, _ in _chosen[_sec]:
+            _f.inventory[0].price /= _scale
+_g = _ext.national_index(sim.clock.year)
+sim.PARAMS.clear()
+sim.PARAMS.update(_ex_saved[0])
+_ext.months, _ext.export_base, _ext.export_base_index, _ext.national_gdp = _ex_saved[1:]
+check(
+    "Real exports: base quantity times national growth, price elasticity applied",
+    abs(_ex_money[(1.0, 1.0)] - 5.0 * _g) < 1e-9 and abs(_ex_money[(1.0, 2.0)] - _ex_money[(1.0, 1.0)]) < 1e-9
+    and abs(_ex_money[(0.0, 2.0)] - 2 * _ex_money[(0.0, 1.0)]) < 1e-9 * _ex_money[(0.0, 1.0)],
+    f"sector {_sec}, index {_g:.4f}, money {({k: round(v, 4) for k, v in _ex_money.items()})}",
+)
+
 # PRICE_INDEX: 'stocked' averages the prices of firms with staff and stock, 'staffed' of firms with staff
 _pi_saved = sim.stats.price_index_stocked
 _pi = {}
@@ -836,7 +867,7 @@ def _retry_case(retry, by_price):
     fam = SimpleNamespace(savings=0.0, house=house, region_id=None, average_utility=0.0,
                           decision_on_consumption=lambda *a: 5.0)
     rm = SimpleNamespace(final_demand={'HouseholdConsumption': {'Agriculture': 1.0}}, household_no_stock=0.0,
-                         household_unserved=0.0, household_import_share={})
+                         household_unserved=0.0, household_import_share={}, monthly_hh_intended=defaultdict(float))
     seed = SimpleNamespace(randint=lambda a, b: int(by_price), sample=None)
     Family.consume(fam, rm, seed, None, None, {}, dict(sim.PARAMS, SIZE_MARKET=5, HOUSEHOLD_RETRY=retry), 2010, 1,
                    False, {'Agriculture': firms})
@@ -858,7 +889,8 @@ _imp_fam = SimpleNamespace(savings=0.0, house=SimpleNamespace(address=None, _fir
                            average_utility=0.0, decision_on_consumption=lambda *a: 10.0)
 _imp_rm = SimpleNamespace(final_demand={'HouseholdConsumption': {'Agriculture': 0.6, 'Trade': 0.4}},
                           household_no_stock=0.0, household_unserved=0.0, household_imports=0.0,
-                          household_import_share={'Agriculture': 0.25}, sim=SimpleNamespace(external=_imp_ext))
+                          household_import_share={'Agriculture': 0.25}, sim=SimpleNamespace(external=_imp_ext),
+                          monthly_hh_intended=defaultdict(float))
 _imp_cons = Family.consume(_imp_fam, _imp_rm, SimpleNamespace(randint=lambda a, b: 1), None, None, {},
                            dict(sim.PARAMS, SIZE_MARKET=5), 2010, 1, False,
                            {'Agriculture': [_imp_firm], 'Trade': [_ShelfFirm('t', 1.0, 100.0)]})

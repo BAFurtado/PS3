@@ -114,6 +114,8 @@ class RegionalMarket:
         self.final_demand.index = self.technical_matrix.index
         self.external_demand_multiplier = read_final_demand_matrix(sim.geo.processing_acps)
         self.monthly_hh_consumption = defaultdict(float)
+        # Household money this month meant for each sector, served or not
+        self.monthly_hh_intended = defaultdict(float)
         self.monthly_gov_consumption = defaultdict(float)
         # Diagnostic: household money this month that found no firm of the sector with stock (Family.consume)
         self.household_no_stock = 0.0
@@ -131,6 +133,7 @@ class RegionalMarket:
 
     def consume(self):
         self.monthly_hh_consumption = defaultdict(float)
+        self.monthly_hh_intended = defaultdict(float)
         self.household_no_stock = 0.0
         self.household_unserved = 0.0
         self.household_imports = 0.0
@@ -224,6 +227,14 @@ class External:
         self.recycle_pending = 0.0
         self.net_position = 0.0
         self.last_month = {'imports': 0.0, 'exports': 0.0, 'recycled': 0.0}
+        # EXPORTS_REAL: months of final_consumption so far, and the export quantity per sector and national GDP index
+        # summed over the base months
+        self.months = 0
+        self.export_base = defaultdict(float)
+        self.export_base_index = 0.0
+        self.national_gdp = None
+        if sim.PARAMS.get('EXPORTS_REAL', False):
+            self.national_gdp = pd.read_csv('input/national_real_gdp.csv', sep=';').set_index('year')['index']
 
     def get_external_amount_sold(self):
         return self.amount_sold
@@ -281,6 +292,60 @@ class External:
             chosen[sector] = [(f, v / total) for f, v in zip(market, values)]
         return chosen
 
+    def national_index(self, year):
+        """National real GDP index (2010 = 1); the last published value after it, the first before it"""
+        s = self.national_gdp
+        return float(s.loc[min(max(year, s.index.min()), s.index.max())])
+
+    def export_demand(self, chosen_firms, internal_final_demand, multiplier):
+        """External demand in money per sector. Default: the multiplier times this month's internal demand (household
+        and government purchases served), for sectors with a stocked firm.
+        EXPORTS_REAL: for every sector, the multiplier times this month's intended internal demand (household spending
+        meant for the sector, served or not, plus government purchases) up to EXPORTS_BURN_IN + EXPORTS_BASE_MONTHS
+        months; its quantity (money / the sector's price) is averaged over the base months. Afterwards that quantity
+        times the national real GDP index relative to its base-months mean, times (price / P_imp) **
+        -EXPORTS_PRICE_ELASTICITY, at the sector's price. P_imp = 1. The sector's price is the stock-weighted mean over
+        its stocked firms, or the mean over all its firms when none has stock."""
+        params = self.sim.PARAMS
+        demand = {}
+        real = params.get('EXPORTS_REAL', False)
+        self.months += 1
+        if not real:
+            for sector in self.sim.regional_market.technical_matrix.index:
+                if chosen_firms[sector] and multiplier[sector] and internal_final_demand[sector]:
+                    demand[sector] = multiplier[sector] * internal_final_demand[sector]
+            return demand
+        market = self.sim.regional_market
+        burn_in, base = params.get('EXPORTS_BURN_IN', 12), params.get('EXPORTS_BASE_MONTHS', 12)
+        fixed = self.months > burn_in + base
+        in_base = burn_in < self.months <= burn_in + base
+        if in_base:
+            self.export_base_index += self.national_index(self.sim.clock.year)
+        by_sector = defaultdict(list)
+        for f in self.sim.firms.values():
+            by_sector[f.sector].append(f)
+        for sector in market.technical_matrix.index:
+            firms = by_sector.get(sector)
+            if not (firms and multiplier[sector]):
+                continue
+            qty = sum(f.total_quantity for f in firms if f.total_quantity > 0)
+            price = (sum(f.total_quantity * f.prices for f in firms if f.total_quantity > 0) / qty if qty > 0
+                     else sum(f.prices for f in firms) / len(firms))
+            if price <= 0:
+                continue
+            if fixed:
+                growth = self.national_index(self.sim.clock.year) / (self.export_base_index / base)
+                quantity = self.export_base[sector] / base * growth * price ** -params['EXPORTS_PRICE_ELASTICITY']
+                if quantity > 0:
+                    demand[sector] = quantity * price
+            else:
+                intended = market.monthly_hh_intended[sector] + market.monthly_gov_consumption[sector]
+                if intended > 0:
+                    demand[sector] = multiplier[sector] * intended
+                    if in_base:
+                        self.export_base[sector] += demand[sector] / price
+        return demand
+
     def final_consumption(self, internal_final_demand, seed):
         """Consumes from local firms according to the regionalized SAM"""
         # Selects a subset of firms to buy from playing the role of rest of Brazil demand from simulated region.
@@ -292,11 +357,11 @@ class External:
                             for sector, market in self.choose_firms_per_sector(self.sim.firms, seed).items()}
         multiplier = self.sim.regional_market.external_demand_multiplier
 
-        # External demand is a LINEAR FUNCTION of the internal demand
-        demand = {}
-        for sector in self.sim.regional_market.technical_matrix.index:
-            if chosen_firms[sector] and multiplier[sector] and internal_final_demand[sector]:
-                demand[sector] = multiplier[sector] * internal_final_demand[sector]
+        demand = self.export_demand(chosen_firms, internal_final_demand, multiplier)
+        if self.sim.PARAMS.get('EXPORTS_REAL', False):
+            for sector in demand:
+                if not chosen_firms[sector]:
+                    chosen_firms[sector] = [(f, None) for f in self.sim.firms.values() if f.sector == sector]
         total_demand = sum(demand.values())
 
         # EXTERNAL_RECYCLING_SHARE: that share of what the ACP paid for imports this month, net of the import tax that

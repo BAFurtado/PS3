@@ -321,6 +321,7 @@ class Family:
             money_this_sector = money_to_spend * sector_share
             if money_this_sector <= 0:
                 continue
+            regional_market.monthly_hh_intended[sector] += money_this_sector
 
             # HOUSEHOLD_IMPORTS: the import share of the product is bought from the rest of Brazil, which always has
             # stock. It counts as consumption, and in the internal demand exports scale with
