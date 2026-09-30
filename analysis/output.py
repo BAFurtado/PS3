@@ -133,6 +133,13 @@ OUTPUT_DATA_SPEC = {
                     # Quantity refused for lack of stock / (sold + refused), goods firms (Construction's amount_sold
                     # also counts house sales in money). Recorded whether or not DEMAND_SIGNAL_UNMET acts on it
                     "firms_unmet_share",
+                    # Diagnostic, same goods firms: quantity demanded (sold + refused) and refused, by buyer type; and
+                    # household money that found no firm of the sector with stock (never reaches a firm)
+                    "demand_household", "unmet_household",
+                    "demand_government", "unmet_government",
+                    "demand_input", "unmet_input",
+                    "demand_external", "unmet_external",
+                    "household_no_stock",
                     # External account (defect #27): monthly imports, exports and recycled demand; cumulative net
                     # position and external public funding
                     "ext_imports",
@@ -284,11 +291,23 @@ OUTPUT_DATA_SPEC = {
 FIRM_DEMOGRAPHY_COLUMNS = ('firms_count', 'firms_entered', 'firms_exited')
 EXTERNAL_ACCOUNT_COLUMNS = ('ext_imports', 'ext_exports', 'ext_recycled', 'ext_net_position', 'ext_public_funding')
 MONEY_COLUMNS = tuple(c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c.startswith('money_'))
+DEMAND_BY_BUYER_COLUMNS = tuple(f'{k}_{b}' for b in ('household', 'government', 'input', 'external')
+                                for k in ('demand', 'unmet')) + ('household_no_stock',)
+
+
+def _legacy_stats_columns_no_demand_by_buyer():
+    """`stats` layout of 1830dcd (2026-09-30): firms_unmet_share but no demand by buyer type."""
+    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c not in DEMAND_BY_BUYER_COLUMNS]
+
+
+def _legacy_stats_columns_no_unmet():
+    """`stats` layout before 2026-09-30: no firms_unmet_share."""
+    return [c for c in _legacy_stats_columns_no_demand_by_buyer() if c != 'firms_unmet_share']
 
 
 def _legacy_stats_columns_no_money():
     """`stats` layout before 2026-09-29 (evening): no money stock and ledger columns."""
-    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c not in MONEY_COLUMNS]
+    return [c for c in _legacy_stats_columns_no_unmet() if c not in MONEY_COLUMNS]
 
 
 def _legacy_stats_columns_no_external_account():
@@ -342,7 +361,8 @@ def _legacy_regional_columns_single_pot():
 
 
 LEGACY_COLUMNS = {
-    'stats': [_legacy_stats_columns_no_money(), _legacy_stats_columns_no_external_account(),
+    'stats': [_legacy_stats_columns_no_demand_by_buyer(), _legacy_stats_columns_no_unmet(),
+              _legacy_stats_columns_no_money(), _legacy_stats_columns_no_external_account(),
               _legacy_stats_columns_no_firm_demography(),
               _legacy_stats_columns()],
     'regional': [_legacy_regional_columns_no_qli_drivers(),
@@ -540,6 +560,11 @@ class Output:
         unmet = sum(f.unmet_quantity for f in goods)
         demanded = unmet + sum(f.amount_sold for f in goods)
         stats_row["firms_unmet_share"] = unmet / demanded if demanded > 0 else 0.0
+        for b in ('household', 'government', 'input', 'external'):
+            recs = [f.demand_by_buyer[b] for f in goods if f.demand_by_buyer and b in f.demand_by_buyer]
+            stats_row[f"unmet_{b}"] = sum(r[1] for r in recs)
+            stats_row[f"demand_{b}"] = sum(r[0] + r[1] for r in recs)
+        stats_row["household_no_stock"] = getattr(sim.regional_market, 'household_no_stock', 0.0)
         ext = sim.external
         stats_row["ext_imports"] = ext.last_month['imports']
         stats_row["ext_exports"] = ext.last_month['exports']
