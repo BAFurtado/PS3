@@ -339,6 +339,36 @@ if sim.PARAMS.get("GOV_REVISED", False):
         _funds.settle_government_budget(sim.regions)
         _ext.append(_funds.external_public_funding - _e0)
     _funds.gov_levels[_mun] = _saved_levels
+    # GOV_EXTERNAL_WAGE 'real': doubling private pay and the average goods price together leaves the cost of federal
+    # and state staff and the outside funding unchanged, while the payroll (municipal staff) rises
+    _saved_rule, _saved_price = sim.PARAMS.get("GOV_EXTERNAL_WAGE", "local"), sim.avg_prices
+    _saved_pay = {_f.id: _f.wages_paid for _f in sim.firms.values() if _f.sector != "Government"}
+    sim.PARAMS["GOV_EXTERNAL_WAGE"] = "real"
+    _real = []
+    for _scale in (1.0, 2.0):
+        for _f in sim.firms.values():
+            if _f.sector != "Government":
+                _f.wages_paid = _saved_pay[_f.id] * _scale
+        sim.avg_prices = _saved_price * _scale
+        _e0 = _funds.external_public_funding
+        for _rid in sim.regions:
+            _funds.pending_public_money[_rid]["equally"] += 1e-6
+        _funds.settle_government_budget(sim.regions)
+        _real.append((sum(_v["outside"] or 0 for _v in _funds.gov_budget_diag.values()),
+                      sum(_v["target"] for _v in _funds.gov_budget_diag.values()),
+                      _funds.external_public_funding - _e0))
+    for _f in sim.firms.values():
+        if _f.sector != "Government":
+            _f.wages_paid = _saved_pay[_f.id]
+    sim.PARAMS["GOV_EXTERNAL_WAGE"], sim.avg_prices = _saved_rule, _saved_price
+    if sim.PARAMS.get("GOV_EXTERNAL_FUNDING", False):
+        check(
+            "Federal and state staff at real private pay: outside funding does not follow the price level",
+            _real[0][0] > 0 and abs(_real[1][0] - _real[0][0]) < 1e-9 * _real[0][0]
+            and abs(_real[1][2] - _real[0][2]) < 1e-9 * _real[0][2] and _real[0][2] > 0 and _real[1][1] > _real[0][1],
+            f"outside cost {_real[0][0]:.3f} -> {_real[1][0]:.3f}, payroll target {_real[0][1]:.3f} -> "
+            f"{_real[1][1]:.3f}, outside funding {_real[0][2]:.3f} -> {_real[1][2]:.3f}",
+        )
     for _f in _gov_all:
         for _a, _val in _gov_state[_f.id].items():
             setattr(_f, _a, _val)

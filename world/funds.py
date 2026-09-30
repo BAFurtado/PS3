@@ -686,6 +686,8 @@ class Funds:
         buy_inputs), never their start-up capital. If (1) and (2) cost more than the budget, GOV_EXTERNAL_FUNDING
         pays the shortfall from outside the ACP up to the non-municipal share of that cost (federal and state staff
         are paid from national and state revenue); whatever is still short scales the payroll down.
+        GOV_EXTERNAL_WAGE 'real' pays federal and state staff the ACP's private pay deflated by the average goods price
+        instead of local pay, and caps the outside funding at their cost.
         (3) and (4) are also recorded as the regions' applied public money, which the QLI fiscal leg reads.
         Nothing is created or lost except the external inflow, counted in external_public_funding. A municipality
         without Government firms has its purchases and investment spent by the ACP's Government firms. The old path
@@ -716,6 +718,12 @@ class Funds:
         premia = {'federal': params.get('GOV_PREMIUM_FEDERAL', 0.0), 'estadual': params.get('GOV_PREMIUM_STATE', 0.0),
                   'municipal': params.get('GOV_PREMIUM_MUNICIPAL', 0.0)}
         per_wage = 1 + goods_per_wage + inputs_per_wage
+        # GOV_EXTERNAL_WAGE 'real': federal and state staff are paid the ACP's private pay deflated by the average goods
+        # price (avg_prices), in units of the import price (P_imp = 1)
+        ref_unit = ref_wage = None
+        if params.get('GOV_EXTERNAL_WAGE', 'local') == 'real' and quals:
+            price = self.sim.avg_prices if self.sim.avg_prices > 0 else 1.0
+            ref_unit, ref_wage = acp_unit / price, acp_wage / price
 
         by_mun = defaultdict(list)
         for id in self.pending_public_money:
@@ -726,20 +734,35 @@ class Funds:
             staff = sum(f.num_employees for f in firms)
             private_wage = bill[mun] / heads[mun] if heads[mun] else acp_wage
             levels = self.gov_levels[mun]
+            outside = None
             if rule == 'premium':
                 markup = 1 + sum(levels[k] * premia[k] for k in premia)
                 unit = bill[mun] / quals[mun] if quals[mun] else acp_unit
-                offer = markup * private_wage
-                target = markup * unit * sum(f.total_qualification(alpha) for f in firms)
+                qual = sum(f.total_qualification(alpha) for f in firms)
+                if ref_unit is None:
+                    offer = markup * private_wage
+                    target = markup * unit * qual
+                else:
+                    # Each level at its own premium; the municipal share at local pay, the rest at the reference
+                    w_mun = levels['municipal'] * (1 + premia['municipal'])
+                    w_out = sum(levels[k] * (1 + premia[k]) for k in ('federal', 'estadual'))
+                    offer = w_mun * private_wage + w_out * ref_wage
+                    outside = w_out * ref_unit * qual
+                    target = w_mun * unit * qual + outside
             else:
                 ratio = params['GOV_WAGE_RATIO'] * (self.gov_wage_ratio[mun] if rule == 'cempre_ratio' else 1.0)
-                offer = ratio * private_wage
+                if ref_wage is None:
+                    offer = ratio * private_wage
+                else:
+                    offer = ratio * (levels['municipal'] * private_wage + (1 - levels['municipal']) * ref_wage)
+                    outside = ratio * (1 - levels['municipal']) * ref_wage * staff
                 target = offer * staff
             # Federal and state staff are paid from outside the ACP when the municipality's budget falls short
             need = target * per_wage
             external = 0.0
             if params.get('GOV_EXTERNAL_FUNDING', False) and need > budget:
-                external = min(need - budget, (1 - levels['municipal']) * need)
+                cap = (1 - levels['municipal']) * need if outside is None else outside * per_wage
+                external = min(need - budget, cap)
                 self.external_public_funding += external
                 self.sim.ledger['public_transfers'] += external
             available = budget + external
@@ -769,7 +792,8 @@ class Funds:
                     regions[id].update_applied_taxes(amount, key)
                     investment += amount
             self.gov_budget_diag[mun] = dict(budget=budget, external=external, target=target, wage=wage, staff=staff,
-                                             payroll=payroll, investment=investment)
+                                             payroll=payroll, investment=investment,
+                                             outside=outside, ref_unit=ref_unit, ref_wage=ref_wage)
             spenders = firms or all_gov
             if spenders:
                 for f in spenders:
