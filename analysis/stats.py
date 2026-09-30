@@ -19,6 +19,8 @@ class Statistics(object):
 
     def __init__(self, params):
         self.previous_month_price = 0
+        # PRICE_INDEX: 'stocked' averages firms with staff and stock, 'staffed' firms with staff
+        self.price_index_stocked = params.get('PRICE_INDEX', 'stocked') == 'stocked'
         self.global_unemployment_rate = .086
         self.last_gdp = defaultdict(float)
         self.vacancy_rate = params['HOUSE_VACANCY']
@@ -102,8 +104,9 @@ class Statistics(object):
 
     def update_price(self, firms, mid_simulation_calculus=False):
         """Compute average price and inflation"""
+        stocked = self.price_index_stocked
         prices = [item.price for firm in firms.values() for item in firm.inventory.values()
-                  if item.quantity > 0 and firm.num_employees > 0]
+                  if firm.num_employees > 0 and (item.quantity > 0 or not stocked)]
 
         average_price = np.mean(prices) if prices else 0
 

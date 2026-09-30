@@ -350,6 +350,22 @@ if sim.PARAMS.get("GOV_REVISED", False):
             f"external funding: non-municipal {_ext[0]:.4f}, municipal-only {_ext[1]:.4f}",
         )
 
+# PRICE_INDEX: 'stocked' averages the prices of firms with staff and stock, 'staffed' of firms with staff
+_pi_saved = sim.stats.price_index_stocked
+_pi = {}
+for _mode in (True, False):
+    sim.stats.price_index_stocked = _mode
+    _pi[_mode] = sim.stats.update_price(sim.firms, mid_simulation_calculus=True)[0]
+sim.stats.price_index_stocked = _pi_saved
+_pi_stk = [i.price for f in sim.firms.values() for i in f.inventory.values() if f.num_employees > 0 and i.quantity > 0]
+_pi_stf = [i.price for f in sim.firms.values() for i in f.inventory.values() if f.num_employees > 0]
+check(
+    "Price index averages the firms PRICE_INDEX names",
+    abs(_pi[True] - np.mean(_pi_stk)) < 1e-12 and abs(_pi[False] - np.mean(_pi_stf)) < 1e-12
+    and len(_pi_stf) >= len(_pi_stk),
+    f"stocked {_pi[True]:.4f} over {len(_pi_stk)} firms, staffed {_pi[False]:.4f} over {len(_pi_stf)}",
+)
+
 # Firm demography in stats.csv reconciles with the firm stock: entries - exits = change in the number of firms
 from analysis.output import columns_for  # noqa: E402
 import pandas as pd  # noqa: E402
