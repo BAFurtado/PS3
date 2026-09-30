@@ -45,6 +45,8 @@ class Firm:
     workers_needed = 1
     # Quantity refused this month for lack of stock (DEMAND_SIGNAL_UNMET); reset with amount_sold
     unmet_quantity = 0.0
+    # Diagnostic: this month's sold and refused quantity by buyer type, {buyer: [sold, refused]}; reset with amount_sold
+    demand_by_buyer = None
     # Share of capital advanced as revenue in a month without sales (FIRM_CAPITAL_MONTHS sets it to 1/months)
     cold_start_share = 0.001
     # Consecutive months insolvent / idle (FIRM_EXIT_MONTHS); set when the firm exits
@@ -478,15 +480,27 @@ class Firm:
         # Resetting amount sold to record monthly amounts
         self.amount_sold = 0
         self.unmet_quantity = 0.0
+        self.demand_by_buyer = None
         self.revenue = 0
         # buy_inputs() only zeroes this when called, which it isn't for firms with no employees.
         self.input_cost = 0
 
-    def sale(self, amount, regions, tax_consumption, consumer_region_id, if_origin, external=False):
+    def _record_demand(self, buyer, sold, refused):
+        if self.demand_by_buyer is None:
+            self.demand_by_buyer = {}
+        rec = self.demand_by_buyer.setdefault(buyer, [0.0, 0.0])
+        rec[0] += sold
+        rec[1] += refused
+
+    def sale(self, amount, regions, tax_consumption, consumer_region_id, if_origin, external=False,
+             buyer='household'):
         """Sell max amount of products for a given amount of money.
         Each firm always carries exactly one product (inventory key 0), so the original
         loop over inventory is replaced with a direct access.
+        buyer ('household', 'government', 'input'; 'external' when external) only labels the diagnostic record.
         """
+        if external:
+            buyer = 'external'
         if amount > 0:
             product = self.inventory[0]
             if product.quantity > 0:
@@ -494,8 +508,10 @@ class Firm:
                 actual_amount = amount
                 if bought_quantity > product.quantity:
                     self.unmet_quantity += bought_quantity - product.quantity
+                    self._record_demand(buyer, 0.0, bought_quantity - product.quantity)
                     bought_quantity = product.quantity
                     actual_amount = bought_quantity * product.price
+                self._record_demand(buyer, bought_quantity, 0.0)
 
                 product.quantity -= bought_quantity
                 revenue = actual_amount * (1 - tax_consumption)
@@ -511,6 +527,7 @@ class Firm:
                 self.amount_sold += bought_quantity
                 return amount - actual_amount  # change/refund to buyer
             self.unmet_quantity += amount / product.price
+            self._record_demand(buyer, 0.0, amount / product.price)
         # No stock or zero amount: full refund
         return amount
 
@@ -1047,7 +1064,7 @@ class GovernmentFirm(Firm):
                 chosen_firm = min(market, key=lambda firm: firm.prices)
                 # Buy from chosen company
                 change = chosen_firm.sale(money_this_sector, sim.regions, sim.PARAMS['TAX_CONSUMPTION'],
-                                          self.region_id, sim.PARAMS["TAX_ON_ORIGIN"])
+                                          self.region_id, sim.PARAMS["TAX_ON_ORIGIN"], buyer='government')
                 self.total_balance += change
                 total_consumption[sector] += money_this_sector - change
             else:
@@ -1070,7 +1087,7 @@ class GovernmentFirm(Firm):
             if market:
                 chosen_firm = min(market, key=lambda firm: firm.prices)
                 change = chosen_firm.sale(money_this_sector, sim.regions, sim.PARAMS['TAX_CONSUMPTION'],
-                                          self.region_id, sim.PARAMS["TAX_ON_ORIGIN"])
+                                          self.region_id, sim.PARAMS["TAX_ON_ORIGIN"], buyer='government')
                 left += change
                 total_consumption[sector] += money_this_sector - change
             else:

@@ -373,6 +373,19 @@ check(
     f"max |unexplained| = {_unexplained:.3g}, stock up to {_st.money_total.max():.3g}",
 )
 
+# Refused demand by buyer type (diagnostic) adds up to each firm's refused quantity, and the stats columns to
+# firms_unmet_share
+_by_ok = all(abs(sum(r[1] for r in f.demand_by_buyer.values()) - f.unmet_quantity) < 1e-9 * max(1, f.unmet_quantity)
+             for f in sim.firms.values() if f.demand_by_buyer)
+_b = ['household', 'government', 'input', 'external']
+_d = _st[[f"demand_{b}" for b in _b]].sum(axis=1)
+_u = _st[[f"unmet_{b}" for b in _b]].sum(axis=1)
+check("Refused demand by buyer adds up to the firms' refused quantity and to firms_unmet_share",
+      _by_ok and np.allclose(np.where(_d > 0, _u / _d.where(_d > 0, 1), 0), _st.firms_unmet_share)
+      and _st.demand_household.iloc[-1] > 0 and _st.demand_input.iloc[-1] > 0,
+      f"per firm {_by_ok}; last month shares by buyer "
+      f"{[round(_st[f'unmet_{b}'].iloc[-1] / max(_st[f'demand_{b}'].iloc[-1], 1e-12), 3) for b in _b]}")
+
 # FPM hands out exactly what was collected. It divided by the sum of the *distinct* municipal FPM values, so
 # municipalities in the same FPM band counted once: ARACAJU at 1 % (6 municipalities) got 4-5 % more than was
 # collected from 2011 (#41)

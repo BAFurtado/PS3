@@ -324,6 +324,7 @@ class Family:
             if not sector_firms:
                 # No firm of the sector has stock: the money stays with the family
                 savings += money_this_sector
+                regional_market.household_no_stock += money_this_sector
                 continue
 
             n_firms = len(sector_firms)

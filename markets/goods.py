@@ -92,6 +92,8 @@ class RegionalMarket:
         self.external_demand_multiplier = read_final_demand_matrix(sim.geo.processing_acps)
         self.monthly_hh_consumption = defaultdict(float)
         self.monthly_gov_consumption = defaultdict(float)
+        # Diagnostic: household money this month that found no firm of the sector with stock (Family.consume)
+        self.household_no_stock = 0.0
         # Pre-compute numpy column arrays to avoid pandas.loc overhead in the per-firm hot loop
         self._sector_order = list(self.technical_matrix.index)
         self._tech_np = {s: self.technical_matrix[s].values.copy() for s in self._sector_order}
@@ -99,6 +101,7 @@ class RegionalMarket:
 
     def consume(self):
         self.monthly_hh_consumption = defaultdict(float)
+        self.household_no_stock = 0.0
         # Household consumption
 
         # Single pass over firms to group by sector, then filter by inventory availability
@@ -163,7 +166,7 @@ class RegionalMarket:
 
     def intermediate_consumption(self, amount, firm):
         return firm.sale(amount, self.sim.regions, self.sim.PARAMS['TAX_CONSUMPTION'], firm.region_id,
-                         if_origin=self.sim.PARAMS['TAX_ON_ORIGIN'])
+                         if_origin=self.sim.PARAMS['TAX_ON_ORIGIN'], buyer='input')
 
 
 class External:
