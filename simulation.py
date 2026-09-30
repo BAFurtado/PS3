@@ -393,6 +393,7 @@ class Simulation:
         price_ruggedness = self.PARAMS["PRICE_RUGGEDNESS"]
         inventory_target_ratio = self.PARAMS.get("INVENTORY_TARGET_RATIO", 0.0)
         price_markup_cap = self.PARAMS.get("PRICE_MARKUP_CAP", 0.25)
+        demand_signal_unmet = self.PARAMS.get("DEMAND_SIGNAL_UNMET", False)
         tax_transport = self.PARAMS["TAX_TRANSPORT"]
         self.avg_prices, _ = self.stats.update_price(self.firms, mid_simulation_calculus=True)
         for firm in self.firms.values():
@@ -422,6 +423,7 @@ class Simulation:
                 price_ruggedness,
                 inventory_target_ratio,
                 price_markup_cap,
+                demand_signal_unmet,
             )
             firm.invest_eco_efficiency(
                 self.regional_market,
