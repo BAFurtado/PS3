@@ -98,6 +98,12 @@ CONSTRUCTION_CAPITAL_MONTHS = 12
 # become unemployed, its remaining capital goes to its sector's firms, and it moves to sim.firm_grave. Government never
 # exits; Construction only with no house for sale or under construction. 0 = original, no exit.
 FIRM_EXIT_MONTHS = 6
+# Firm output. 'capacity' (old model): every firm produces what its staff can each month, whatever its stock, and sheds
+# staff only when it is overstocked and losing money. 'sales': private firms other than builders top their stock up to
+# last month's sold plus refused quantity times (1 + INVENTORY_TARGET_RATIO), and to at least INVENTORY_TARGET_RATIO x
+# capacity, within capacity, buying inputs for that output only; when it adjusts its labour force, a firm whose capacity
+# alone exceeds that need sheds the excess workers, at most half its staff.
+PRODUCTION_PLAN = 'capacity'
 # Firms refill workers lost to natural separation or death (one post each) unless shrinking. False = off.
 REPLACE_SEPARATIONS = True
 # Growing firms post the vacancies their production plan needs (gap between sales plus stock target and current

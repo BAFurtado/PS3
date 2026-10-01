@@ -12,6 +12,9 @@ from dateutil import relativedelta
 from .house import House
 from .product import Product
 
+# PRODUCTION_PLAN 'sales' leaves these sectors at capacity output and their own staffing rules
+UNPLANNED_SECTORS = ('Construction', 'Government')
+
 np.seterr(divide='ignore', invalid='ignore')
 initial_input_sectors = {'Agriculture': 0,
                          'Mining': 0,
@@ -52,6 +55,12 @@ class Firm:
     # Consecutive months insolvent / idle (FIRM_EXIT_MONTHS); set when the firm exits
     months_insolvent = 0
     months_idle = 0
+    # PRODUCTION_PLAN 'sales': last month's sold plus refused quantity (None before the firm's first production), the
+    # workers above what this month's demand needs, and this month's output and labour capacity
+    last_demand = None
+    workers_excess = 0
+    last_produced = 0.0
+    last_capacity = 0.0
     exit_date = None
     exit_reason = None
 
@@ -388,14 +397,22 @@ class Firm:
             self.input_cost += money_local - change + money_external
 
     def update_product_quantity(self, prod_exponent, prod_divisor, regional_market, firms, seed,
-                               prebuilt_sector_map=None):
+                               prebuilt_sector_map=None, plan=None):
         """
         Based on the MIP sector, buys inputs to produce a given money output of the activity, creates externalities
         and creates a price based on cost.
+        plan (PRODUCTION_PLAN 'sales'): the stock target ratio r. Output tops the stock up to last month's demand times
+        (1 + r), and to at least r x capacity, within capacity. None: output = capacity.
         """
         quantity = 0
+        self.last_capacity = 0.0
         if self.employees and self.inventory:
-            desired_quantity = self.total_qualification(prod_exponent) / prod_divisor
+            capacity = self.total_qualification(prod_exponent) / prod_divisor
+            self.last_capacity = capacity
+            desired_quantity = capacity
+            if plan is not None and self.last_demand is not None:
+                shelf = max(self.last_demand * (1 + plan), plan * capacity)
+                desired_quantity = min(capacity, max(0.0, shelf - self.total_quantity))
 
             technical_matrix = regional_market.technical_matrix
             external_technical_matrix = regional_market.ext_local_matrix
@@ -426,6 +443,7 @@ class Firm:
             quantity = productive_constraint_numeric * desired_quantity
             self.total_quantity += quantity
             self.amount_produced += quantity
+        self.last_produced = quantity
         return quantity
 
     # Commercial department
@@ -444,9 +462,18 @@ class Firm:
             demand_signal_unmet=False,
             price_demand_response=0.0,
             price_ceiling=None,
+            plan=None,
     ):
         """ Update prices based on inventory and average prices
-            Save signal for the labor market """
+            Save signal for the labor market
+            plan (PRODUCTION_PLAN 'sales'): the stock target ratio r. workers_excess = workers whose output exceeds this
+            month's sold plus refused quantity times (1 + r), and r x capacity. """
+        if plan is not None:
+            capacity = self.total_qualification(prod_exponent) / prod_magnitude_divisor
+            need = max((self.amount_sold + self.unmet_quantity) * (1 + plan), plan * capacity)
+            self.workers_excess = 0
+            if self.num_employees > 0 and capacity > need:
+                self.workers_excess = int((capacity - need) / (capacity / self.num_employees))
         # Sticky prices (KLENOW, MALIN, 2010)
         if seed_np.rand() < sticky_prices:
             # DEMAND_SIGNAL_UNMET: demand is what was sold plus what was refused for lack of stock. Buyers do not try
@@ -491,6 +518,7 @@ class Firm:
 
     def reset_amount_sold(self):
         # Resetting amount sold to record monthly amounts
+        self.last_demand = self.amount_sold + self.unmet_quantity if self.amount_produced > 0 else None
         self.amount_sold = 0
         self.unmet_quantity = 0.0
         self.demand_by_buyer = None

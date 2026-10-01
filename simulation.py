@@ -20,6 +20,7 @@ from world.firms import firm_growth, firm_exit, size_initial_capital, pay_profit
 from world.funds import Funds
 from analysis.money import money_stock_total
 from world.geography import Geography, STATES_CODES, state_string
+from agents.firm import UNPLANNED_SECTORS
 from world.transport import TransportNetwork
 from markets.goods import RegionalMarket, External
 
@@ -345,12 +346,17 @@ class Simulation:
         sector_firm_map = {}
         for f in self.firms.values():
             sector_firm_map.setdefault(f.sector, []).append(f)
+        # PRODUCTION_PLAN 'sales': private firms other than builders produce for last month's demand plus the stock
+        # target; builders plan on the house pipeline and Government's headcount is set by its budget
+        planning = self.PARAMS.get('PRODUCTION_PLAN', 'capacity') == 'sales'
+        plan = self.PARAMS.get("INVENTORY_TARGET_RATIO", 0.0) if planning else None
         for firm in self.firms.values():
             firm.update_product_quantity(prod_exponent, prod_magnitude_divisor,
                                          self.regional_market,
                                          self.firms,
                                          self.seed,
-                                         sector_firm_map)
+                                         sector_firm_map,
+                                         plan if firm.sector not in UNPLANNED_SECTORS else None)
 
         # Call demographics
         # Update agent life cycles
@@ -427,6 +433,7 @@ class Simulation:
         demand_signal_unmet = self.PARAMS.get("DEMAND_SIGNAL_UNMET", False)
         price_demand_response = self.PARAMS.get("PRICE_DEMAND_RESPONSE", 0.0)
         tax_transport = self.PARAMS["TAX_TRANSPORT"]
+        plan = inventory_target_ratio if self.PARAMS.get('PRODUCTION_PLAN', 'capacity') == 'sales' else None
         self.avg_prices, _ = self.stats.update_price(self.firms, mid_simulation_calculus=True)
         # IMPORT_PARITY_PRICING: tradable firms price against the tradable average, capped at import parity, with no
         # price response to refused demand; the others against the non-tradable average
@@ -467,6 +474,7 @@ class Simulation:
                 demand_signal_unmet,
                 0.0 if tradable else price_demand_response,
                 import_parity if tradable else None,
+                plan if firm.sector not in UNPLANNED_SECTORS else None,
             )
             firm.invest_eco_efficiency(
                 self.regional_market,
@@ -511,7 +519,8 @@ class Simulation:
                                     fire_unpaid_months=self.PARAMS.get("FIRE_UNPAID_MONTHS", 0),
                                     planned_growth=self.PARAMS.get("PLANNED_GROWTH_POSTS", False),
                                     replace_separations=self.PARAMS.get("REPLACE_SEPARATIONS", False),
-                                    gov_headcount_only=self.PARAMS.get("GOV_REVISED", False))
+                                    gov_headcount_only=self.PARAMS.get("GOV_REVISED", False),
+                                    shed_excess=self.PARAMS.get('PRODUCTION_PLAN', 'capacity') == 'sales')
 
         # Job Matching
         # Sample used only to calculate wage deciles

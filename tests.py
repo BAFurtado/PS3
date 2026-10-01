@@ -1376,6 +1376,39 @@ _nf.start_permanent_income()
 check("PI_START 'census': permanent-income window full of the initial value",
       list(_nf.last_permanent_income) == [5.0] * _nf.last_permanent_window, f"{list(_nf.last_permanent_income)}")
 
+# PRODUCTION_PLAN 'sales': output tops the stock up to demand x (1 + ratio) within capacity and buys nothing when the
+# stock covers it; workers above need are excess, and the labour market sheds them, at most half the staff
+_plf = next(f for f in sim.firms.values() if f.sector not in ("Construction", "Government") and len(f.employees) > 8)
+_div = sim.PARAMS["PRODUCTIVITY_MAGNITUDE_DIVISOR"]
+_cap = _plf.total_qualification(_alpha) / _div
+_saved_pl = (_plf.total_quantity, _plf.last_demand, _plf.total_balance, dict(_plf.input_inventory),
+             _plf.amount_produced, _plf.amount_sold, _plf.unmet_quantity, dict(_plf.employees))
+_stock0 = money_stock_total(sim)
+_plf.total_quantity, _plf.last_demand = 2 * _cap, 0.5 * _cap
+_q_full_stock = _plf.update_product_quantity(_alpha, _div, sim.regional_market, sim.firms, sim.seed, None, 0.2)
+_spent = money_stock_total(sim) - _stock0
+_plf.amount_sold, _plf.unmet_quantity = 0.3 * _cap, 0.1 * _cap
+_plf.decision_on_prices_production(0.0, 0.1, sim.seed_np, sim.avg_prices, _alpha, _div, plan=0.2)
+_need = 0.4 * _cap * 1.2
+_exp_excess = int((_cap - _need) / (_cap / len(_plf.employees)))
+_got_excess = _plf.workers_excess
+_n0 = len(_plf.employees)
+_lm_firms = {_plf.id: _plf}
+_plf.increase_production, _plf.profit, _plf.months_unpaid, _plf.total_balance = False, 1.0, 0, 100.0
+sim.labor_market.hire_fire(_lm_firms, 1.0, shed_excess=True)
+_shed = _n0 - len(_plf.employees)
+for _k, _e in _saved_pl[7].items():
+    if _k not in _plf.employees:
+        _plf.add_employee(_e)
+(_plf.total_quantity, _plf.last_demand, _plf.total_balance, _inv, _plf.amount_produced, _plf.amount_sold,
+ _plf.unmet_quantity) = _saved_pl[:7]
+_plf.input_inventory.update(_inv)
+check("PRODUCTION_PLAN 'sales': no output and no purchase when the stock covers demand x (1 + ratio); excess workers "
+      "above need; excess shed, at most half the staff",
+      _q_full_stock == 0 and _plf.last_produced == 0 and abs(_spent) < 1e-9 and _got_excess == _exp_excess > 0
+      and _shed == min(_exp_excess, max(1, _n0 // 2)),
+      f"q {_q_full_stock}, spent {_spent}, excess {_got_excess} vs {_exp_excess}, shed {_shed}")
+
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")
 print(f"Results: {PASS} PASS  |  {FAIL} FAIL  |  {PASS + FAIL} total")

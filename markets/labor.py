@@ -256,10 +256,12 @@ class LaborMarket:
                         fired += 1
 
     def hire_fire(self, firms, firm_enter_freq, initialize=False, fire_unpaid_months=0, planned_growth=False,
-                  replace_separations=False, gov_headcount_only=False):
+                  replace_separations=False, gov_headcount_only=False, shed_excess=False):
         """Firms adjust their labor force based on profit. With gov_headcount_only, Government firms are skipped.
         With planned_growth a growing firm posts as many vacancies as its production plan needs. With replace_separations, a firm that is not shrinking
-        also re-posts one vacancy for each worker it lost to natural separation or death since its last adjustment."""
+        also re-posts one vacancy for each worker it lost to natural separation or death since its last adjustment.
+        With shed_excess (PRODUCTION_PLAN 'sales'), a firm that is not growing sheds its workers_excess, at most half
+        its staff."""
         random_value = self.seed_np.random(size=len(firms.values()))
         n_fired = 0
         for i, firm in enumerate(firms.values()):
@@ -299,6 +301,11 @@ class LaborMarket:
                         n_fired += 1
                 elif firm.increase_production and firm.profit >= 0:
                     self.add_growth_posts(firm, planned_growth)
+                elif shed_excess and firm.workers_excess > 0:
+                    for _ in range(min(firm.workers_excess, max(1, firm.num_employees // 2))):
+                        firm.fire(self.seed_np)
+                        n_fired += 1
+                    firm.workers_excess = 0
                 elif not firm.increase_production and firm.profit < 0:
                     # Fire only when BOTH signals align: surplus inventory AND losing money.
                     # OR-logic fired profitable firms with adequate stock, collapsing demand.

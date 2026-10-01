@@ -174,6 +174,8 @@ OUTPUT_DATA_SPEC = {
                     "families_total_permanent_income",
                     # FIRM_PAYOUT: profit shares paid to staff this month
                     "firms_profit_share_paid",
+                    # Output over labour capacity this month, private firms other than builders
+                    "firms_utilisation",
                     ]
     },
     'families': {
@@ -312,9 +314,14 @@ DEMAND_BY_BUYER_COLUMNS = tuple(f'{k}_{b}' for b in ('household', 'government', 
 MATCHING_COLUMNS = ('unmet_household_coverable', 'unmet_household_coverable_end')
 
 
+def _legacy_stats_columns_no_utilisation():
+    """`stats` layout of 5e52587 (2026-09-30): no firms_utilisation."""
+    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c != 'firms_utilisation']
+
+
 def _legacy_stats_columns_no_profit_share():
     """`stats` layout of df8dab4 (2026-09-30): no firms_profit_share_paid."""
-    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c != 'firms_profit_share_paid']
+    return [c for c in _legacy_stats_columns_no_utilisation() if c != 'firms_profit_share_paid']
 
 
 def _legacy_stats_columns_no_total_income():
@@ -418,7 +425,7 @@ def _legacy_regional_columns_single_pot():
 
 
 LEGACY_COLUMNS = {
-    'stats': [_legacy_stats_columns_no_profit_share(), _legacy_stats_columns_no_total_income(), _legacy_stats_columns_no_bank_profit(), _legacy_stats_columns_no_fgts_repaid(), _legacy_stats_columns_no_group_prices(), _legacy_stats_columns_no_household_imports(), _legacy_stats_columns_no_unserved(), _legacy_stats_columns_no_matching(), _legacy_stats_columns_no_demand_by_buyer(), _legacy_stats_columns_no_unmet(),
+    'stats': [_legacy_stats_columns_no_utilisation(), _legacy_stats_columns_no_profit_share(), _legacy_stats_columns_no_total_income(), _legacy_stats_columns_no_bank_profit(), _legacy_stats_columns_no_fgts_repaid(), _legacy_stats_columns_no_group_prices(), _legacy_stats_columns_no_household_imports(), _legacy_stats_columns_no_unserved(), _legacy_stats_columns_no_matching(), _legacy_stats_columns_no_demand_by_buyer(), _legacy_stats_columns_no_unmet(),
               _legacy_stats_columns_no_money(), _legacy_stats_columns_no_external_account(),
               _legacy_stats_columns_no_firm_demography(),
               _legacy_stats_columns()],
@@ -642,6 +649,10 @@ class Output:
             stats_row[f"money_{c}"] = sim.ledger[c]
         stats_row["money_unexplained"] = stats_row["money_total"] - sim.money_initial - sum(sim.ledger.values())
         stats_row["firms_profit_share_paid"] = sim.profit_share_paid
+        from agents.firm import UNPLANNED_SECTORS
+        planned = [f for f in sim.firms.values() if f.sector not in UNPLANNED_SECTORS]
+        capacity = sum(f.last_capacity for f in planned)
+        stats_row["firms_utilisation"] = sum(f.last_produced for f in planned) / capacity if capacity else 0.0
         stats_row["price_tradable"], stats_row["price_nontradable"] = sim.stats.group_prices(
             sim.firms, set(sim.PARAMS.get('TRADABLE_SECTORS', ('Agriculture', 'Mining', 'Manufacturing'))))
         self._prev_firm_ids = firm_ids
