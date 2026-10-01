@@ -1298,6 +1298,18 @@ check("FREIGHT: 'flat' imports and parity at 1 + REGIONAL_FREIGHT_COST; 'margins
       and import_parity(_fp['margins']) == {s: 1 + float(_margins[s]) for s in sim.PARAMS['TRADABLE_SECTORS']}
       and 0 < _margins['Manufacturing'] < 0.05,
       f"{import_parity(_fp['margins'])}")
+# INITIAL_EMPLOYMENT: start-up hiring stops at 0.086 ('legacy') or at the Census 2010 share of those aged 17-69 without
+# a job in the run's municipalities ('census')
+_ne = pd.read_csv('input/nonemployment_2010.csv', sep=';').set_index('cod_mun').loc[[int(m) for m in sim.mun_to_regions]]
+_ne_old = sim.PARAMS.get('INITIAL_EMPLOYMENT', 'legacy')
+sim.PARAMS['INITIAL_EMPLOYMENT'] = 'census'
+_ne_census = sim.initial_nonemployment()
+sim.PARAMS['INITIAL_EMPLOYMENT'] = 'legacy'
+_ne_legacy = sim.initial_nonemployment()
+sim.PARAMS['INITIAL_EMPLOYMENT'] = _ne_old
+check("INITIAL_EMPLOYMENT: 'legacy' 0.086, 'census' the Census non-employment of the run's municipalities",
+      _ne_legacy == 0.086 and abs(_ne_census - (1 - _ne.employed.sum() / _ne.pop_17_69.sum())) < 1e-12
+      and 0.15 < _ne_census < 0.5, f"census {_ne_census:.4f}")
 
 # FUNDS_REAL: after the base months the programme funds follow the municipality's base real GDP times the national
 # index, not its current GDP; FGTS and SBPE instalments leave the ACP, market ones stay in the bank, money conserved

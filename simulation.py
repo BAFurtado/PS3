@@ -267,8 +267,8 @@ class Simulation:
         self.labor_market.look_for_jobs(self.agents)
         total = actual = self.labor_market.num_candidates
         actual_unemployment = self.stats.global_unemployment_rate
-        # Simple average of 6 Metropolitan regions Brazil January 2000
-        while actual / total > 0.086:
+        # Share of those aged 17-69 left without a job (INITIAL_EMPLOYMENT)
+        while actual / total > self.initial_nonemployment():
             # Government is staffed to its RAIS headcount by gov_hire_fire, not by one post per firm:
             # otherwise it takes start-up hires in proportion to its firm count, and sheds the excess in month 1.
             self.labor_market.gov_hire_fire(self)
@@ -288,6 +288,15 @@ class Simulation:
             region.pop = self.reg_pops[region.id]
         self.money_initial = money_stock_total(self)
         self.central.equity_target = self.central.equity()
+
+    def initial_nonemployment(self):
+        """INITIAL_EMPLOYMENT 'census': the Census 2010 share of those aged 17-69 without a job in the run's
+        municipalities. 'legacy': 0.086, the mean unemployment rate of six metropolitan regions in January 2000"""
+        if self.PARAMS.get('INITIAL_EMPLOYMENT', 'legacy') != 'census':
+            return 0.086
+        census = pd.read_csv('input/nonemployment_2010.csv', sep=';').set_index('cod_mun')
+        census = census.loc[[int(m) for m in self.mun_to_regions]]
+        return 1 - census.employed.sum() / census.pop_17_69.sum()
 
     def initial_money_from_income(self):
         """INITIAL_MONEY 'target': each family's members aged 10+ hold WEALTH_TARGET_MONTHS of its Census income per

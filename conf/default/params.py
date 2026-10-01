@@ -401,6 +401,11 @@ WEALTH_NORM_BURN_IN = 24
 # Start of the permanent-income average. 'reset': the first monthly update, before any wage is paid, replaces the
 # Census permanent income. 'census': the 24-month average starts full of the Census permanent income.
 PI_START = 'reset'
+# Employment at the start: initial hiring stops when those aged 17-69 without a job fall to this share of them, the
+# definition of the unemployment statistic. 'legacy': 0.086, the mean unemployment rate of six metropolitan regions in
+# January 2000. 'census': the Census 2010 share in the run's municipalities (input/nonemployment_2010.csv, Sidra 1572;
+# auxiliary/census_nonemployment.py).
+INITIAL_EMPLOYMENT = 'legacy'
 # Initial money. 'lognormal': each agent holds a lognormal(3, 0.5) draw of model money. 'target': agents aged 10+ hold
 # WEALTH_TARGET_MONTHS of their area's Census income per person, times their draw over its mean; younger ones none.
 # Immigrants hold the same, at the ACP's initial income per person.
