@@ -1409,6 +1409,46 @@ check("PRODUCTION_PLAN 'sales': no output and no purchase when the stock covers 
       and _shed == min(_exp_excess, max(1, _n0 // 2)),
       f"q {_q_full_stock}, spent {_spent}, excess {_got_excess} vs {_exp_excess}, shed {_shed}")
 
+# SECTOR_SHARES 'ibge12': sectors that are the same CNAE sections in both classifications keep their RAIS share, the
+# four regrouped ones keep their total; SECTOR_PRODUCTIVITY scales capacity by the sector factor, builders keep 1, and
+# needs the nível 12 shares
+from world.firms import set_sector_productivity, SECTOR_PRODUCTIVITY as _SP
+_old = pd.read_csv('input/CONCURBs_SECTOR.csv', sep=';', decimal=',')
+_old = _old.pivot(index='concurb_name', columns='sector', values='participation').fillna(0.0)
+_old = _old.div(_old.sum(axis=1), axis=0)
+_new = pd.read_csv('input/sector_shares_ibge12.csv', sep=';').pivot(index='concurb_name', columns='sector',
+                                                                     values='participation').loc[_old.index]
+_same = ['Agriculture', 'Mining', 'Manufacturing', 'Utilities', 'Construction', 'Transport', 'Financial', 'RealEstate']
+_regrouped = ['Trade', 'Business', 'OtherServices', 'Government']
+_saved_ss = sim.PARAMS.get('SECTOR_SHARES', 'rais'), sim.PARAMS.get('SECTOR_PRODUCTIVITY', False)
+sim.PARAMS['SECTOR_SHARES'] = 'ibge12'
+_gen_shares = sim.generator.sector_shares()
+_acp = sim.geo.processing_acps[0]
+check("SECTOR_SHARES 'ibge12': shares sum to 1, unchanged sections keep their RAIS share, regrouped total kept, "
+      "generator reads them",
+      np.allclose(_new.sum(axis=1), 1, atol=1e-5) and np.allclose(_new[_same], _old[_same], atol=1e-5)
+      and np.allclose(_new[_regrouped].sum(axis=1), _old[_regrouped].sum(axis=1), atol=1e-5)
+      and np.isclose(_gen_shares['Business'], _new.loc[_acp, 'Business'] / _new.loc[_acp].sum()),
+      f"max diff same {(_new[_same] - _old[_same]).abs().max().max():.2e}")
+_fin = next(f for f in sim.firms.values() if f.employees and f.sector not in ('Construction', 'Government'))
+_bld = next(f for f in sim.firms.values() if f.sector == 'Construction')
+_cap0 = _fin.capacity(_alpha, _div)
+sim.PARAMS['SECTOR_PRODUCTIVITY'] = True
+set_sector_productivity(sim, [_fin, _bld])
+_ratio = _fin.capacity(_alpha, _div) / _cap0
+_bld_factor = _bld.sector_productivity
+sim.PARAMS['SECTOR_SHARES'] = 'rais'
+try:
+    set_sector_productivity(sim, [_fin])
+    _guard = False
+except ValueError:
+    _guard = True
+_fin.sector_productivity = _bld.sector_productivity = 1.0
+sim.PARAMS['SECTOR_SHARES'], sim.PARAMS['SECTOR_PRODUCTIVITY'] = _saved_ss
+check("SECTOR_PRODUCTIVITY: capacity x sector factor, builders 1, refused with SECTOR_SHARES 'rais'",
+      np.isclose(_ratio, _SP[_fin.sector]) and _bld_factor == 1.0 and _guard,
+      f"{_fin.sector} ratio {_ratio} vs {_SP[_fin.sector]}, builder {_bld_factor}, guard {_guard}")
+
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")
 print(f"Results: {PASS} PASS  |  {FAIL} FAIL  |  {PASS + FAIL} total")

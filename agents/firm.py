@@ -61,6 +61,8 @@ class Firm:
     workers_excess = 0
     last_produced = 0.0
     last_capacity = 0.0
+    # SECTOR_PRODUCTIVITY: output per unit of labour relative to the national mean
+    sector_productivity = 1.0
     exit_date = None
     exit_reason = None
 
@@ -407,7 +409,7 @@ class Firm:
         quantity = 0
         self.last_capacity = 0.0
         if self.employees and self.inventory:
-            capacity = self.total_qualification(prod_exponent) / prod_divisor
+            capacity = self.capacity(prod_exponent, prod_divisor)
             self.last_capacity = capacity
             desired_quantity = capacity
             if plan is not None and self.last_demand is not None:
@@ -469,7 +471,7 @@ class Firm:
             plan (PRODUCTION_PLAN 'sales'): the stock target ratio r. workers_excess = workers whose output exceeds this
             month's sold plus refused quantity times (1 + r), and r x capacity. """
         if plan is not None:
-            capacity = self.total_qualification(prod_exponent) / prod_magnitude_divisor
+            capacity = self.capacity(prod_exponent, prod_magnitude_divisor)
             need = max((self.amount_sold + self.unmet_quantity) * (1 + plan), plan * capacity)
             self.workers_excess = 0
             if self.num_employees > 0 and capacity > need:
@@ -486,7 +488,7 @@ class Firm:
                 refused_share = self.unmet_quantity / (self.amount_sold + self.unmet_quantity)
             for p in self.inventory.values():
                 delta_price = seed_np.randint(0, int(2 * markup * 100) + 1) / 100
-                productive_capacity = self.total_qualification(prod_exponent) / prod_magnitude_divisor
+                productive_capacity = self.capacity(prod_exponent, prod_magnitude_divisor)
                 # Firms target a safety-stock buffer above bare productive capacity.
                 low_inventory = (self.total_quantity + productive_capacity) <= demand * (1 + inventory_target_ratio)
                 if low_inventory:
@@ -604,6 +606,10 @@ class Firm:
             [employee.qualification ** alpha for employee in self.employees.values()]
         )
 
+    def capacity(self, prod_exponent, prod_divisor):
+        """Output the current staff can produce in a month"""
+        return self.total_qualification(prod_exponent) / prod_divisor * self.sector_productivity
+
     def offer_wage(self, unemployment, relevance_unemployment):
         # The wage job seekers compare when the labour market ranks postings: the wage per worker, except for Government
         return self.wage_base(unemployment, relevance_unemployment)
@@ -715,7 +721,7 @@ class Firm:
         """Value of a month's output of the current staff at the current price, the scale of its monthly cost"""
         if not self.employees or not self.inventory:
             return 0.0
-        return self.total_qualification(prod_exponent) / prod_divisor * self.prices
+        return self.capacity(prod_exponent, prod_divisor) * self.prices
 
     def __repr__(self):
         return "FirmID: %s, $ %d, Emp. %d, Quant. %d, Address: %s at %s" % (

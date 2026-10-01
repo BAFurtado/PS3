@@ -84,6 +84,8 @@ lista completa não cabe na nota de rodapé.
 | 24 | Emissões setoriais e intensidade de emissão | Alvarenga Junior, M. *Towards a structural carbonization of the Brazilian economy*. Tese (doutorado), IE/UFRJ, 2024 (<https://www.ie.ufrj.br/images/IE/PPGE/teses/2024/Marcio%20Alverenga%20Junior%20-%20PhD%20Dissertation%20-%20TOWARDS%20A%20STRUCTURAL%20CARBONIZATION%20OF%20THE%20BRAZILIAN%20ECONOMY%20(26.02).pdf>) | — | `input/emissions_sectors.csv` | — |
 | 25 | IDHM (referência para o QLI) | Atlas do Desenvolvimento Humano no Brasil — PNUD, Ipea e FJP (<http://atlasbrasil.org.br/2013>) | 2000 e 2010 | `input/idhm_2000_2010.csv` | PS1 p. 45; PS2 Tab. 4 |
 | 26 | Razão entre o salário médio do setor público e o do restante da economia, por município | IBGE, Cadastro Central de Empresas (Cempre), Sidra tabela 6450: salários e outras remunerações e pessoal ocupado assalariado, seção O da CNAE 2.0 (administração pública, defesa e seguridade social) contra o total menos a seção O | 2010–2019 (mediana dos anos) | `input/gov_wage_ratio.csv` | script `auxiliary/gov_wage_ratio.py` |
+| 27 | Participação setorial do emprego por ACP na classificação nível 12 da MIP (comércio = G; informação e comunicação = J; administração pública = O e P/Q públicos; demais serviços nas outras atividades de serviços) | Item 7 (Rais 2010), com os quatro grupos que diferem entre as classificações repartidos pelo pessoal ocupado assalariado por seção da CNAE 2.0 do Cempre (IBGE, Sidra tabela 6450, por município) e, para P e Q, pela participação da natureza jurídica "Administração pública" na UF (Sidra tabela 6703) | 2010 | `input/sector_shares_ibge12.csv` | script `auxiliary/sector_shares_ibge12.py` |
+| 28 | Produtividade setorial: valor da produção por ocupação, relativo à média nacional; atividades imobiliárias sem o aluguel imputado | IBGE, Sistema de Contas Nacionais, Tabelas de Recursos e Usos 2015, nível 12 (tabela 2, valor da produção e fator trabalho) e nível 68 (tabela 1, produção do produto 68002 aluguel imputado) | 2015 | `input/sector_productivity.csv` | script `auxiliary/sector_productivity.py` |
 
 Sobre o item 24: a intensidade de emissão setorial usada no artigo de emissões
 (Rocha Lima, Furtado e Lopes, 2026) é construída a partir do RAPP do Ibama (2010)
@@ -169,3 +171,10 @@ Versão curta, para caber na nota:
 > período e arquivo correspondente, consta do Quadro 1A / Apêndice.
 
 Versão para apêndice: usar a tabela da seção 2 acima.
+Sobre os itens 7 e 27: o item 7 agrupa as seções da CNAE como o crosswalk do módulo de emissões
+(`auxiliary/emissions_data/crosswalk_SNA68_GIC42_ISIC12_v2.csv`: comércio = G+I, "Business" = J+M+N, outros
+serviços = R+S+T, governo = O+P+Q), enquanto a matriz insumo-produto e a demanda final (itens 16 e 17) usam o nível
+12 do IBGE. O item 27 põe as participações na classificação da matriz (parâmetro `SECTOR_SHARES`). Conferência
+com o Cempre 2010 em Goiânia: distância L1 das participações do item 7 ao Cempre agrupado pelo crosswalk 0,048, ao
+nível 12 0,79. O Cempre subestima a agropecuária (não cobre empregadores pessoas físicas), por isso só é usado para
+repartir os quatro grupos.

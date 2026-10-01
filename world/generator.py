@@ -31,7 +31,7 @@ from agents import (
     OtherServicesFirm,
     GovernmentFirm,
 )
-from .firms import FirmData
+from .firms import FirmData, set_sector_productivity
 from .population import pop_age_data
 from .shapes import prepare_shapes
 
@@ -58,6 +58,8 @@ prop_urban = pd.read_csv("input/Demografia/3_Percent_Urban/Munic_Percent_Urban_2
 # Deleted firms for sectors/municipalities below 3 firms
 # Construction and Government are already 0 in final demand table
 perc_firms_sector = pd.read_csv('input/CONCURBs_SECTOR.csv', sep=';', decimal=',')
+# The same shares in the IBGE nível 12 classification of the input-output matrix (auxiliary/sector_shares_ibge12.py)
+perc_firms_sector_ibge12 = pd.read_csv('input/sector_shares_ibge12.csv', sep=';')
 house_qual_areap = pd.read_csv('input/dpp_2010_quali.csv', dtype={'areap': str})
 
 
@@ -457,9 +459,12 @@ class Generator:
             family.owned_houses.append(house)
 
     def sector_shares(self):
-        # RAIS 2010 employment share by sector for the ACP (input/CONCURBs_SECTOR.csv), normalised to sum to 1
+        # RAIS 2010 employment share by sector for the ACP (input/CONCURBs_SECTOR.csv), normalised to sum to 1.
+        # SECTOR_SHARES 'ibge12': in the classification of the input-output matrix (input/sector_shares_ibge12.csv)
         acp = self.sim.geo.processing_acps[0]
-        p = perc_firms_sector[perc_firms_sector['concurb_name'] == acp].set_index('sector')['participation']
+        ibge12 = self.sim.PARAMS.get('SECTOR_SHARES', 'rais') == 'ibge12'
+        table = perc_firms_sector_ibge12 if ibge12 else perc_firms_sector
+        p = table[table['concurb_name'] == acp].set_index('sector')['participation']
         return p / p.sum()
 
     def region_num_firms(self, region_id):
@@ -517,6 +522,7 @@ class Generator:
                 sector[f.id] = f
                 j += 1
 
+        set_sector_productivity(self.sim, sector.values())
         # Returns a dictionary of firms
         return sector
 

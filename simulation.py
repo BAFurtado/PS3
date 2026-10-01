@@ -16,7 +16,7 @@ import analysis
 import conf
 import markets
 from world import Generator, demographics, clock, population
-from world.firms import firm_growth, firm_exit, size_initial_capital, pay_profit_shares
+from world.firms import firm_growth, firm_exit, size_initial_capital, pay_profit_shares, set_sector_productivity
 from world.funds import Funds
 from analysis.money import money_stock_total
 from world.geography import Geography, STATES_CODES, state_string
@@ -241,6 +241,8 @@ class Simulation:
             self.central,
         ) = self.generate()
         self.central.ledger = self.ledger
+        # Also for a population loaded from file
+        set_sector_productivity(self, self.firms.values())
         if self.PARAMS.get('INITIAL_MONEY', 'lognormal') == 'target':
             self.initial_money_from_income()
         if self.PARAMS.get('PI_START', 'reset') == 'census':

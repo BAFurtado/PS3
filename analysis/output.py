@@ -486,6 +486,9 @@ class Output:
             '_'.join([str(self.sim.PARAMS[name]) for name in GENERATOR_PARAMS]),
             '_'.join(sim.geo.states_on_process),
             '_'.join(sim.geo.processing_acps_codes))
+        # Firm sectors are drawn when the population is created
+        if self.sim.PARAMS.get('SECTOR_SHARES', 'rais') != 'rais':
+            self.save_name += '_sectors_{}'.format(self.sim.PARAMS['SECTOR_SHARES'])
 
     def _write_parquet(self, name, path, data_dict):
         table = pa.table(data_dict)

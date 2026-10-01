@@ -104,6 +104,13 @@ FIRM_EXIT_MONTHS = 6
 # capacity, within capacity, buying inputs for that output only; when it adjusts its labour force, a firm whose capacity
 # alone exceeds that need sheds the excess workers, at most half its staff.
 PRODUCTION_PLAN = 'capacity'
+# Firm count by sector. 'rais': RAIS 2010 shares grouped as Trade = CNAE G+I, Business = J+M+N, OtherServices = R+S+T,
+# Government = O+P+Q+U. 'ibge12': the same shares in the IBGE nível 12 classification of the input-output matrix
+# (Trade = G, Business = J, Government = O and public P/Q, OtherServices = I, M, N, R, S, T, U and private P/Q).
+SECTOR_SHARES = 'rais'
+# Output per unit of labour by sector: national output per job relative to the mean, IBGE national accounts 2015
+# (input/sector_productivity.csv); builders keep 1. Needs SECTOR_SHARES 'ibge12'. False = the same in every sector.
+SECTOR_PRODUCTIVITY = False
 # Firms refill workers lost to natural separation or death (one post each) unless shrinking. False = off.
 REPLACE_SEPARATIONS = True
 # Growing firms post the vacancies their production plan needs (gap between sales plus stock target and current

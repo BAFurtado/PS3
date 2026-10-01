@@ -112,6 +112,20 @@ def project_floor(sim):
     return sim._project_floor
 
 
+SECTOR_PRODUCTIVITY = pd.read_csv('input/sector_productivity.csv', sep=';').set_index('sector')['productivity']
+
+
+def set_sector_productivity(sim, firms):
+    """SECTOR_PRODUCTIVITY: each firm's output per unit of labour is its sector's national output per job relative to
+    the mean (input/sector_productivity.csv), except builders, whose scale is HOUSE_PRODUCTION_ADEQUACY's"""
+    if not sim.PARAMS.get('SECTOR_PRODUCTIVITY', False):
+        return
+    if sim.PARAMS.get('SECTOR_SHARES', 'rais') != 'ibge12':
+        raise ValueError("SECTOR_PRODUCTIVITY is in the IBGE nível 12 classification: it needs SECTOR_SHARES 'ibge12'")
+    for f in firms:
+        f.sector_productivity = 1.0 if f.sector == 'Construction' else float(SECTOR_PRODUCTIVITY[f.sector])
+
+
 def capital_need(sim, sector, capacity):
     """FIRM_CAPITAL_MONTHS of monthly cost; a builder CONSTRUCTION_CAPITAL_MONTHS, and at least one median project"""
     need = sim.PARAMS['FIRM_CAPITAL_MONTHS'] * capacity
