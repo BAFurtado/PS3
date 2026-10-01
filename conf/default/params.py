@@ -470,6 +470,10 @@ EXTERNAL_RECYCLING_SHARE = 0.0
 # the sector with stock, in proportion to the value of its stock. 'cheapest' (old model): split equally over the 10
 # cheapest stocked firms of a sample of 3 x SIZE_MARKET, which run out while the rest of the sector keeps its stock.
 EXTERNAL_DEMAND_SPREAD = 'cheapest'
+# Real Estate in household goods demand. True (old model): households spend the input-output share of Real Estate (actual
+# and imputed rent) at Real Estate firms. False: that share is 0 and the other sectors' shares are rescaled to sum to 1;
+# households pay rent only in the rental market.
+HOUSEHOLD_REAL_ESTATE = True
 # Households buy a share of their consumption of each tradable sector from the rest of Brazil (step 2b): the ACP's import
 # share of that product in the regionalised technical matrix, imported / (local + imported) over all buying sectors (the
 # location quotients IO_IMPORTS uses). Services stay local. Household totals: BH 0.15, GYN 0.17, BSB 0.22, PMW 0.24,

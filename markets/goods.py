@@ -110,8 +110,12 @@ class RegionalMarket:
             self.ext_local_matrix = self.loc_ext_matrix
 
         self.if_origin = self.sim.PARAMS["TAX_ON_ORIGIN"]
-        self.final_demand = final_demand
+        self.final_demand = final_demand.copy()
         self.final_demand.index = self.technical_matrix.index
+        if not sim.PARAMS.get('HOUSEHOLD_REAL_ESTATE', True):
+            household = self.final_demand['HouseholdConsumption'].copy()
+            household['RealEstate'] = 0.0
+            self.final_demand['HouseholdConsumption'] = household / household.sum()
         self.external_demand_multiplier = read_final_demand_matrix(sim.geo.processing_acps)
         self.monthly_hh_consumption = defaultdict(float)
         # Household money this month meant for each sector, served or not

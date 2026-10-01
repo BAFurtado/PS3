@@ -992,6 +992,18 @@ check("HOUSEHOLD_IMPORTS: the tradable import share is bought outside and counte
       f"imports {_imp_ext.imports_month}, local sold {100 - _imp_firm.inventory[0].quantity}, "
       f"shares {_rm_on.household_import_share}")
 
+# HOUSEHOLD_REAL_ESTATE False: no household demand for Real Estate, the other shares rescaled in proportion
+_hh_file = pd.read_csv('input/final_demand.csv').set_index('sector')['HouseholdConsumption']
+_hh_off = RegionalMarket(SimpleNamespace(PARAMS=dict(sim.PARAMS, HOUSEHOLD_REAL_ESTATE=False),
+                                         geo=sim.geo)).final_demand['HouseholdConsumption']
+_hh_on = sim.regional_market.final_demand['HouseholdConsumption']
+_rest = _hh_file.drop('RealEstate')
+check("HOUSEHOLD_REAL_ESTATE False: Real Estate share 0, others rescaled to sum 1; True keeps the input file",
+      _hh_off['RealEstate'] == 0 and abs(_hh_off.sum() - 1) < 1e-12
+      and np.allclose(_hh_off[_rest.index], _rest / _rest.sum())
+      and np.allclose(_hh_on[_hh_file.index], _hh_file),
+      f"off {_hh_off.round(4).to_dict()}")
+
 # ── Firm capital and demography (#21, #24). Last: these remove firms from the shared run ─────────────────────────
 print("\n── Firm capital, entry and exit ─────────────────────────────────────")
 from world.firms import fund_entrant, firm_exit  # noqa: E402
