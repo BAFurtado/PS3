@@ -869,7 +869,6 @@ class Output:
                 construction_data['revenue'].append(float(firm.revenue))
                 construction_data['profit'].append(float(firm.profit))
                 construction_data['wages_paid'].append(float(firm.wages_paid))
-            firm.reset_amount_sold()
 
         self._write_parquet('firms', self.firms_path, firms_data)
         if construction_data['month']:
