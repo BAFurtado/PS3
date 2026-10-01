@@ -16,7 +16,7 @@ import analysis
 import conf
 import markets
 from world import Generator, demographics, clock, population
-from world.firms import firm_growth, firm_exit, size_initial_capital, pay_profit_shares, set_sector_productivity
+from world.firms import firm_growth, firm_exit, size_initial_capital, set_productivity_level, pay_profit_shares, set_sector_productivity
 from world.funds import Funds
 from analysis.money import money_stock_total
 from world.geography import Geography, STATES_CODES, state_string
@@ -288,6 +288,9 @@ class Simulation:
             self.labor_market.look_for_jobs(self.agents)
             actual = self.labor_market.num_candidates
         self.labor_market.reset()
+        divisor = set_productivity_level(self)
+        if self.PARAMS.get('PRODUCTIVITY_LEVEL', 'divisor') == 'municipal':
+            self.logger.logger.info(f'PRODUCTIVITY_LEVEL municipal: PRODUCTIVITY_MAGNITUDE_DIVISOR {divisor:.4f}')
         size_initial_capital(self)
 
         for i, family in enumerate(self.families.values()):

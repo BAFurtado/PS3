@@ -126,6 +126,27 @@ def set_sector_productivity(sim, firms):
         f.sector_productivity = 1.0 if f.sector == 'Construction' else float(SECTOR_PRODUCTIVITY[f.sector])
 
 
+def set_productivity_level(sim):
+    """PRODUCTIVITY_LEVEL 'municipal': PRODUCTIVITY_MAGNITUDE_DIVISOR such that the value added of the private firms'
+    staff capacity, capacity x (1 - the sector's national input coefficients), equals the 2010 market value added per
+    resident of the run's municipalities (input/municipal_va_2010.csv) times the agents living there, a month, in model
+    money. Set after start-up hiring; returns the divisor."""
+    if sim.PARAMS.get('PRODUCTIVITY_LEVEL', 'divisor') != 'municipal':
+        return sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR']
+    va = pd.read_csv('input/municipal_va_2010.csv', sep=';').set_index('cod_mun')
+    muns = [int(m) for m in sim.mun_to_regions if int(m) in va.index]
+    residents = sum(1 for a in sim.agents.values()
+                    if a.family is not None and a.family.region_id and int(a.family.region_id[:7]) in va.index)
+    target = (va.loc[muns, 'va_market'].sum() / va.loc[muns, 'pop'].sum() * residents / 12
+              / sim.PARAMS['REAIS_PER_MONEY_UNIT'])
+    va_share = 1 - pd.read_csv('input/technical_matrix.csv').set_index('sector').sum(axis=0)
+    pe = sim.PARAMS['PRODUCTIVITY_EXPONENT']
+    labour = sum(f.total_qualification(pe) * f.sector_productivity * va_share[f.sector]
+                 for f in sim.firms.values() if f.sector != 'Government')
+    sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR'] = labour / target
+    return sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR']
+
+
 def capital_need(sim, sector, capacity):
     """FIRM_CAPITAL_MONTHS of monthly cost; a builder CONSTRUCTION_CAPITAL_MONTHS, and at least one median project"""
     need = sim.PARAMS['FIRM_CAPITAL_MONTHS'] * capacity

@@ -1634,6 +1634,27 @@ check("SOCIAL_TRANSFERS: RGPS to the oldest, Bolsa Família to the poorest famil
       _tr_ok and _tr_ledger_ok and _tr_paid > 0 and np.isclose(_tr_pi1 - _tr_pi0, 2.5),
       f"{_tr_detail} paid {_tr_paid:.3f} received {_tr_recv:.3f}, PI step {_tr_pi1 - _tr_pi0:.3f}")
 
+# PRODUCTIVITY_LEVEL 'municipal': the divisor makes the private staff's capacity value added (national input
+# coefficients) equal the IBGE market value added per resident times the residents, a month, in model money
+from world.firms import set_productivity_level
+_pl_saved = sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR'], sim.PARAMS.get('PRODUCTIVITY_LEVEL', 'divisor')
+_pl_same = set_productivity_level(sim) == _pl_saved[0]
+sim.PARAMS['PRODUCTIVITY_LEVEL'] = 'municipal'
+_pl_div = set_productivity_level(sim)
+_pl_va = pd.read_csv('input/municipal_va_2010.csv', sep=';').set_index('cod_mun')
+_pl_res = [a for a in sim.agents.values() if a.family is not None and a.family.region_id
+           and int(a.family.region_id[:7]) in _pl_va.index]
+_pl_m = sorted({int(a.family.region_id[:7]) for a in _pl_res} | {int(m) for m in sim.mun_to_regions if int(m) in _pl_va.index})
+_pl_target = (_pl_va.loc[_pl_m].va_market.sum() / _pl_va.loc[_pl_m, 'pop'].sum() * len(_pl_res) / 12
+              / sim.PARAMS['REAIS_PER_MONEY_UNIT'])
+_pl_vs = 1 - pd.read_csv('input/technical_matrix.csv').set_index('sector').sum(axis=0)
+_pl_cap = sum(f.capacity(sim.PARAMS['PRODUCTIVITY_EXPONENT'], _pl_div) * _pl_vs[f.sector]
+              for f in sim.firms.values() if f.sector != 'Government')
+sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR'], sim.PARAMS['PRODUCTIVITY_LEVEL'] = _pl_saved
+check("PRODUCTIVITY_LEVEL: 'divisor' keeps the parameter, 'municipal' matches capacity value added to IBGE municipal VA",
+      _pl_same and np.isclose(_pl_cap, _pl_target) and _pl_div > 0,
+      f"divisor {_pl_div:.4f}, capacity VA {_pl_cap:.1f} vs {_pl_target:.1f}")
+
 # FAMILY_WAGE: 'last' counts each member's last wage (wage_paid follows last_wage); 'month' zeroes wage_paid before the
 # payroll, so a member without a job adds nothing while the paid staff add this month's wage
 _fw_same = all(a.wage_paid == a.last_wage for a in sim.agents.values())

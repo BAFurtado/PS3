@@ -29,6 +29,11 @@ CLOSURE_OPEN = {
 PRODUCTIVITY_EXPONENT = 0.65
 # Order of magnitude correction of production. Production divided by parameter
 PRODUCTIVITY_MAGNITUDE_DIVISOR = 1
+# Where the level of private output comes from. 'divisor': PRODUCTIVITY_MAGNITUDE_DIVISOR as set. 'municipal': after
+# start-up hiring, the divisor that makes the value added of the private staff's capacity (national input coefficients)
+# equal the IBGE 2010 value added per resident of the run's municipalities, net of imputed rent
+# (input/municipal_va_2010.csv, auxiliary/municipal_va.py), in model money; replaces PRODUCTIVITY_MAGNITUDE_DIVISOR.
+PRODUCTIVITY_LEVEL = 'divisor'
 # GENERAL CALIBRATION PARAMETERS
 # INTEREST: market/SELIC scenario. Choose: 'real', 'media', 'fixed'
 INTEREST = "real"
