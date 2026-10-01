@@ -458,6 +458,12 @@ WAGE_TO_CAR_OWNERSHIP_QUANTILES = [
 PRIVATE_TRANSIT_COST = .25
 PUBLIC_TRANSIT_COST = .05
 REGIONAL_FREIGHT_COST = .3
+# Price of goods bought from the rest of Brazil. 'flat': every import costs P_imp = 1 plus REGIONAL_FREIGHT_COST, and
+# so does the import-parity ceiling of tradables (IMPORT_PARITY_PRICING). 'margins': imports cost P_imp, since the
+# national input coefficients and final-demand shares buy transport margins from Transport; the import-parity ceiling
+# of a tradable product is 1 plus its national transport margin (input/transport_margins.csv, IBGE TRU 2015;
+# auxiliary/transport_margins.py).
+FREIGHT = 'flat'
 # Trade with the rest of Brazil (defect #27). True: firms buy the imported part of their inputs, from the external->local
 # block of the regional input-output matrix, so local + imported inputs sum to the national coefficients. False (old
 # model): they read the local->external block, which is ~0, and buy only the local share of their inputs.
@@ -489,13 +495,13 @@ IMPORT_PRICE = 'local'
 # quantity, times the national real GDP index (input/national_real_gdp.csv) relative to the base months, times
 # (sector price / P_imp) ** -EXPORTS_PRICE_ELASTICITY, with P_imp = 1.
 EXPORTS_REAL = False
-# Sectors whose goods are traded with the rest of Brazil at P_imp = 1 plus REGIONAL_FREIGHT_COST.
+# Sectors whose goods are traded with the rest of Brazil at P_imp = 1 plus freight (FREIGHT).
 TRADABLE_SECTORS = ['Agriculture', 'Mining', 'Manufacturing']
 # True: household and government spending on TRADABLE_SECTORS that no local firm served (no stock, or refused after
 # the retry) is bought outside at P_imp plus freight. False: households keep it, government funds carry it over.
 SHORTAGE_IMPORTS = False
 # True: firms in TRADABLE_SECTORS price against the tradable average, their ceiling is the lower of that average times
-# (1 + PRICE_MARKUP_CAP) and import parity (P_imp = 1 plus REGIONAL_FREIGHT_COST), and refused demand does not raise
+# (1 + PRICE_MARKUP_CAP) and import parity (FREIGHT), and refused demand does not raise
 # their price (PRICE_DEMAND_RESPONSE); the other firms price against the non-tradable average. False: every firm
 # prices against the average of all firms.
 IMPORT_PARITY_PRICING = False
@@ -506,7 +512,7 @@ EXPORTS_PRICE_ELASTICITY = 1.0
 # 'iioas': the rule of the Brazilian interstate input-output system (Haddad et al.) for every buyer. The local share of
 # product i is s_i = TRADE_POTENTIAL[i] x min(local output_i / local demand_i, 1); firms buy s_i of their national input
 # coefficients locally and the rest outside, households and government import 1 - s_i of their spending, at P_imp = 1
-# plus REGIONAL_FREIGHT_COST. Exports of i = local output_i - s_i x local demand_i. Output (staff capacity) and demand
+# plus freight (FREIGHT). Exports of i = local output_i - s_i x local demand_i. Output (staff capacity) and demand
 # (inputs, household and government spending, fares) are measured in month 1, which uses s_i = TRADE_POTENTIAL[i]; the
 # shares are then fixed, and exports held in quantity times the national real GDP index relative to month 1, times
 # (price / P_imp) ** -EXPORTS_PRICE_ELASTICITY. Construction and Government: s_i = TRADE_POTENTIAL[i], no exports.

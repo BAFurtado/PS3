@@ -1,0 +1,13 @@
+sector;transport_margin;supply_basic;margin
+Agriculture;13048;477903;0.027303
+Mining;7053;305268;0.023104
+Manufacturing;55224;3366310;0.016405
+Utilities;0;326396;0.000000
+Construction;0;647100;0.000000
+Trade;0;1039506;0.000000
+Transport;-75392;519356;0.000000
+Business;67;365786;0.000183
+Financial;0;590710;0.000000
+RealEstate;0;601622;0.000000
+OtherServices;0;1693332;0.000000
+Government;0;1136194;0.000000

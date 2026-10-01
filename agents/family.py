@@ -3,6 +3,8 @@ import datetime
 import numpy as np
 from collections import defaultdict, deque
 
+from .firm import import_price as firm_import_price
+
 
 class Family:
     """
@@ -322,7 +324,7 @@ class Family:
         import_share = regional_market.household_import_share
         # SHORTAGE_IMPORTS: tradable spending no local firm served is bought outside at P_imp = 1 plus freight
         shortage_sectors = params['TRADABLE_SECTORS'] if params.get('SHORTAGE_IMPORTS', False) else ()
-        import_price = 1.0 + params['REGIONAL_FREIGHT_COST']
+        import_price = firm_import_price(params)
 
         household_demand = regional_market.final_demand['HouseholdConsumption']
         total_consumption = defaultdict(float)
@@ -346,8 +348,7 @@ class Family:
             # stock. It counts as consumption, and in the internal demand exports scale with
             imported = money_this_sector * import_share.get(sector, 0.0)
             if imported > 0:
-                regional_market.sim.external.intermediate_consumption(
-                    imported, price=1.0 + params['REGIONAL_FREIGHT_COST'])
+                regional_market.sim.external.intermediate_consumption(imported, price=import_price)
                 regional_market.household_imports += imported
                 avg_utility += imported
                 total_consumption[sector] += imported

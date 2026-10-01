@@ -1253,33 +1253,51 @@ check("IMPORT_PARITY_PRICING: the import-parity ceiling caps the inventory-drive
  _f.increase_production, _f.workers_needed) = _saved
 
 # IMPORT_PRICE 'exogenous': imported inputs cost 1 + freight whatever local prices are, and buying them conserves
-# money. An external coefficient of 0.1 per sector is set on one firm's column so that it imports.
+# money; FREIGHT 'margins' drops the freight. One firm's column is set to import 0.1 per sector and buy nothing locally.
 from analysis.money import money_stock_total  # noqa: E402
+from agents.firm import import_price, import_parity  # noqa: E402
 _rm = sim.regional_market
 _ext_col = _rm._ext_local_np[_f.sector].copy()
+_loc_col = _rm._tech_np[_f.sector].copy()
 _rm._ext_local_np[_f.sector][:] = 0.1
-_old_ip = sim.PARAMS.get('IMPORT_PRICE', 'local')
+_rm._tech_np[_f.sector][:] = 0.0
+_old_ip, _old_fr = sim.PARAMS.get('IMPORT_PRICE', 'local'), sim.PARAMS.get('FREIGHT', 'flat')
 sim.PARAMS['IMPORT_PRICE'] = 'exogenous'
-for _s in _f.input_inventory:
-    _f.input_inventory[_s] = 0.0
-_f.total_balance = 1e7
-_inv0, _stock0, _ledger0 = dict(_f.input_inventory), money_stock_total(sim), sum(sim.ledger.values())
-_imports0 = sim.external.imports_month
 _sector_map = defaultdict(list)
 for _g in sim.firms.values():
     _sector_map[_g.sector].append(_g)
 _desired = 3.0
-_f.buy_inputs(_desired, _rm, sim.firms, sim.seed, None, None, _sector_map)
-_freight = 1 + sim.PARAMS['REGIONAL_FREIGHT_COST']
-_d_stock = money_stock_total(sim) - _stock0
-_d_ledger = sum(sim.ledger.values()) - _ledger0
 _n = len(_rm._sector_order)
-check("IMPORT_PRICE 'exogenous': inputs bought outside cost 1 + freight, and buying them conserves money",
-      abs(_d_stock - _d_ledger) < 1e-6 and sim.external.imports_month - _imports0 >= _n * _desired * 0.1 * _freight - 1e-9
-      and all(_f.input_inventory[_s] - _inv0[_s] >= _desired * 0.1 - 1e-9 for _s in _rm._sector_order),
-      f"stock change {_d_stock:.6f} vs ledger {_d_ledger:.6f}, imports {sim.external.imports_month - _imports0:.4f}")
+_buy = {}
+for _mode, _unit in (('flat', 1 + sim.PARAMS['REGIONAL_FREIGHT_COST']), ('margins', 1.0)):
+    sim.PARAMS['FREIGHT'] = _mode
+    for _s in _f.input_inventory:
+        _f.input_inventory[_s] = 0.0
+    _f.total_balance = 1e7
+    _inv0, _stock0, _ledger0 = dict(_f.input_inventory), money_stock_total(sim), sum(sim.ledger.values())
+    _imports0 = sim.external.imports_month
+    _f.buy_inputs(_desired, _rm, sim.firms, sim.seed, None, None, _sector_map)
+    _d_stock = money_stock_total(sim) - _stock0
+    _d_ledger = sum(sim.ledger.values()) - _ledger0
+    _imp = sim.external.imports_month - _imports0
+    _buy[_mode] = (abs(_d_stock - _d_ledger) < 1e-6 and abs(_imp - _n * _desired * 0.1 * _unit) < 1e-9
+                   and all(abs(_f.input_inventory[_s] - _inv0[_s] - _desired * 0.1) < 1e-9 for _s in _rm._sector_order),
+                   round(_imp, 6), round(_d_stock - _d_ledger, 9))
+check("IMPORT_PRICE 'exogenous': inputs bought outside cost 1 + freight ('flat') or 1 ('margins'), and buying them "
+      "conserves money", _buy['flat'][0] and _buy['margins'][0], f"{_buy}")
 _rm._ext_local_np[_f.sector][:] = _ext_col
-sim.PARAMS['IMPORT_PRICE'] = _old_ip
+_rm._tech_np[_f.sector][:] = _loc_col
+sim.PARAMS['IMPORT_PRICE'], sim.PARAMS['FREIGHT'] = _old_ip, _old_fr
+# FREIGHT: import price and the import-parity ceiling per tradable sector
+_margins = pd.read_csv('input/transport_margins.csv', sep=';').set_index('sector')['margin']
+_fp = {'flat': dict(sim.PARAMS, FREIGHT='flat'), 'margins': dict(sim.PARAMS, FREIGHT='margins')}
+check("FREIGHT: 'flat' imports and parity at 1 + REGIONAL_FREIGHT_COST; 'margins' imports at 1, parity 1 + the "
+      "product's transport margin",
+      import_price(_fp['flat']) == 1 + sim.PARAMS['REGIONAL_FREIGHT_COST'] and import_price(_fp['margins']) == 1.0
+      and import_parity(_fp['flat']) == {s: 1 + sim.PARAMS['REGIONAL_FREIGHT_COST'] for s in sim.PARAMS['TRADABLE_SECTORS']}
+      and import_parity(_fp['margins']) == {s: 1 + float(_margins[s]) for s in sim.PARAMS['TRADABLE_SECTORS']}
+      and 0 < _margins['Manufacturing'] < 0.05,
+      f"{import_parity(_fp['margins'])}")
 
 # FUNDS_REAL: after the base months the programme funds follow the municipality's base real GDP times the national
 # index, not its current GDP; FGTS and SBPE instalments leave the ACP, market ones stay in the bank, money conserved

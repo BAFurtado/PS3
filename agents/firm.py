@@ -15,6 +15,20 @@ from .product import Product
 # PRODUCTION_PLAN 'sales' leaves these sectors at capacity output and their own staffing rules
 UNPLANNED_SECTORS = ('Construction', 'Government')
 
+
+def import_price(params):
+    """Price of a unit bought from the rest of Brazil (FREIGHT): P_imp = 1, plus REGIONAL_FREIGHT_COST under 'flat'"""
+    return 1.0 if params.get('FREIGHT', 'flat') == 'margins' else 1.0 + params['REGIONAL_FREIGHT_COST']
+
+
+def import_parity(params):
+    """IMPORT_PARITY_PRICING ceiling per tradable sector (FREIGHT): P_imp = 1 plus REGIONAL_FREIGHT_COST ('flat') or
+    plus the product's national transport margin ('margins', input/transport_margins.csv)"""
+    if params.get('FREIGHT', 'flat') == 'margins':
+        margins = pd.read_csv('input/transport_margins.csv', sep=';').set_index('sector')['margin']
+        return {s: 1.0 + float(margins[s]) for s in params['TRADABLE_SECTORS']}
+    return {s: 1.0 + params['REGIONAL_FREIGHT_COST'] for s in params['TRADABLE_SECTORS']}
+
 np.seterr(divide='ignore', invalid='ignore')
 initial_input_sectors = {'Agriculture': 0,
                          'Mining': 0,
@@ -296,7 +310,7 @@ class Firm:
             return
 
         params = regional_market.sim.PARAMS
-        freight_cost = 1.0 + params['REGIONAL_FREIGHT_COST']
+        freight_cost = import_price(params)
         sectors = regional_market._sector_order
 
         # Use pre-computed numpy column arrays (avoids pandas.loc on every call)
@@ -1141,7 +1155,7 @@ class GovernmentFirm(Firm):
         # SHORTAGE_IMPORTS: tradable purchases no local firm served are bought outside at P_imp = 1 plus freight
         shortage_sectors = sim.PARAMS['TRADABLE_SECTORS'] if sim.PARAMS.get('SHORTAGE_IMPORTS', False) else ()
         import_share = sim.regional_market.government_import_share
-        freight = 1.0 + sim.PARAMS['REGIONAL_FREIGHT_COST']
+        freight = import_price(sim.PARAMS)
         for sector, share in (shares / shares.sum()).items():
             money_this_sector = money * share
             if money_this_sector == 0:

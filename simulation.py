@@ -20,7 +20,7 @@ from world.firms import firm_growth, firm_exit, size_initial_capital, pay_profit
 from world.funds import Funds
 from analysis.money import money_stock_total
 from world.geography import Geography, STATES_CODES, state_string
-from agents.firm import UNPLANNED_SECTORS
+from agents.firm import UNPLANNED_SECTORS, import_parity
 from world.transport import TransportNetwork
 from markets.goods import RegionalMarket, External
 
@@ -444,7 +444,7 @@ class Simulation:
             tradables = set(self.PARAMS['TRADABLE_SECTORS'])
             avg_t, avg_n = self.stats.group_prices(self.firms, tradables)
             avg_t, avg_n = avg_t or self.avg_prices, avg_n or self.avg_prices
-            import_parity = 1.0 + self.PARAMS['REGIONAL_FREIGHT_COST']
+            parity_ceiling = import_parity(self.PARAMS)
         for firm in self.firms.values():
             # Tax workers when paying salaries
             firm.make_payment(
@@ -475,7 +475,7 @@ class Simulation:
                 price_markup_cap,
                 demand_signal_unmet,
                 0.0 if tradable else price_demand_response,
-                import_parity if tradable else None,
+                parity_ceiling[firm.sector] if tradable else None,
                 plan if firm.sector not in UNPLANNED_SECTORS else None,
             )
             firm.invest_eco_efficiency(
