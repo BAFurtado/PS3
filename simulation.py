@@ -279,11 +279,17 @@ class Simulation:
         total = actual = self.labor_market.num_candidates
         actual_unemployment = self.stats.global_unemployment_rate
         # Share of those aged 17-69 left without a job (INITIAL_EMPLOYMENT)
-        while actual / total > self.initial_nonemployment():
+        target = self.initial_nonemployment()
+        census = self.PARAMS.get('INITIAL_EMPLOYMENT', 'legacy') == 'census'
+        while actual / total > target:
             # Government is staffed to its RAIS headcount by gov_hire_fire, not by one post per firm:
             # otherwise it takes start-up hires in proportion to its firm count, and sheds the excess in month 1.
             self.labor_market.gov_hire_fire(self)
+            n_gov = len(self.labor_market.available_postings)
             self.labor_market.hire_fire(self.firms, 1, initialize=True)
+            if census:
+                # No more posts than the jobs still missing to the target
+                self.labor_market.cap_postings(n_gov, math.ceil(actual - target * total))
             self.labor_market.assign_post(actual_unemployment, None, self.PARAMS)
             self.labor_market.look_for_jobs(self.agents)
             actual = self.labor_market.num_candidates

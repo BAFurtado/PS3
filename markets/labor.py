@@ -47,6 +47,13 @@ class LaborMarket:
     def num_candidates(self):
         return len(self.candidates)
 
+    def cap_postings(self, keep, needed):
+        """Keeps the first `keep` postings and at most max(1, needed - keep) of the others, drawn at random"""
+        rest = self.available_postings[keep:]
+        n = max(1, needed - keep)
+        if len(rest) > n:
+            self.available_postings = self.available_postings[:keep] + self.seed.sample(rest, n)
+
     def reset(self):
         self.available_postings = list()
         self.candidates = list()
@@ -168,6 +175,9 @@ class LaborMarket:
             candidates = self.candidates
         if not candidates:
             return None
+        if not lst_firms:
+            # No postings in this pass: every candidate is still looking
+            return candidates if flag else None
         offers = []
         done_firms = set()
         done_cands = set()

@@ -219,6 +219,33 @@ check(
     f"candidates={len(_lm.candidates)}, posts={len(_lm.available_postings)}",
 )
 
+# A matching pass with no postings (PCT_DISTANCE_HIRING 0 or 1) hires no one and leaves every candidate looking
+_lm.candidates = list(_hired_before[:3])
+_still = _lm.matching_firm_offers([], sim.PARAMS, flag='qualification')
+_none = _lm.matching_firm_offers([], sim.PARAMS, cand_looking=list(_hired_before[:3]))
+_lm.candidates = []
+check(
+    "A matching pass with no postings leaves every candidate looking",
+    _still == list(_hired_before[:3]) and _none is None,
+    f"still={len(_still or [])}, second pass={_none}",
+)
+
+# Start-up cap: the first `keep` postings stay, at most max(1, needed - keep) of the others are drawn
+_privates = [f for f in sim.firms.values() if f.sector != "Government"][:10]
+_gov_post = next(f for f in sim.firms.values() if f.sector == "Government")
+_lm.available_postings = [_gov_post] + _privates
+_lm.cap_postings(1, 4)
+_capped = list(_lm.available_postings)
+_lm.available_postings = list(_privates)
+_lm.cap_postings(0, 0)
+_floor = len(_lm.available_postings)
+_lm.available_postings = []
+check(
+    "Start-up posting cap keeps Government's posts, samples needed - keep private posts, at least one",
+    _capped[0] is _gov_post and len(_capped) == 4 and set(_capped[1:]) <= set(_privates) and _floor == 1,
+    f"capped={len(_capped)}, floor={_floor}",
+)
+
 # Government headcount is exogenous (RAIS target, gov_hire_fire). Its profit is always negative, so the profit and
 # insolvency rules of hire_fire used to fire its staff every month and empty it within a few years.
 _gov = next(f for f in sim.firms.values() if f.sector == "Government" and f.employees)
