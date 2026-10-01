@@ -1310,6 +1310,34 @@ sim.PARAMS['INITIAL_EMPLOYMENT'] = _ne_old
 check("INITIAL_EMPLOYMENT: 'legacy' 0.086, 'census' the Census non-employment of the run's municipalities",
       _ne_legacy == 0.086 and abs(_ne_census - (1 - _ne.employed.sum() / _ne.pop_17_69.sum())) < 1e-12
       and 0.15 < _ne_census < 0.5, f"census {_ne_census:.4f}")
+# PARTICIPATION 'census': agents 17-69 active with the Census share for their sex, age group and municipality, from a
+# draw they keep; unemployment counts the active and those in a job; INITIAL_EMPLOYMENT 'census' then reads the
+# Census share of the active without a job
+from world.participation import Participation
+_pt = Participation(sim.mun_to_regions, 7)
+_pf = pd.read_csv('input/participation_2010.csv', sep=';')
+_pf = _pf[_pf.cod_mun.isin([int(m) for m in sim.mun_to_regions]) & (_pf['pop'] > 0)]
+_pa = [a for a in sim.agents.values() if 16 < a.age < 70]
+_pact = [_pt.is_active(a) for a in _pa]
+_pexp = np.mean([_pt.rates[(a.region_id[:7], a.gender, _pt.groups[np.searchsorted(_pt.groups, a.age, 'right') - 1])]
+                 for a in _pa])
+_pold = next(a for a in sim.agents.values() if a.age >= 70)
+_pstable = [_pt.is_active(a) for a in _pa] == _pact and Participation(sim.mun_to_regions, 7).draw(_pa[0]) == _pt.draw(_pa[0])
+sim.stats.participation = _pt
+_pu = sim.stats.update_unemployment(sim.agents.values())
+sim.participation = _pt
+_ne_old = sim.PARAMS.get('INITIAL_EMPLOYMENT', 'legacy')
+sim.PARAMS['INITIAL_EMPLOYMENT'] = 'census'
+_pinit = sim.initial_nonemployment()
+sim.PARAMS['INITIAL_EMPLOYMENT'] = _ne_old
+sim.stats.participation = sim.participation = None
+_pforce = [a for a, act in zip(_pa, _pact) if act or a.firm_id is not None]
+_pu_exp = sum(1 for a in _pforce if a.firm_id is None) / len(_pforce)
+check("PARTICIPATION: active share matches the Census rates, draws stable, 70+ inactive, unemployment over the labour "
+      "force, start-up at the Census rate of the active",
+      abs(np.mean(_pact) - _pexp) < 0.03 and _pstable and not _pt.is_active(_pold) and np.isclose(_pu, _pu_exp)
+      and np.isclose(_pinit, 1 - _pf.employed.sum() / _pf.active.sum()) and 0.02 < _pinit < 0.2,
+      f"active {np.mean(_pact):.3f} vs {_pexp:.3f}, u {_pu:.3f} vs {_pu_exp:.3f}, start {_pinit:.3f}")
 
 # FUNDS_REAL: after the base months the programme funds follow the municipality's base real GDP times the national
 # index, not its current GDP; FGTS and SBPE instalments leave the ACP, market ones stay in the bank, money conserved

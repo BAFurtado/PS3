@@ -406,6 +406,12 @@ PI_START = 'reset'
 # January 2000. 'census': the Census 2010 share in the run's municipalities (input/nonemployment_2010.csv, Sidra 1572;
 # auxiliary/census_nonemployment.py).
 INITIAL_EMPLOYMENT = 'legacy'
+# Labour force. 'off': everyone aged 17-69 without a job seeks one and counts as unemployed. 'census': an agent aged
+# 17-69 is active with the Census 2010 share for its sex, age group and municipality (input/participation_2010.csv,
+# Sidra 3573; auxiliary/census_participation.py), from a draw it keeps; the inactive do not seek jobs, leave the job they
+# hold and are left out of unemployment, which becomes the share of the active without a job. Under 'census',
+# INITIAL_EMPLOYMENT 'census' starts at the Census share of the active without a job.
+PARTICIPATION = 'off'
 # Initial money. 'lognormal': each agent holds a lognormal(3, 0.5) draw of model money. 'target': agents aged 10+ hold
 # WEALTH_TARGET_MONTHS of their area's Census income per person, times their draw over its mean; younger ones none.
 # Immigrants hold the same, at the ACP's initial income per person.

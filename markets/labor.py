@@ -222,8 +222,12 @@ class LaborMarket:
         firm.add_employee(chosen)
 
     def look_for_jobs(self, agents):
-        self.candidates += [agent for agent in agents.values() if 16 < agent.age < 70 and agent.firm_id is None]
-        pass
+        participation = self.sim.participation
+        if participation is None:
+            self.candidates += [agent for agent in agents.values() if 16 < agent.age < 70 and agent.firm_id is None]
+        else:
+            self.candidates += [agent for agent in agents.values()
+                                if agent.firm_id is None and participation.is_active(agent)]
 
     def gov_hire_fire(self, sim):
         total_gov_employees = ceil(self.gov_employees[self.gov_employees.ano == sim.clock.year].qtde_vinc_ativos.sum() *

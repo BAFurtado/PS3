@@ -17,6 +17,8 @@ class Statistics(object):
     The functions include average price of the firms, regional GDP - based on FIRMS' revenues, GDP per
     capita, unemployment, families' wealth, GINI, regional GINI and commuting information.
     """
+    # PARTICIPATION 'census': the Participation in use (world/participation.py)
+    participation = None
 
     def __init__(self, params):
         self.previous_month_price = 0
@@ -281,7 +283,12 @@ class Statistics(object):
         return dummy_gdp_capita
 
     def update_unemployment(self, agents, global_u=False, log=False):
-        employable = [m for m in agents if 16 < m.age < 70]
+        if self.participation is None:
+            employable = [m for m in agents if 16 < m.age < 70]
+        else:
+            # PARTICIPATION: the labour force, the active and anyone aged 17-69 still in a job
+            employable = [m for m in agents if 16 < m.age < 70 and
+                          (m.firm_id is not None or self.participation.is_active(m))]
         temp = len([m for m in employable if m.firm_id is None]) / len(employable) if employable else 0
         logger.info(f'Unemployment rate em perc.: {temp * 100:.2f}')
         if global_u:

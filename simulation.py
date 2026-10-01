@@ -22,6 +22,7 @@ from analysis.money import money_stock_total
 from world.geography import Geography, STATES_CODES, state_string
 from agents.firm import UNPLANNED_SECTORS, import_parity
 from world.transport import TransportNetwork
+from world.participation import Participation
 from markets.goods import RegionalMarket, External
 
 
@@ -89,6 +90,8 @@ class Simulation:
         # Entries skipped because the sector's incumbents had too little capital above their buffer
         self.firm_entry_unfunded = 0
         self.mun_to_regions = defaultdict(set)
+        # PARTICIPATION 'census': who is in the labour force (world/participation.py)
+        self.participation = None
         # Read necessary files — loaded as dicts for fast O(1) lookup in demographics
         self.m_men, self.m_women, self.f = dict(), dict(), dict()
 
@@ -261,6 +264,9 @@ class Simulation:
         # stable across processes.
         for mun_code, regions in self.mun_to_regions.items():
             self.mun_to_regions[mun_code] = sorted(regions)
+        if self.PARAMS.get('PARTICIPATION', 'off') == 'census':
+            self.participation = Participation(self.mun_to_regions, self._seed)
+            self.stats.participation = self.participation
 
         # First jobs allocated
         # Create an existing job market
@@ -291,12 +297,26 @@ class Simulation:
 
     def initial_nonemployment(self):
         """INITIAL_EMPLOYMENT 'census': the Census 2010 share of those aged 17-69 without a job in the run's
-        municipalities. 'legacy': 0.086, the mean unemployment rate of six metropolitan regions in January 2000"""
+        municipalities; under PARTICIPATION 'census', the share of the active without a job. 'legacy': 0.086, the mean
+        unemployment rate of six metropolitan regions in January 2000"""
         if self.PARAMS.get('INITIAL_EMPLOYMENT', 'legacy') != 'census':
             return 0.086
+        if self.participation is not None:
+            return self.participation.unemployment
         census = pd.read_csv('input/nonemployment_2010.csv', sep=';').set_index('cod_mun')
         census = census.loc[[int(m) for m in self.mun_to_regions]]
         return 1 - census.employed.sum() / census.pop_17_69.sum()
+
+    def leave_labour_force(self):
+        """PARTICIPATION 'census': employed agents no longer active leave their job, which the firm may refill"""
+        for agent in self.agents.values():
+            if agent.firm_id is not None and not self.participation.is_active(agent):
+                firm = self.firms.get(agent.firm_id)
+                if firm is not None and agent.id in firm.employees:
+                    del firm.employees[agent.id]
+                    firm.pending_replacements += 1
+                agent.firm_id = None
+                agent.set_commute(None)
 
     def initial_money_from_income(self):
         """INITIAL_MONEY 'target': each family's members aged 10+ hold WEALTH_TARGET_MONTHS of its Census income per
@@ -519,6 +539,8 @@ class Simulation:
 
         # Initiating Labor Market
         # AGENTS
+        if self.participation is not None:
+            self.leave_labour_force()
         self.labor_market.look_for_jobs(self.agents)
 
         # FIRMS
