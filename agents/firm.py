@@ -675,6 +675,7 @@ class Firm:
                             regions[self.region_id].collect_taxes(transport_tax, "transport")
                     employee.money += wage
                     employee.last_wage = wage
+                    employee.wage_paid = wage
 
                 # Transfer collected LABOR TAXES to region
                 labor_tax = total_salary_paid * tax_labor

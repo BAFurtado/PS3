@@ -1634,6 +1634,24 @@ check("SOCIAL_TRANSFERS: RGPS to the oldest, Bolsa Família to the poorest famil
       _tr_ok and _tr_ledger_ok and _tr_paid > 0 and np.isclose(_tr_pi1 - _tr_pi0, 2.5),
       f"{_tr_detail} paid {_tr_paid:.3f} received {_tr_recv:.3f}, PI step {_tr_pi1 - _tr_pi0:.3f}")
 
+# FAMILY_WAGE: 'last' counts each member's last wage (wage_paid follows last_wage); 'month' zeroes wage_paid before the
+# payroll, so a member without a job adds nothing while the paid staff add this month's wage
+_fw_same = all(a.wage_paid == a.last_wage for a in sim.agents.values())
+_fw_jobless = next((a for a in sim.agents.values() if a.firm_id is None and a.last_wage and a.family is not None), None)
+_fw_firm = next(f for f in sim.firms.values() if f.sector != 'Government' and f.employees and f.revenue > f.input_cost)
+_fw_saved = {a.id: a.wage_paid for a in sim.agents.values()}
+for _a in sim.agents.values():
+    _a.wage_paid = 0.0
+_fw_firm.make_payment(sim.regions, sim.stats.global_unemployment_rate, sim.PARAMS['PRODUCTIVITY_EXPONENT'],
+                      sim.PARAMS['TAX_LABOR'], sim.PARAMS['RELEVANCE_UNEMPLOYMENT_SALARIES'])
+_fw_paid = all(e.wage_paid == e.last_wage > 0 for e in _fw_firm.employees.values())
+_fw_zero = _fw_jobless is None or sum(m.wage_paid for m in _fw_jobless.family.members.values()
+                                      if m.firm_id is None) == 0 and _fw_jobless.last_wage > 0
+for _a in sim.agents.values():
+    _a.wage_paid = _fw_saved[_a.id]
+check("FAMILY_WAGE: 'last' identical to the last wage, 'month' counts only this month's payroll",
+      _fw_same and _fw_paid and _fw_zero, f"same {_fw_same}, paid {_fw_paid}, jobless zero {_fw_zero}")
+
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")
 print(f"Results: {PASS} PASS  |  {FAIL} FAIL  |  {PASS + FAIL} total")

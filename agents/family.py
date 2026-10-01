@@ -126,7 +126,7 @@ class Family:
             self.savings = reserve_money
 
     def total_wage(self):
-        return sum(member.last_wage for member in self.members.values() if member.last_wage is not None)
+        return sum(member.wage_paid for member in self.members.values())
 
     def get_permanent_income(self):
         return self.permanent_income

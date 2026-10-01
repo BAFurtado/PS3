@@ -168,6 +168,9 @@ PUBLIC_TAXES_OUT = False
 # then in the poorest families, Bolsa Família to the poorest families (world/social_transfers.py); part of permanent
 # income, counted in money_social_transfers.
 SOCIAL_TRANSFERS = 'off'
+# The wages a family counts as income (permanent income, savings buffer). 'last': each member's last wage, kept after
+# the member leaves the job or the firm stops paying. 'month': the wages paid in the latest monthly payroll.
+FAMILY_WAGE = 'last'
 # Percentage of employees' firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter

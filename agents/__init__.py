@@ -31,6 +31,8 @@ class Agent:
     # FIRM_PAYOUT: last month's profit share from the employer. Class-level default so agents unpickled from an older
     # cache have it.
     last_profit_share = 0.0
+    # Wage received in the latest payroll it was paid in; FAMILY_WAGE 'month' zeroes it before each month's payroll
+    wage_paid = 0.0
     # SOCIAL_TRANSFERS: this month's federal benefits (world/social_transfers.py)
     last_transfer = 0.0
 

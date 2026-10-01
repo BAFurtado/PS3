@@ -479,6 +479,9 @@ class Simulation:
             avg_t, avg_n = self.stats.group_prices(self.firms, tradables)
             avg_t, avg_n = avg_t or self.avg_prices, avg_n or self.avg_prices
             parity_ceiling = import_parity(self.PARAMS)
+        if self.PARAMS.get('FAMILY_WAGE', 'last') == 'month':
+            for agent in self.agents.values():
+                agent.wage_paid = 0.0
         for firm in self.firms.values():
             # Tax workers when paying salaries
             firm.make_payment(
