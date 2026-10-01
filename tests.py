@@ -949,7 +949,8 @@ for _f in _manu:
 _gf = next(f for f in sim.firms.values() if f.sector == 'Government')
 _sh_tc = defaultdict(float)
 _sh_left = _gf.spend_fund(type("S", (), {"firms": sim.firms, "seed": sim.seed, "regions": sim.regions,
-                                         "external": _ext, "PARAMS": dict(sim.PARAMS, SHORTAGE_IMPORTS=True)})(),
+                                         "external": _ext, "regional_market": sim.regional_market,
+                                         "PARAMS": dict(sim.PARAMS, SHORTAGE_IMPORTS=True)})(),
                           5.0, pd.Series({'Manufacturing': 1.0}), _sh_tc)
 _sh_gov_imports = _ext.imports_month - _ext_saved['imports_month']
 for _f, _q in zip(_manu, _manu_q):
@@ -1003,6 +1004,71 @@ check("HOUSEHOLD_REAL_ESTATE False: Real Estate share 0, others rescaled to sum 
       and np.allclose(_hh_off[_rest.index], _rest / _rest.sum())
       and np.allclose(_hh_on[_hh_file.index], _hh_file),
       f"off {_hh_off.round(4).to_dict()}")
+
+# INTERREGIONAL_TRADE 'iioas': local + imported coefficients are the national ones split by the local share; households
+# and government import 1 - share. The month-1 base: share = potential x min(output / demand, 1), exports = output -
+# share x demand (none for Construction, Government); exports then = quantity x national growth x price ** (1 - sigma)
+_io_params = dict(sim.PARAMS, INTERREGIONAL_TRADE='iioas')
+_io_rm = RegionalMarket(SimpleNamespace(PARAMS=_io_params, geo=sim.geo))
+_io_sim = SimpleNamespace(PARAMS=_io_params, regional_market=_io_rm, firms=sim.firms, clock=sim.clock,
+                          ledger=defaultdict(float))
+_io_ext = External(_io_sim, 0.0)
+_nat = pd.read_csv('input/technical_matrix.csv').set_index('sector').loc[_io_rm._sector_order, _io_rm._sector_order]
+_F = pd.Series(_io_params['TRADE_POTENTIAL'])[_io_rm._sector_order]
+_io_split_ok = (np.allclose(_io_rm.technical_matrix + _io_rm.ext_local_matrix, _nat)
+                and np.allclose(_io_rm.technical_matrix, _nat.mul(_F, axis=0))
+                and all(abs(_io_rm.household_import_share[k] - (1 - _F[k])) < 1e-12 for k in _F.index)
+                and _io_rm.government_import_share == _io_rm.household_import_share)
+_cap_saved = {f.id: getattr(f, 'last_capacity', 0.0) for f in sim.firms.values()}
+_io_sectors = defaultdict(list)
+for _f in sim.firms.values():
+    _f.last_capacity = 2.0
+    _io_sectors[_f.sector].append(_f)
+_io_rm.input_need[:] = 1.0
+for _s in _io_rm._sector_order:
+    _io_rm.monthly_hh_intended[_s] = 3.0
+_io_rm.monthly_gov_intended['Trade'] = 4.0
+_io_rm.monthly_fares = 5.0
+_io_tab = _io_ext.trade_base()
+_io_exp = {}
+for _s in _io_rm._sector_order:
+    _fs = _io_sectors.get(_s, [])
+    _p = External.sector_price(_fs) if _fs else 1.0
+    _q = 2.0 * len(_fs)
+    _d = 1.0 + (3.0 + (4.0 if _s == 'Trade' else 0.0) + (5.0 if _s == 'Transport' else 0.0)) / _p
+    _sh = _F[_s] if _s in ('Construction', 'Government') else _F[_s] * min(_q / _d, 1.0)
+    _io_exp[_s] = (_sh, 0.0 if _s in ('Construction', 'Government') else _q - _sh * _d)
+_io_base_ok = all(abs(_io_tab.loc[_s, 'local_share'] - v[0]) < 1e-12 and abs(_io_tab.loc[_s, 'exports'] - v[1]) < 1e-9
+                  for _s, v in _io_exp.items())
+_io_shares_ok = all(abs(_io_rm.household_import_share.get(_s, 0.0) - (1 - v[0])) < 1e-12 for _s, v in _io_exp.items())
+_io_ext.months = 5
+_io_sigma = 0.5
+_io_ext.sim.PARAMS = dict(_io_params, EXPORTS_PRICE_ELASTICITY=_io_sigma)
+_io_dem = _io_ext.export_demand(None, None, None)
+_io_dem_ok = all(abs(_io_dem.get(_s, 0.0) - (_io_exp[_s][1] * External.sector_price(_io_sectors[_s]) ** (1 - _io_sigma)
+                                                if _io_exp[_s][1] > 0 and _io_sectors.get(_s) else 0.0)) < 1e-9
+                 for _s in _io_rm._sector_order)
+for _f in sim.firms.values():
+    _f.last_capacity = _cap_saved[_f.id]
+check("INTERREGIONAL_TRADE 'iioas': national coefficients split by the local share; month-1 base sets shares and "
+      "exports; exports at base quantity x price ** (1 - sigma)",
+      _io_split_ok and _io_base_ok and _io_shares_ok and _io_dem_ok and sim.regional_market.local_share is None,
+      f"split {_io_split_ok}, base {_io_base_ok}, shares {_io_shares_ok}, exports {_io_dem_ok}\n"
+      f"{_io_tab.round(3).to_string()}")
+# Government buys the import share outside, the rest locally, and records what it meant to spend
+_gov_rm = SimpleNamespace(government_import_share={'Trade': 0.25}, monthly_gov_intended=defaultdict(float))
+_gov_ext = External(SimpleNamespace(PARAMS=sim.PARAMS, ledger=defaultdict(float)), 0.0)
+_gov_tc = defaultdict(float)
+_gov_shop = _ShelfFirm('t', 1.0, 4.0)
+_gov_shop.sector, _gov_shop.total_quantity, _gov_shop.prices = 'Trade', 4.0, 1.0
+_gov_left = next(f for f in sim.firms.values() if f.sector == 'Government').spend_fund(
+    type("S", (), {"firms": {'t': _gov_shop}, "seed": sim.seed, "regions": sim.regions,
+                   "external": _gov_ext, "regional_market": _gov_rm, "PARAMS": sim.PARAMS})(),
+    8.0, pd.Series({'Trade': 1.0}), _gov_tc)
+check("INTERREGIONAL_TRADE 'iioas': government imports its share of each purchase",
+      abs(_gov_ext.imports_month - 2.0) < 1e-12 and abs(_gov_rm.monthly_gov_intended['Trade'] - 8.0) < 1e-12
+      and abs(_gov_tc['Trade'] - 6.0) < 1e-12 and abs(_gov_left - 2.0) < 1e-12,
+      f"imports {_gov_ext.imports_month}, consumption {dict(_gov_tc)}, left {_gov_left}")
 
 # ── Firm capital and demography (#21, #24). Last: these remove firms from the shared run ─────────────────────────
 print("\n── Firm capital, entry and exit ─────────────────────────────────────")

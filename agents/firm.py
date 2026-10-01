@@ -308,6 +308,7 @@ class Firm:
         # Build inventory and quantity arrays without creating pd.Series
         inv_arr = np.array([self.input_inventory[s] for s in sectors])
         gross_needed = desired_quantity * total_tc
+        regional_market.input_need += gross_needed
         net_needed_clipped = np.maximum(gross_needed - inv_arr, 0.0)
         local_needed = input_ratio * net_needed_clipped
         external_needed = net_needed_clipped - local_needed
@@ -1139,10 +1140,19 @@ class GovernmentFirm(Firm):
             return money
         # SHORTAGE_IMPORTS: tradable purchases no local firm served are bought outside at P_imp = 1 plus freight
         shortage_sectors = sim.PARAMS['TRADABLE_SECTORS'] if sim.PARAMS.get('SHORTAGE_IMPORTS', False) else ()
+        import_share = sim.regional_market.government_import_share
+        freight = 1.0 + sim.PARAMS['REGIONAL_FREIGHT_COST']
         for sector, share in (shares / shares.sum()).items():
             money_this_sector = money * share
             if money_this_sector == 0:
                 continue
+            sim.regional_market.monthly_gov_intended[sector] += money_this_sector
+            # INTERREGIONAL_TRADE 'iioas': the import share of the product is bought outside
+            imported = money_this_sector * import_share.get(sector, 0.0)
+            if imported > 0:
+                sim.external.intermediate_consumption(imported, freight)
+                total_consumption[sector] += imported
+                money_this_sector -= imported
             sector_firms = [f for f in sim.firms.values() if f.sector == sector]
             market = sim.seed.sample(sector_firms, min(len(sector_firms), int(sim.PARAMS['SIZE_MARKET'])))
             market = [firm for firm in market if firm.total_quantity > 0]
@@ -1153,7 +1163,7 @@ class GovernmentFirm(Firm):
             else:
                 change = money_this_sector
             if change > 0 and sector in shortage_sectors:
-                sim.external.intermediate_consumption(change, 1.0 + sim.PARAMS['REGIONAL_FREIGHT_COST'])
+                sim.external.intermediate_consumption(change, freight)
                 change = 0.0
             left += change
             total_consumption[sector] += money_this_sector - change

@@ -502,6 +502,20 @@ IMPORT_PARITY_PRICING = False
 EXPORTS_BURN_IN = 12
 EXPORTS_BASE_MONTHS = 12
 EXPORTS_PRICE_ELASTICITY = 1.0
+# Trade with the rest of Brazil. 'files' (old model): IO_IMPORTS, HOUSEHOLD_IMPORTS and the export rule above.
+# 'iioas': the rule of the Brazilian interstate input-output system (Haddad et al.) for every buyer. The local share of
+# product i is s_i = TRADE_POTENTIAL[i] x min(local output_i / local demand_i, 1); firms buy s_i of their national input
+# coefficients locally and the rest outside, households and government import 1 - s_i of their spending, at P_imp = 1
+# plus REGIONAL_FREIGHT_COST. Exports of i = local output_i - s_i x local demand_i. Output (staff capacity) and demand
+# (inputs, household and government spending, fares) are measured in month 1, which uses s_i = TRADE_POTENTIAL[i]; the
+# shares are then fixed, and exports held in quantity times the national real GDP index relative to month 1, times
+# (price / P_imp) ** -EXPORTS_PRICE_ELASTICITY. Construction and Government: s_i = TRADE_POTENTIAL[i], no exports.
+# Written to trade_base.csv.
+INTERREGIONAL_TRADE = 'files'
+# Haddad et al. (2019), F: agriculture and industry 0.5, trade and services 0.9
+TRADE_POTENTIAL = {'Agriculture': 0.5, 'Mining': 0.5, 'Manufacturing': 0.5, 'Utilities': 0.5, 'Construction': 0.5,
+                   'Trade': 0.9, 'Transport': 0.9, 'Business': 0.9, 'Financial': 0.9, 'RealEstate': 0.9,
+                   'OtherServices': 0.9, 'Government': 0.9}
 
 # RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation
