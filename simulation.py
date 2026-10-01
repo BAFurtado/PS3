@@ -23,6 +23,7 @@ from world.geography import Geography, STATES_CODES, state_string
 from agents.firm import UNPLANNED_SECTORS, import_parity
 from world.transport import TransportNetwork
 from world.participation import Participation
+from world.social_transfers import SocialTransfers
 from markets.goods import RegionalMarket, External
 
 
@@ -92,6 +93,8 @@ class Simulation:
         self.mun_to_regions = defaultdict(set)
         # PARTICIPATION 'census': who is in the labour force (world/participation.py)
         self.participation = None
+        # SOCIAL_TRANSFERS 'data': federal benefits paid to residents (world/social_transfers.py)
+        self.social_transfers = None
         # Read necessary files — loaded as dicts for fast O(1) lookup in demographics
         self.m_men, self.m_women, self.f = dict(), dict(), dict()
 
@@ -267,6 +270,8 @@ class Simulation:
         if self.PARAMS.get('PARTICIPATION', 'off') == 'census':
             self.participation = Participation(self.mun_to_regions, self._seed)
             self.stats.participation = self.participation
+        if self.PARAMS.get('SOCIAL_TRANSFERS', 'off') == 'data':
+            self.social_transfers = SocialTransfers(self.mun_to_regions, self.PARAMS['REAIS_PER_MONEY_UNIT'])
 
         # First jobs allocated
         # Create an existing job market
@@ -514,6 +519,8 @@ class Simulation:
 
         if self.PARAMS.get('FIRM_PAYOUT', 'none') == 'staff':
             pay_profit_shares(self)
+        if self.social_transfers is not None:
+            self.social_transfers.pay(self)
 
         # Construction firms
         # Probability depends (strongly) on market supply

@@ -162,6 +162,12 @@ GOV_PAY_BASE_MONTHS = 12
 # Off until the model has the federal spending that comes back (pensions, Bolsa Família, SUS): with only the payroll
 # transfer, BH and Goiânia pay out ~10x what returns and unemployment reaches 35 % (step test 2026-09-29).
 PUBLIC_TAXES_OUT = False
+# Federal benefits paid to residents from outside the ACP. 'off': none. 'data': RGPS benefits, BPC and Bolsa Família at
+# the 2010 beneficiaries per resident and mean benefit of each municipality (input/social_transfers_2010.csv,
+# auxiliary/social_transfers.py), fixed in 2010 R$: RGPS to the oldest, BPC to those without RGPS aged 65 or more and
+# then in the poorest families, Bolsa Família to the poorest families (world/social_transfers.py); part of permanent
+# income, counted in money_social_transfers.
+SOCIAL_TRANSFERS = 'off'
 # Percentage of employees' firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter

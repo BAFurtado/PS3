@@ -1585,6 +1585,55 @@ check("SECTOR_PRODUCTIVITY: capacity x sector factor, builders 1, refused with S
       np.isclose(_ratio, _SP[_fin.sector]) and _bld_factor == 1.0 and _guard,
       f"{_fin.sector} ratio {_ratio} vs {_SP[_fin.sector]}, builder {_bld_factor}, guard {_guard}")
 
+# SOCIAL_TRANSFERS 'data': per municipality round(b x A) RGPS to the oldest, BPC to those without RGPS (65+ first), Bolsa
+# Família to the poorest families; what members receive equals the ledger inflow, and it enters permanent income
+from world.social_transfers import SocialTransfers
+_tr = SocialTransfers(sim.mun_to_regions, sim.PARAMS['REAIS_PER_MONEY_UNIT'])
+_tr_money = {a.id: a.money for a in sim.agents.values()}
+_tr_led = sim.ledger['social_transfers']
+_tr_paid = _tr.pay(sim)
+_tr_recv = sum(a.money - _tr_money[a.id] for a in sim.agents.values())
+_tr_ok, _tr_detail = True, ''
+for _mun in {a.family.region_id[:7] for a in sim.agents.values() if a.family is not None and a.family.region_id}:
+    _ag = [a for a in sim.agents.values() if a.family is not None and a.family.region_id
+           and a.family.region_id[:7] == _mun]
+    _rate, _amt = _tr.rates[_mun]['rgps']
+    _rn = round(_rate * len(_ag))
+    if _rn:
+        _age_n = sorted((a.age for a in _ag), reverse=True)[_rn - 1]
+        if any(a.last_transfer < _amt - 1e-12 for a in _ag if a.age > _age_n):
+            _tr_ok, _tr_detail = False, f'{_mun} RGPS not the oldest'
+    _fams = {a.family.id: a.family for a in _ag}
+    _prate, _pamt = _tr.rates[_mun]['pbf']
+    _pn = round(_prate * len(_ag))
+    _inc = sorted(SocialTransfers.family_income(f) for f in _fams.values())
+    _got = [f for f in _fams.values() if sum(m.last_transfer for m in f.members.values()) >= _pamt - 1e-9]
+    if _pn and _got and max(SocialTransfers.family_income(f) for f in sorted(
+            _got, key=SocialTransfers.family_income)[:_pn]) > _inc[min(_pn, len(_inc)) - 1] + 1e-12:
+        _tr_ok, _tr_detail = False, f'{_mun} Bolsa Família not the poorest'
+_tr_fam = next(f for f in sim.families.values() if f.members)
+_tr_member = next(iter(_tr_fam.members.values()))
+_tr_deque, _tr_pi = list(_tr_fam.last_permanent_income), _tr_fam.permanent_income
+_tr_member_t = _tr_member.last_transfer
+_tr_member.last_transfer = 0.0
+_tr_fam.update_permanent_income(sim.central, sim.central.interest)
+_tr_pi0 = _tr_fam.last_permanent_income[-1]
+_tr_fam.last_permanent_income.clear(); _tr_fam.last_permanent_income.extend(_tr_deque)
+_tr_member.last_transfer = 2.5
+_tr_fam.update_permanent_income(sim.central, sim.central.interest)
+_tr_pi1 = _tr_fam.last_permanent_income[-1]
+_tr_fam.last_permanent_income.clear(); _tr_fam.last_permanent_income.extend(_tr_deque)
+_tr_fam.permanent_income = _tr_pi
+for _a in sim.agents.values():
+    _a.money = _tr_money[_a.id]
+    _a.last_transfer = 0.0
+_tr_ledger_ok = np.isclose(sim.ledger['social_transfers'] - _tr_led, _tr_paid) and np.isclose(_tr_recv, _tr_paid)
+sim.ledger['social_transfers'] = _tr_led
+check("SOCIAL_TRANSFERS: RGPS to the oldest, Bolsa Família to the poorest families, paid = received = ledger, "
+      "part of permanent income",
+      _tr_ok and _tr_ledger_ok and _tr_paid > 0 and np.isclose(_tr_pi1 - _tr_pi0, 2.5),
+      f"{_tr_detail} paid {_tr_paid:.3f} received {_tr_recv:.3f}, PI step {_tr_pi1 - _tr_pi0:.3f}")
+
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")
 print(f"Results: {PASS} PASS  |  {FAIL} FAIL  |  {PASS + FAIL} total")

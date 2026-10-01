@@ -314,9 +314,14 @@ DEMAND_BY_BUYER_COLUMNS = tuple(f'{k}_{b}' for b in ('household', 'government', 
 MATCHING_COLUMNS = ('unmet_household_coverable', 'unmet_household_coverable_end')
 
 
+def _legacy_stats_columns_no_social_transfers():
+    """`stats` layout of 7b66b6b (2026-10-01): no money_social_transfers."""
+    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c != 'money_social_transfers']
+
+
 def _legacy_stats_columns_no_utilisation():
     """`stats` layout of 5e52587 (2026-09-30): no firms_utilisation."""
-    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c != 'firms_utilisation']
+    return [c for c in _legacy_stats_columns_no_social_transfers() if c != 'firms_utilisation']
 
 
 def _legacy_stats_columns_no_profit_share():
@@ -425,7 +430,7 @@ def _legacy_regional_columns_single_pot():
 
 
 LEGACY_COLUMNS = {
-    'stats': [_legacy_stats_columns_no_utilisation(), _legacy_stats_columns_no_profit_share(), _legacy_stats_columns_no_total_income(), _legacy_stats_columns_no_bank_profit(), _legacy_stats_columns_no_fgts_repaid(), _legacy_stats_columns_no_group_prices(), _legacy_stats_columns_no_household_imports(), _legacy_stats_columns_no_unserved(), _legacy_stats_columns_no_matching(), _legacy_stats_columns_no_demand_by_buyer(), _legacy_stats_columns_no_unmet(),
+    'stats': [_legacy_stats_columns_no_social_transfers(), _legacy_stats_columns_no_utilisation(), _legacy_stats_columns_no_profit_share(), _legacy_stats_columns_no_total_income(), _legacy_stats_columns_no_bank_profit(), _legacy_stats_columns_no_fgts_repaid(), _legacy_stats_columns_no_group_prices(), _legacy_stats_columns_no_household_imports(), _legacy_stats_columns_no_unserved(), _legacy_stats_columns_no_matching(), _legacy_stats_columns_no_demand_by_buyer(), _legacy_stats_columns_no_unmet(),
               _legacy_stats_columns_no_money(), _legacy_stats_columns_no_external_account(),
               _legacy_stats_columns_no_firm_demography(),
               _legacy_stats_columns()],

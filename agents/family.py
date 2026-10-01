@@ -142,6 +142,7 @@ class Family:
 
     def update_permanent_income(self, bank, r):
         t0 = self.total_wage() + sum(m.last_profit_share for m in self.members.values())
+        t0 += sum(m.last_transfer for m in self.members.values())
         EPS = 1e-4
         r_eff = max(r, EPS)
         wealth = self.get_wealth(bank)

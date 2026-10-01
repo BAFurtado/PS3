@@ -26,6 +26,7 @@ LEDGER_CHANNELS = (
     'firm_entry',        # start-up capital of entrants when FIRM_CAPITAL_MONTHS = 0
     'firm_writeoff',     # negative balances written off at firm exit
     'eco_investment',    # eco-efficiency investment, bought from no one
+    'social_transfers',  # SOCIAL_TRANSFERS: RGPS, BPC and Bolsa Família paid to residents
 )
 
 

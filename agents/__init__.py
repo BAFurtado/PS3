@@ -31,6 +31,8 @@ class Agent:
     # FIRM_PAYOUT: last month's profit share from the employer. Class-level default so agents unpickled from an older
     # cache have it.
     last_profit_share = 0.0
+    # SOCIAL_TRANSFERS: this month's federal benefits (world/social_transfers.py)
+    last_transfer = 0.0
 
     # Class for Agents. Citizens of the model
     # Agents live in families, work in firms, consume
