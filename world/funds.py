@@ -37,6 +37,10 @@ class Funds:
         # settlements, then the mean over the base months, fixed
         self.gov_pay = {}
         self.gov_pay_months = []
+        # GOV_SPENDING 'real': each municipality's public investment in real terms over the settlements so far, and its
+        # base-months mean once fixed
+        self.gov_spending_months = defaultdict(list)
+        self.gov_spending_base = {}
         self.gov_pay_reference = None
         if sim.PARAMS.get('GOV_EXTERNAL_WAGE', 'local') == 'national':
             pay = pd.read_csv('input/gov_pay.csv', sep=';')
@@ -683,6 +687,23 @@ class Funds:
         if self.sim.PARAMS.get('GOV_REVISED', False):
             self.settle_government_budget(regions)
 
+    def real_public_spending(self, mun, investment):
+        """GOV_SPENDING 'real': after GOV_PAY_BURN_IN + GOV_PAY_BASE_MONTHS settlements, a municipality's public
+        investment is its base months' mean in real terms (deflated by the average goods price) at this month's
+        price; the difference from what its budget left comes from (or goes to) outside the ACP"""
+        params = self.sim.PARAMS
+        price = self.sim.avg_prices if self.sim.avg_prices > 0 else 1.0
+        months = self.gov_spending_months[mun]
+        if mun not in self.gov_spending_base:
+            months.append(investment / price)
+            if len(months) >= params['GOV_PAY_BURN_IN'] + params['GOV_PAY_BASE_MONTHS']:
+                self.gov_spending_base[mun] = float(np.mean(months[params['GOV_PAY_BURN_IN']:]))
+            return investment
+        target = self.gov_spending_base[mun] * price
+        self.external_public_funding += target - investment
+        self.sim.ledger['public_transfers'] += target - investment
+        return target
+
     def national_pay_reference(self, acp_wage):
         """GOV_EXTERNAL_WAGE 'national': the ACP private pay per worker federal and state pay multiply. This month's
         during GOV_PAY_BURN_IN + GOV_PAY_BASE_MONTHS settlements, then the base months' mean."""
@@ -828,6 +849,8 @@ class Funds:
                         amount *= 1 - params['POLICY_COEFFICIENT']
                     regions[id].update_applied_taxes(amount, key)
                     investment += amount
+            if params.get('GOV_SPENDING', 'local') == 'real':
+                investment = self.real_public_spending(mun, investment)
             self.gov_budget_diag[mun] = dict(budget=budget, external=external, target=target, wage=wage, staff=staff,
                                              payroll=payroll, investment=investment,
                                              outside=outside, ref_unit=ref_unit, ref_wage=ref_wage)

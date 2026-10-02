@@ -220,6 +220,10 @@ OWN_ACCOUNT = 'off'
 # Vale-transporte (Lei 7.418/1985). True: employers pay each employee on public transport the fare above 6 % of the
 # gross wage. False: workers pay all their fare.
 VALE_TRANSPORTE = False
+# Public investment, the municipal budget's residual after payroll and purchases. 'local': whatever the budget leaves.
+# 'real': after GOV_PAY_BURN_IN + GOV_PAY_BASE_MONTHS months, held at its base months' real level, the difference paid
+# from (or to) outside the ACP: federal and state spending there is set nationally, not by local revenue.
+GOV_SPENDING = 'local'
 # Education of a vacancy. 'off': none. 'census': each vacancy draws its level from the Census 2010 employees of its
 # sector in the run's municipalities and is filled from applicants of that level; it stays open if none applies.
 POSTING_EDUCATION = 'off'

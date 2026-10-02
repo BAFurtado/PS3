@@ -1979,6 +1979,25 @@ check("POSTING_EDUCATION 'census': vacancy filled from its level only, open when
       and all(abs(p.sum() - 1) < 1e-9 for _, p in _pe_census.values()),
       f"hired {[_pe_level(a) for a in _pe_hired]}, none-level hires {len(_pe_none)}")
 
+# GOV_SPENDING 'real': public investment unchanged during the base window, then its base real level at this month's
+# price, the difference booked as a public transfer from outside
+_gs_f = sim.funds
+_gs_price, _gs_ledger, _gs_ext = sim.avg_prices, sim.ledger['public_transfers'], _gs_f.external_public_funding
+_gs_months = _gs_f.gov_spending_months.pop('test', None)
+sim.avg_prices = 2.0
+_gs_n = sim.PARAMS['GOV_PAY_BURN_IN'] + sim.PARAMS['GOV_PAY_BASE_MONTHS']
+_gs_seen = [_gs_f.real_public_spending('test', 10.0 if i < sim.PARAMS['GOV_PAY_BURN_IN'] else 4.0) for i in range(_gs_n)]
+sim.avg_prices = 3.0
+_gs_after = _gs_f.real_public_spending('test', 1.0)
+_gs_ok = (_gs_seen[0] == 10.0 and _gs_seen[-1] == 4.0 and abs(_gs_after - 2.0 * 3.0) < 1e-12
+          and abs(sim.ledger['public_transfers'] - _gs_ledger - 5.0) < 1e-12
+          and abs(_gs_f.external_public_funding - _gs_ext - 5.0) < 1e-12)
+sim.avg_prices, sim.ledger['public_transfers'], _gs_f.external_public_funding = _gs_price, _gs_ledger, _gs_ext
+_gs_f.gov_spending_months.pop('test', None)
+_gs_f.gov_spending_base.pop('test', None)
+check("GOV_SPENDING 'real': unchanged in the base window, then the base real level at this month's price, the "
+      "difference from outside", _gs_ok, f"seen {_gs_seen[0]}, {_gs_seen[-1]}, after {_gs_after}")
+
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")
 print(f"Results: {PASS} PASS  |  {FAIL} FAIL  |  {PASS + FAIL} total")
