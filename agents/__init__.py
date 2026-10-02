@@ -35,6 +35,8 @@ class Agent:
     wage_paid = 0.0
     # SOCIAL_TRANSFERS: this month's federal benefits (world/social_transfers.py)
     last_transfer = 0.0
+    # EDUCATION 'census': years of study the agent finishes with (world/education.py); None under 'pooled'
+    target = None
 
     # Class for Agents. Citizens of the model
     # Agents live in families, work in firms, consume

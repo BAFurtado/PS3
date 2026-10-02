@@ -1,4 +1,5 @@
 from agents import Agent
+from .education import attained
 from .population import marriage_data
 
 
@@ -48,7 +49,9 @@ def check_demographics(sim, birthdays, year, mortality_men, mortality_women, fer
             agent.age += 1
             r = random_numbers[r_idx]
             r_idx += 1
-            if 7 < age < 18:
+            if agent.target is not None:
+                agent.qualification = max(agent.qualification, attained(agent.target, age))
+            elif 7 < age < 18:
                 if r > .17:
                     # Dropout for schooling years is of the order of magnitude of 17% for Brazil
                     agent = check_education(agent, age)
@@ -65,23 +68,32 @@ def check_demographics(sim, birthdays, year, mortality_men, mortality_women, fer
                     die(sim, agent)
 
 
-def birth(sim):
-    """Similar to create agent, but just one individual"""
+def birth(sim, mother=None):
+    """Similar to create agent, but just one individual. Under EDUCATION 'census' the child draws its final years of
+    study from its mother's weighting area"""
     age = 0
-    qualification = int(sim.seed.gammavariate(3, 3))
-    qualification = [qualification if qualification < 21 else 20][0]
+    education = sim.generator.education
+    if education is not None and mother is not None:
+        target, qualification = education.draw(str(mother.region_id), age)
+    else:
+        target = None
+        qualification = int(sim.seed.gammavariate(3, 3))
+        qualification = [qualification if qualification < 21 else 20][0]
     # Newborns hold no money: the family carries the child (they used to get 20-40 created from nothing)
     money = 0
     month = sim.seed.randrange(1, 13, 1)
     gender = sim.seed.choice(['Male', 'Female'])
     sim.total_pop += 1
-    return Agent((sim.total_pop - 1), gender, age, qualification, money, month)
+    child = Agent((sim.total_pop - 1), gender, age, qualification, money, month)
+    if target is not None:
+        child.target = target
+    return child
 
 
 def pregnant(sim, agent, p_pregnancy):
     """An agent is born"""
     if sim.seed_np.rand() < p_pregnancy:
-        child = birth(sim)
+        child = birth(sim, agent)
         agent.family.add_agent(child)
         sim.agents[child.id] = child
         sim.update_pop(None, child.region_id)

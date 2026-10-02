@@ -31,6 +31,7 @@ from agents import (
     OtherServicesFirm,
     GovernmentFirm,
 )
+from .education import Education
 from .firms import FirmData, set_sector_productivity
 from .population import pop_age_data
 from .shapes import prepare_shapes
@@ -74,6 +75,11 @@ class Generator:
         single_ap_muns = pd.read_csv(f"input/single_aps_{self.sim.geo.year}.csv")
         self.single_ap_muns = single_ap_muns["mun_code"].tolist()
         self.quali = self.load_quali()
+        self.education = None
+        if sim.PARAMS.get('EDUCATION', 'pooled') == 'census':
+            if self.sim.geo.year != 2010:
+                raise ValueError("EDUCATION 'census' needs the 2010 geography")
+            self.education = Education(self.sim.geo.mun_codes, self.seed_np)
         self._next_id = 0
 
     def years_study(self, loc):
@@ -250,15 +256,19 @@ class Generator:
                     pops[gender], code, age, self.sim.PARAMS["PERCENTAGE_ACTUAL_POP"]
                 )
                 # To see a histogram of qualification check test:
-                qualification = self.qual(code)
+                qualification = self.qual(code) if self.education is None else None
                 moneys = self.seed_np.lognormal(3, 0.5, size=pop)
                 months = self.seed_np.randint(1, 13, size=pop)
                 ages = [age] * pop
                 for i in range(pop):
                     agent_id = self.gen_id()
+                    if self.education is not None:
+                        target, qualification = self.education.draw(str(code), age)
                     a = Agent(
                         agent_id, gender, ages[i], qualification, moneys[i], months[i]
                     )
+                    if self.education is not None:
+                        a.target = target
                     agents[agent_id] = a
         return agents
 
@@ -283,6 +293,8 @@ class Generator:
             new_agent = Agent(
                 agent_id, a.gender, a.age, a.qualification, moneys[i], a.month
             )
+            if a.target is not None:
+                new_agent.target = a.target
             new_agents[agent_id] = new_agent
         if self.sim.PARAMS.get('INITIAL_MONEY', 'lognormal') == 'target':
             self.money_from_income(new_agents.values(), self.sim.income_per_person)

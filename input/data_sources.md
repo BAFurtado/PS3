@@ -59,7 +59,7 @@ lista completa não cabe na nota de rodapé.
 | # | Entrada empírica | Fonte | Período | Arquivo no repositório | Documentação |
 |---|---|---|---|---|---|
 | 1 | População por sexo e idade, por área de ponderação e município | IBGE, Censo Demográfico 2000 e 2010 (Sidra, tabelas 1378 e 202) | 2000, 2010 | `input/num_people_age_gender_AP_*.csv`, `input/pop_{men,women}_*.csv` | PS2 Tab. 4 |
-| 2 | Qualificação (anos de estudo) por área de ponderação, 5 níveis | IBGE, Censo Demográfico (Sidra, tabela 1554, <https://sidra.ibge.gov.br/tabela/1554>) | 2000, 2010 | `input/qualification_APs_*.csv` | PS2 Tab. 4 |
+| 2 | Qualificação (anos de estudo) por área de ponderação, 5 níveis; o arquivo de 2010 conta pessoas de todas as idades, as menores de 10 anos como sem instrução | IBGE, Censo Demográfico (Sidra, tabela 1554, <https://sidra.ibge.gov.br/tabela/1554>) | 2000, 2010 | `input/qualification_APs_*.csv` | PS2 Tab. 4 |
 | 3 | Número médio de moradores por família, por área de ponderação | IBGE, Censo Demográfico 2010 | 2010 | `input/average_num_members_families_2010.csv` | PS2 Tab. 4 |
 | 4 | Distribuição de qualidade dos domicílios particulares permanentes (DPP0–DPP5) por AP | IBGE, Censo Demográfico 2010 | 2010 | `input/dpp_2010_quali.csv` | processamento em `censo2010` |
 | 5 | Proporção da população urbana por município | IBGE, Censos 2000, 2010 e 2022 (Sidra, tabela 202, <https://sidra.ibge.gov.br/tabela/202> — "População residente, por sexo e situação do domicílio") | 2000, 2010, 2022 | `input/Demografia/3_Percent_Urban/` | `LEIA-ME.txt` |
@@ -100,6 +100,7 @@ lista completa não cabe na nota de rodapé.
 | 40 | Participação do trabalho no valor adicionado por setor (remunerações + rendimento misto bruto); o investimento das firmas segue a coluna FBCF de `input/final_demand.csv` (item 17) | IBGE, Sistema de Contas Nacionais, Tabelas de Recursos e Usos 2015, nível 12, tabela 2 (aba VA); nível 68, tabela 1 (aluguel imputado, retirado das atividades imobiliárias) | 2015 | `input/firm_income_2015.csv` | script `auxiliary/firm_income.py` |
 | 41 | Taxa de investimento das empresas: formação bruta de capital fixo / excedente operacional bruto das empresas financeiras e não financeiras | IBGE, Contas Econômicas Integradas 2015 | 2015 | `input/investment_rate_2015.csv` | script `auxiliary/firm_income.py` |
 | 42 | Vínculos públicos por município de residência (alternativa ao item 8, `GOV_HEADCOUNT 'census'`): nível de 2010 = funcionários públicos estatutários e militares residentes × a razão nacional Rais/Censo (2,611); trajetória = tendência log-linear 2010-2020 dos vínculos Rais da própria ACP, mantida após 2020 | IBGE, Censo Demográfico 2010, Resultados Gerais da Amostra (Sidra, tabela 1577); item 8 | 2010–2045 | `input/gov_headcount_census.csv` | script `auxiliary/gov_headcount.py` |
+| 43 | Nível de instrução por grupo de idade e município, e de pessoas de 10 anos ou mais por área de ponderação (alternativa ao item 2, `EDUCATION 'census'`) | IBGE, Censo Demográfico 2010, Resultados Gerais da Amostra (Sidra, tabelas 3572 e 1554) | 2010 | `input/education_age_2010.csv`, `input/education_AP_2010.csv` (`auxiliary/education_age.py`) | — |
 
 Sobre o item 24: a intensidade de emissão setorial usada no artigo de emissões
 (Rocha Lima, Furtado e Lopes, 2026) é construída a partir do RAPP do Ibama (2010)

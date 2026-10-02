@@ -116,6 +116,14 @@ PRODUCTION_PLAN = 'capacity'
 # Government = O+P+Q+U. 'ibge12': the same shares in the IBGE nível 12 classification of the input-output matrix
 # (Trade = G, Business = J, Government = O and public P/Q, OtherServices = I, M, N, R, S, T, U and private P/Q).
 SECTOR_SHARES = 'rais'
+# Education of the agents. 'pooled': each weighting area's distribution of years of study for people of all ages, those
+# under 10 counted as without instruction (input/qualification_APs_2010.csv), drawn once per age and sex in each area;
+# children gain a year at each birthday from 8 to 17 unless they drop out (17 %), newborns draw gamma(3, 3) years.
+# 'census': the level is drawn per agent for its age group, the area's 10+ distribution (input/education_AP_2010.csv,
+# Sidra 1554) reweighted by its municipality's age profile (input/education_age_2010.csv, Sidra 3572;
+# auxiliary/education_age.py); under 25 the 25-29 level is drawn as the final one, held from the school completion ages
+# (15, 18, 22); newborns draw from their mother's area (world/education.py).
+EDUCATION = 'pooled'
 # Output per unit of labour by sector: national output per job relative to the mean, IBGE national accounts 2015
 # (input/sector_productivity.csv); builders keep 1. Needs SECTOR_SHARES 'ibge12'. False = the same in every sector.
 SECTOR_PRODUCTIVITY = False

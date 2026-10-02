@@ -1788,6 +1788,33 @@ check("GOV_HEADCOUNT: 'rais' and 'census' read their files for the run's municip
       f"2010 rais {_gh_rais[_gh_rais.ano == 2010].qtde_vinc_ativos.sum():.0f}, "
       f"census {_gh_census[_gh_census.ano == 2010].qtde_vinc_ativos.sum():.0f}")
 
+# EDUCATION 'census': levels drawn per agent for its age group match the Census mix of the run's municipalities at
+# 18-69; under 25 the final level is held from the school completion ages; immigrants keep it, newborns draw it
+from world.education import Education, attained, YEARS
+_ed = Education(sim.geo.mun_codes, np.random.RandomState(3))
+_ed_ad = [a for a in sim.agents.values() if 18 <= a.age < 70]
+_ed_lv = pd.Series([_ed.draw_level(str(a.region_id), a.age) for a in _ed_ad for _ in range(5)]).value_counts(normalize=True)
+_ed_c = pd.read_csv('input/education_age_2010.csv', sep=';')
+_ed_c = _ed_c[_ed_c.cod_mun.isin([int(m) for m in sim.geo.mun_codes]) & _ed_c.age_group.between(18, 60)]
+_ed_c = _ed_c.groupby('level')['pop'].sum() / _ed_c['pop'].sum()
+_ed_mix = all(abs(_ed_lv.get(l, 0) - _ed_c[l]) < 0.04 for l in YEARS)
+_ed_ramp = (attained(15, 10) == 2 and attained(15, 16) == 8 and attained(15, 19) == 11 and attained(15, 22) == 15
+            and attained(6, 30) == 6 and attained(2, 18) == 2)
+_ed_gen = sim.generator.education
+sim.generator.education = _ed
+_ed_mother = next(a for a in sim.agents.values() if a.gender.lower() == 'female' and 18 <= a.age < 45)
+_ed_baby = birth(sim, _ed_mother)
+for _a in sim.agents.values():
+    _a.target = 13
+_ed_clone = sim.generator.create_random_agents(1)
+sim.generator.education = _ed_gen
+for _a in sim.agents.values():
+    del _a.target
+check("EDUCATION 'census': 18-69 level mix within 0.04 of the Census, school-age ramp, newborn and immigrant targets",
+      _ed_mix and _ed_ramp and _ed_baby.target in sum(YEARS.values(), []) and _ed_baby.qualification <= 2
+      and all(a.target == 13 for a in _ed_clone.values()),
+      f"model {_ed_lv.sort_index().round(3).tolist()}, census {_ed_c.round(3).tolist()}, ramp {_ed_ramp}")
+
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")
 print(f"Results: {PASS} PASS  |  {FAIL} FAIL  |  {PASS + FAIL} total")

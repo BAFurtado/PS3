@@ -508,6 +508,8 @@ class Output:
         # Firm sectors are drawn when the population is created
         if self.sim.PARAMS.get('SECTOR_SHARES', 'rais') != 'rais':
             self.save_name += '_sectors_{}'.format(self.sim.PARAMS['SECTOR_SHARES'])
+        if self.sim.PARAMS.get('EDUCATION', 'pooled') != 'pooled':
+            self.save_name += '_education_{}'.format(self.sim.PARAMS['EDUCATION'])
 
     def _write_parquet(self, name, path, data_dict):
         table = pa.table(data_dict)
