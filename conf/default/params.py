@@ -202,6 +202,10 @@ WAGE_SHARE = 'unemployment'
 # The wages a family counts as income (permanent income, savings buffer). 'last': each member's last wage, kept after
 # the member leaves the job or the firm stops paying. 'month': the wages paid in the latest monthly payroll.
 FAMILY_WAGE = 'last'
+# How newborns' sex is labelled and who counts as a man in mortality and fertility. 'mixed': newborns 'Male' / 'Female',
+# only 'Male' takes male mortality, so agents generated at the start ('male') take female mortality and fertility.
+# 'lower': newborns 'male' / 'female' as generated; men take male mortality and no fertility.
+GENDER_LABELS = 'mixed'
 # Percentage of employees' firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter

@@ -22,6 +22,7 @@ def check_demographics(sim, birthdays, year, mortality_men, mortality_women, fer
     total_agents = sum(len(agents) for agents in birthdays.values())
     random_numbers = sim.seed_np.random(size=total_agents)
     r_idx = 0
+    male = 'male' if sim.PARAMS.get('GENDER_LABELS', 'mixed') == 'lower' else 'Male'
     for age, agents in birthdays.items():
         age = age + 1
         # Always compute rounded_age so fertility fallback can use it even when
@@ -56,7 +57,7 @@ def check_demographics(sim, birthdays, year, mortality_men, mortality_women, fer
                     # Dropout for schooling years is of the order of magnitude of 17% for Brazil
                     agent = check_education(agent, age)
             agent.p_marriage = marriage_data.p_marriage(agent)
-            if agent.gender == 'Male':
+            if agent.gender == male:
                 if r < prob_mort_m:
                     die(sim, agent)
             else:
@@ -82,7 +83,10 @@ def birth(sim, mother=None):
     # Newborns hold no money: the family carries the child (they used to get 20-40 created from nothing)
     money = 0
     month = sim.seed.randrange(1, 13, 1)
-    gender = sim.seed.choice(['Male', 'Female'])
+    if sim.PARAMS.get('GENDER_LABELS', 'mixed') == 'lower':
+        gender = sim.seed.choice(['male', 'female'])
+    else:
+        gender = sim.seed.choice(['Male', 'Female'])
     sim.total_pop += 1
     child = Agent((sim.total_pop - 1), gender, age, qualification, money, month)
     if target is not None:

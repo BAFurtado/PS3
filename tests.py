@@ -1815,6 +1815,30 @@ check("EDUCATION 'census': 18-69 level mix within 0.04 of the Census, school-age
       and all(a.target == 13 for a in _ed_clone.values()),
       f"model {_ed_lv.sort_index().round(3).tolist()}, census {_ed_c.round(3).tolist()}, ramp {_ed_ramp}")
 
+# GENDER_LABELS: under 'lower' a generated man takes male mortality and no fertility and newborns are labelled as
+# generated; under 'mixed' the generated man takes female mortality and fertility
+import world.demographics as _dm
+_gl_man = next(a for a in sim.agents.values() if a.gender == 'male' and 20 <= a.age < 40)
+_gl_woman = next(a for a in sim.agents.values() if a.gender == 'female' and 20 <= a.age < 40)
+_gl_die, _gl_preg, _gl_param = _dm.die, _dm.pregnant, sim.PARAMS.get('GENDER_LABELS', 'mixed')
+_gl_out = {}
+for _gl in ['mixed', 'lower']:
+    sim.PARAMS['GENDER_LABELS'] = _gl
+    _gl_dead, _gl_mothers = [], []
+    _dm.die = lambda s, a: _gl_dead.append(a.id)
+    _dm.pregnant = lambda s, a, p: _gl_mothers.append(a.id)
+    _gl_keep = [(a, a.age, a.qualification, a.p_marriage) for a in (_gl_man, _gl_woman)]
+    _dm.check_demographics(sim, {30: [_gl_man, _gl_woman]}, 2010, {31: {'2010': 1.0}}, {31: {'2010': 0.0}},
+                           {31: {'2010': 1.0}})
+    for _a, _age, _q, _pm in _gl_keep:
+        _a.age, _a.qualification, _a.p_marriage = _age, _q, _pm
+    _gl_out[_gl] = (_gl_dead, _gl_mothers, _dm.birth(sim, _gl_woman).gender.islower())
+_dm.die, _dm.pregnant = _gl_die, _gl_preg
+sim.PARAMS['GENDER_LABELS'] = _gl_param
+check("GENDER_LABELS: 'lower' gives generated men male mortality, no fertility, lowercase newborns; 'mixed' unchanged",
+      _gl_out['lower'] == ([_gl_man.id], [_gl_woman.id], True)
+      and _gl_out['mixed'] == ([], [_gl_man.id, _gl_woman.id], False), f"{_gl_out}")
+
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")
 print(f"Results: {PASS} PASS  |  {FAIL} FAIL  |  {PASS + FAIL} total")
