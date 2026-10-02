@@ -16,11 +16,11 @@ import analysis
 import conf
 import markets
 from world import Generator, demographics, clock, population
-from world.firms import firm_growth, firm_exit, size_initial_capital, set_productivity_level, pay_profit_shares, set_sector_productivity
+from world.firms import firm_growth, firm_exit, size_initial_capital, set_productivity_level, pay_profit_shares, pay_out_national, set_sector_productivity
 from world.funds import Funds
 from analysis.money import money_stock_total
 from world.geography import Geography, STATES_CODES, state_string
-from agents.firm import UNPLANNED_SECTORS, import_parity
+from agents.firm import Firm, UNPLANNED_SECTORS, import_parity
 from world.transport import TransportNetwork
 from world.participation import Participation
 from world.social_transfers import SocialTransfers
@@ -86,8 +86,11 @@ class Simulation:
         self.money_initial = 0.0
         # INITIAL_MONEY 'target': the ACP's Census income per person aged 10+ at the start, in model money
         self.income_per_person = 0.0
-        # FIRM_PAYOUT: profit shares paid this month
+        # FIRM_PAYOUT: profit shares paid this month ('national': all cash above the buffers paid out)
         self.profit_share_paid = 0.0
+        # FIRM_PAYOUT 'national': corporate FBCF / gross operating surplus, and the money set aside for investment
+        self.investment_rate = 0.0
+        self.investment_fund = 0.0
         # Entries skipped because the sector's incumbents had too little capital above their buffer
         self.firm_entry_unfunded = 0
         self.mun_to_regions = defaultdict(set)
@@ -272,6 +275,10 @@ class Simulation:
             self.stats.participation = self.participation
         if self.PARAMS.get('SOCIAL_TRANSFERS', 'off') == 'data':
             self.social_transfers = SocialTransfers(self.mun_to_regions, self.PARAMS['REAIS_PER_MONEY_UNIT'])
+        if self.PARAMS.get('FIRM_PAYOUT', 'none') == 'national':
+            self.investment_rate = float(pd.read_csv('input/investment_rate_2015.csv', sep=';').investment_rate.iloc[0])
+        Firm.wage_shares = (pd.read_csv('input/firm_income_2015.csv', sep=';').set_index('sector').wage_share.to_dict()
+                            if self.PARAMS.get('WAGE_SHARE', 'unemployment') == 'tru' else None)
 
         # First jobs allocated
         # Create an existing job market
@@ -450,6 +457,8 @@ class Simulation:
         self.regional_market.consume()
         # Government firms consumption
         self.regional_market.government_consumption()
+        # FIRM_PAYOUT 'national': investment demand from last month's payout
+        self.regional_market.firm_investment()
         # External consumption based on internal household and government consumption
         internal_consumption = defaultdict(float)
         for key, value in self.regional_market.monthly_gov_consumption.items():
@@ -531,6 +540,8 @@ class Simulation:
 
         if self.PARAMS.get('FIRM_PAYOUT', 'none') == 'staff':
             pay_profit_shares(self)
+        elif self.PARAMS.get('FIRM_PAYOUT', 'none') == 'national':
+            pay_out_national(self)
         if self.social_transfers is not None:
             self.social_transfers.pay(self)
 

@@ -91,7 +91,10 @@ FIRE_UNPAID_MONTHS = 3
 # at entry), 0.1% advanced.
 FIRM_CAPITAL_MONTHS = 3
 # Firm cash above the capital buffer. 'none': kept by the firm. 'staff': each month a private firm pays FIRM_PAYOUT_RATE
-# of it to its employees, split as wages; the share counts in their families' permanent income.
+# of it to its employees, split as wages; the share counts in their families' permanent income. 'national': each month
+# all of it leaves the firm: the corporate investment rate (FBCF / gross operating surplus, input/investment_rate_2015.csv)
+# is spent the next month as investment demand with the national FBCF composition (final_demand.csv), the rest goes to
+# owners outside the ACP (money_profits_out); entrants' capital comes from those owners (money_firm_entry).
 FIRM_PAYOUT = 'none'
 FIRM_PAYOUT_RATE = 1 / 6
 # With FIRM_CAPITAL_MONTHS > 0: a construction firm's capital in months of its cost, and at least one median project
@@ -173,6 +176,11 @@ PUBLIC_TAXES_OUT = False
 # then in the poorest families, Bolsa Família to the poorest families (world/social_transfers.py); part of permanent
 # income, counted in money_social_transfers.
 SOCIAL_TRANSFERS = 'off'
+# Private firms' wage bill as a share of value added (revenue - inputs). 'unemployment': exp(-unemployment x
+# RELEVANCE_UNEMPLOYMENT_SALARIES). 'tru': the sector's (remunerations + gross mixed income) / value added in the 2015
+# national accounts (input/firm_income_2015.csv, auxiliary/firm_income.py); RELEVANCE_UNEMPLOYMENT_SALARIES unused.
+# Government keeps its own rule.
+WAGE_SHARE = 'unemployment'
 # The wages a family counts as income (permanent income, savings buffer). 'last': each member's last wage, kept after
 # the member leaves the job or the firm stops paying. 'month': the wages paid in the latest monthly payroll.
 FAMILY_WAGE = 'last'

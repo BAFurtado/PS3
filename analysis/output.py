@@ -176,6 +176,10 @@ OUTPUT_DATA_SPEC = {
                     "firms_profit_share_paid",
                     # Output over labour capacity this month, private firms other than builders
                     "firms_utilisation",
+                    # Sum of families' income this month: wages paid, profit shares and social transfers
+                    "families_total_income",
+                    # FIRM_PAYOUT 'national': investment bought this month, local and imported
+                    "firms_investment",
                     ]
     },
     'families': {
@@ -314,9 +318,19 @@ DEMAND_BY_BUYER_COLUMNS = tuple(f'{k}_{b}' for b in ('household', 'government', 
 MATCHING_COLUMNS = ('unmet_household_coverable', 'unmet_household_coverable_end')
 
 
+def _legacy_stats_columns_no_investment():
+    """`stats` layout with families_total_income (2026-10-02): no money_profits_out, no firms_investment."""
+    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c not in ('money_profits_out', 'firms_investment')]
+
+
+def _legacy_stats_columns_no_income():
+    """`stats` layout of 9795a66 (2026-10-01): no families_total_income."""
+    return [c for c in _legacy_stats_columns_no_investment() if c != 'families_total_income']
+
+
 def _legacy_stats_columns_no_social_transfers():
     """`stats` layout of 7b66b6b (2026-10-01): no money_social_transfers."""
-    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c != 'money_social_transfers']
+    return [c for c in _legacy_stats_columns_no_income() if c != 'money_social_transfers']
 
 
 def _legacy_stats_columns_no_utilisation():
@@ -430,7 +444,7 @@ def _legacy_regional_columns_single_pot():
 
 
 LEGACY_COLUMNS = {
-    'stats': [_legacy_stats_columns_no_social_transfers(), _legacy_stats_columns_no_utilisation(), _legacy_stats_columns_no_profit_share(), _legacy_stats_columns_no_total_income(), _legacy_stats_columns_no_bank_profit(), _legacy_stats_columns_no_fgts_repaid(), _legacy_stats_columns_no_group_prices(), _legacy_stats_columns_no_household_imports(), _legacy_stats_columns_no_unserved(), _legacy_stats_columns_no_matching(), _legacy_stats_columns_no_demand_by_buyer(), _legacy_stats_columns_no_unmet(),
+    'stats': [_legacy_stats_columns_no_investment(), _legacy_stats_columns_no_income(), _legacy_stats_columns_no_social_transfers(), _legacy_stats_columns_no_utilisation(), _legacy_stats_columns_no_profit_share(), _legacy_stats_columns_no_total_income(), _legacy_stats_columns_no_bank_profit(), _legacy_stats_columns_no_fgts_repaid(), _legacy_stats_columns_no_group_prices(), _legacy_stats_columns_no_household_imports(), _legacy_stats_columns_no_unserved(), _legacy_stats_columns_no_matching(), _legacy_stats_columns_no_demand_by_buyer(), _legacy_stats_columns_no_unmet(),
               _legacy_stats_columns_no_money(), _legacy_stats_columns_no_external_account(),
               _legacy_stats_columns_no_firm_demography(),
               _legacy_stats_columns()],
@@ -564,6 +578,7 @@ class Output:
             "firms_total_employment": firm_results["firms_total_employment"],
             "families_median_permanent_income": families_results["median_permanent_income"],
             "families_total_permanent_income": families_results["total_permanent_income"],
+            "families_total_income": families_results["total_income"],
             "families_wages_received": families_results["median_wages"],
             "families_commuting": commuting,
             "families_savings": families_results["total_savings"],
@@ -657,6 +672,7 @@ class Output:
             stats_row[f"money_{c}"] = sim.ledger[c]
         stats_row["money_unexplained"] = stats_row["money_total"] - sim.money_initial - sum(sim.ledger.values())
         stats_row["firms_profit_share_paid"] = sim.profit_share_paid
+        stats_row["firms_investment"] = sim.regional_market.monthly_investment
         from agents.firm import UNPLANNED_SECTORS
         planned = [f for f in sim.firms.values() if f.sector not in UNPLANNED_SECTORS]
         capacity = sum(f.last_capacity for f in planned)

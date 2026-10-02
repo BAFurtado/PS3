@@ -23,24 +23,26 @@ LEDGER_CHANNELS = (
     'exports',           # sales to the rest of Brazil, recycled demand included
     'imports',           # inputs bought from the rest of Brazil, freight included
     'import_tax',        # consumption tax on imports returned to the municipalities
-    'firm_entry',        # start-up capital of entrants when FIRM_CAPITAL_MONTHS = 0
+    'firm_entry',        # start-up capital of entrants: FIRM_CAPITAL_MONTHS = 0, or FIRM_PAYOUT 'national'
     'firm_writeoff',     # negative balances written off at firm exit
     'eco_investment',    # eco-efficiency investment, bought from no one
     'social_transfers',  # SOCIAL_TRANSFERS: RGPS, BPC and Bolsa Família paid to residents
+    'profits_out',       # FIRM_PAYOUT 'national': firms' cash above the buffer paid to owners outside the ACP
 )
 
 
 def money_stock(sim):
     """Money by holder group. Households: members' wallets and family savings (bank deposits are in `bank`, which
     holds the depositors' money as cash). Public: Government firms' budget funds, region treasuries, revenue waiting
-    for the budget, policy pots and interest tax not yet collected."""
+    for the budget, policy pots and interest tax not yet collected. Firms include the investment fund (FIRM_PAYOUT
+    'national') not yet spent."""
     funds = sim.funds
     public = sum(r.total_treasure for r in sim.regions.values())
     public += sum(sum(d.values()) for d in funds.pending_public_money.values())
     for pot in ('policy_money', 'policy_money_mcmv', 'policy_money_melhorias'):
         public += sum(getattr(funds, pot, {}).values())
     public += sim.central.taxes
-    firms = 0.0
+    firms = getattr(sim, 'investment_fund', 0.0)
     for f in sim.firms.values():
         firms += f.total_balance
         if f.sector == 'Government':

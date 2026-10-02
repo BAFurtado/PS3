@@ -1700,6 +1700,65 @@ for _a in sim.agents.values():
 check("FAMILY_WAGE: 'last' identical to the last wage, 'month' counts only this month's payroll",
       _fw_same and _fw_paid and _fw_zero, f"same {_fw_same}, paid {_fw_paid}, jobless zero {_fw_zero}")
 
+# WAGE_SHARE: 'unemployment' (default) leaves the exp(-u x relevance) share; 'tru' pays the sector's national accounts
+# share of value added, whatever unemployment is; Government keeps its own rule
+from agents.firm import Firm
+_ws_firm = next(f for f in sim.firms.values() if f.sector not in ('Government', 'Construction') and f.employees and f.revenue > f.input_cost)
+_ws_gov = next(f for f in sim.firms.values() if f.sector == 'Government' and f.employees)
+_ws_u, _ws_r = 0.07, sim.PARAMS['RELEVANCE_UNEMPLOYMENT_SALARIES']
+_ws_old = Firm.wage_shares is None and np.isclose(
+    _ws_firm.wage_base(_ws_u, _ws_r) * _ws_firm.num_employees,
+    (_ws_firm.revenue - _ws_firm.input_cost) * np.exp(-_ws_u * _ws_r))
+_ws_gov0 = _ws_gov.wage_base(_ws_u, _ws_r)
+Firm.wage_shares = pd.read_csv('input/firm_income_2015.csv', sep=';').set_index('sector').wage_share.to_dict()
+_ws_new = all(np.isclose(_ws_firm.wage_base(u, _ws_r) * _ws_firm.num_employees,
+                         (_ws_firm.revenue - _ws_firm.input_cost) * Firm.wage_shares[_ws_firm.sector]) for u in (0.02, 0.3))
+_ws_gov1 = _ws_gov.wage_base(_ws_u, _ws_r)
+Firm.wage_shares = None
+check("WAGE_SHARE: 'unemployment' unchanged, 'tru' pays the sector's share of value added at any unemployment, "
+      "Government unchanged",
+      _ws_old and _ws_new and np.isclose(_ws_gov0, _ws_gov1), f"old {_ws_old}, tru {_ws_new}, gov {_ws_gov0:.3f}/{_ws_gov1:.3f}")
+
+# FIRM_PAYOUT 'national': every private firm ends at its buffer, the investment rate of what left goes to the
+# investment fund and the rest out through money_profits_out; the fund is spent on FBCF products (imports through
+# money_imports) and what finds no stock stays; an entrant's capital comes from outside (money_firm_entry), the
+# incumbents untouched. The money stock moves exactly with the ledger throughout.
+from analysis.money import money_stock_total
+from world.firms import pay_out_national, fund_entrant, capital_need
+_po_saved = (sim.PARAMS.get('FIRM_PAYOUT', 'none'), sim.investment_rate, sim.investment_fund, dict(sim.ledger))
+_po_pe, _po_pd = sim.PARAMS['PRODUCTIVITY_EXPONENT'], sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR']
+sim.PARAMS['FIRM_PAYOUT'], sim.investment_rate, sim.investment_fund = 'national', 0.403, 0.0
+_po_m0, _po_l0 = money_stock_total(sim), sum(sim.ledger.values())
+_po_out0 = sim.ledger['profits_out']
+pay_out_national(sim)
+_po_paid = sim.profit_share_paid
+_po_at_buffer = all((f.free_cash() if f.sector == 'Construction' else f.total_balance)
+                    <= capital_need(sim, f.sector, f.capacity_value(_po_pe, _po_pd)) + 1e-9
+                    for f in sim.firms.values() if f.sector != 'Government')
+_po_split = (np.isclose(sim.investment_fund, 0.403 * _po_paid)
+             and np.isclose(_po_out0 - sim.ledger['profits_out'], 0.597 * _po_paid))
+_po_cons1 = np.isclose(money_stock_total(sim) - _po_m0, sum(sim.ledger.values()) - _po_l0)
+_po_fund = sim.investment_fund
+_po_imp0 = sim.ledger['imports']
+sim.regional_market.firm_investment()
+_po_spent = sim.regional_market.monthly_investment
+_po_cons2 = (np.isclose(_po_spent + sim.investment_fund, _po_fund)
+             and np.isclose(money_stock_total(sim) - _po_m0, sum(sim.ledger.values()) - _po_l0))
+_po_bal = {f.id: f.total_balance for f in sim.firms.values()}
+_po_entry0 = sim.ledger['firm_entry']
+_po_new = fund_entrant(sim, next(iter(sim.regions.values())))
+_po_entry = (_po_new is not None and np.isclose(sim.ledger['firm_entry'] - _po_entry0, _po_new.total_balance)
+             and all(sim.firms[i].total_balance == b for i, b in _po_bal.items())
+             and np.isclose(money_stock_total(sim) - _po_m0, sum(sim.ledger.values()) - _po_l0))
+if _po_new is not None:
+    del sim.firms[_po_new.id]
+sim.PARAMS['FIRM_PAYOUT'], sim.investment_rate, sim.investment_fund = _po_saved[:3]
+check("FIRM_PAYOUT 'national': firms end at their buffer, investment rate to the fund and the rest out, the fund spent "
+      "on FBCF with stock and ledger in step, entrants funded from outside",
+      _po_paid > 0 and _po_at_buffer and _po_split and _po_cons1 and _po_cons2 and _po_spent > 0 and _po_entry,
+      f"paid {_po_paid:.2f}, buffer {_po_at_buffer}, split {_po_split}, ledger {_po_cons1}/{_po_cons2}, "
+      f"spent {_po_spent:.2f} of {_po_fund:.2f}, imports {_po_imp0 - sim.ledger['imports']:.2f}, entry {_po_entry}")
+
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")
 print(f"Results: {PASS} PASS  |  {FAIL} FAIL  |  {PASS + FAIL} total")

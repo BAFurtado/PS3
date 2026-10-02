@@ -68,6 +68,8 @@ class Firm:
     cold_start_share = 0.001
     # Consecutive months insolvent / idle (FIRM_EXIT_MONTHS); set when the firm exits
     months_insolvent = 0
+    # WAGE_SHARE 'tru': wage bill as a share of value added, by sector (set by Simulation); None: exp(-u x relevance)
+    wage_shares = None
     months_idle = 0
     # PRODUCTION_PLAN 'sales': last month's sold plus refused quantity (None before the firm's first production), the
     # workers above what this month's demand needs, and this month's output and labour capacity
@@ -642,7 +644,10 @@ class Firm:
         # Exponential discount: labor_share = exp(-u * relevance). Approaches 0 asymptotically
         # as unemployment rises; equals ~0.94 at equilibrium 4% unemployment (same as old linear).
         # Replaces linear (1 - u*relevance) which crossed zero at u = 1/relevance ≈ 67%.
-        labor_share = np.exp(-unemployment * relevance_unemployment)
+        if Firm.wage_shares is not None:
+            labor_share = Firm.wage_shares[self.sector]
+        else:
+            labor_share = np.exp(-unemployment * relevance_unemployment)
         if self.num_employees > 0:
             return ((effective_revenue - self.input_cost) / self.num_employees) * labor_share
         else:

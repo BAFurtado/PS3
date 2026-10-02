@@ -206,9 +206,29 @@ def pay_profit_shares(sim):
     sim.profit_share_paid = paid
 
 
+def pay_out_national(sim):
+    """FIRM_PAYOUT 'national': each private firm's cash above its capital buffer (a builder's cash net of wages already
+    owed) leaves it; the investment rate of it goes to the ACP's investment fund, the rest to owners outside"""
+    pe, pd_ = sim.PARAMS['PRODUCTIVITY_EXPONENT'], sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR']
+    paid = 0.0
+    for firm in sim.firms.values():
+        if firm.sector == 'Government':
+            continue
+        cash = firm.free_cash() if firm.sector == 'Construction' else firm.total_balance
+        excess = cash - capital_need(sim, firm.sector, firm.capacity_value(pe, pd_))
+        if excess > 0:
+            firm.total_balance -= excess
+            paid += excess
+    invested = paid * sim.investment_rate
+    sim.investment_fund += invested
+    sim.ledger['profits_out'] -= paid - invested
+    sim.profit_share_paid = paid
+
+
 def fund_entrant(sim, region):
     """FIRM_CAPITAL_MONTHS > 0: a new firm enters in a sector drawn from the RAIS shares only if that sector's
-    incumbents hold, above their own buffers, the capital it needs; they pay in proportion to their surplus."""
+    incumbents hold, above their own buffers, the capital it needs; they pay in proportion to their surplus. Under
+    FIRM_PAYOUT 'national' the capital comes from owners outside the ACP instead."""
     p = sim.generator.sector_shares()
     if sim.PARAMS.get('GOV_REVISED', False):
         p = p.drop('Government', errors='ignore')
@@ -219,6 +239,16 @@ def fund_entrant(sim, region):
     incumbents = [f for f in sim.firms.values() if f.sector == sector]
     surpluses = [surplus(sim, f, pe, pd_) for f in incumbents]
     need = capital_need(sim, sector, capacity)
+    if sim.PARAMS.get('FIRM_PAYOUT', 'none') == 'national':
+        if need <= 0:
+            sim.firm_entry_unfunded += 1
+            return None
+        firm = list(sim.generator.create_firms(1, region, firm_sectors=[sector]).values())[0]
+        firm.total_balance = need
+        sim.ledger['firm_entry'] += need
+        firm.cold_start_share = 1 / sim.PARAMS['FIRM_CAPITAL_MONTHS']
+        sim.firms[firm.id] = firm
+        return firm
     available = sum(surpluses)
     if need <= 0 or available < need:
         sim.firm_entry_unfunded += 1

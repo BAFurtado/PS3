@@ -331,6 +331,7 @@ class Statistics(object):
         total_renting_zero_income = 0
         affordable = 0
         total_savings = 0
+        total_income = 0.0
         rent_default_count = 0
         utility_sum = 0
         valid_utility_count = 0
@@ -342,6 +343,7 @@ class Statistics(object):
             permanent_income[i] = pi
 
             wages[i] = family.total_wage()
+            total_income += wages[i] + sum(m.last_profit_share + m.last_transfer for m in family.members.values())
             utility[i] = family.average_utility
             num_members[i] = family.num_members
 
@@ -430,6 +432,7 @@ class Statistics(object):
             "affordability_ratio": affordability_ratio,
             "median_permanent_income": median_permanent_income,
             "total_permanent_income": float(permanent_income.sum()),
+            "total_income": total_income,
             "median_affordability": median_affordability,
             "rent_burden_decis": rent_burden_decis,
             "zero_income_renter_share": (

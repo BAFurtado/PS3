@@ -139,6 +139,9 @@ class RegionalMarket:
         # the quantity of each product firms need as inputs (sector order), for the month-1 trade base
         self.monthly_gov_intended = defaultdict(float)
         self.monthly_fares = 0.0
+        # FIRM_PAYOUT 'national': investment money this month meant for each sector, and investment bought
+        self.monthly_inv_intended = defaultdict(float)
+        self.monthly_investment = 0.0
         self.input_need = np.zeros(len(self.technical_matrix.index))
         # Pre-compute numpy column arrays to avoid pandas.loc overhead in the per-firm hot loop
         self._sector_order = list(self.technical_matrix.index)
@@ -228,8 +231,46 @@ class RegionalMarket:
             for key, value in consumption.items():
                 self.monthly_gov_consumption[key] += value
 
-    def gross_fixed_capital_formation(self):
-        pass
+    def firm_investment(self):
+        """FIRM_PAYOUT 'national': the ACP's investment fund is spent over products with the national FBCF composition
+        (final_demand FBCF), the import share of each product (INTERREGIONAL_TRADE 'iioas') bought outside, the rest
+        from the cheapest of a sample of local firms with stock; tradables no local firm served are imported under
+        SHORTAGE_IMPORTS. What finds no stock stays in the fund."""
+        from agents.firm import import_price
+        sim = self.sim
+        self.monthly_investment = 0.0
+        self.monthly_inv_intended = defaultdict(float)
+        money = sim.investment_fund
+        if money <= 0:
+            return
+        params = sim.PARAMS
+        shares = self.final_demand['FBCF']
+        shares = shares[shares > 0] / shares.sum()
+        shortage_sectors = params['TRADABLE_SECTORS'] if params.get('SHORTAGE_IMPORTS', False) else ()
+        freight = import_price(params)
+        left = 0.0
+        for sector, share in shares.items():
+            money_this_sector = money * share
+            self.monthly_inv_intended[sector] += money_this_sector
+            imported = money_this_sector * self.government_import_share.get(sector, 0.0)
+            if imported > 0:
+                sim.external.intermediate_consumption(imported, freight)
+                money_this_sector -= imported
+            sector_firms = [f for f in sim.firms.values() if f.sector == sector]
+            market = sim.seed.sample(sector_firms, min(len(sector_firms), int(params['SIZE_MARKET'])))
+            market = [f for f in market if f.total_quantity > 0]
+            if market:
+                firm = min(market, key=lambda f: f.prices)
+                change = firm.sale(money_this_sector, sim.regions, params['TAX_CONSUMPTION'], firm.region_id,
+                                   params['TAX_ON_ORIGIN'], buyer='investment')
+            else:
+                change = money_this_sector
+            if change > 0 and sector in shortage_sectors:
+                sim.external.intermediate_consumption(change, freight)
+                change = 0.0
+            left += change
+        sim.investment_fund = left
+        self.monthly_investment = money - left
 
     def exports(self):
         pass
@@ -342,11 +383,31 @@ class External:
         return (sum(f.total_quantity * f.prices for f in firms if f.total_quantity > 0) / qty if qty > 0
                 else sum(f.prices for f in firms) / len(firms))
 
+    def expected_investment(self, by_sector):
+        """FIRM_PAYOUT 'national', month 1: the investment the private firms will make a month at full capacity, the
+        investment rate times their value added at capacity (national input coefficients) less wages and firm tax.
+        0 otherwise."""
+        sim = self.sim
+        if sim.PARAMS.get('FIRM_PAYOUT', 'none') != 'national':
+            return 0.0
+        from agents.firm import Firm
+        market = sim.regional_market
+        input_share = market.national_matrix.sum(axis=0)
+        u, relevance = sim.stats.global_unemployment_rate, sim.PARAMS['RELEVANCE_UNEMPLOYMENT_SALARIES']
+        surplus = 0.0
+        for sector, firms in by_sector.items():
+            if sector == 'Government' or not firms:
+                continue
+            wage_share = Firm.wage_shares[sector] if Firm.wage_shares is not None else np.exp(-u * relevance)
+            value_added = sum(f.last_capacity for f in firms) * self.sector_price(firms) * (1 - input_share[sector])
+            surplus += value_added * (1 - wage_share) * (1 - sim.PARAMS['TAX_FIRM'])
+        return sim.investment_rate * surplus
+
     def trade_base(self):
         """INTERREGIONAL_TRADE 'iioas', month 1: per product, local output (staff capacity) and local demand (input
         need, household spending and fares, government spending, money over the sector's price); local share
         s = TRADE_POTENTIAL x min(output / demand, 1) and exports = output - s x demand, Construction and Government
-        s = TRADE_POTENTIAL and no exports. Sets the market's local shares and returns the table."""
+        s = TRADE_POTENTIAL and no exports. Under FIRM_PAYOUT 'national' demand includes the expected investment. Sets the market's local shares and returns the table."""
         params = self.sim.PARAMS
         market = self.sim.regional_market
         potential = params['TRADE_POTENTIAL']
@@ -354,11 +415,14 @@ class External:
         for f in self.sim.firms.values():
             by_sector[f.sector].append(f)
         rows = {}
+        investment = self.expected_investment(by_sector)
+        fbcf = market.final_demand['FBCF'] / market.final_demand['FBCF'].sum()
         for k, sector in enumerate(market._sector_order):
             firms = by_sector.get(sector, [])
             price = self.sector_price(firms) if firms else 1.0
             output = sum(f.last_capacity for f in firms)
-            money = market.monthly_hh_intended[sector] + market.monthly_gov_intended[sector]
+            money = (market.monthly_hh_intended[sector] + market.monthly_gov_intended[sector]
+                     + investment * fbcf[sector])
             if sector == 'Transport':
                 money += market.monthly_fares
             demand = market.input_need[k] + (money / price if price > 0 else 0.0)
