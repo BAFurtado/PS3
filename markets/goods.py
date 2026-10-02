@@ -312,6 +312,10 @@ class External:
         self.iioas = sim.PARAMS.get('INTERREGIONAL_TRADE', 'files') == 'iioas'
         self.trade_exports = None
         self.trade_base_index = None
+        # TRADE_BASE 'rebase': month-1 components of the trade base, month-1 permanent income, income paid since
+        self.trade_components = None
+        self.base_permanent_income = 0.0
+        self.rebase_income = []
         if sim.PARAMS.get('EXPORTS_REAL', False) or self.iioas:
             self.national_gdp = pd.read_csv('input/national_real_gdp.csv', sep=';').set_index('year')['index']
 
@@ -407,40 +411,66 @@ class External:
         """INTERREGIONAL_TRADE 'iioas', month 1: per product, local output (staff capacity) and local demand (input
         need, household spending and fares, government spending, money over the sector's price); local share
         s = TRADE_POTENTIAL x min(output / demand, 1) and exports = output - s x demand, Construction and Government
-        s = TRADE_POTENTIAL and no exports. Under FIRM_PAYOUT 'national' demand includes the expected investment. Sets the market's local shares and returns the table."""
-        params = self.sim.PARAMS
+        s = TRADE_POTENTIAL and no exports. Under FIRM_PAYOUT 'national' demand includes the expected investment. Sets
+        the market's local shares and returns the table. The month-1 components are kept for TRADE_BASE 'rebase'."""
         market = self.sim.regional_market
-        potential = params['TRADE_POTENTIAL']
         by_sector = defaultdict(list)
         for f in self.sim.firms.values():
             by_sector[f.sector].append(f)
-        rows = {}
         investment = self.expected_investment(by_sector)
         fbcf = market.final_demand['FBCF'] / market.final_demand['FBCF'].sum()
+        rows = {}
         for k, sector in enumerate(market._sector_order):
             firms = by_sector.get(sector, [])
-            price = self.sector_price(firms) if firms else 1.0
-            output = sum(f.last_capacity for f in firms)
-            money = (market.monthly_hh_intended[sector] + market.monthly_gov_intended[sector]
-                     + investment * fbcf[sector])
+            rows[sector] = {'output': sum(f.last_capacity for f in firms),
+                            'price': self.sector_price(firms) if firms else 1.0,
+                            'input_need': market.input_need[k], 'household': market.monthly_hh_intended[sector],
+                            'government': market.monthly_gov_intended[sector], 'investment': investment * fbcf[sector],
+                            'fares': market.monthly_fares if sector == 'Transport' else 0.0}
+        self.trade_components = pd.DataFrame(rows).T
+        if self.sim.PARAMS.get('TRADE_BASE', 'census') == 'rebase':
+            self.base_permanent_income = sum(f.get_permanent_income() for f in self.sim.families.values())
+        self.trade_base_index = self.national_index(self.sim.clock.year)
+        return self.apply_trade_base(1.0, 'trade_base.csv')
+
+    def apply_trade_base(self, household_scale, name):
+        """Local shares and exports from the kept month-1 components, household spending times household_scale"""
+        potential = self.sim.PARAMS['TRADE_POTENTIAL']
+        table = self.trade_components.copy()
+        for sector, r in table.iterrows():
+            money = r.household * household_scale + r.government + r.investment
             if sector == 'Transport':
-                money += market.monthly_fares
-            demand = market.input_need[k] + (money / price if price > 0 else 0.0)
+                money += r.fares * household_scale
+            table.loc[sector, 'demand'] = r.input_need + (money / r.price if r.price > 0 else 0.0)
+            r = table.loc[sector]
             if sector in ('Construction', 'Government'):
                 share, exports = potential[sector], 0.0
             else:
-                share = potential[sector] * (min(output / demand, 1.0) if demand > 0 else (1.0 if output > 0 else 0.0))
-                exports = output - share * demand
-            rows[sector] = {'output': output, 'demand': demand, 'price': price, 'local_share': share,
-                            'exports': exports}
-        table = pd.DataFrame(rows).T
-        market.set_local_shares(table['local_share'].to_dict())
+                share = potential[sector] * (min(r.output / r.demand, 1.0) if r.demand > 0 else (1.0 if r.output > 0 else 0.0))
+                exports = r.output - share * r.demand
+            table.loc[sector, 'local_share'], table.loc[sector, 'exports'] = share, exports
+        self.sim.regional_market.set_local_shares(table['local_share'].to_dict())
         self.trade_exports = table['exports'].to_dict()
-        self.trade_base_index = self.national_index(self.sim.clock.year)
         output = getattr(self.sim, 'output', None)
         if output is not None:
-            table.to_csv(os.path.join(output.path, 'trade_base.csv'), index_label='sector')
+            columns = ['output', 'demand', 'price', 'local_share', 'exports']
+            if household_scale != 1.0:
+                table['household_scale'] = household_scale
+                columns.append('household_scale')
+            table[columns].to_csv(os.path.join(output.path, name), index_label='sector')
         return table
+
+    def rebase_trade(self):
+        """TRADE_BASE 'rebase': at the start of month 3 and 4 records the household income the model paid in months 2
+        and 3 (wages, profit shares, social transfers); at month 4 recomputes the trade base with month-1 household
+        spending scaled by that income over the month-1 permanent income, output kept at month-1 staff capacity"""
+        if self.sim.PARAMS.get('TRADE_BASE', 'census') != 'rebase' or self.months not in (3, 4):
+            return
+        paid = sum(a.wage_paid + a.last_profit_share + a.last_transfer for a in self.sim.agents.values()
+                   if a.family is not None)
+        self.rebase_income.append(paid)
+        if self.months == 4 and self.base_permanent_income > 0:
+            self.apply_trade_base(np.mean(self.rebase_income) / self.base_permanent_income, 'trade_base_rebased.csv')
 
     def export_demand(self, chosen_firms, internal_final_demand, multiplier):
         """External demand in money per sector. Default: the multiplier times this month's internal demand (household
@@ -458,6 +488,7 @@ class External:
         if self.iioas:
             if self.trade_exports is None:
                 self.trade_base()
+            self.rebase_trade()
             growth = self.national_index(self.sim.clock.year) / self.trade_base_index
             by_sector = defaultdict(list)
             for f in self.sim.firms.values():

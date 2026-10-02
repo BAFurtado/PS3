@@ -176,6 +176,16 @@ PUBLIC_TAXES_OUT = False
 # then in the poorest families, Bolsa Família to the poorest families (world/social_transfers.py); part of permanent
 # income, counted in money_social_transfers.
 SOCIAL_TRANSFERS = 'off'
+# Public jobs per municipality and year (the Government sector's headcount target). 'rais': RAIS public jobs by
+# employer's municipality (input/qtde_vinc_gov_rais_stable_from_2020_onwards.csv). 'census': Census 2010 public servants
+# by municipality of residence times the national RAIS / Census ratio, growing along the ACP's own RAIS trend 2010-2020
+# (input/gov_headcount_census.csv, auxiliary/gov_headcount.py).
+GOV_HEADCOUNT = 'rais'
+# INTERREGIONAL_TRADE 'iioas': when the trade base (local shares, exports) is set. 'census': month 1, household spending
+# from the Census permanent income. 'rebase': recomputed once at month 4 with that spending scaled by the household
+# income the model paid in months 2-3 (wages, profit shares, social transfers) over the month-1 permanent income,
+# output at month-1 staff capacity.
+TRADE_BASE = 'census'
 # Private firms' wage bill as a share of value added (revenue - inputs). 'unemployment': exp(-unemployment x
 # RELEVANCE_UNEMPLOYMENT_SALARIES). 'tru': the sector's (remunerations + gross mixed income) / value added in the 2015
 # national accounts (input/firm_income_2015.csv, auxiliary/firm_income.py); RELEVANCE_UNEMPLOYMENT_SALARIES unused.

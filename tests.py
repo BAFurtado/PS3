@@ -1068,6 +1068,18 @@ for _s in _io_rm._sector_order:
 _io_base_ok = all(abs(_io_tab.loc[_s, 'local_share'] - v[0]) < 1e-12 and abs(_io_tab.loc[_s, 'exports'] - v[1]) < 1e-9
                   for _s, v in _io_exp.items())
 _io_shares_ok = all(abs(_io_rm.household_import_share.get(_s, 0.0) - (1 - v[0])) < 1e-12 for _s, v in _io_exp.items())
+# TRADE_BASE 'rebase': the same base with household spending and fares halved
+_io_half = _io_ext.apply_trade_base(0.5, 'trade_base_test.csv')
+_io_half_ok = True
+for _s in _io_rm._sector_order:
+    _fs = _io_sectors.get(_s, [])
+    _p = External.sector_price(_fs) if _fs else 1.0
+    _q = 2.0 * len(_fs)
+    _d = 1.0 + (1.5 + (4.0 if _s == 'Trade' else 0.0) + (2.5 if _s == 'Transport' else 0.0)) / _p
+    _sh = _F[_s] if _s in ('Construction', 'Government') else _F[_s] * min(_q / _d, 1.0)
+    _ex = 0.0 if _s in ('Construction', 'Government') else _q - _sh * _d
+    _io_half_ok &= abs(_io_half.loc[_s, 'local_share'] - _sh) < 1e-12 and abs(_io_half.loc[_s, 'exports'] - _ex) < 1e-9
+_io_ext.apply_trade_base(1.0, 'trade_base_test.csv')
 _io_ext.months = 5
 _io_sigma = 0.5
 _io_ext.sim.PARAMS = dict(_io_params, EXPORTS_PRICE_ELASTICITY=_io_sigma)
@@ -1079,7 +1091,7 @@ for _f in sim.firms.values():
     _f.last_capacity = _cap_saved[_f.id]
 check("INTERREGIONAL_TRADE 'iioas': national coefficients split by the local share; month-1 base sets shares and "
       "exports; exports at base quantity x price ** (1 - sigma)",
-      _io_split_ok and _io_base_ok and _io_shares_ok and _io_dem_ok and sim.regional_market.local_share is None,
+      _io_split_ok and _io_base_ok and _io_half_ok and _io_shares_ok and _io_dem_ok and sim.regional_market.local_share is None,
       f"split {_io_split_ok}, base {_io_base_ok}, shares {_io_shares_ok}, exports {_io_dem_ok}\n"
       f"{_io_tab.round(3).to_string()}")
 # Government buys the import share outside, the rest locally, and records what it meant to spend
@@ -1758,6 +1770,23 @@ check("FIRM_PAYOUT 'national': firms end at their buffer, investment rate to the
       _po_paid > 0 and _po_at_buffer and _po_split and _po_cons1 and _po_cons2 and _po_spent > 0 and _po_entry,
       f"paid {_po_paid:.2f}, buffer {_po_at_buffer}, split {_po_split}, ledger {_po_cons1}/{_po_cons2}, "
       f"spent {_po_spent:.2f} of {_po_fund:.2f}, imports {_po_imp0 - sim.ledger['imports']:.2f}, entry {_po_entry}")
+
+# GOV_HEADCOUNT: 'rais' reads RAIS public jobs by employer's municipality, 'census' the residence-based file; both
+# restricted to the run's municipalities
+_gh_saved = sim.PARAMS.get('GOV_HEADCOUNT', 'rais')
+_gh_rais = sim.labor_market.process_gov_employees_year()
+sim.PARAMS['GOV_HEADCOUNT'] = 'census'
+_gh_census = sim.labor_market.process_gov_employees_year()
+sim.PARAMS['GOV_HEADCOUNT'] = _gh_saved
+_gh_file = pd.read_csv('input/gov_headcount_census.csv')
+_gh_muns = {int(str(c)[:6]) for c in sim.geo.mun_codes}
+_gh_ok = (set(_gh_census.codemun) <= _gh_muns and set(_gh_rais.codemun) <= _gh_muns
+          and np.isclose(_gh_census[_gh_census.ano == 2010].qtde_vinc_ativos.sum(),
+                         _gh_file[_gh_file.codemun.isin(_gh_muns) & (_gh_file.ano == 2010)].qtde_vinc_ativos.sum())
+          and _gh_census[_gh_census.ano == 2010].qtde_vinc_ativos.sum() > 0)
+check("GOV_HEADCOUNT: 'rais' and 'census' read their files for the run's municipalities", _gh_ok,
+      f"2010 rais {_gh_rais[_gh_rais.ano == 2010].qtde_vinc_ativos.sum():.0f}, "
+      f"census {_gh_census[_gh_census.ano == 2010].qtde_vinc_ativos.sum():.0f}")
 
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")
