@@ -298,7 +298,7 @@ class Funds:
         """
         builders = defaultdict(list)
         for firm in self.sim.firms.values():
-            if firm.sector == 'Construction':
+            if firm.sector == 'Construction' and not firm.own_account:
                 builders[firm.region_id[:6]].append(firm)
 
         for mun in policy_money.keys():
@@ -412,7 +412,7 @@ class Funds:
     def buy_houses_give_to_families(self, policy_money, diagnostics=None):
         houses_by_mun = defaultdict(list)
         for firm in self.sim.firms.values():
-            if firm.sector == 'Construction':
+            if firm.sector == 'Construction' and not firm.pool:
                 for h in firm.houses_for_sale:
                     houses_by_mun[h.region_id[:6]].append(h)
         # Families are sorted in self.policy_families. Buy and give as much as money allows
@@ -730,7 +730,7 @@ class Funds:
         rule = params.get('GOV_WAGE_RULE', 'uniform')
         bill, heads, quals = defaultdict(float), defaultdict(int), defaultdict(float)
         for f in self.sim.firms.values():
-            if f.sector != 'Government' and f.num_employees > 0 and f.wages_paid > 0:
+            if f.sector != 'Government' and not f.own_account and f.num_employees > 0 and f.wages_paid > 0:
                 bill[f.region_id[:7]] += f.wages_paid
                 heads[f.region_id[:7]] += f.num_employees
                 quals[f.region_id[:7]] += f.total_qualification(alpha)

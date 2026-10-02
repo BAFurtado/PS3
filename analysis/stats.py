@@ -121,7 +121,7 @@ class Statistics(object):
         stocked = self.price_index_stocked
         groups = ([], [])
         for firm in firms.values():
-            if firm.num_employees > 0:
+            if firm.num_employees > 0 and not firm.pool:
                 for item in firm.inventory.values():
                     if item.quantity > 0 or not stocked:
                         groups[firm.sector in tradables].append(item.price)
@@ -131,7 +131,7 @@ class Statistics(object):
         """Compute average price and inflation"""
         stocked = self.price_index_stocked
         prices = [item.price for firm in firms.values() for item in firm.inventory.values()
-                  if firm.num_employees > 0 and (item.quantity > 0 or not stocked)]
+                  if firm.num_employees > 0 and not firm.pool and (item.quantity > 0 or not stocked)]
 
         average_price = np.mean(prices) if prices else 0
 

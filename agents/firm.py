@@ -1,5 +1,6 @@
 import copy
 import datetime
+import itertools
 from collections import defaultdict
 from unicodedata import category
 
@@ -14,6 +15,19 @@ from .product import Product
 
 # PRODUCTION_PLAN 'sales' leaves these sectors at capacity output and their own staffing rules
 UNPLANNED_SECTORS = ('Construction', 'Government')
+
+
+# Vale-transporte: the employee's part of the public transport fare is capped at this share of the basic wage, the
+# employer pays the rest (Lei 7.418/1985, art. 4; Decreto 95.247/1987, art. 9)
+VT_WAGE_SHARE = 0.06
+
+
+def sample_firms(seed, firms, k, cum=None):
+    """OWN_ACCOUNT 'firms': k firms drawn with replacement in proportion to their staff (at least 1), so a buyer meets
+    a seller as often as the seller's workers. `cum`: the cumulative weights, when already built"""
+    if cum is None:
+        cum = list(itertools.accumulate(max(1, f.num_employees) for f in firms))
+    return seed.choices(firms, cum_weights=cum, k=k)
 
 
 def import_price(params):
@@ -64,6 +78,17 @@ class Firm:
     unmet_quantity = 0.0
     # Diagnostic: this month's sold and refused quantity by buyer type, {buyer: [sold, refused]}; reset with amount_sold
     demand_by_buyer = None
+    # OWN_ACCOUNT 'firms': a one-person firm run by its only worker (world/own_account.py)
+    own_account = False
+    # OWN_ACCOUNT 'pool': the own-account workers of a sector (world/own_account.py OwnAccountPool)
+    pool = False
+    owner = None
+    # Eco-efficiency investment this month (invest_eco_efficiency)
+    inno_inv = 0.0
+    # OWN_ACCOUNT 'firms': input purchases draw sellers in proportion to their staff
+    own_account_market = False
+    # VALE_TRANSPORTE: PUBLIC_TRANSIT_COST, the fare per commute unit; employers pay vale-transporte. None: they do not
+    vale_transporte = None
     # Share of capital advanced as revenue in a month without sales (FIRM_CAPITAL_MONTHS sets it to 1/months)
     cold_start_share = 0.001
     # Consecutive months insolvent / idle (FIRM_EXIT_MONTHS); set when the firm exits
@@ -287,7 +312,17 @@ class Firm:
         else:
             sector_map = prebuilt_sector_map
 
+        k = int(market_size)
+        input_cum = getattr(regional_market, 'input_cum', None) if prebuilt_sector_map is not None else None
         for sector in regional_market._sector_order:
+            if self.own_account_market and input_cum and input_cum.get(sector):
+                # Draw from the month's staff weights; the stocked sellers drawn, other than self, unless none
+                drawn = sample_firms(seed, sector_map[sector], 2 * k, input_cum[sector])
+                sampled_firms = [f for f in dict.fromkeys(drawn) if f.id != self.id and f.inventory[0].quantity > 0]
+                if sampled_firms:
+                    sampled_firms.sort(key=lambda f: f.inventory[0].price)
+                    chosen_firms[sector] = sampled_firms[:k]
+                    continue
             # Filter by positive inventory and exclude self; direct inventory[0].quantity
             # access avoids the property dispatch overhead on this hot path
             available_firms = [f for f in sector_map.get(sector, [])
@@ -297,7 +332,10 @@ class Firm:
                 chosen_firms[sector] = None
                 continue
 
-            sampled_firms = seed.sample(available_firms, min(len(available_firms), int(market_size)))
+            if self.own_account_market and len(available_firms) > int(market_size):
+                sampled_firms = list(dict.fromkeys(sample_firms(seed, available_firms, int(market_size))))
+            else:
+                sampled_firms = seed.sample(available_firms, min(len(available_firms), int(market_size)))
             sampled_firms.sort(key=lambda f: f.inventory[0].price)
             chosen_firms[sector] = sampled_firms[:int(market_size)]
 
@@ -374,6 +412,17 @@ class Firm:
             if money_local == 0 and money_external == 0:
                 continue
 
+            # OWN_ACCOUNT 'pool': the sector's own-account part of the local purchase
+            to_pool = 0.0
+            pools = getattr(regional_market, 'pools', None)
+            if pools is not None and money_local > 0:
+                pool, share = pools.payable(sector)
+                if pool is not None and share > 0 and pool is not self:
+                    to_pool = money_local * share
+                    pool.receive(to_pool, regional_market.sim.regions, params['TAX_CONSUMPTION'], self.region_id,
+                                 params['TAX_ON_ORIGIN'])
+                    money_local -= to_pool
+
             # Local purchases
             if firms_sector:
                 change = 0.0
@@ -409,11 +458,11 @@ class Firm:
 
             # Inventory + cost update
             self.input_inventory[sector] += (
-                    (money_local - change) / price +
+                    (money_local - change + to_pool) / price +
                     money_external / (ext_price * freight_cost)
             )
 
-            self.input_cost += money_local - change + money_external
+            self.input_cost += money_local - change + money_external + to_pool
 
     def update_product_quantity(self, prod_exponent, prod_divisor, regional_market, firms, seed,
                                prebuilt_sector_map=None, plan=None):
@@ -668,11 +717,15 @@ class Firm:
                     # Making payment according to employees' qualification.
                     # Deducing it from firms' balance
                     # Deduce LABOR TAXES from employees' salaries as a percentual of each salary
-                    wage = (
-                                   total_salary_paid
-                                   * (employee.qualification ** alpha)
-                                   / total_qualification
-                           ) * (1 - tax_labor)
+                    gross = total_salary_paid * (employee.qualification ** alpha) / total_qualification
+                    wage = gross * (1 - tax_labor)
+                    if Firm.vale_transporte is not None and not employee.has_car:
+                        # The employer's part of the fare the employee pays in Agent.pay_transport; not wage
+                        units = employee.distance if employee.commute_cost_units is None \
+                            else employee.commute_cost_units
+                        subsidy = max(0.0, units * Firm.vale_transporte - VT_WAGE_SHARE * gross)
+                        employee.money += subsidy
+                        self.total_balance -= subsidy
                     if tax_transport:
                         if self.num_employees > 10:
                             transport_tax = wage * tax_transport
@@ -1138,8 +1191,11 @@ class GovernmentFirm(Firm):
             if money_this_sector == 0:
                 continue
             sector_firms = [f for f in sim.firms.values() if f.sector == sector]
-            market = sim.seed.sample(sector_firms,
-                                     min(len(sector_firms), int(sim.PARAMS['SIZE_MARKET'])))
+            if sim.PARAMS.get('OWN_ACCOUNT', 'off') == 'firms' and len(sector_firms) > int(sim.PARAMS['SIZE_MARKET']):
+                market = sample_firms(sim.seed, sector_firms, int(sim.PARAMS['SIZE_MARKET']))
+            else:
+                market = sim.seed.sample(sector_firms,
+                                         min(len(sector_firms), int(sim.PARAMS['SIZE_MARKET'])))
             market = [firm for firm in market if firm.total_quantity > 0]
             if market:
                 chosen_firm = min(market, key=lambda firm: firm.prices)
@@ -1173,8 +1229,20 @@ class GovernmentFirm(Firm):
                 sim.external.intermediate_consumption(imported, freight)
                 total_consumption[sector] += imported
                 money_this_sector -= imported
+            pools = getattr(sim.regional_market, 'pools', None)
+            if pools is not None:
+                pool, share = pools.payable(sector)
+                if pool is not None and share > 0:
+                    paid = money_this_sector * share
+                    pool.receive(paid, sim.regions, sim.PARAMS['TAX_CONSUMPTION'], self.region_id,
+                                 sim.PARAMS['TAX_ON_ORIGIN'])
+                    total_consumption[sector] += paid
+                    money_this_sector -= paid
             sector_firms = [f for f in sim.firms.values() if f.sector == sector]
-            market = sim.seed.sample(sector_firms, min(len(sector_firms), int(sim.PARAMS['SIZE_MARKET'])))
+            if sim.PARAMS.get('OWN_ACCOUNT', 'off') == 'firms' and len(sector_firms) > int(sim.PARAMS['SIZE_MARKET']):
+                market = sample_firms(sim.seed, sector_firms, int(sim.PARAMS['SIZE_MARKET']))
+            else:
+                market = sim.seed.sample(sector_firms, min(len(sector_firms), int(sim.PARAMS['SIZE_MARKET'])))
             market = [firm for firm in market if firm.total_quantity > 0]
             if market:
                 chosen_firm = min(market, key=lambda firm: firm.prices)

@@ -206,6 +206,23 @@ FAMILY_WAGE = 'last'
 # only 'Male' takes male mortality, so agents generated at the start ('male') take female mortality and fertility.
 # 'lower': newborns 'male' / 'female' as generated; men take male mortality and no fertility.
 GENDER_LABELS = 'mixed'
+# Where immigration's per-municipality population targets act. 'acp': immigrants filling a municipality's shortfall
+# rent any vacant house in the ACP and a municipality's excess is removed from residents anywhere in the ACP.
+# 'municipal': both within the municipality.
+IMMIGRATION = 'acp'
+# Own-account work (world/own_account.py), the Census 2010 share of the employed of each education level at the start.
+# 'off': a resident without a firm job is unemployed. 'firms': own-account workers run one-person firms in their
+# sector, opened on the Harris-Todaro comparison of earnings with (1 - u) times the private wage and funded from family
+# savings; buyers draw sellers in proportion to their staff. 'pool': the own-account workers of a sector share its
+# own-account part of every purchase of it (Census 2010 own-account share of its work income x its labour share);
+# agents join and leave one at a time on the same comparison.
+OWN_ACCOUNT = 'off'
+# Vale-transporte (Lei 7.418/1985). True: employers pay each employee on public transport the fare above 6 % of the
+# gross wage. False: workers pay all their fare.
+VALE_TRANSPORTE = False
+# Education of a vacancy. 'off': none. 'census': each vacancy draws its level from the Census 2010 employees of its
+# sector in the run's municipalities and is filled from applicants of that level; it stays open if none applies.
+POSTING_EDUCATION = 'off'
 # Percentage of employees' firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter

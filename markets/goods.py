@@ -1,3 +1,4 @@
+import itertools
 import os
 
 import numpy as np
@@ -125,6 +126,12 @@ class RegionalMarket:
         self.monthly_hh_consumption = defaultdict(float)
         # Household money this month meant for each sector, served or not
         self.monthly_hh_intended = defaultdict(float)
+        # OWN_ACCOUNT 'firms': cumulative staff weights of each sector's stocked firms, for household purchases, and of
+        # all its firms, for input purchases
+        self.sector_cum = None
+        self.input_cum = None
+        # OWN_ACCOUNT 'pool': world.own_account.OwnAccountPools
+        self.pools = None
         self.monthly_gov_consumption = defaultdict(float)
         # Diagnostic: household money this month that found no firm of the sector with stock (Family.consume)
         self.household_no_stock = 0.0
@@ -182,6 +189,10 @@ class RegionalMarket:
             sector: [f for f in firms if f.inventory[0].quantity > 0]
             for sector, firms in sector_map.items()
         }
+        self.sector_cum = None
+        if self.sim.PARAMS.get('OWN_ACCOUNT', 'off') == 'firms':
+            self.sector_cum = {s: list(itertools.accumulate(max(1, f.num_employees) for f in fs))
+                               for s, fs in firms_by_sector.items()}
         seed_np = self.sim.seed_np
         for family in self.sim.families.values():
             consumption = family.consume(
@@ -214,8 +225,13 @@ class RegionalMarket:
             money = region.treasure['transport']
             if money <= 0:
                 continue
-            market = transport_firms if len(transport_firms) <= size_market else \
-                self.sim.seed.sample(transport_firms, size_market)
+            if len(transport_firms) <= size_market:
+                market = transport_firms
+            elif params.get('OWN_ACCOUNT', 'off') == 'firms':
+                from agents.firm import sample_firms
+                market = sample_firms(self.sim.seed, transport_firms, size_market)
+            else:
+                market = self.sim.seed.sample(transport_firms, size_market)
             firm = min(market, key=lambda f: f.inventory[0].price)
             self.monthly_fares += money
             change = firm.sale(money, self.sim.regions, params['TAX_CONSUMPTION'], region.id, self.if_origin)
@@ -256,8 +272,18 @@ class RegionalMarket:
             if imported > 0:
                 sim.external.intermediate_consumption(imported, freight)
                 money_this_sector -= imported
+            if getattr(self, 'pools', None) is not None:
+                pool, share = self.pools.payable(sector)
+                if pool is not None and share > 0:
+                    pool.receive(money_this_sector * share, sim.regions, params['TAX_CONSUMPTION'], pool.region_id,
+                                 True)
+                    money_this_sector -= money_this_sector * share
             sector_firms = [f for f in sim.firms.values() if f.sector == sector]
-            market = sim.seed.sample(sector_firms, min(len(sector_firms), int(params['SIZE_MARKET'])))
+            if params.get('OWN_ACCOUNT', 'off') == 'firms' and len(sector_firms) > int(params['SIZE_MARKET']):
+                from agents.firm import sample_firms
+                market = sample_firms(sim.seed, sector_firms, int(params['SIZE_MARKET']))
+            else:
+                market = sim.seed.sample(sector_firms, min(len(sector_firms), int(params['SIZE_MARKET'])))
             market = [f for f in market if f.total_quantity > 0]
             if market:
                 firm = min(market, key=lambda f: f.prices)
@@ -347,9 +373,14 @@ class External:
 
         for sector in self.sim.regional_market.technical_matrix.index:
             n_firms = len([f for f in firms.values() if (f.sector == sector)])
-            market = seed.sample(
-                [f for f in firms.values() if f.sector == sector],
-                min(n_firms, 3 * int(params['SIZE_MARKET'])))
+            if params.get('OWN_ACCOUNT', 'off') == 'firms' and n_firms > 3 * int(params['SIZE_MARKET']):
+                from agents.firm import sample_firms
+                market = list(dict.fromkeys(sample_firms(seed, [f for f in firms.values() if f.sector == sector],
+                                                         3 * int(params['SIZE_MARKET']))))
+            else:
+                market = seed.sample(
+                    [f for f in firms.values() if f.sector == sector],
+                    min(n_firms, 3 * int(params['SIZE_MARKET'])))
             market = [firm for firm in market if firm.total_quantity > 0]
             # Choose 10 firms with the cheapest prices. None when no firm of the sector has stock, so its exports are
             # not sold by the previous sector's firms (#29)
@@ -564,14 +595,23 @@ class External:
         recycle = self.recycle_pending if (share > 0 and total_demand > 0) else 0.0
 
         exported, recycled = 0.0, 0.0
+        pools = getattr(self.sim.regional_market, 'pools', None)
         for sector, amount in demand.items():
             # Sticking to a SINGLE product for firm
             extra = recycle * amount / total_demand if recycle else 0.0
             sold = 0.0
+            rest = amount + extra
+            if pools is not None:
+                # OWN_ACCOUNT 'pool': the sector's own-account part
+                pool, pshare = pools.payable(sector)
+                if pool is not None and pshare > 0:
+                    sold = rest * pshare
+                    pool.receive(sold, self.sim.regions, self.sim.PARAMS['TAX_CONSUMPTION'], pool.region_id,
+                                 self.sim.PARAMS['TAX_ON_ORIGIN'], external=True)
+                    rest -= sold
             # Buys from firms
             for firm, weight in chosen_firms[sector]:
-                amount_per_firm = (amount + extra) / len(chosen_firms[sector]) if weight is None \
-                    else (amount + extra) * weight
+                amount_per_firm = rest / len(chosen_firms[sector]) if weight is None else rest * weight
                 sold += amount_per_firm - firm.sale(amount_per_firm,
                                                     self.sim.regions,
                                                     self.sim.PARAMS['TAX_CONSUMPTION'],

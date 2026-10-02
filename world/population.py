@@ -95,6 +95,8 @@ def immigration(sim):
     year = str(sim.clock.year)
     pop_pct = sim.PARAMS['PERCENTAGE_ACTUAL_POP']
     number_new_families = 0
+    # IMMIGRATION 'municipal': each municipality's shortfall is housed, and its excess removed, within it
+    municipal = sim.PARAMS.get('IMMIGRATION', 'acp') == 'municipal'
 
     for mun_code, pop in list(sim.mun_pops.items()):
         estimated_pop = pop_estimates.at[str(mun_code), year]
@@ -140,7 +142,13 @@ def immigration(sim):
 
             # Some might have tried to buy houses but failed, pass them directly to the rental market
             homeless = [f for f in families if f.house is None]
-            sim.housing.rental.rental_market(homeless, sim)
+            if municipal:
+                # Only the vacant houses of the municipality whose shortfall they fill
+                vacant = [h for h in sim.houses.values()
+                          if h.family_id is None and h.family_owner and h.region_id[:7] == mun_code]
+                sim.housing.rental.rental_market(homeless, sim, to_rent=vacant)
+            else:
+                sim.housing.rental.rental_market(homeless, sim)
 
             # Only keep families that have houses
             families = [f for f in families if f.house is not None]
@@ -159,8 +167,11 @@ def immigration(sim):
         elif pop > estimated_pop:
             # Delete families
             on_the_roof = pop - int(estimated_pop)
-            # Select agents to be removed
-            agents_to_remove = list(sim.seed_np.choice(list(sim.agents.values()), replace=False, size=on_the_roof))
+            # Select agents to be removed: under 'municipal' among the municipality's residents, else among all
+            pool = list(sim.agents.values())
+            if municipal:
+                pool = [a for a in pool if a.family.region_id[:7] == mun_code]
+            agents_to_remove = list(sim.seed_np.choice(pool, replace=False, size=min(on_the_roof, len(pool))))
             while agents_to_remove:
                 terminal = agents_to_remove.pop()
                 sim.demographics.die(sim, terminal)

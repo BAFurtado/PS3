@@ -1,4 +1,5 @@
 import itertools
+from collections import defaultdict
 from math import ceil
 
 import numpy as np
@@ -202,9 +203,21 @@ class LaborMarket:
         wages = [w for _, w in lst_firms]
         wage_min, wage_max = min(wages), max(wages)
 
+        education = self.sim.posting_education
+        if education is not None:
+            from world.own_account import level
+            by_level = defaultdict(list)
+            for c in candidates:
+                by_level[level(c)].append(c)
         for firm, wage in lst_firms:
-            sampled_candidates = self.seed.sample(candidates,
-                                                  min(len(candidates), int(params['HIRING_SAMPLE_SIZE'])))
+            pool = candidates
+            if education is not None:
+                # POSTING_EDUCATION 'census': the vacancy's level, from its sector's employees; open if none applies
+                levels, p = education.get(firm.sector, education[None])
+                pool = by_level.get(levels[self.seed_np.choice(len(levels), p=p)])
+                if not pool:
+                    continue
+            sampled_candidates = self.seed.sample(pool, min(len(pool), int(params['HIRING_SAMPLE_SIZE'])))
             scores = self.compute_scores_cobb_douglas_vectorized(
                 sampled_candidates, firm, wage,
                 qual_min, qual_max, dist_max, wage_min, wage_max,
@@ -281,6 +294,8 @@ class LaborMarket:
         random_value = self.seed_np.random(size=len(firms.values()))
         n_fired = 0
         for i, firm in enumerate(firms.values()):
+            if firm.own_account:
+                continue
             # `firm_enter_freq` is the frequency firms enter the market
             if random_value[i] < firm_enter_freq:
                 fired_before = n_fired

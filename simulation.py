@@ -1,5 +1,6 @@
 import copy
 import datetime
+import itertools
 import json
 import math
 import os
@@ -24,6 +25,7 @@ from agents.firm import Firm, UNPLANNED_SECTORS, import_parity
 from world.transport import TransportNetwork
 from world.participation import Participation
 from world.social_transfers import SocialTransfers
+from world.own_account import OwnAccount, OwnAccountPools, posting_education
 from markets.goods import RegionalMarket, External
 
 
@@ -98,6 +100,10 @@ class Simulation:
         self.participation = None
         # SOCIAL_TRANSFERS 'data': federal benefits paid to residents (world/social_transfers.py)
         self.social_transfers = None
+        # OWN_ACCOUNT: own-account work (world/own_account.py)
+        self.own_account = None
+        # POSTING_EDUCATION 'census': {sector (None: all): (levels, probabilities)} of a vacancy's education
+        self.posting_education = None
         # Read necessary files — loaded as dicts for fast O(1) lookup in demographics
         self.m_men, self.m_women, self.f = dict(), dict(), dict()
 
@@ -277,8 +283,24 @@ class Simulation:
             self.social_transfers = SocialTransfers(self.mun_to_regions, self.PARAMS['REAIS_PER_MONEY_UNIT'])
         if self.PARAMS.get('FIRM_PAYOUT', 'none') == 'national':
             self.investment_rate = float(pd.read_csv('input/investment_rate_2015.csv', sep=';').investment_rate.iloc[0])
+        Firm.own_account_market = self.PARAMS.get('OWN_ACCOUNT', 'off') == 'firms'
+        Firm.vale_transporte = self.PARAMS['PUBLIC_TRANSIT_COST'] if self.PARAMS.get('VALE_TRANSPORTE', False) else None
+        if self.PARAMS.get('POSTING_EDUCATION', 'off') == 'census':
+            self.posting_education = posting_education(self.mun_to_regions)
+        if Firm.own_account_market:
+            self.own_account = OwnAccount(self)
+        elif self.PARAMS.get('OWN_ACCOUNT', 'off') == 'pool':
+            self.own_account = OwnAccountPools(self)
+            self.regional_market.pools = self.own_account
         Firm.wage_shares = (pd.read_csv('input/firm_income_2015.csv', sep=';').set_index('sector').wage_share.to_dict()
                             if self.PARAMS.get('WAGE_SHARE', 'unemployment') == 'tru' else None)
+        if Firm.wage_shares is not None and isinstance(self.own_account, OwnAccountPools):
+            # The pool's share of value added is no longer firms'
+            Firm.wage_shares = self.own_account.firm_wage_shares(Firm.wage_shares)
+        elif Firm.wage_shares is not None and self.own_account is not None:
+            # Own-account income is no longer part of firms' value added
+            Firm.wage_shares = pd.read_csv('input/own_account_productivity_2010.csv', sep=';').set_index(
+                'sector').wage_share_firms.to_dict()
 
         # First jobs allocated
         # Create an existing job market
@@ -288,6 +310,10 @@ class Simulation:
         # Share of those aged 17-69 left without a job (INITIAL_EMPLOYMENT)
         target = self.initial_nonemployment()
         census = self.PARAMS.get('INITIAL_EMPLOYMENT', 'legacy') == 'census'
+        if self.own_account is not None:
+            self.own_account.start(self.labor_market.candidates, target)
+            self.labor_market.candidates = [c for c in self.labor_market.candidates if c.firm_id is None]
+            actual = self.labor_market.num_candidates
         while actual / total > target:
             # Government is staffed to its RAIS headcount by gov_hire_fire, not by one post per firm:
             # otherwise it takes start-up hires in proportion to its firm count, and sheds the excess in month 1.
@@ -398,6 +424,10 @@ class Simulation:
         sector_firm_map = {}
         for f in self.firms.values():
             sector_firm_map.setdefault(f.sector, []).append(f)
+        if Firm.own_account_market:
+            # Staff weights of each sector's sellers this month, for input purchases (Firm.choose_firm_per_sector)
+            self.regional_market.input_cum = {s: list(itertools.accumulate(max(1, f.num_employees) for f in fs))
+                                              for s, fs in sector_firm_map.items()}
         # PRODUCTION_PLAN 'sales': private firms other than builders produce for last month's demand plus the stock
         # target; builders plan on the house pipeline and Government's headcount is set by its budget
         planning = self.PARAMS.get('PRODUCTION_PLAN', 'capacity') == 'sales'
@@ -408,7 +438,7 @@ class Simulation:
                                          self.firms,
                                          self.seed,
                                          sector_firm_map,
-                                         plan if firm.sector not in UNPLANNED_SECTORS else None)
+                                         plan if firm.sector not in UNPLANNED_SECTORS or firm.own_account else None)
 
         # Call demographics
         # Update agent life cycles
@@ -531,7 +561,7 @@ class Simulation:
                 demand_signal_unmet,
                 0.0 if tradable else price_demand_response,
                 parity_ceiling[firm.sector] if tradable else None,
-                plan if firm.sector not in UNPLANNED_SECTORS else None,
+                plan if firm.sector not in UNPLANNED_SECTORS or firm.own_account else None,
             )
             firm.invest_eco_efficiency(
                 self.regional_market,
@@ -551,7 +581,7 @@ class Simulation:
             vacancy = self.stats.vacancy_rate
         else:
             vacancy = .1
-        construction_firms = [f for f in self.firms.values() if f.sector == 'Construction']
+        construction_firms = [f for f in self.firms.values() if f.sector == 'Construction' and not f.own_account]
 
         for firm in construction_firms:
             # See if firm can build a house
@@ -594,13 +624,16 @@ class Simulation:
         del agent_values
         wage_deciles = np.percentile(last_wages, np.arange(10, 101, 10))
         self.labor_market.assign_post(current_unemployment, wage_deciles, self.PARAMS)
+        if self.own_account is not None:
+            self.own_account.monthly(current_unemployment)
 
         # Natural job separation: workers quit/reach contract end at an exogenous monthly rate.
         # Runs after matching so separated workers miss this month's pool and must wait
         # until next month — creating a minimum one-month unemployment spell per separation.
         sep_rate = self.PARAMS.get('NATURAL_SEPARATION_RATE', 0.0)
         if sep_rate > 0:
-            eligible = [a for a in self.agents.values() if a.firm_id is not None and 16 < a.age < 70]
+            eligible = [a for a in self.agents.values() if a.firm_id is not None and 16 < a.age < 70
+                        and not self.firms[a.firm_id].own_account]
             to_separate = [a for a, s in zip(eligible, self.seed_np.random(len(eligible)) < sep_rate) if s]
             for agent in to_separate:
                 firm = self.firms.get(agent.firm_id)

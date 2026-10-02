@@ -1839,6 +1839,146 @@ check("GENDER_LABELS: 'lower' gives generated men male mortality, no fertility, 
       _gl_out['lower'] == ([_gl_man.id], [_gl_woman.id], True)
       and _gl_out['mixed'] == ([], [_gl_man.id, _gl_woman.id], False), f"{_gl_out}")
 
+# IMMIGRATION 'municipal': a municipality's immigrants are offered only its vacant houses and its excess is removed
+# from its residents; under 'acp' they are offered every vacant house
+import world.population as _pp
+_im_param, _im_est, _im_pops = sim.PARAMS.get('IMMIGRATION', 'acp'), _pp.pop_estimates, sim.mun_pops
+_im_m = min(_im_pops, key=_im_pops.get)
+_im_pct, _im_y = sim.PARAMS['PERCENTAGE_ACTUAL_POP'], str(sim.clock.year)
+_im_rm = sim.housing.rental.rental_market
+_im_offered = []
+sim.housing.rental.rental_market = lambda fams, s, to_rent=None: _im_offered.append(
+    None if to_rent is None else {h.region_id[:7] for h in to_rent})
+_im_out = {}
+for _im_mode, _im_delta in (('acp', 120), ('municipal', 120), ('municipal', -5)):
+    sim.PARAMS['IMMIGRATION'] = _im_mode
+    _pp.pop_estimates = _im_est.copy()
+    _pp.pop_estimates.at[_im_m, _im_y] = (_im_pops[_im_m] + _im_delta) / _im_pct
+    sim.mun_pops = defaultdict(int, {_im_m: _im_pops[_im_m]})
+    _im_before = {i: a.family.region_id[:7] for i, a in sim.agents.items()}
+    _pp.immigration(sim)
+    _im_gone = [m for i, m in _im_before.items() if i not in sim.agents]
+    _im_out[(_im_mode, _im_delta)] = (_im_offered.pop() if _im_offered else 'none', len(_im_gone),
+                                      set(_im_gone) <= {_im_m})
+    _im_pops[_im_m] = sim.mun_pops[_im_m]
+sim.housing.rental.rental_market = _im_rm
+_pp.pop_estimates, sim.mun_pops = _im_est, _im_pops
+sim.PARAMS['IMMIGRATION'] = _im_param
+check("IMMIGRATION: 'municipal' offers immigrants the municipality's vacant houses only and removes its excess from its "
+      "residents; 'acp' offers every vacant house",
+      _im_out[('acp', 120)][0] is None and _im_out[('municipal', 120)][0] in (set(), {_im_m})
+      and _im_out[('municipal', -5)][1] >= 5 and _im_out[('municipal', -5)][2], f"{_im_m}: {_im_out}")
+
+# OWN_ACCOUNT 'firms': start-up own-account firms at the Census share of each level, one owner each, out of the house
+# pipeline and of hiring; the owner takes the cash above the buffer; a closed firm's cash goes to the owner's family
+from world.own_account import OwnAccount, level as _oa_level
+from world.firms import pay_out_national as _oa_pay, own_account_need as _oa_need
+_oa_param = sim.PARAMS.get('OWN_ACCOUNT', 'off')
+sim.PARAMS['OWN_ACCOUNT'] = 'firms'
+_oa = OwnAccount(sim)
+_oa_pool = [a for a in sim.agents.values() if a.firm_id is None and 16 < a.age < 70 and a.family is not None
+            and a.family.house is not None]
+_oa_by_level = defaultdict(int)
+for _a in _oa_pool:
+    _oa_by_level[_oa_level(_a)] += 1
+_oa_before = set(sim.firms)
+_oa.start(_oa_pool, 0.1)
+_oa_new = [f for i, f in sim.firms.items() if i not in _oa_before]
+_oa_count = defaultdict(int)
+for _f in _oa_new:
+    _oa_count[_oa_level(_f.owner)] += 1
+_oa_expected = {lv: int(round(_oa.share[lv] * 0.9 * n)) for lv, n in _oa_by_level.items()}
+_oa_ok_start = (dict(_oa_count) == {lv: n for lv, n in _oa_expected.items() if n > 0}
+                and all(f.own_account and list(f.employees.values()) == [f.owner] and f.owner.firm_id == f.id
+                        and f.region_id == f.owner.family.house.region_id and f.total_quantity == 0 for f in _oa_new))
+_oa_lm = sim.labor_market
+_oa_lm.available_postings = []
+_oa_lm.hire_fire({f.id: f for f in _oa_new}, 1.0)
+_oa_ok_hire = not _oa_lm.available_postings and all(f.num_employees == 1 for f in _oa_new)
+_oa_f = _oa_new[0]
+_pe, _pd = sim.PARAMS['PRODUCTIVITY_EXPONENT'], sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR']
+_oa_buffer = _oa_need(sim, _oa_f.capacity_value(_pe, _pd))
+_oa_f.total_balance = _oa_buffer + 10.0
+_oa_money = _oa_f.owner.money
+_oa_rate = getattr(sim, 'investment_rate', 0.0)
+sim.investment_rate = 0.0
+_oa_out = sim.ledger['profits_out']
+_oa_pay(sim)
+sim.investment_rate = _oa_rate
+_oa_ok_pay = (abs(_oa_f.owner.money - _oa_money - 10.0) < 1e-9 and abs(_oa_f.total_balance - _oa_buffer) < 1e-9
+              and abs(_oa_f.owner.last_profit_share - 10.0) < 1e-9)
+sim.ledger['profits_out'] = _oa_out
+_oa_owner, _oa_fam = _oa_f.owner, _oa_f.owner.family
+_oa_f.total_balance = 7.0
+_oa_sav = _oa_fam.savings
+_oa.close(_oa_f)
+_oa_ok_close = (abs(_oa_fam.savings - _oa_sav - 7.0) < 1e-9 and _oa_owner.firm_id is None and _oa_f.id not in sim.firms)
+for _f in _oa_new[1:]:
+    _f.total_balance = 0.0
+    _oa.close(_f)
+sim.PARAMS['OWN_ACCOUNT'] = _oa_param
+check("OWN_ACCOUNT 'firms': start-up share by level, one owner per firm, no posts, owner paid above the buffer, cash "
+      "back to the family on closing",
+      _oa_ok_start and _oa_ok_hire and _oa_ok_pay and _oa_ok_close,
+      f"start {_oa_ok_start} {dict(_oa_count)} vs {_oa_expected}, hire {_oa_ok_hire}, pay {_oa_ok_pay}, "
+      f"close {_oa_ok_close}")
+
+# VALE_TRANSPORTE: the employer pays a transit commuter the fare above 6 % of the gross wage, a car owner nothing
+from agents.firm import Firm as _VTFirm, VT_WAGE_SHARE as _vt_share
+_vt_firm = next(f for f in sim.firms.values() if f.sector not in ('Government', 'Construction') and not f.own_account
+                and f.num_employees >= 2)
+_vt_a, _vt_b = list(_vt_firm.employees.values())[:2]
+_vt_keep = [(a, a.has_car, a.commute_cost_units, a.money) for a in (_vt_a, _vt_b)]
+_vt_a.has_car, _vt_b.has_car = False, True
+_vt_a.commute_cost_units = _vt_b.commute_cost_units = 1e6
+_vt_old = _VTFirm.vale_transporte
+_vt_fare = sim.PARAMS['PUBLIC_TRANSIT_COST']
+_vt_bal = _vt_firm.total_balance = 1e9
+_vt_firm.revenue = max(_vt_firm.revenue, 100.0)
+_vt_money = {a: a.money for a in (_vt_a, _vt_b)}
+_VTFirm.vale_transporte = _vt_fare
+_vt_firm.make_payment(sim.regions, 0.1, sim.PARAMS['PRODUCTIVITY_EXPONENT'], sim.PARAMS['TAX_LABOR'], 0.0)
+_vt_tax = sim.PARAMS['TAX_LABOR']
+_vt_gross_a = _vt_a.wage_paid / (1 - _vt_tax)
+_vt_sub_a = max(0.0, 1e6 * _vt_fare - _vt_share * _vt_gross_a)
+_vt_ok_pay = (abs(_vt_a.money - _vt_money[_vt_a] - _vt_a.wage_paid - _vt_sub_a) < 1e-6
+              and abs(_vt_b.money - _vt_money[_vt_b] - _vt_b.wage_paid) < 1e-6
+              and abs(_vt_bal - _vt_firm.total_balance - _vt_firm.wages_paid - _vt_sub_a) < 1e-3)
+_VTFirm.vale_transporte = _vt_old
+for _a, _car, _units, _m in _vt_keep:
+    _a.has_car, _a.commute_cost_units, _a.money = _car, _units, _m
+check("VALE_TRANSPORTE: transit commuter paid the fare above 6 % of the gross wage, car owner nothing, firm pays it",
+      _vt_ok_pay and _vt_sub_a > 0, f"pay {_vt_ok_pay} sub {_vt_sub_a:.3g}")
+
+# POSTING_EDUCATION 'census': a vacancy is filled only from applicants of its drawn level
+from world.own_account import level as _pe_level, posting_education as _pe_mix
+_pe_lm = sim.labor_market
+_pe_firm = next(f for f in sim.firms.values() if f.sector == 'Trade' and not f.own_account)
+_pe_jobless = [a for a in sim.agents.values() if a.firm_id is None and 16 < a.age < 70 and a.family is not None
+               and a.family.house is not None]
+for _a in _pe_jobless:
+    _a.has_car = False
+_pe_low = [a for a in _pe_jobless if _pe_level(a) == 1][:5]
+_pe_high = [a for a in _pe_jobless if _pe_level(a) == 4][:5]
+_pe_old = sim.posting_education
+sim.posting_education = {None: ([1], np.array([1.0]))}
+_pe_lm.candidates = _pe_low + _pe_high
+_pe_lm.matching_firm_offers([(_pe_firm, 1.0)], sim.PARAMS)
+_pe_hired = [a for a in _pe_low + _pe_high if a.firm_id == _pe_firm.id]
+for _a in _pe_hired:
+    _pe_firm.obit(_a)
+    _a.firm_id = None
+_pe_lm.candidates = list(_pe_high)
+_pe_lm.matching_firm_offers([(_pe_firm, 1.0)], sim.PARAMS)
+_pe_none = [a for a in _pe_high if a.firm_id == _pe_firm.id]
+sim.posting_education = _pe_old
+_pe_lm.candidates = []
+_pe_census = _pe_mix(sim.mun_to_regions)
+check("POSTING_EDUCATION 'census': vacancy filled from its level only, open when none applies; mixes sum to 1",
+      len(_pe_hired) == 1 and _pe_level(_pe_hired[0]) == 1 and not _pe_none and None in _pe_census
+      and all(abs(p.sum() - 1) < 1e-9 for _, p in _pe_census.values()),
+      f"hired {[_pe_level(a) for a in _pe_hired]}, none-level hires {len(_pe_none)}")
+
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")
 print(f"Results: {PASS} PASS  |  {FAIL} FAIL  |  {PASS + FAIL} total")

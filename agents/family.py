@@ -3,7 +3,7 @@ import datetime
 import numpy as np
 from collections import defaultdict, deque
 
-from .firm import import_price as firm_import_price
+from .firm import import_price as firm_import_price, sample_firms
 
 
 class Family:
@@ -355,6 +355,17 @@ class Family:
                 total_consumption[sector] += imported
                 money_this_sector -= imported
 
+            pools = getattr(regional_market, 'pools', None)
+            if pools is not None:
+                # OWN_ACCOUNT 'pool': the sector's own-account part
+                pool, share = pools.payable(sector)
+                if pool is not None and share > 0:
+                    paid = money_this_sector * share
+                    pool.receive(paid, regions, tax_consumption, self.region_id, if_origin)
+                    avg_utility += paid
+                    total_consumption[sector] += paid
+                    money_this_sector -= paid
+
             sector_firms = firms_by_sector.get(sector)
             if not sector_firms:
                 regional_market.household_no_stock += money_this_sector
@@ -372,6 +383,8 @@ class Family:
 
             if n_firms <= size_market:
                 market = sector_firms
+            elif getattr(regional_market, 'sector_cum', None) is not None:
+                market = sample_firms(seed, sector_firms, size_market, regional_market.sector_cum[sector])
             else:
                 market = seed.sample(sector_firms, size_market)
 
