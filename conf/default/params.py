@@ -210,6 +210,13 @@ GENDER_LABELS = 'mixed'
 # rent any vacant house in the ACP and a municipality's excess is removed from residents anywhere in the ACP.
 # 'municipal': both within the municipality.
 IMMIGRATION = 'acp'
+# Population each municipality's immigration and emigration steer to. 'projection': the yearly estimate in
+# input/Demografia/4_Pop_Estimatives_Munic at the run's scale. 'census': its population at the start grown at its
+# yearly rate between the 2010 and 2022 Censuses (input/census_population_2010_2022.csv).
+POP_TARGET = 'projection'
+# Agents per area at the start. 'nearest': each area x sex x age cell of the Census rounded to the nearest agent.
+# 'remainder': the area's total rounded once and its cells filled by largest remainder.
+POP_ROUNDING = 'nearest'
 # Own-account work (world/own_account.py), the Census 2010 share of the employed of each education level at the start.
 # 'off': a resident without a firm job is unemployed. 'firms': own-account workers run one-person firms in their
 # sector, opened on the Harris-Todaro comparison of earnings with (1 - u) times the private wage and funded from family
@@ -517,6 +524,9 @@ TAXES_STRUCTURE = {"consumption_equal": 0.1875, "fpm": 0.235}
 CB_QUALIFICATION = .35
 CB_COMMUTING = .2
 
+# Wage deciles that place job candidates in WAGE_TO_CAR_OWNERSHIP_QUANTILES, from a half sample of agents.
+# 'all': every sampled agent's last wage, zero included. 'employed': sampled agents in a job with a positive wage.
+CAR_DECILES = 'all'
 WAGE_TO_CAR_OWNERSHIP_QUANTILES = [
     0.1174,
     0.1429,

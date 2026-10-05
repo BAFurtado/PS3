@@ -6,6 +6,14 @@ import numpy as np
 import pandas as pd
 
 
+
+def car_wage_deciles(sample, employed):
+    """Wage deciles of a sample of agents for WAGE_TO_CAR_OWNERSHIP_QUANTILES: every known last wage, or under
+    CAR_DECILES 'employed' only those of agents in a job with a positive wage."""
+    wages = [a.last_wage for a in sample
+             if a.last_wage is not None and (not employed or (a.firm_id is not None and a.last_wage > 0))]
+    return np.percentile(wages, np.arange(10, 101, 10))
+
 class LaborMarket:
     """
     This class makes the match among firms and prospective candidates.

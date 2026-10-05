@@ -1869,6 +1869,53 @@ check("IMMIGRATION: 'municipal' offers immigrants the municipality's vacant hous
       _im_out[('acp', 120)][0] is None and _im_out[('municipal', 120)][0] in (set(), {_im_m})
       and _im_out[('municipal', -5)][1] >= 5 and _im_out[('municipal', -5)][2], f"{_im_m}: {_im_out}")
 
+# POP_TARGET 'census': the start population grown at the 2010-2022 Census rate; 'projection' is the estimate file
+_pt_param, _pt_days = sim.PARAMS.get('POP_TARGET', 'projection'), sim.clock.days
+_pt_m = max(sim.mun_pops, key=sim.mun_pops.get)
+_pt_c = pd.read_csv(_pp.CENSUS_POPULATION, sep=';', index_col='cod_mun').loc[int(_pt_m)]
+sim.pop_start, sim.pop_growth = {_pt_m: 1000}, _pp.census_growth([_pt_m])
+sim.PARAMS['POP_TARGET'] = 'census'
+sim.clock.days = sim.PARAMS['STARTING_DAY']
+_pt_0 = _pp.target_population(sim, _pt_m)
+sim.clock.days = sim.PARAMS['STARTING_DAY'] + _dt.timedelta(days=round(12 * 365.25))
+_pt_12 = _pp.target_population(sim, _pt_m)
+sim.PARAMS['POP_TARGET'] = 'projection'
+_pt_proj = (_pp.target_population(sim, _pt_m),
+            _pp.pop_estimates.at[_pt_m, str(sim.clock.year)] * sim.PARAMS['PERCENTAGE_ACTUAL_POP'])
+sim.PARAMS['POP_TARGET'], sim.clock.days = _pt_param, _pt_days
+check("POP_TARGET: 'census' starts at the start population and reaches it x Census 2022 / 2010 after 12 years; "
+      "'projection' reads the estimate file",
+      abs(_pt_0 - 1000) < 1e-9 and abs(_pt_12 / 1000 - _pt_c.pop_2022 / _pt_c.pop_2010) < 1e-6
+      and _pt_proj[0] == _pt_proj[1],
+      f"{_pt_m}: {_pt_0}, {_pt_12}, {_pt_proj}")
+
+# POP_ROUNDING 'remainder': a region's agents add up to its Census total at the run's scale, each cell its exact value
+# rounded down or up
+_pr_r = next(iter(sim.regions))
+_pr_pct = sim.PARAMS['PERCENTAGE_ACTUAL_POP']
+_pr_c = _pp.region_counts(sim.pops, _pr_r, _pr_pct)
+_pr_exact = {}
+for _pr_g in ('male', 'female'):
+    _pr_m = sim.pops[_pr_g][sim.pops[_pr_g]['code'] == str(_pr_r)]
+    if _pr_m.empty:
+        _pr_m = sim.pops[_pr_g][sim.pops[_pr_g]['code'] == str(_pr_r)[:7]]
+    for _pr_a in range(101):
+        _pr_col = _pr_a if _pr_a in _pr_m.columns else str(_pr_a)
+        _pr_exact[(_pr_g, _pr_a)] = float(_pr_m[_pr_col].iloc[0]) * _pr_pct
+_pr_near = sum(_pp.pop_age_data(sim.pops[g], _pr_r, a, _pr_pct) for g, a in _pr_exact)
+check("POP_ROUNDING: 'remainder' keeps a region's total and rounds each cell down or up",
+      sum(_pr_c.values()) == round(sum(_pr_exact.values()))
+      and all(int(v) <= _pr_c[k] <= int(v) + 1 for k, v in _pr_exact.items()),
+      f"{_pr_r}: remainder {sum(_pr_c.values())}, exact {sum(_pr_exact.values()):.1f}, nearest {_pr_near}")
+
+# CAR_DECILES 'employed': car-ownership wage deciles leave out agents without a job or a wage
+from types import SimpleNamespace as _cd_ns
+from markets.labor import car_wage_deciles as _cd
+_cd_s = [_cd_ns(last_wage=0, firm_id=None)] * 50 + [_cd_ns(last_wage=w, firm_id=1) for w in range(1, 51)]
+_cd_all, _cd_emp = _cd(_cd_s, False), _cd(_cd_s, True)
+check("CAR_DECILES: 'employed' takes deciles over paid workers only; 'all' counts the unpaid as zero",
+      _cd_all[0] == 0 and _cd_emp[0] > 5 and _cd_emp[-1] == 50, f"all {_cd_all[:3]}, employed {_cd_emp[:3]}")
+
 # OWN_ACCOUNT 'firms': start-up own-account firms at the Census share of each level, one owner each, out of the house
 # pipeline and of hiring; the owner takes the cash above the buffer; a closed firm's cash goes to the owner's family
 from world.own_account import OwnAccount, level as _oa_level

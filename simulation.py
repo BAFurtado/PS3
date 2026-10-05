@@ -27,6 +27,7 @@ from world.participation import Participation
 from world.social_transfers import SocialTransfers
 from world.own_account import OwnAccount, OwnAccountPools, posting_education
 from markets.goods import RegionalMarket, External
+from markets.labor import car_wage_deciles
 
 
 def apply_closure(params):
@@ -267,6 +268,10 @@ class Simulation:
         if self.transport.matrix is not None:
             self.transport.check_coverage(self.regions.keys())
             self.transport.calibrate_cost(self.regions, self.reg_pops)
+
+        if self.PARAMS.get('POP_TARGET', 'projection') == 'census':
+            self.pop_start = dict(self.mun_pops)
+            self.pop_growth = population.census_growth(self.pop_start)
 
         # Group regions into their municipalities
         for region_id in self.regions.keys():
@@ -619,10 +624,9 @@ class Simulation:
         # Sample used only to calculate wage deciles
         agent_values = list(self.agents.values())
         sample_size = math.floor(len(agent_values) * 0.5)
-        last_wages = [a.last_wage for a in self.seed.sample(agent_values, sample_size)
-                      if a.last_wage is not None]
+        wage_deciles = car_wage_deciles(self.seed.sample(agent_values, sample_size),
+                                        self.PARAMS.get('CAR_DECILES', 'all') == 'employed')
         del agent_values
-        wage_deciles = np.percentile(last_wages, np.arange(10, 101, 10))
         self.labor_market.assign_post(current_unemployment, wage_deciles, self.PARAMS)
         if self.own_account is not None:
             self.own_account.monthly(current_unemployment)

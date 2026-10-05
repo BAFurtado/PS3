@@ -27,6 +27,24 @@ def pop_age_data(pop, code, age, percent_pop):
     return rounded
 
 
+def region_counts(pops, code, percent_pop):
+    """POP_ROUNDING 'remainder': agents per (gender, age) in a region, its total rounded once and the cells filled
+    by largest remainder, so no cell is lost to rounding."""
+    exact = {}
+    for gender in ('male', 'female'):
+        match = pops[gender][pops[gender]['code'] == str(code)]
+        if match.empty:
+            match = pops[gender][pops[gender]['code'] == str(code)[:7]]
+        for age in range(101):
+            col = age if age in match.columns else str(age)
+            exact[(gender, age)] = float(match[col].iloc[0]) * percent_pop if not match.empty else 0.0
+    counts = {k: int(np.floor(v)) for k, v in exact.items()}
+    left = int(round(sum(exact.values()))) - sum(counts.values())
+    for k in sorted(exact, key=lambda k: exact[k] - counts[k], reverse=True)[:max(left, 0)]:
+        counts[k] += 1
+    return counts
+
+
 def load_pops(mun_codes, params, year):
     """Load populations for specified municipal codes."""
     ap_pops = pd.read_csv(f'input/num_people_age_gender_AP_{year}.csv', sep=';')
@@ -88,19 +106,38 @@ pop_estimates = pd.read_csv('input/Demografia/4_Pop_Estimatives_Munic'
                             '/pop_total_munic_estimates_cedeplar_2000_2050.csv',
                             dtype={'year': str, 'mun_code': str}).set_index('mun_code')
 marriage_data = MarriageData()
+CENSUS_POPULATION = 'input/census_population_2010_2022.csv'
+
+
+def census_growth(mun_codes):
+    """Yearly growth factor of each municipality between the 2010 and 2022 Censuses; 1 where either is missing."""
+    census = pd.read_csv(CENSUS_POPULATION, sep=';', index_col='cod_mun')
+    growth = {}
+    for code in mun_codes:
+        row = census.loc[int(code)] if int(code) in census.index else None
+        growth[code] = (row.pop_2022 / row.pop_2010) ** (1 / 12) if row is not None and row.pop_2010 > 0 else 1.0
+    return growth
+
+
+def target_population(sim, mun_code):
+    """POP_TARGET 'census': the municipality's population at the start x its 2010-2022 Census growth since then.
+    'projection': the population estimate of the year (pop_estimates) at the run's scale."""
+    if sim.PARAMS.get('POP_TARGET', 'projection') == 'census':
+        years = (sim.clock.days - sim.PARAMS['STARTING_DAY']).days / 365.25
+        if mun_code not in sim.pop_start:
+            return sim.mun_pops[mun_code]
+        return sim.pop_start[mun_code] * sim.pop_growth[mun_code] ** years
+    return pop_estimates.at[str(mun_code), str(sim.clock.year)] * sim.PARAMS['PERCENTAGE_ACTUAL_POP']
 
 
 def immigration(sim):
     """Adjust population for immigration"""
-    year = str(sim.clock.year)
-    pop_pct = sim.PARAMS['PERCENTAGE_ACTUAL_POP']
     number_new_families = 0
     # IMMIGRATION 'municipal': each municipality's shortfall is housed, and its excess removed, within it
     municipal = sim.PARAMS.get('IMMIGRATION', 'acp') == 'municipal'
 
     for mun_code, pop in list(sim.mun_pops.items()):
-        estimated_pop = pop_estimates.at[str(mun_code), year]
-        estimated_pop *= pop_pct
+        estimated_pop = target_population(sim, mun_code)
         # Correction of population by total number of people
         if estimated_pop > pop:
             # Create new agents for immigration

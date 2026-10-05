@@ -518,6 +518,8 @@ class Output:
             self.save_name += '_sectors_{}'.format(self.sim.PARAMS['SECTOR_SHARES'])
         if self.sim.PARAMS.get('EDUCATION', 'pooled') != 'pooled':
             self.save_name += '_education_{}'.format(self.sim.PARAMS['EDUCATION'])
+        if self.sim.PARAMS.get('POP_ROUNDING', 'nearest') != 'nearest':
+            self.save_name += '_rounding_{}'.format(self.sim.PARAMS['POP_ROUNDING'])
 
     def _write_parquet(self, name, path, data_dict):
         table = pa.table(data_dict)

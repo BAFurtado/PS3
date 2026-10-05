@@ -33,7 +33,7 @@ from agents import (
 )
 from .education import Education
 from .firms import FirmData, set_sector_productivity
-from .population import pop_age_data
+from .population import pop_age_data, region_counts
 from .shapes import prepare_shapes
 
 logger = logging.getLogger("generator")
@@ -249,12 +249,18 @@ class Generator:
         agents = {}
         pops = self.sim.pops
         cols = list(range(101))
+        counts = None
+        if self.sim.PARAMS.get('POP_ROUNDING', 'nearest') == 'remainder':
+            counts = region_counts(pops, region.id, self.sim.PARAMS["PERCENTAGE_ACTUAL_POP"])
         for age in cols:
             for gender in ["male", "female"]:
                 code = region.id
-                pop = pop_age_data(
-                    pops[gender], code, age, self.sim.PARAMS["PERCENTAGE_ACTUAL_POP"]
-                )
+                if counts is not None:
+                    pop = counts[(gender, age)]
+                else:
+                    pop = pop_age_data(
+                        pops[gender], code, age, self.sim.PARAMS["PERCENTAGE_ACTUAL_POP"]
+                    )
                 # To see a histogram of qualification check test:
                 qualification = self.qual(code) if self.education is None else None
                 moneys = self.seed_np.lognormal(3, 0.5, size=pop)
