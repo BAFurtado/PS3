@@ -112,9 +112,16 @@ FIRM_EXIT_MONTHS = 6
 # capacity, within capacity, buying inputs for that output only; when it adjusts its labour force, a firm whose capacity
 # alone exceeds that need sheds the excess workers, at most half its staff.
 PRODUCTION_PLAN = 'capacity'
+# Builders under PRODUCTION_PLAN 'sales'. 'pipeline': they produce at capacity and hire and shed on their house pipeline
+# (pending houses short of stock, a profitable plot found, too many houses for sale). 'sales': they plan as the other
+# private firms, their demand being goods sold plus refused plus the stock their completed houses used, and their stock
+# target adding the cost of their cheapest pending house.
+CONSTRUCTION_PLAN = 'pipeline'
 # Firm count by sector. 'rais': RAIS 2010 shares grouped as Trade = CNAE G+I, Business = J+M+N, OtherServices = R+S+T,
 # Government = O+P+Q+U. 'ibge12': the same shares in the IBGE nível 12 classification of the input-output matrix
 # (Trade = G, Business = J, Government = O and public P/Q, OtherServices = I, M, N, R, S, T, U and private P/Q).
+# 'census': Census 2010 employees aged 17-69 (domestic workers included) by sector in the nível 12 classification,
+# public P/Q in Government as in 'ibge12'.
 SECTOR_SHARES = 'rais'
 # Education of the agents. 'pooled': each weighting area's distribution of years of study for people of all ages, those
 # under 10 counted as without instruction (input/qualification_APs_2010.csv), drawn once per age and sex in each area;
@@ -125,7 +132,8 @@ SECTOR_SHARES = 'rais'
 # (15, 18, 22); newborns draw from their mother's area (world/education.py).
 EDUCATION = 'pooled'
 # Output per unit of labour by sector: national output per job relative to the mean, IBGE national accounts 2015
-# (input/sector_productivity.csv); builders keep 1. Needs SECTOR_SHARES 'ibge12'. False = the same in every sector.
+# (input/sector_productivity.csv); builders keep 1. Needs SECTOR_SHARES 'ibge12' or 'census'. False = the same in every
+# sector.
 SECTOR_PRODUCTIVITY = False
 # Firms refill workers lost to natural separation or death (one post each) unless shrinking. False = off.
 REPLACE_SEPARATIONS = True
@@ -604,8 +612,9 @@ EXPORTS_PRICE_ELASTICITY = 1.0
 # (price / P_imp) ** -EXPORTS_PRICE_ELASTICITY. Construction and Government: s_i = TRADE_POTENTIAL[i], no exports.
 # Written to trade_base.csv.
 INTERREGIONAL_TRADE = 'files'
-# Haddad et al. (2019), F: agriculture and industry 0.5, trade and services 0.9
-TRADE_POTENTIAL = {'Agriculture': 0.5, 'Mining': 0.5, 'Manufacturing': 0.5, 'Utilities': 0.5, 'Construction': 0.5,
+# Haddad et al. (2019, p. 614), F: 0.5 for products 1-87 (agriculture, mining, manufacturing), 0.9 for products 88-128
+# (utilities, construction, trade and services)
+TRADE_POTENTIAL = {'Agriculture': 0.5, 'Mining': 0.5, 'Manufacturing': 0.5, 'Utilities': 0.9, 'Construction': 0.9,
                    'Trade': 0.9, 'Transport': 0.9, 'Business': 0.9, 'Financial': 0.9, 'RealEstate': 0.9,
                    'OtherServices': 0.9, 'Government': 0.9}
 

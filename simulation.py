@@ -21,7 +21,7 @@ from world.firms import firm_growth, firm_exit, size_initial_capital, set_produc
 from world.funds import Funds
 from analysis.money import money_stock_total
 from world.geography import Geography, STATES_CODES, state_string
-from agents.firm import Firm, UNPLANNED_SECTORS, import_parity
+from agents.firm import Firm, ConstructionFirm, plans_sales, import_parity
 from world.transport import TransportNetwork
 from world.participation import Participation
 from world.social_transfers import SocialTransfers
@@ -289,6 +289,8 @@ class Simulation:
         if self.PARAMS.get('FIRM_PAYOUT', 'none') == 'national':
             self.investment_rate = float(pd.read_csv('input/investment_rate_2015.csv', sep=';').investment_rate.iloc[0])
         Firm.own_account_market = self.PARAMS.get('OWN_ACCOUNT', 'off') == 'firms'
+        ConstructionFirm.planned = (self.PARAMS.get('CONSTRUCTION_PLAN', 'pipeline') == 'sales'
+                                    and self.PARAMS.get('PRODUCTION_PLAN', 'capacity') == 'sales')
         Firm.vale_transporte = self.PARAMS['PUBLIC_TRANSIT_COST'] if self.PARAMS.get('VALE_TRANSPORTE', False) else None
         if self.PARAMS.get('POSTING_EDUCATION', 'off') == 'census':
             self.posting_education = posting_education(self.mun_to_regions)
@@ -443,7 +445,7 @@ class Simulation:
                                          self.firms,
                                          self.seed,
                                          sector_firm_map,
-                                         plan if firm.sector not in UNPLANNED_SECTORS or firm.own_account else None)
+                                         plan if plans_sales(firm) else None)
 
         # Call demographics
         # Update agent life cycles
@@ -566,7 +568,7 @@ class Simulation:
                 demand_signal_unmet,
                 0.0 if tradable else price_demand_response,
                 parity_ceiling[firm.sector] if tradable else None,
-                plan if firm.sector not in UNPLANNED_SECTORS or firm.own_account else None,
+                plan if plans_sales(firm) else None,
             )
             firm.invest_eco_efficiency(
                 self.regional_market,

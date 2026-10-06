@@ -120,8 +120,9 @@ def set_sector_productivity(sim, firms):
     the mean (input/sector_productivity.csv), except builders, whose scale is HOUSE_PRODUCTION_ADEQUACY's"""
     if not sim.PARAMS.get('SECTOR_PRODUCTIVITY', False):
         return
-    if sim.PARAMS.get('SECTOR_SHARES', 'rais') != 'ibge12':
-        raise ValueError("SECTOR_PRODUCTIVITY is in the IBGE nível 12 classification: it needs SECTOR_SHARES 'ibge12'")
+    if sim.PARAMS.get('SECTOR_SHARES', 'rais') not in ('ibge12', 'census'):
+        raise ValueError("SECTOR_PRODUCTIVITY is in the IBGE nível 12 classification: it needs SECTOR_SHARES 'ibge12' "
+                         "or 'census'")
     for f in firms:
         f.sector_productivity = 1.0 if f.sector == 'Construction' else float(SECTOR_PRODUCTIVITY[f.sector])
 

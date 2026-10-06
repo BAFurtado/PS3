@@ -1624,6 +1624,50 @@ check("SECTOR_PRODUCTIVITY: capacity x sector factor, builders 1, refused with S
       np.isclose(_ratio, _SP[_fin.sector]) and _bld_factor == 1.0 and _guard,
       f"{_fin.sector} ratio {_ratio} vs {_SP[_fin.sector]}, builder {_bld_factor}, guard {_guard}")
 
+# SECTOR_SHARES 'census': Census employee shares sum to 1 in every ACP, in the sectors of 'ibge12', the generator reads
+# them, and SECTOR_PRODUCTIVITY accepts them
+_cen = pd.read_csv('input/sector_shares_census.csv', sep=';').pivot(index='concurb_name', columns='sector',
+                                                                     values='participation')
+_saved_ss = sim.PARAMS.get('SECTOR_SHARES', 'rais'), sim.PARAMS.get('SECTOR_PRODUCTIVITY', False)
+sim.PARAMS['SECTOR_SHARES'], sim.PARAMS['SECTOR_PRODUCTIVITY'] = 'census', True
+_gen_cen = sim.generator.sector_shares()
+try:
+    set_sector_productivity(sim, [])
+    _cen_ok = True
+except ValueError:
+    _cen_ok = False
+sim.PARAMS['SECTOR_SHARES'], sim.PARAMS['SECTOR_PRODUCTIVITY'] = _saved_ss
+check("SECTOR_SHARES 'census': shares sum to 1, the sectors of 'ibge12', generator reads them, SECTOR_PRODUCTIVITY "
+      "accepts them",
+      np.allclose(_cen.sum(axis=1), 1, atol=1e-5) and set(_cen.columns) == set(_new.columns)
+      and np.isclose(_gen_cen['Construction'], _cen.loc[_acp, 'Construction'] / _cen.loc[_acp].sum()) and _cen_ok,
+      f"sum range {_cen.sum(axis=1).min():.6f}-{_cen.sum(axis=1).max():.6f}, columns {sorted(_cen.columns)}")
+
+# CONSTRUCTION_PLAN 'sales': a builder's planned demand is its goods sold plus the stock last month's houses used,
+# without the money of house sales; its stock target adds its cheapest pending house; 'pipeline' reads amount_sold
+from agents.firm import ConstructionFirm, plans_sales  # noqa: E402
+_saved_cp = (ConstructionFirm.planned, _bld.amount_sold, _bld.house_sales, _bld.house_materials,
+             _bld.last_house_materials, _bld.building, _bld.total_balance, _bld.revenue, _bld.input_cost,
+             _bld.last_demand, _bld.unmet_quantity, _bld.demand_by_buyer)
+_bld.amount_sold, _bld.house_sales, _bld.house_materials = 30.0, 0.0, 0.0
+_bld.update_balance(500.0)
+_bld.last_house_materials = 7.0
+_bld.building = {0: {'cost': 40.0}, 1: {'cost': 25.0}}
+ConstructionFirm.planned = False
+_pipe = (_bld.goods_sold(), _bld.plan_reserve(), plans_sales(_bld))
+ConstructionFirm.planned = True
+_plan = (_bld.goods_sold(), _bld.plan_reserve(), plans_sales(_bld))
+_bld.house_materials = 12.0
+_bld.reset_amount_sold()
+_rolled = (_bld.last_house_materials, _bld.house_materials, _bld.house_sales)
+(ConstructionFirm.planned, _bld.amount_sold, _bld.house_sales, _bld.house_materials, _bld.last_house_materials,
+ _bld.building, _bld.total_balance, _bld.revenue, _bld.input_cost, _bld.last_demand, _bld.unmet_quantity,
+ _bld.demand_by_buyer) = _saved_cp
+check("CONSTRUCTION_PLAN 'sales': builder demand = goods sold + last month's house stock, house money out, reserve = "
+      "cheapest pending house; 'pipeline' unchanged",
+      _pipe == (530.0, 0.0, False) and _plan == (37.0, 25.0, True) and _rolled == (12.0, 0.0, 0.0),
+      f"pipeline {_pipe}, sales {_plan}, rolled {_rolled}")
+
 # SOCIAL_TRANSFERS 'data': per municipality round(b x A) RGPS to the oldest, BPC to those without RGPS (65+ first), Bolsa
 # Família to the poorest families; what members receive equals the ledger inflow, and it enters permanent income
 from world.social_transfers import SocialTransfers

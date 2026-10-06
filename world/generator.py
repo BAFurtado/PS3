@@ -61,6 +61,8 @@ prop_urban = pd.read_csv("input/Demografia/3_Percent_Urban/Munic_Percent_Urban_2
 perc_firms_sector = pd.read_csv('input/CONCURBs_SECTOR.csv', sep=';', decimal=',')
 # The same shares in the IBGE nível 12 classification of the input-output matrix (auxiliary/sector_shares_ibge12.py)
 perc_firms_sector_ibge12 = pd.read_csv('input/sector_shares_ibge12.csv', sep=';')
+# Census 2010 employee shares in the same classification (auxiliary/sector_shares_census.py)
+perc_firms_sector_census = pd.read_csv('input/sector_shares_census.csv', sep=';')
 house_qual_areap = pd.read_csv('input/dpp_2010_quali.csv', dtype={'areap': str})
 
 
@@ -478,10 +480,11 @@ class Generator:
 
     def sector_shares(self):
         # RAIS 2010 employment share by sector for the ACP (input/CONCURBs_SECTOR.csv), normalised to sum to 1.
-        # SECTOR_SHARES 'ibge12': in the classification of the input-output matrix (input/sector_shares_ibge12.csv)
+        # SECTOR_SHARES 'ibge12': in the classification of the input-output matrix (input/sector_shares_ibge12.csv);
+        # 'census': Census 2010 employee shares in that classification (input/sector_shares_census.csv)
         acp = self.sim.geo.processing_acps[0]
-        ibge12 = self.sim.PARAMS.get('SECTOR_SHARES', 'rais') == 'ibge12'
-        table = perc_firms_sector_ibge12 if ibge12 else perc_firms_sector
+        table = {'ibge12': perc_firms_sector_ibge12, 'census': perc_firms_sector_census}.get(
+            self.sim.PARAMS.get('SECTOR_SHARES', 'rais'), perc_firms_sector)
         p = table[table['concurb_name'] == acp].set_index('sector')['participation']
         return p / p.sum()
 

@@ -301,6 +301,8 @@ class LaborMarket:
         its staff."""
         random_value = self.seed_np.random(size=len(firms.values()))
         n_fired = 0
+        # CONSTRUCTION_PLAN 'sales': builders follow the rules of the other firms
+        construction_planned = shed_excess and self.sim.PARAMS.get('CONSTRUCTION_PLAN', 'pipeline') == 'sales'
         for i, firm in enumerate(firms.values()):
             if firm.own_account:
                 continue
@@ -328,7 +330,7 @@ class LaborMarket:
                     # Government is excluded: gov_hire_fire sets its headcount.
                     firm.fire(self.seed_np)
                     n_fired += 1
-                elif firm.sector == 'Construction':
+                elif firm.sector == 'Construction' and not construction_planned:
                     # Construction barely sells into the goods market that
                     # increase_production/profit are derived from. Use signals
                     # tied directly to the house-building pipeline instead.

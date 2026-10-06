@@ -13,8 +13,15 @@ from dateutil import relativedelta
 from .house import House
 from .product import Product
 
-# PRODUCTION_PLAN 'sales' leaves these sectors at capacity output and their own staffing rules
+# PRODUCTION_PLAN 'sales' leaves these sectors at capacity output and their own staffing rules (Construction only under
+# CONSTRUCTION_PLAN 'pipeline')
 UNPLANNED_SECTORS = ('Construction', 'Government')
+
+
+def plans_sales(firm):
+    """PRODUCTION_PLAN 'sales': whether the firm produces and staffs for its sales plan"""
+    return firm.own_account or firm.sector not in UNPLANNED_SECTORS or (
+            firm.sector == 'Construction' and ConstructionFirm.planned)
 
 
 # Vale-transporte: the employee's part of the public transport fare is capped at this share of the basic wage, the
@@ -479,7 +486,7 @@ class Firm:
             self.last_capacity = capacity
             desired_quantity = capacity
             if plan is not None and self.last_demand is not None:
-                shelf = max(self.last_demand * (1 + plan), plan * capacity)
+                shelf = max(self.last_demand * (1 + plan), plan * capacity) + self.plan_reserve()
                 desired_quantity = min(capacity, max(0.0, shelf - self.total_quantity))
 
             technical_matrix = regional_market.technical_matrix
@@ -538,7 +545,8 @@ class Firm:
             month's sold plus refused quantity times (1 + r), and r x capacity. """
         if plan is not None:
             capacity = self.capacity(prod_exponent, prod_magnitude_divisor)
-            need = max((self.amount_sold + self.unmet_quantity) * (1 + plan), plan * capacity)
+            need = (max((self.goods_sold() + self.unmet_quantity) * (1 + plan), plan * capacity) +
+                    max(0.0, self.plan_reserve() - self.total_quantity))
             self.workers_excess = 0
             if self.num_employees > 0 and capacity > need:
                 self.workers_excess = int((capacity - need) / (capacity / self.num_employees))
@@ -546,7 +554,7 @@ class Firm:
         if seed_np.rand() < sticky_prices:
             # DEMAND_SIGNAL_UNMET: demand is what was sold plus what was refused for lack of stock. Buyers do not try
             # another local firm after a refusal, so the refused quantity is not served elsewhere in the ACP
-            demand = self.amount_sold + self.unmet_quantity if demand_signal_unmet else self.amount_sold
+            demand = self.goods_sold() + self.unmet_quantity if demand_signal_unmet else self.goods_sold()
             # PRICE_DEMAND_RESPONSE: share of this month's demand refused for lack of stock. Construction's
             # amount_sold mixes house sales in money with quantities, so it keeps the old rule
             refused_share = 0.0
@@ -556,12 +564,13 @@ class Firm:
                 delta_price = seed_np.randint(0, int(2 * markup * 100) + 1) / 100
                 productive_capacity = self.capacity(prod_exponent, prod_magnitude_divisor)
                 # Firms target a safety-stock buffer above bare productive capacity.
-                low_inventory = (self.total_quantity + productive_capacity) <= demand * (1 + inventory_target_ratio)
+                target = demand * (1 + inventory_target_ratio) + self.plan_reserve()
+                low_inventory = (self.total_quantity + productive_capacity) <= target
                 if low_inventory:
                     self.increase_production = True
                     # Workers needed to close the gap at current output per worker (see LaborMarket.add_growth_posts)
                     if self.num_employees > 0 and productive_capacity > 0:
-                        gap = demand * (1 + inventory_target_ratio) - self.total_quantity - productive_capacity
+                        gap = target - self.total_quantity - productive_capacity
                         self.workers_needed = math.ceil(max(gap, 0) / (productive_capacity / self.num_employees))
                     else:
                         self.workers_needed = 1
@@ -584,9 +593,17 @@ class Firm:
             self.inventory
         )
 
+    def goods_sold(self):
+        """This month's quantity sold, the demand the sales plan reads"""
+        return self.amount_sold
+
+    def plan_reserve(self):
+        """Stock the sales plan keeps on top of its sales target"""
+        return 0.0
+
     def reset_amount_sold(self):
         # Resetting amount sold to record monthly amounts
-        self.last_demand = self.amount_sold + self.unmet_quantity if self.amount_produced > 0 else None
+        self.last_demand = self.goods_sold() + self.unmet_quantity if self.amount_produced > 0 else None
         self.amount_sold = 0
         self.unmet_quantity = 0.0
         self.demand_by_buyer = None
@@ -828,6 +845,12 @@ class ConstructionFirm(Firm):
     # Land bought, spread by month over CONSTRUCTION_ACC_CASH_FLOW months and recovered before wages (with
     # FIRM_CAPITAL_MONTHS > 0). Class-level default so builders unpickled from an older cache have it.
     land_schedule = None
+    # CONSTRUCTION_PLAN 'sales' (set by Simulation). House sales and upgrades received this month (money, in
+    # amount_sold), and the stock completed houses used this month and last month
+    planned = False
+    house_sales = 0.0
+    house_materials = 0.0
+    last_house_materials = 0.0
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1013,6 +1036,7 @@ class ConstructionFirm(Firm):
         building_info = self.building[min_cost_idx]
         paid = min(building_info["cost"], self.total_quantity)
         self.total_quantity -= paid
+        self.house_materials += paid
 
         # Choose random place in region
         region = regions[building_info["region"]]
@@ -1055,6 +1079,7 @@ class ConstructionFirm(Firm):
     def update_balance(self, amount, acc_months=None, date=datetime.date(2000, 1, 1)):
         self.total_balance += amount
         self.amount_sold += amount
+        self.house_sales += amount
         if acc_months is not None:
             acc_months = int(acc_months)
             for i in range(acc_months):
@@ -1069,6 +1094,25 @@ class ConstructionFirm(Firm):
             return super().wage_base(unemployment, relevance_unemployment)
         finally:
             self.input_cost -= land
+
+    def goods_sold(self):
+        """CONSTRUCTION_PLAN 'sales': goods sold plus the stock last month's completed houses used, without the money
+        of house sales"""
+        if not ConstructionFirm.planned:
+            return self.amount_sold
+        return self.amount_sold - self.house_sales + self.last_house_materials
+
+    def plan_reserve(self):
+        """CONSTRUCTION_PLAN 'sales': the cost of the cheapest pending house, the next one build_house can complete"""
+        if not ConstructionFirm.planned or not self.building:
+            return 0.0
+        return min(b["cost"] for b in self.building.values())
+
+    def reset_amount_sold(self):
+        self.last_house_materials = self.house_materials
+        self.house_materials = 0.0
+        super().reset_amount_sold()
+        self.house_sales = 0.0
 
     def free_cash(self):
         """Balance not yet owed as wages: sale proceeds are banked at once but paid out through cash_flow over
