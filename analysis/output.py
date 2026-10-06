@@ -520,6 +520,9 @@ class Output:
             self.save_name += '_education_{}'.format(self.sim.PARAMS['EDUCATION'])
         if self.sim.PARAMS.get('POP_ROUNDING', 'nearest') != 'nearest':
             self.save_name += '_rounding_{}'.format(self.sim.PARAMS['POP_ROUNDING'])
+        # Families are formed when the population is created
+        if self.sim.PARAMS.get('FAMILY_MATCHING', 'random') != 'random':
+            self.save_name += '_matching_{}'.format(self.sim.PARAMS['FAMILY_MATCHING'])
 
     def _write_parquet(self, name, path, data_dict):
         table = pa.table(data_dict)

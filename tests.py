@@ -2089,6 +2089,89 @@ _gs_f.gov_spending_base.pop('test', None)
 check("GOV_SPENDING 'real': unchanged in the base window, then the base real level at this month's price, the "
       "difference from outside", _gs_ok, f"seen {_gs_seen[0]}, {_gs_seen[-1]}, after {_gs_after}")
 
+# WAGE_SPLIT: 'q_alpha' weights are qualification ** alpha; 'census' adds the age profile and a persistent earnings
+# factor drawn per agent and run, firms still pay exactly their wage bill, and the start keeps each area's income total
+from agents import Agent as _ws_Agent
+_ws_alpha = sim.PARAMS['PRODUCTIVITY_EXPONENT']
+_ws_old = _ws_Agent.wage_profile
+_ws_firm = next(f for f in sim.firms.values() if f.sector == 'Trade' and not f.own_account and f.num_employees >= 2)
+_ws_staff = list(_ws_firm.employees.values())
+_ws_Agent.wage_profile = None
+_ws_off = all(a.wage_weight(_ws_alpha) == a.qualification ** _ws_alpha and a.wage_factor() == 1.0 for a in _ws_staff)
+_ws_keep = [(a, a.earnings) for a in sim.agents.values()]
+_ws_Agent.wage_profile = (0.06, -0.0006, 0.6, 12345)
+_ws_w1 = [a.wage_weight(_ws_alpha) for a in _ws_staff]
+_ws_w2 = [a.wage_weight(_ws_alpha) for a in _ws_staff]
+_ws_e = _ws_staff[0].earnings
+_ws_staff[0].earnings = None
+_ws_redraw = _ws_staff[0].wage_factor() and _ws_staff[0].earnings == _ws_e
+_ws_spread = len({round(a.earnings, 12) for a in _ws_staff}) == len(_ws_staff)
+_ws_money = [(a, a.money, a.last_wage, a.wage_paid) for a in _ws_staff]
+_ws_bal, _ws_rev = _ws_firm.total_balance, _ws_firm.revenue
+_ws_firm.revenue = _ws_firm.total_balance = 1000.0
+_ws_paid0 = sum(a.money for a in _ws_staff)
+_ws_firm.make_payment(sim.regions, 0.05, _ws_alpha, 0.0, 0.0)
+_ws_gross = sum(a.money for a in _ws_staff) - _ws_paid0
+_ws_split = all(abs((a.money - m) / _ws_gross - w / sum(_ws_w1)) < 1e-9 for (a, m, _, _), w in zip(_ws_money, _ws_w1))
+_ws_bill = abs(_ws_gross - _ws_firm.wages_paid) < 1e-9
+for a, m, lw, wp in _ws_money:
+    a.money, a.last_wage, a.wage_paid = m, lw, wp
+_ws_firm.total_balance, _ws_firm.revenue = _ws_bal, _ws_rev
+_ws_pi = {f.id: f.permanent_income for f in sim.families.values()}
+_ws_tot = defaultdict(float)
+for f in sim.families.values():
+    if f.region_id is not None:
+        _ws_tot[f.region_id] += f.permanent_income
+sim.initial_income_by_weight()
+_ws_tot2 = defaultdict(float)
+for f in sim.families.values():
+    if f.region_id is not None:
+        _ws_tot2[f.region_id] += f.permanent_income
+_ws_start = all(abs(_ws_tot2[r] - t) <= 1e-9 * max(1.0, abs(t)) for r, t in _ws_tot.items())
+for f in sim.families.values():
+    f.permanent_income = _ws_pi[f.id]
+for a, e in _ws_keep:
+    a.earnings = e
+_ws_Agent.wage_profile = _ws_old
+_ws_profile = sim.wage_profile()
+check("WAGE_SPLIT: 'q_alpha' = q ** alpha; 'census' weights fixed per agent and seed, firm pays its bill in the "
+      "weights, start keeps area totals, Census row loads",
+      _ws_off and _ws_w1 == _ws_w2 and bool(_ws_redraw) and _ws_spread and _ws_split and _ws_bill and _ws_start
+      and len(_ws_profile) == 4 and _ws_profile[2] > 0,
+      f"off {_ws_off} same {_ws_w1 == _ws_w2} redraw {bool(_ws_redraw)} spread {_ws_spread} split {_ws_split} "
+      f"bill {_ws_bill} start {_ws_start} profile {_ws_profile}")
+
+# FAMILY_MATCHING 'census': a partner's level is drawn from the Census spouses of the other's level, the nearest
+# level when none is left; the start keeps every adult once and the first adult of each family; marriages pair
+# disjoint agents from the candidates
+import numpy as _fm_np
+from world.family_matching import SpouseEducation as _fm_SE
+from world.own_account import level as _fm_level
+from world.population import census_pairs as _fm_pairs
+_fm_se = _fm_SE(sim.geo.processing_acps, _fm_np.random.RandomState(7))
+_fm_ad = [a for a in sim.agents.values() if a.age >= 25][:400]
+_fm_by = defaultdict(list)
+for _a in _fm_ad:
+    _fm_by[_fm_level(_a)].append(_a)
+_fm_lv1 = next(a for a in _fm_ad if _fm_level(a) == 1)
+_fm_se.p[1] = _fm_np.array([0.0, 0.0, 0.0, 1.0])
+_fm_got = _fm_se.pick(_fm_lv1, {4: [_fm_by[4][0]], 2: [_fm_by[2][0]]})
+_fm_near = _fm_se.pick(_fm_lv1, {2: [_fm_by[2][0]], 1: [_fm_by[1][0]]})
+_fm_ok_pick = _fm_level(_fm_got) == 4 and _fm_level(_fm_near) == 2
+_fm_gen = sim.generator
+_fm_old_sp, _fm_old_par = _fm_gen.spouses, sim.PARAMS.get('FAMILY_MATCHING')
+_fm_gen.spouses = _fm_SE(sim.geo.processing_acps, _fm_np.random.RandomState(8))
+_fm_fams = list(range(150))
+_fm_out = _fm_gen.match_partners(list(_fm_ad), _fm_fams)
+_fm_ok_start = (sorted(map(id, _fm_out)) == sorted(map(id, _fm_ad)) and _fm_out[:150] == _fm_ad[:150])
+_fm_pr = _fm_pairs(sim, list(_fm_ad[:60]))
+_fm_flat = [id(x) for p in _fm_pr for x in p]
+_fm_ok_pairs = len(_fm_pr) == 30 and len(set(_fm_flat)) == 60 and set(_fm_flat) <= set(map(id, _fm_ad[:60]))
+_fm_gen.spouses = _fm_old_sp
+check("FAMILY_MATCHING 'census': drawn level taken, nearest when absent; start keeps adults and heads; marriages "
+      "pair disjoint candidates", _fm_ok_pick and _fm_ok_start and _fm_ok_pairs,
+      f"pick {_fm_ok_pick} start {_fm_ok_start} pairs {_fm_ok_pairs}")
+
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")
 print(f"Results: {PASS} PASS  |  {FAIL} FAIL  |  {PASS + FAIL} total")

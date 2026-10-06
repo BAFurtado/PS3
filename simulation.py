@@ -21,6 +21,7 @@ from world.firms import firm_growth, firm_exit, size_initial_capital, set_produc
 from world.funds import Funds
 from analysis.money import money_stock_total
 from world.geography import Geography, STATES_CODES, state_string
+from agents import Agent
 from agents.firm import Firm, ConstructionFirm, plans_sales, import_parity
 from world.transport import TransportNetwork
 from world.participation import Participation
@@ -259,6 +260,10 @@ class Simulation:
         self.central.ledger = self.ledger
         # Also for a population loaded from file
         set_sector_productivity(self, self.firms.values())
+        Agent.wage_profile = None
+        if self.PARAMS.get('WAGE_SPLIT', 'q_alpha') == 'census':
+            Agent.wage_profile = self.wage_profile()
+            self.initial_income_by_weight()
         if self.PARAMS.get('INITIAL_MONEY', 'lognormal') == 'target':
             self.initial_money_from_income()
         if self.PARAMS.get('PI_START', 'reset') == 'census':
@@ -371,6 +376,28 @@ class Simulation:
                     firm.pending_replacements += 1
                 agent.firm_id = None
                 agent.set_commute(None)
+
+    def wage_profile(self):
+        """WAGE_SPLIT 'census': the run's ACP row of input/wage_dispersion_2010.csv ('BRASIL' if it has none)"""
+        table = pd.read_csv('input/wage_dispersion_2010.csv', sep=';').set_index('acp')
+        acps = [a for a in self.geo.processing_acps if a in table.index]
+        row = table.loc[acps[0] if len(acps) == 1 else 'BRASIL']
+        return float(row.age_b1), float(row.age_b2), float(row.resid_sd), self._seed
+
+    def initial_income_by_weight(self):
+        """WAGE_SPLIT 'census': each area's initial Census income is shared among its families in proportion to the
+        wage weights of their members aged 10+, instead of per person"""
+        alpha = self.PARAMS['PRODUCTIVITY_EXPONENT']
+        by_region = defaultdict(list)
+        for family in self.families.values():
+            if family.region_id is not None:
+                by_region[family.region_id].append(family)
+        for families in by_region.values():
+            total = sum(f.permanent_income for f in families)
+            weights = [sum(m.wage_weight(alpha) for m in f.members.values() if m.age >= 10) for f in families]
+            if total > 0 and sum(weights) > 0:
+                for f, w in zip(families, weights):
+                    f.permanent_income = total * w / sum(weights)
 
     def initial_money_from_income(self):
         """INITIAL_MONEY 'target': each family's members aged 10+ hold WEALTH_TARGET_MONTHS of its Census income per

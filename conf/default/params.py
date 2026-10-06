@@ -27,6 +27,17 @@ CLOSURE_OPEN = {
 # FIRMS #########################################################
 # Production function, labor with decaying exponent, Alpha for K. [0, 1]
 PRODUCTIVITY_EXPONENT = 0.65
+# How a firm's wage bill is split among its staff (also profit shares, own-account pool pay and the public pay unit).
+# 'q_alpha': qualification ** PRODUCTIVITY_EXPONENT. 'census': that, times exp(b1 age + b2 age^2) and a persistent
+# individual factor exp(e), e ~ N(0, sd^2); b1, b2 and sd per ACP from the Census 2010 work income of the employed
+# (input/wage_dispersion_2010.csv, auxiliary/wage_dispersion.py), and each area's initial Census income is shared
+# among its families in proportion to their members' weights instead of per person. Production keeps q ** alpha.
+WAGE_SPLIT = 'q_alpha'
+# How partners are matched. 'random': the start deals adults to families in random order and marriages pair random
+# agents. 'census': each family's second adult at the start, and each marriage partner, has an education level drawn
+# from the Census 2010 spouses of the partner's level in the ACP (input/spouse_education_2010.csv,
+# auxiliary/spouse_education.py), the nearest level with agents if none is left.
+FAMILY_MATCHING = 'random'
 # Order of magnitude correction of production. Production divided by parameter
 PRODUCTIVITY_MAGNITUDE_DIVISOR = 1
 # Where the level of private output comes from. 'divisor': PRODUCTIVITY_MAGNITUDE_DIVISOR as set. 'municipal': after

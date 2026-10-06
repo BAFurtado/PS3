@@ -1,3 +1,4 @@
+from collections import defaultdict
 import math
 
 import numpy as np
@@ -232,6 +233,29 @@ class HouseholdsHeads:
         return self.head[['class_range', 'count']].loc[date].values.tolist()
 
 
+def census_pairs(sim, to_marry):
+    """FAMILY_MATCHING 'census': in shuffled order, each unpaired agent takes a partner from the rest by
+    SpouseEducation"""
+    from world.family_matching import SpouseEducation
+    from world.own_account import level
+    if sim.generator.spouses is None:
+        sim.generator.spouses = SpouseEducation(sim.geo.processing_acps, sim.generator.seed_np)
+    pool = defaultdict(list)
+    for a in reversed(to_marry):
+        pool[level(a)].append(a)
+    paired, pairs = set(), []
+    for a in to_marry:
+        if id(a) in paired:
+            continue
+        pool[level(a)].remove(a)
+        b = sim.generator.spouses.pick(a, pool)
+        if b is None:
+            break
+        paired.update((id(a), id(b)))
+        pairs.append((a, b))
+    return pairs
+
+
 def marriage(sim):
     """Adjust families for marriages"""
     to_marry = []
@@ -243,10 +267,14 @@ def marriage(sim):
                 to_marry.append(agent)
 
     # Marry individuals.
-    # NOTE individuals are paired randomly
+    # NOTE individuals are paired randomly, or under FAMILY_MATCHING 'census' by the Census couples' education
     sim.seed_np.shuffle(to_marry)
-    to_marry = iter(to_marry)
-    for a, b in zip(to_marry, to_marry):
+    if sim.PARAMS.get('FAMILY_MATCHING', 'random') == 'census':
+        pairs = census_pairs(sim, to_marry)
+    else:
+        to_marry = iter(to_marry)
+        pairs = zip(to_marry, to_marry)
+    for a, b in pairs:
         if a.family.id != b.family.id:
             # Characterizing family
             # If both families have other adults, the ones getting married leave family and make a new one

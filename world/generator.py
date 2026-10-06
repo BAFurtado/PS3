@@ -32,7 +32,9 @@ from agents import (
     GovernmentFirm,
 )
 from .education import Education
+from .family_matching import SpouseEducation
 from .firms import FirmData, set_sector_productivity
+from .own_account import level
 from .population import pop_age_data, region_counts
 from .shapes import prepare_shapes
 
@@ -78,6 +80,7 @@ class Generator:
         self.single_ap_muns = single_ap_muns["mun_code"].tolist()
         self.quali = self.load_quali()
         self.education = None
+        self.spouses = None
         if sim.PARAMS.get('EDUCATION', 'pooled') == 'census':
             if self.sim.geo.year != 2010:
                 raise ValueError("EDUCATION 'census' needs the 2010 geography")
@@ -345,6 +348,8 @@ class Generator:
         chd = [a for a in agents if a not in adults]
         # Assume there are more adults than families
         # First, distribute adults as equal as possible
+        if self.sim.PARAMS.get('FAMILY_MATCHING', 'random') == 'census':
+            adults = self.match_partners(adults, fams)
         for i in range(len(adults)):
             if not adults[i].belongs_to_family:
                 fams[i % len(fams)].add_agent(adults[i])
@@ -355,6 +360,24 @@ class Generator:
             if not agent.belongs_to_family:
                 family.add_agent(agent)
         return agents, families
+
+    def match_partners(self, adults, fams):
+        """FAMILY_MATCHING 'census': the adults in dealing order, the second adult of each family chosen by
+        SpouseEducation from the adults left after one per family"""
+        n = len(fams)
+        if len(adults) <= n:
+            return adults
+        if self.spouses is None:
+            self.spouses = SpouseEducation(self.sim.geo.processing_acps, self.seed_np)
+        pool = defaultdict(list)
+        for a in reversed(adults[n:]):
+            pool[level(a)].append(a)
+        second = []
+        for head in adults[:min(n, len(adults) - n)]:
+            second.append(self.spouses.pick(head, pool))
+        chosen = {id(a) for a in second}
+        rest = [a for a in adults[n:] if id(a) not in chosen]
+        return adults[:n] + second + rest
 
     def get_random_points_in_polygon(
             self, region, number_addresses=1, addresses=None, multiplier=3

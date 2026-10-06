@@ -1,3 +1,8 @@
+import math
+from zlib import crc32
+
+import numpy as np
+
 from world.population import marriage_data
 from .bank import Central
 from .family import Family
@@ -37,6 +42,10 @@ class Agent:
     last_transfer = 0.0
     # EDUCATION 'census': years of study the agent finishes with (world/education.py); None under 'pooled'
     target = None
+    # WAGE_SPLIT 'census': persistent individual earnings factor exp(e), drawn the first time a weight is needed
+    earnings = None
+    # WAGE_SPLIT 'census': (age coefficient, age-squared coefficient, residual sd, run seed); None under 'q_alpha'
+    wage_profile = None
 
     # Class for Agents. Citizens of the model
     # Agents live in families, work in firms, consume
@@ -66,6 +75,24 @@ class Agent:
         self.p_marriage = marriage_data.p_marriage(self)
         self.head = False
         self.has_car = has_car
+
+    def wage_factor(self):
+        """WAGE_SPLIT 'census': the Census age profile times the persistent earnings factor exp(e), e ~ N(0, residual
+        sd ** 2); 1 under 'q_alpha'"""
+        profile = Agent.wage_profile
+        if profile is None:
+            return 1.0
+        b1, b2, sd, seed = profile
+        if self.earnings is None:
+            # Own stream per agent and run, apart from Participation's draw on the same id
+            self.earnings = math.exp(np.random.RandomState([seed, crc32(str(self.id).encode()), 2]).normal(0.0, sd))
+        return math.exp(b1 * self.age + b2 * self.age ** 2) * self.earnings
+
+    def wage_weight(self, alpha):
+        """The agent's weight in its employer's wage split: qualification ** alpha times wage_factor"""
+        if Agent.wage_profile is None:
+            return self.qualification ** alpha
+        return self.qualification ** alpha * self.wage_factor()
 
     @property
     def address(self):

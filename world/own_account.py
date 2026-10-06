@@ -229,7 +229,7 @@ class OwnAccountPool(Firm):
         self.wages_paid = 0.0
         if not self.employees or self.total_balance <= 0:
             return
-        weights = {a: a.qualification ** alpha for a in self.employees.values()}
+        weights = {a: a.wage_weight(alpha) for a in self.employees.values()}
         total = sum(weights.values())
         for a, w in weights.items():
             pay = self.total_balance * w / total
@@ -325,18 +325,26 @@ class OwnAccountPools:
         sim = self.sim
         alpha = sim.PARAMS['PRODUCTIVITY_EXPONENT']
         freq = sim.PARAMS['LABOR_MARKET']
-        wages = defaultdict(list)
+        wages, factors = defaultdict(list), defaultdict(list)
         for f in sim.firms.values():
             if not f.own_account and f.sector != 'Government':
                 for a in f.employees.values():
                     if a.last_wage:
                         wages[level(a)].append(a.last_wage)
+                        factors[level(a)].append(a.wage_factor())
         search = {lv: (1 - unemployment) * np.mean(w) for lv, w in wages.items() if w}
+        # WAGE_SPLIT 'census': the private pay an agent compares is its level's mean scaled by its own age and earnings
+        # factor over the level's mean factor (1 under 'q_alpha')
+        mean_factor = {lv: np.mean(f) for lv, f in factors.items() if f}
+
+        def expected(a, lv):
+            return search[lv] * a.wage_factor() / mean_factor[lv]
+
         weight = {}
         for s, pool in self.pools.items():
             if pool.wages_paid > 0:
                 pool.last_net = pool.wages_paid
-            weight[s] = sum(a.qualification ** alpha for a in pool.employees.values())
+            weight[s] = sum(a.wage_weight(alpha) for a in pool.employees.values())
 
         def pay(s, q, joining):
             w = weight[s] + (q if joining else 0.0)
@@ -346,8 +354,8 @@ class OwnAccountPools:
         members = [(p, a) for p in self.pools.values() for a in p.employees.values()]
         for i in sim.seed_np.permutation(len(members)):
             pool, a = members[i]
-            lv, q = level(a), a.qualification ** alpha
-            if lv in search and sim.seed_np.random() < freq and pay(pool.sector, q, False) < search[lv]:
+            lv, q = level(a), a.wage_weight(alpha)
+            if lv in search and sim.seed_np.random() < freq and pay(pool.sector, q, False) < expected(a, lv):
                 self.leave(pool, a)
                 weight[pool.sector] -= q
                 self.left += 1
@@ -362,8 +370,8 @@ class OwnAccountPools:
                 continue
             names, p = self.census.sectors[lv]
             sector = names[sim.seed_np.choice(len(names), p=p)]
-            q = agent.qualification ** alpha
-            if pay(sector, q, True) > search[lv]:
+            q = agent.wage_weight(alpha)
+            if pay(sector, q, True) > expected(agent, lv):
                 self.join(agent, sector)
                 weight[sector] += q
                 self.joined += 1

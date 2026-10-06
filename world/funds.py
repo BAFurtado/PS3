@@ -745,7 +745,7 @@ class Funds:
         input_share = float(market._tech_np['Government'].sum() + market._ext_local_np['Government'].sum())
         inputs_per_wage = input_share / (1 - input_share)
 
-        # Reference private wage: last month's wage bill per worker, and per unit of qualification ** alpha (the split
+        # Reference private wage: last month's wage bill per worker, and per unit of wage weight (the split
         # make_payment uses), of staffed, paying non-Government firms
         alpha = params['PRODUCTIVITY_EXPONENT']
         rule = params.get('GOV_WAGE_RULE', 'uniform')
@@ -754,7 +754,7 @@ class Funds:
             if f.sector != 'Government' and not f.own_account and f.num_employees > 0 and f.wages_paid > 0:
                 bill[f.region_id[:7]] += f.wages_paid
                 heads[f.region_id[:7]] += f.num_employees
-                quals[f.region_id[:7]] += f.total_qualification(alpha)
+                quals[f.region_id[:7]] += f.total_wage_weight(alpha)
         acp_wage = sum(bill.values()) / sum(heads.values()) if heads else 0.0
         acp_unit = sum(bill.values()) / sum(quals.values()) if quals else 0.0
         all_gov = [f for firms in self.mun_gov_firms.values() for f in firms]
@@ -788,7 +788,7 @@ class Funds:
             if rule == 'premium':
                 markup = 1 + sum(levels[k] * premia[k] for k in premia)
                 unit = bill[mun] / quals[mun] if quals[mun] else acp_unit
-                qual = sum(f.total_qualification(alpha) for f in firms)
+                qual = sum(f.total_wage_weight(alpha) for f in firms)
                 if national:
                     w_mun = levels['municipal'] * (1 + premia['municipal'])
                     offer = w_mun * private_wage + pay_out

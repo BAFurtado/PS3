@@ -689,6 +689,10 @@ class Firm:
             [employee.qualification ** alpha for employee in self.employees.values()]
         )
 
+    def total_wage_weight(self, alpha):
+        """Sum of the staff's weights in the wage split (Agent.wage_weight)"""
+        return sum(employee.wage_weight(alpha) for employee in self.employees.values())
+
     def capacity(self, prod_exponent, prod_divisor):
         """Output the current staff can produce in a month"""
         return self.total_qualification(prod_exponent) / prod_divisor * self.sector_productivity
@@ -729,12 +733,12 @@ class Firm:
                     * self.num_employees
             )
             if total_salary_paid > 0:
-                total_qualification = self.total_qualification(alpha)
+                total_weight = self.total_wage_weight(alpha)
                 for employee in self.employees.values():
-                    # Making payment according to employees' qualification.
+                    # Making payment according to employees' wage weights.
                     # Deducing it from firms' balance
                     # Deduce LABOR TAXES from employees' salaries as a percentual of each salary
-                    gross = total_salary_paid * (employee.qualification ** alpha) / total_qualification
+                    gross = total_salary_paid * employee.wage_weight(alpha) / total_weight
                     wage = gross * (1 - tax_labor)
                     if Firm.vale_transporte is not None and not employee.has_car:
                         # The employer's part of the fare the employee pays in Agent.pay_transport; not wage
@@ -771,9 +775,9 @@ class Firm:
         if not self.employees or surplus <= 0:
             return 0.0
         paid = rate * surplus
-        total_qualification = self.total_qualification(alpha)
+        total_weight = self.total_wage_weight(alpha)
         for employee in self.employees.values():
-            share = paid * employee.qualification ** alpha / total_qualification
+            share = paid * employee.wage_weight(alpha) / total_weight
             employee.money += share
             employee.last_profit_share = share
         self.total_balance -= paid
