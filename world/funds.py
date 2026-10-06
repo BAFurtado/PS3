@@ -362,8 +362,12 @@ class Funds:
             # Same cost formula as ConstructionFirm.plan_house, for a quality delta of
             # .5 over the floor area the house already has. Firms that have never
             # planned a house have not drawn a productivity yet and are costed at 1.
-            work_cost = (house.size * .5 * (firm.productivity or 1)
-                         * region.license_price / self.sim.PARAMS['HOUSE_PRODUCTION_ADEQUACY'])
+            if self.sim.house_values is None:
+                work_cost = (house.size * .5 * (firm.productivity or 1)
+                             * region.license_price / self.sim.PARAMS['HOUSE_PRODUCTION_ADEQUACY'])
+            else:
+                work_cost = self.sim.house_values.upgrade_cost(
+                    region.id, house.size, firm.productivity or self.sim.house_values.mean_productivity) / firm.prices
             if firm.total_quantity >= work_cost:
                 return firm, work_cost
         return None, 0

@@ -244,7 +244,7 @@ class Family:
         # B. Opportunity cost: bank rate vs rental yield (SELIC-sensitive disincentive)
         EPS = 1e-6
         bank_rate = max(sim.central.interest, EPS)
-        rental_yield = sim.PARAMS['INITIAL_RENTAL_PRICE']
+        rental_yield = sim.rent_ratio
         opportunity_cost = max(0.0, bank_rate - rental_yield) * sim.PARAMS['HOUSING_FINANCIAL_WEIGHT']
 
         # C. Liquidity penalty: discourages depleting all savings in the down payment

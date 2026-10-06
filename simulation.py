@@ -21,12 +21,13 @@ from world.firms import firm_growth, firm_exit, size_initial_capital, set_produc
 from world.funds import Funds
 from analysis.money import money_stock_total
 from world.geography import Geography, STATES_CODES, state_string
-from agents import Agent
+from agents import Agent, House
 from agents.firm import Firm, ConstructionFirm, plans_sales, import_parity
 from world.transport import TransportNetwork
 from world.participation import Participation
 from world.social_transfers import SocialTransfers
 from world.own_account import OwnAccount, OwnAccountPools, posting_education
+from world.house_values import HouseValues
 from markets.goods import RegionalMarket, External
 from markets.labor import car_wage_deciles
 
@@ -78,6 +79,7 @@ class Simulation:
         self.avg_prices = 1
         self.external = External(self, self.PARAMS["TAXES_STRUCTURE"]["consumption_equal"])
         self.mun_pops = defaultdict(int)
+        self.house_values = None
         self.reg_pops = defaultdict(int)
         self.demographics = demographics
         self.grave = list()
@@ -245,6 +247,11 @@ class Simulation:
         self.output.close()
         self.logger.logger.info("Simulation completed.")
 
+    @property
+    def rent_ratio(self):
+        """Monthly rent / house price"""
+        return self.house_values.rent_ratio if self.house_values else self.PARAMS['INITIAL_RENTAL_PRICE']
+
     def initialize(self):
         """Initiating simulation"""
         self.logger.logger.info("Initializing...")
@@ -258,6 +265,12 @@ class Simulation:
             self.central,
         ) = self.generate()
         self.central.ledger = self.ledger
+        House.price_scale = 1.0
+        if self.PARAMS.get('HOUSE_VALUES', 'legacy') == 'data':
+            self.house_values = HouseValues(self.PARAMS)
+            House.price_scale = self.house_values.price_scale
+            for house in self.houses.values():
+                house.price *= House.price_scale
         # Also for a population loaded from file
         set_sector_productivity(self, self.firms.values())
         Agent.wage_profile = None

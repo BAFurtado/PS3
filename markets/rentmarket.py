@@ -104,7 +104,7 @@ class RentalMarket:
     def rental_market(self, families, sim, to_rent=None):
         # Families that come here without a house (from marriage or immigration) need to move in or give up their plans
         # In that case, the list of houses is any unoccupied houses. Not a sample list separated for the rental market
-        base_proportion = sim.PARAMS['INITIAL_RENTAL_PRICE']
+        base_proportion = sim.rent_ratio
         self.update_list(sim, to_rent)
         if families:
             families.sort(key=lambda f: f.get_permanent_income(), reverse=True)

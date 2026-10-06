@@ -406,6 +406,14 @@ INITIAL_RENTAL_SHARE = 0.40
 # Also calibrates the financial attractiveness comparison in decision_enter_house_market:
 # when the bank rate exceeds this yield, depositing savings is more profitable than buying.
 INITIAL_RENTAL_PRICE = 0.002
+# House values. 'legacy': price = size x quality x region index, monthly rent = price x INITIAL_RENTAL_PRICE, builders'
+# cost in construction output = size x quality x productivity x index / HOUSE_PRODUCTION_ADEQUACY. 'data': rents keep
+# that level, prices are rent x 12 / RENTAL_YIELD, and builders' cost is size x the Sinapi 2010 cost per m² of the state
+# (input/sinapi_2010.csv) x the CUB/m² 2010 ratio of the quality's finish standard to the normal one (input/cub_2010.csv)
+# x productivity over its mean, in money, plus land at LOT_COST of the house value (world/house_values.py)
+HOUSE_VALUES = 'legacy'
+# Gross rental yield, annual rent / price, FipeZAP 2010 national (HOUSE_VALUES 'data')
+RENTAL_YIELD = 0.0664
 # Maximum fraction of permanent income a household will commit to rent when choosing to move.
 # 0.3 matches the Brazilian "comprometimento de renda" standard used in PlanHab/MCMV eligibility.
 # Applies only to already-housed families in maybe_move; homeless families are unaffected.

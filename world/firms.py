@@ -3,6 +3,8 @@ from collections import defaultdict
 import numpy as np
 import pandas as pd
 
+from agents.house import House
+
 
 class FirmData:
     """ Firm growth is estimated from a monthly value of growth observed between the years of 2000 and 2012 """
@@ -108,7 +110,13 @@ def project_floor(sim):
         costs = [h.size * h.quality for h in sim.houses.values()]
         licence = max(r.license_price for r in sim.regions.values())
         cost = licence * float(np.median(costs)) if costs else 0.0
-        sim._project_floor = cost * (sim.PARAMS['LOT_COST'] + 1 / sim.PARAMS['HOUSE_PRODUCTION_ADEQUACY'])
+        values = sim.house_values
+        if values is None:
+            sim._project_floor = cost * (sim.PARAMS['LOT_COST'] + 1 / sim.PARAMS['HOUSE_PRODUCTION_ADEQUACY'])
+        else:
+            works = [values.build_cost(h.region_id, h.size, h.quality, values.mean_productivity)
+                     for h in sim.houses.values()]
+            sim._project_floor = cost * House.price_scale * sim.PARAMS['LOT_COST'] + float(np.median(works))
     return sim._project_floor
 
 

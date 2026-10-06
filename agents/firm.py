@@ -951,15 +951,21 @@ class ConstructionFirm(Firm):
         profitable_regions = []
         free_cash = self.free_cash() - params.get('FIRM_CAPITAL_MONTHS', 0) * self.capacity_value(
             params['PRODUCTIVITY_EXPONENT'], params['PRODUCTIVITY_MAGNITUDE_DIVISOR'])
+        values = sim.house_values
         for r in regions:
-            expected_price = building_quality * r.index * building_size * vacancy_factor
-            profit = expected_price - (
-                    r.license_price * building_cost * (1 + params["LOT_COST"])
-            )
+            expected_price = building_quality * r.index * building_size * vacancy_factor * House.price_scale
+            if values is None:
+                land = r.license_price * building_cost * params["LOT_COST"]
+                works = r.license_price * building_cost
+            else:
+                # Land at LOT_COST of the house's value, building at its money cost
+                land = building_quality * r.index * building_size * House.price_scale * params["LOT_COST"]
+                works = values.build_cost(r.id, building_size, building_quality, self.productivity)
+            profit = expected_price - works - land
 
             # The firm must be able to pay for the land (LOT_COST share) from cash not owed as wages and above its
             # working-capital buffer (FIRM_CAPITAL_MONTHS), not just hold one license price
-            if profit > 0 and free_cash >= r.license_price * building_cost * params["LOT_COST"]:
+            if profit > 0 and free_cash >= land:
                 profitable_regions.append(r)
 
         if not profitable_regions:
@@ -976,18 +982,26 @@ class ConstructionFirm(Firm):
         # Product.quantity increases as construction moves forward and is deducted at once.
         # Divided by HOUSE_PRODUCTION_ADEQUACY to bridge the scale gap between labour output
         # units (~3-8/month) and building_size in square metres (~60-200 m²).
-        self.building[idx]["cost"] = building_cost * region.license_price / params["HOUSE_PRODUCTION_ADEQUACY"]
+        if values is None:
+            self.building[idx]["cost"] = building_cost * region.license_price / params["HOUSE_PRODUCTION_ADEQUACY"]
+        else:
+            # Construction output at its current price
+            self.building[idx]["cost"] = values.build_cost(region.id, building_size, building_quality,
+                                                           self.productivity) / self.prices
 
         # Provide temporary cashflow revenue numbers before sales start to trickle in.
         # Additional value per month. Expectations of monthly payments before first sell
         self.monthly_planned_revenue.append(
-            self.building[idx]["cost"] / params["CONSTRUCTION_ACC_CASH_FLOW"]
+            self.building[idx]["cost"] * (self.prices if values is not None else 1) / params["CONSTRUCTION_ACC_CASH_FLOW"]
         )
 
         # Buy license
         region.licenses -= 1
         # Region license price is current QLI. Lot price is the model parameter
-        cost_of_land = region.license_price * building_cost * params["LOT_COST"]
+        if values is None:
+            cost_of_land = region.license_price * building_cost * params["LOT_COST"]
+        else:
+            cost_of_land = building_quality * region.index * building_size * House.price_scale * params["LOT_COST"]
         self.total_balance -= cost_of_land
         region.collect_taxes(cost_of_land, "transaction")
         if params.get('FIRM_CAPITAL_MONTHS', 0) > 0:
@@ -1058,7 +1072,7 @@ class ConstructionFirm(Firm):
         house_id = generator.gen_id()
         size = building_info["size"]
         quality = building_info["quality"]
-        price = (size * quality) * region.index
+        price = (size * quality) * region.index * House.price_scale
         h = House(
             house_id,
             address,

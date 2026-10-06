@@ -2172,6 +2172,46 @@ check("FAMILY_MATCHING 'census': drawn level taken, nearest when absent; start k
       "pair disjoint candidates", _fm_ok_pick and _fm_ok_start and _fm_ok_pairs,
       f"pick {_fm_ok_pick} start {_fm_ok_start} pairs {_fm_ok_pairs}")
 
+# HOUSE_VALUES 'data': rents keep the legacy level at the FipeZAP yield; building cost per m² is the state's Sinapi at
+# quality 2, the CUB low / high ratios at 1 / 4, halfway at 3; a builder's planned house costs that money in output at
+# its price, plus land at LOT_COST of the value
+import copy as _hv_copy
+from agents import House as _hv_House
+from agents.firm import ConstructionFirm as _hv_CF
+from world.house_values import HouseValues as _hv_HV, UF as _hv_UF
+_hv = _hv_HV(sim.PARAMS)
+_hv_low, _hv_high = _hv.standards[1][0], _hv.standards[1][2]
+_hv_rid = next(iter(sim.regions))
+_hv_unit = _hv.sinapi[_hv_UF[int(_hv_rid[:2])]] / sim.PARAMS['REAIS_PER_MONEY_UNIT']
+_hv_ok_level = (abs(_hv.price_scale * _hv.rent_ratio - sim.PARAMS['INITIAL_RENTAL_PRICE']) < 1e-12
+                and sim.rent_ratio == sim.PARAMS['INITIAL_RENTAL_PRICE'] and _hv_House.price_scale == 1.0)
+_hv_ok_cost = (abs(_hv.cost_per_m2(_hv_rid, 2) - _hv_unit) < 1e-12
+               and abs(_hv.cost_per_m2(_hv_rid, 1) - _hv_low * _hv_unit) < 1e-12
+               and abs(_hv.cost_per_m2(_hv_rid, 4) - _hv_high * _hv_unit) < 1e-12
+               and abs(_hv.cost_per_m2(_hv_rid, 3) - (1 + _hv_high) / 2 * _hv_unit) < 1e-12
+               and 0.7 < _hv_low < 1 < _hv_high < 1.5
+               and abs(_hv.build_cost(_hv_rid, 50, 2, _hv.mean_productivity) - 50 * _hv_unit) < 1e-12)
+_hv_b = next(f for f in sim.firms.values() if isinstance(f, _hv_CF) and f.prices > 0)
+_hv_b2 = _hv_copy.copy(_hv_b)
+_hv_b2.building, _hv_b2.houses_for_sale, _hv_b2.monthly_planned_revenue = defaultdict(dict), [], []
+_hv_b2.cash_flow, _hv_b2.land_schedule, _hv_b2.total_balance = {}, None, 1e9
+_hv_reg = _hv_copy.copy(sim.regions[_hv_rid])
+_hv_reg.licenses, _hv_reg.treasure = 1, defaultdict(float)
+_hv.sinapi = {k: 1.0 for k in _hv.sinapi}
+_hv_old = sim.house_values, _hv_House.price_scale
+sim.house_values, _hv_House.price_scale = _hv, _hv.price_scale
+_hv_b2.plan_house([_hv_reg], sim.PARAMS, sim, np.random.RandomState(3), 0)
+sim.house_values, _hv_House.price_scale = _hv_old
+_hv_plan = next(iter(_hv_b2.building.values()), None)
+_hv_ok_plan = (_hv_plan is not None and abs(
+    _hv_plan['cost'] * _hv_b2.prices - _hv.build_cost(_hv_rid, _hv_plan['size'], _hv_plan['quality'],
+                                                      _hv_b2.productivity)) < 1e-9
+               and abs(1e9 - _hv_b2.total_balance - _hv_plan['quality'] * _hv_reg.index * _hv_plan['size']
+                       * _hv.price_scale * sim.PARAMS['LOT_COST']) < 1e-6)
+check("HOUSE_VALUES 'data': rent level kept, cost by Sinapi state and CUB standards, builder plans in money",
+      _hv_ok_level and _hv_ok_cost and _hv_ok_plan,
+      f"level {_hv_ok_level} cost {_hv_ok_cost} plan {_hv_ok_plan}")
+
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")
 print(f"Results: {PASS} PASS  |  {FAIL} FAIL  |  {PASS + FAIL} total")
