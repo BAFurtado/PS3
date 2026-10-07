@@ -264,6 +264,9 @@ class Simulation:
             self.firms,
             self.central,
         ) = self.generate()
+        # The run's draws start from the seed whether the population was created or loaded from file
+        self.seed.seed(self._seed)
+        self.seed_np.seed(self._seed)
         self.central.ledger = self.ledger
         House.price_scale = 1.0
         if self.PARAMS.get('HOUSE_VALUES', 'legacy') == 'data':
