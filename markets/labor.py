@@ -1,9 +1,18 @@
 import itertools
+from collections import defaultdict
 from math import ceil
 
 import numpy as np
 import pandas as pd
 
+
+
+def car_wage_deciles(sample):
+    """Wage deciles of a sample of agents for WAGE_TO_CAR_OWNERSHIP_QUANTILES: the wages of agents in a job with a
+    positive wage."""
+    wages = [a.last_wage for a in sample
+             if a.last_wage is not None and a.firm_id is not None and a.last_wage > 0]
+    return np.percentile(wages, np.arange(10, 101, 10))
 
 class LaborMarket:
     """
@@ -23,13 +32,7 @@ class LaborMarket:
         self.gov_employees = self.process_gov_employees_year()
         self.available_postings = list()
         self.candidates = list()
-        if self.sim.od_matrix is not None:
-            mode_col = 'TempoRedeNec' if self.sim.PARAMS['TRANSPORT_TIME'] else 'TempoRedeBase'
-            self.commute_time = self.build_commute_time_cache(mode_col)
-            self.max_dist = None
-        else:
-            self.commute_time = None
-            self.max_dist = None
+        self.max_dist = None
 
     def compute_max_distance(self):
         centroids = [r.addresses.centroid for r in self.sim.regions.values()]
@@ -40,11 +43,8 @@ class LaborMarket:
                 max_dist = dist
         return max_dist
 
-    def build_commute_time_cache(self, mode_col):
-        return self.sim.od_matrix.set_index(['code_weighting_orig', 'code_weighting_dest'])[mode_col].to_dict()
-
     def process_gov_employees_year(self):
-        employees = pd.read_csv('input/qtde_vinc_gov_rais_stable_from_2020_onwards.csv')
+        employees = pd.read_csv('input/gov_headcount_census.csv')
         geo_codes_6_digit = [int(str(_)[:6]) for _ in self.sim.geo.mun_codes]
         # Just municipalities in this run
         return employees[employees['codemun'].isin(geo_codes_6_digit)]
@@ -55,6 +55,13 @@ class LaborMarket:
     @property
     def num_candidates(self):
         return len(self.candidates)
+
+    def cap_postings(self, keep, needed):
+        """Keeps the first `keep` postings and at most max(1, needed - keep) of the others, drawn at random"""
+        rest = self.available_postings[keep:]
+        n = max(1, needed - keep)
+        if len(rest) > n:
+            self.available_postings = self.available_postings[:keep] + self.seed.sample(rest, n)
 
     def reset(self):
         self.available_postings = list()
@@ -118,7 +125,7 @@ class LaborMarket:
         candidates: lista de candidatos
         firm: firma
         wage: salário da firma
-        od_matrix: dicionário de deslocamentos
+        dist_max: tempo (ou distância) atribuído a pares sem tempo de deslocamento
         *_min, *_max: limites inferiores e superiores para normalização
         alpha, beta: parâmetros Cobb-Douglas
         """
@@ -135,9 +142,10 @@ class LaborMarket:
         transit_cost = np.where(has_car, private_cost, public_cost)
 
         # Distâncias ou tempos de deslocamento
-        if self.sim.od_matrix is not None:
+        if self.sim.transport.matrix is not None:
+            commute_time = self.sim.transport.commute_time
             commutes = np.array([
-                self.commute_time.get((c.family.house.region_id, firm.region_id), dist_max)
+                commute_time.get((c.family.house.region_id, firm.region_id), dist_max)
                 for c in candidates
             ])
         else:
@@ -176,6 +184,9 @@ class LaborMarket:
             candidates = self.candidates
         if not candidates:
             return None
+        if not lst_firms:
+            # No postings in this pass: every candidate is still looking
+            return candidates if flag else None
         offers = []
         done_firms = set()
         done_cands = set()
@@ -187,8 +198,8 @@ class LaborMarket:
         # and "size" of a firm, giving by its more recent revenue level
         # Min, Max for score attributes normalization
         qual_min, qual_max = min(c.qualification for c in candidates), max(c.qualification for c in candidates)
-        if self.sim.od_matrix is not None:
-            dist_max = max(self.commute_time.values())
+        if self.sim.transport.matrix is not None:
+            dist_max = self.sim.transport.max_time
         else:
             if self.max_dist is None:
                 self.max_dist = self.compute_max_distance()
@@ -198,9 +209,21 @@ class LaborMarket:
         wages = [w for _, w in lst_firms]
         wage_min, wage_max = min(wages), max(wages)
 
+        education = self.sim.posting_education
+        if education is not None:
+            from world.own_account import level
+            by_level = defaultdict(list)
+            for c in candidates:
+                by_level[level(c)].append(c)
         for firm, wage in lst_firms:
-            sampled_candidates = self.seed.sample(candidates,
-                                                  min(len(candidates), int(params['HIRING_SAMPLE_SIZE'])))
+            pool = candidates
+            if education is not None:
+                # POSTING_EDUCATION 'census': the vacancy's level, from its sector's employees; open if none applies
+                levels, p = education.get(firm.sector, education[None])
+                pool = by_level.get(levels[self.seed_np.choice(len(levels), p=p)])
+                if not pool:
+                    continue
+            sampled_candidates = self.seed.sample(pool, min(len(pool), int(params['HIRING_SAMPLE_SIZE'])))
             scores = self.compute_scores_cobb_douglas_vectorized(
                 sampled_candidates, firm, wage,
                 qual_min, qual_max, dist_max, wage_min, wage_max,
@@ -225,14 +248,14 @@ class LaborMarket:
             return cand_still_looking
         return None
 
-    @staticmethod
-    def apply_assign(chosen, firm):
-        chosen.set_commute(firm)
+    def apply_assign(self, chosen, firm):
+        chosen.set_commute(firm, self.sim.transport)
         firm.add_employee(chosen)
 
     def look_for_jobs(self, agents):
-        self.candidates += [agent for agent in agents.values() if 16 < agent.age < 70 and agent.firm_id is None]
-        pass
+        participation = self.sim.participation
+        self.candidates += [agent for agent in agents.values()
+                            if agent.firm_id is None and participation.is_active(agent)]
 
     def gov_hire_fire(self, sim):
         total_gov_employees = ceil(self.gov_employees[self.gov_employees.ano == sim.clock.year].qtde_vinc_ativos.sum() *
@@ -265,13 +288,20 @@ class LaborMarket:
                         fired += 1
 
     def hire_fire(self, firms, firm_enter_freq, initialize=False, fire_unpaid_months=0, planned_growth=False,
-                  replace_separations=False, gov_headcount_only=False):
+                  replace_separations=False, gov_headcount_only=False, shed_excess=False):
         """Firms adjust their labor force based on profit. With gov_headcount_only, Government firms are skipped.
         With planned_growth a growing firm posts as many vacancies as its production plan needs. With replace_separations, a firm that is not shrinking
-        also re-posts one vacancy for each worker it lost to natural separation or death since its last adjustment."""
+        also re-posts one vacancy for each worker it lost to natural separation or death since its last adjustment.
+        With shed_excess, a firm
+ that is not growing sheds its workers_excess, at most half
+        its staff."""
         random_value = self.seed_np.random(size=len(firms.values()))
         n_fired = 0
+        # CONSTRUCTION_PLAN 'sales': builders follow the rules of the other firms
+        construction_planned = shed_excess and self.sim.PARAMS.get('CONSTRUCTION_PLAN', 'pipeline') == 'sales'
         for i, firm in enumerate(firms.values()):
+            if firm.own_account:
+                continue
             # `firm_enter_freq` is the frequency firms enter the market
             if random_value[i] < firm_enter_freq:
                 fired_before = n_fired
@@ -296,7 +326,7 @@ class LaborMarket:
                     # Government is excluded: gov_hire_fire sets its headcount.
                     firm.fire(self.seed_np)
                     n_fired += 1
-                elif firm.sector == 'Construction':
+                elif firm.sector == 'Construction' and not construction_planned:
                     # Construction barely sells into the goods market that
                     # increase_production/profit are derived from. Use signals
                     # tied directly to the house-building pipeline instead.
@@ -308,6 +338,11 @@ class LaborMarket:
                         n_fired += 1
                 elif firm.increase_production and firm.profit >= 0:
                     self.add_growth_posts(firm, planned_growth)
+                elif shed_excess and firm.workers_excess > 0:
+                    for _ in range(min(firm.workers_excess, max(1, firm.num_employees // 2))):
+                        firm.fire(self.seed_np)
+                        n_fired += 1
+                    firm.workers_excess = 0
                 elif not firm.increase_production and firm.profit < 0:
                     # Fire only when BOTH signals align: surplus inventory AND losing money.
                     # OR-logic fired profitable firms with adequate stock, collapsing demand.

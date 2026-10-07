@@ -3,12 +3,14 @@ import logging
 import os
 from collections import defaultdict
 
+import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
 import conf
 from analysis.money import LEDGER_CHANNELS, money_stock
+from markets.goods import household_refused_coverable
 
 # Files written as CSV (small, used by averaging pipeline)
 _CSV_FILES = {'stats', 'regional', 'time', 'head', 'neighbourhood'}
@@ -60,6 +62,7 @@ OUTPUT_DATA_SPEC = {
                     'firms_avg_eco_eff',
                     'firms_median_wage_paid',
                     'firms_wage_per_worker',
+                    'workers_median_wage',
                     'firms_median_innovation_investment',
                     'emissions',
                     'gini_index',
@@ -140,8 +143,16 @@ OUTPUT_DATA_SPEC = {
                     "demand_input", "unmet_input",
                     "demand_external", "unmet_external",
                     "household_no_stock",
-                    # External account (defect #27): monthly imports, exports and recycled demand; cumulative net
-                    # position and external public funding
+                    # Diagnostic of matching: household refused quantity that the same sector's leftover stock could
+                    # have covered, right after the household round and at month end (after government and external)
+                    "unmet_household_coverable", "unmet_household_coverable_end",
+                    # Household money firms returned for lack of stock, after any HOUSEHOLD_RETRY (not counting
+                    # household_no_stock)
+                    "household_unserved",
+                    # Household money spent outside the ACP, part of ext_imports
+                    "household_imports",
+                    # External account: monthly imports and exports (ext_recycled is 0); cumulative net position and
+                    # external public funding
                     "ext_imports",
                     "ext_exports",
                     "ext_recycled",
@@ -158,6 +169,22 @@ OUTPUT_DATA_SPEC = {
                     "money_deposits",
                     *[f"money_{c}" for c in LEDGER_CHANNELS],
                     "money_unexplained",
+                    # Average price of the firms with staff in TRADABLE_SECTORS and of the others
+                    "price_tradable",
+                    "price_nontradable",
+                    # Sum of families' permanent income
+                    "families_total_permanent_income",
+                    # Firms' cash above their buffers paid out this month
+                    "firms_profit_share_paid",
+                    # Output over labour capacity this month, private firms other than builders
+                    "firms_utilisation",
+                    # Sum of families' income this month: wages paid, profit shares and social transfers
+                    "families_total_income",
+                    # Investment bought this month, local and imported
+                    "firms_investment",
+                    # Own-account workers and their earnings this month
+                    "own_account_workers",
+                    "own_account_earnings",
                     ]
     },
     'families': {
@@ -293,11 +320,82 @@ EXTERNAL_ACCOUNT_COLUMNS = ('ext_imports', 'ext_exports', 'ext_recycled', 'ext_n
 MONEY_COLUMNS = tuple(c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c.startswith('money_'))
 DEMAND_BY_BUYER_COLUMNS = tuple(f'{k}_{b}' for b in ('household', 'government', 'input', 'external')
                                 for k in ('demand', 'unmet')) + ('household_no_stock',)
+MATCHING_COLUMNS = ('unmet_household_coverable', 'unmet_household_coverable_end')
+
+
+def _legacy_stats_columns_no_worker_wage():
+    """`stats` layout of 34e0ae5 (2026-10-06): no workers_median_wage."""
+    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c != 'workers_median_wage']
+
+
+def _legacy_stats_columns_no_own_account():
+    """`stats` layout of 5044d09 (2026-10-02): no own_account_workers, own_account_earnings."""
+    return [c for c in _legacy_stats_columns_no_worker_wage() if c not in ('own_account_workers', 'own_account_earnings')]
+
+
+def _legacy_stats_columns_no_investment():
+    """`stats` layout with families_total_income (2026-10-02): no money_profits_out, no firms_investment."""
+    return [c for c in _legacy_stats_columns_no_own_account() if c not in ('money_profits_out', 'firms_investment')]
+
+
+def _legacy_stats_columns_no_income():
+    """`stats` layout of 9795a66 (2026-10-01): no families_total_income."""
+    return [c for c in _legacy_stats_columns_no_investment() if c != 'families_total_income']
+
+
+def _legacy_stats_columns_no_social_transfers():
+    """`stats` layout of 7b66b6b (2026-10-01): no money_social_transfers."""
+    return [c for c in _legacy_stats_columns_no_income() if c != 'money_social_transfers']
+
+
+def _legacy_stats_columns_no_utilisation():
+    """`stats` layout of 5e52587 (2026-09-30): no firms_utilisation."""
+    return [c for c in _legacy_stats_columns_no_social_transfers() if c != 'firms_utilisation']
+
+
+def _legacy_stats_columns_no_profit_share():
+    """`stats` layout of df8dab4 (2026-09-30): no firms_profit_share_paid."""
+    return [c for c in _legacy_stats_columns_no_utilisation() if c != 'firms_profit_share_paid']
+
+
+def _legacy_stats_columns_no_total_income():
+    """`stats` layout of 08e0835 (2026-09-30): no families_total_permanent_income."""
+    return [c for c in _legacy_stats_columns_no_profit_share() if c != 'families_total_permanent_income']
+
+
+def _legacy_stats_columns_no_bank_profit():
+    """`stats` layout of 0ddb69e (2026-09-30): no money_bank_profit_out."""
+    return [c for c in _legacy_stats_columns_no_total_income() if c != 'money_bank_profit_out']
+
+
+def _legacy_stats_columns_no_fgts_repaid():
+    """`stats` layout of 4a1f843 (2026-09-30): no money_fgts_sbpe_repaid."""
+    return [c for c in _legacy_stats_columns_no_bank_profit() if c != 'money_fgts_sbpe_repaid']
+
+
+def _legacy_stats_columns_no_group_prices():
+    """`stats` layout of 9144723 (2026-09-30): no price_tradable / price_nontradable."""
+    return [c for c in _legacy_stats_columns_no_fgts_repaid() if c not in ('price_tradable', 'price_nontradable')]
+
+
+def _legacy_stats_columns_no_household_imports():
+    """`stats` layout of 0ff157f (2026-09-30): household_unserved but no household_imports."""
+    return [c for c in _legacy_stats_columns_no_group_prices() if c != 'household_imports']
+
+
+def _legacy_stats_columns_no_unserved():
+    """`stats` layout of 9ec883b (2026-09-30): matching diagnostic but no household_unserved."""
+    return [c for c in _legacy_stats_columns_no_household_imports() if c != 'household_unserved']
+
+
+def _legacy_stats_columns_no_matching():
+    """`stats` layout of d74a535 (2026-09-30): demand by buyer type but no matching diagnostic."""
+    return [c for c in _legacy_stats_columns_no_unserved() if c not in MATCHING_COLUMNS]
 
 
 def _legacy_stats_columns_no_demand_by_buyer():
     """`stats` layout of 1830dcd (2026-09-30): firms_unmet_share but no demand by buyer type."""
-    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c not in DEMAND_BY_BUYER_COLUMNS]
+    return [c for c in _legacy_stats_columns_no_matching() if c not in DEMAND_BY_BUYER_COLUMNS]
 
 
 def _legacy_stats_columns_no_unmet():
@@ -324,7 +422,7 @@ def _legacy_stats_columns():
     """`stats` layout used by batches before 2026-08-01: no
     denied_zero_capped_amount, no pct_renters_zero_income, and the decile block
     carries affordability_decis_* rather than rent_burden_decis_*."""
-    dropped = {'denied_zero_capped_amount', 'denied_no_loan_needed',
+    dropped = {'denied_zero_capped_amount', 'denied_no_loan_needed', 'workers_median_wage',
                'pct_renters_zero_income', *FIRM_DEMOGRAPHY_COLUMNS, *EXTERNAL_ACCOUNT_COLUMNS, *MONEY_COLUMNS}
     cols = [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c not in dropped]
     return [c.replace('rent_burden_decis_', 'affordability_decis_') for c in cols]
@@ -361,7 +459,7 @@ def _legacy_regional_columns_single_pot():
 
 
 LEGACY_COLUMNS = {
-    'stats': [_legacy_stats_columns_no_demand_by_buyer(), _legacy_stats_columns_no_unmet(),
+    'stats': [_legacy_stats_columns_no_worker_wage(), _legacy_stats_columns_no_own_account(), _legacy_stats_columns_no_investment(), _legacy_stats_columns_no_income(), _legacy_stats_columns_no_social_transfers(), _legacy_stats_columns_no_utilisation(), _legacy_stats_columns_no_profit_share(), _legacy_stats_columns_no_total_income(), _legacy_stats_columns_no_bank_profit(), _legacy_stats_columns_no_fgts_repaid(), _legacy_stats_columns_no_group_prices(), _legacy_stats_columns_no_household_imports(), _legacy_stats_columns_no_unserved(), _legacy_stats_columns_no_matching(), _legacy_stats_columns_no_demand_by_buyer(), _legacy_stats_columns_no_unmet(),
               _legacy_stats_columns_no_money(), _legacy_stats_columns_no_external_account(),
               _legacy_stats_columns_no_firm_demography(),
               _legacy_stats_columns()],
@@ -422,6 +520,10 @@ class Output:
             '_'.join([str(self.sim.PARAMS[name]) for name in GENERATOR_PARAMS]),
             '_'.join(sim.geo.states_on_process),
             '_'.join(sim.geo.processing_acps_codes))
+        # Firm sectors, education, the rounding of the Census cells and partners are drawn when the population is
+        # created; the suffix keeps these files apart from those of earlier versions of the model
+        self.save_name += '_sectors_{}_education_census_rounding_remainder_matching_census'.format(
+            self.sim.PARAMS['SECTOR_SHARES'])
 
     def _write_parquet(self, name, path, data_dict):
         table = pa.table(data_dict)
@@ -451,6 +553,10 @@ class Output:
         p_delinquent = len(bank.delinquent_loans()) / n_active if n_active else 0
 
         firm_results = sim.stats.calculate_firms_metrics(sim.firms)
+        # Work income received this month, gross of the labour tax, by each worker of a firm that paid
+        paid = [a.wage_paid for a in sim.agents.values()
+                if a.firm_id is not None and a.wage_paid > 0 and sim.firms[a.firm_id].wages_paid > 0]
+        workers_median_wage = float(np.median(paid)) / (1 - sim.PARAMS["TAX_LABOR"]) if paid else 0.0
         price_level, inflation = sim.stats.update_price(sim.firms)
         gdp_level, gdp_growth_rate, gdp_change = sim.stats.calculate_gdp_and_eco_efficiency(sim.firms, sim.regions)
         unemployment = sim.stats.update_unemployment(sim.agents.values(), True, True)
@@ -491,6 +597,8 @@ class Output:
             "firms_median_employment": firm_results["workers"],
             "firms_total_employment": firm_results["firms_total_employment"],
             "families_median_permanent_income": families_results["median_permanent_income"],
+            "families_total_permanent_income": families_results["total_permanent_income"],
+            "families_total_income": families_results["total_income"],
             "families_wages_received": families_results["median_wages"],
             "families_commuting": commuting,
             "families_savings": families_results["total_savings"],
@@ -505,6 +613,7 @@ class Output:
             "firms_avg_eco_eff": firm_results["eco_efficiency"],
             "firms_median_wage_paid": firm_results["median_wages"],
             "firms_wage_per_worker": firm_results["median_wage_per_worker"],
+            "workers_median_wage": workers_median_wage,
             "firms_median_innovation_investment": firm_results["innovation_investment"],
             "emissions": firm_results["emissions"],
             "gini_index": families_results["gini"],
@@ -565,10 +674,14 @@ class Output:
             stats_row[f"unmet_{b}"] = sum(r[1] for r in recs)
             stats_row[f"demand_{b}"] = sum(r[0] + r[1] for r in recs)
         stats_row["household_no_stock"] = getattr(sim.regional_market, 'household_no_stock', 0.0)
+        stats_row["unmet_household_coverable"] = getattr(sim.regional_market, 'household_refused_coverable', 0.0)
+        stats_row["unmet_household_coverable_end"] = household_refused_coverable(goods)
+        stats_row["household_unserved"] = getattr(sim.regional_market, 'household_unserved', 0.0)
+        stats_row["household_imports"] = getattr(sim.regional_market, 'household_imports', 0.0)
         ext = sim.external
         stats_row["ext_imports"] = ext.last_month['imports']
         stats_row["ext_exports"] = ext.last_month['exports']
-        stats_row["ext_recycled"] = ext.last_month['recycled']
+        stats_row["ext_recycled"] = 0.0
         stats_row["ext_net_position"] = ext.net_position
         stats_row["ext_public_funding"] = sim.funds.external_public_funding
         stock = money_stock(sim)
@@ -579,6 +692,17 @@ class Output:
         for c in LEDGER_CHANNELS:
             stats_row[f"money_{c}"] = sim.ledger[c]
         stats_row["money_unexplained"] = stats_row["money_total"] - sim.money_initial - sum(sim.ledger.values())
+        stats_row["firms_profit_share_paid"] = sim.profit_share_paid
+        stats_row["firms_investment"] = sim.regional_market.monthly_investment
+        owners = [a for f in sim.firms.values() if f.own_account for a in f.employees.values()]
+        stats_row["own_account_workers"] = len(owners)
+        stats_row["own_account_earnings"] = sum((a.last_wage or 0.0) + (a.last_profit_share or 0.0) for a in owners)
+        from agents.firm import UNPLANNED_SECTORS
+        planned = [f for f in sim.firms.values() if f.sector not in UNPLANNED_SECTORS]
+        capacity = sum(f.last_capacity for f in planned)
+        stats_row["firms_utilisation"] = sum(f.last_produced for f in planned) / capacity if capacity else 0.0
+        stats_row["price_tradable"], stats_row["price_nontradable"] = sim.stats.group_prices(
+            sim.firms, set(sim.PARAMS.get('TRADABLE_SECTORS', ('Agriculture', 'Mining', 'Manufacturing'))))
         self._prev_firm_ids = firm_ids
 
         for i, v in enumerate(families_results["rent_burden_decis"], start=1):
@@ -774,7 +898,7 @@ class Output:
             firms_data['sector'].append(firm.sector)
             firms_data['increase_production'].append(firm.increase_production)
             firms_data['unmet_quantity'].append(float(firm.unmet_quantity))
-            if firm.sector == 'Construction':
+            if firm.sector == 'Construction' and not firm.pool:
                 construction_data['month'].append(day)
                 construction_data['firm_id'].append(firm.id)
                 construction_data['region_id'].append(firm.region_id)
@@ -790,7 +914,6 @@ class Output:
                 construction_data['revenue'].append(float(firm.revenue))
                 construction_data['profit'].append(float(firm.profit))
                 construction_data['wages_paid'].append(float(firm.wages_paid))
-            firm.reset_amount_sold()
 
         self._write_parquet('firms', self.firms_path, firms_data)
         if construction_data['month']:

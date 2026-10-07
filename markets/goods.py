@@ -1,3 +1,6 @@
+import os
+
+import numpy as np
 import pandas as pd
 from collections import defaultdict
 
@@ -38,34 +41,19 @@ def read_technical_matrix(mun_codes):
     return local_local, ext_local, local_ext.fillna(0.0), ext_ext.fillna(0.0)
 
 
-def read_final_demand_matrix(mun_codes):
-    if not isinstance(mun_codes, list):
-        mun_codes = [mun_codes, ]
-    fin_matrix = pd.read_json('input/final_demand/' + mun_codes[0] + '_final_demand.json').T
-    # Using matrix to get sector names
-    n = int(len(fin_matrix.index) / 2)
-    n_d = int(len(fin_matrix.columns) / 2)
-    sector_names = [j.split('_')[1] for j in [i for i in fin_matrix.index][:n]]
-    demand_names = [j.split('_')[1] for j in [i for i in fin_matrix.columns][:n_d]]
-    # Splitting the matrix into the 4 region destination and origin
-    # Demand direction origin->destination:
-    # LOCAL->LOCAL, EXTERNAL->LOCAL, LOCAL->EXTERNAL, EXTERNAL->EXTERNAL
-
-    matrix_list = [
-        fin_matrix.iloc[:n, :n_d],
-        fin_matrix.iloc[n:, :n_d],
-        fin_matrix.iloc[:n, n_d:],
-        fin_matrix.iloc[n:, n_d:]
-    ]
-    for m in matrix_list:
-        m.index = sector_names
-    # Calculating the external demand multiplier:
-    # ext_demand = multiplier * internal_demand
-    external_demand_multiplier = {}
-    for sector in sector_names:
-        b = sum(matrix_list[2].loc[sector, :])
-        external_demand_multiplier[sector] = b / (1 - b)
-    return external_demand_multiplier
+def household_refused_coverable(firms):
+    """Household quantity refused for lack of stock that the leftover stock of the same sector could have covered:
+    sum over sectors of min(refused, leftover). Goods firms only, as unmet_household. Diagnostic of matching: a
+    household is refused by the firm it picked while other firms of the sector still hold stock."""
+    refused = defaultdict(float)
+    leftover = defaultdict(float)
+    for f in firms:
+        if f.sector == 'Construction':
+            continue
+        leftover[f.sector] += max(0.0, f.inventory[0].quantity)
+        if f.demand_by_buyer and 'household' in f.demand_by_buyer:
+            refused[f.sector] += f.demand_by_buyer['household'][1]
+    return sum(min(r, leftover[s]) for s, r in refused.items())
 
 
 class RegionalMarket:
@@ -81,27 +69,69 @@ class RegionalMarket:
         self.sim = sim
         self.technical_matrix, self.ext_local_matrix, self.loc_ext_matrix, self.ext_ext_matrix = read_technical_matrix(
             sim.geo.processing_acps)
-        if not sim.PARAMS.get('IO_IMPORTS', False):
-            # Old behaviour: firms read the local->external block as their imports, which is ~0, so every ACP bought
-            # only the local share of its inputs
-            self.ext_local_matrix = self.loc_ext_matrix
+        # The import share of each product for households and government (set_local_shares)
+        self.household_import_share = {}
+        self.government_import_share = {}
 
         self.if_origin = self.sim.PARAMS["TAX_ON_ORIGIN"]
-        self.final_demand = final_demand
+        self.final_demand = final_demand.copy()
         self.final_demand.index = self.technical_matrix.index
-        self.external_demand_multiplier = read_final_demand_matrix(sim.geo.processing_acps)
+        # Households pay rent only in the rental market: the Real Estate share (actual and imputed rent) is 0 and the
+        # other sectors' shares are rescaled to sum to 1
+        household = self.final_demand['HouseholdConsumption'].copy()
+        household['RealEstate'] = 0.0
+        self.final_demand['HouseholdConsumption'] = household / household.sum()
         self.monthly_hh_consumption = defaultdict(float)
+        # Household money this month meant for each sector, served or not
+        self.monthly_hh_intended = defaultdict(float)
+        # world.own_account.OwnAccountPools
+        self.pools = None
         self.monthly_gov_consumption = defaultdict(float)
         # Diagnostic: household money this month that found no firm of the sector with stock (Family.consume)
         self.household_no_stock = 0.0
+        # Diagnostic: household refused quantity that the same sector's leftover stock could have covered, right after
+        # the household round (household_refused_coverable)
+        self.household_refused_coverable = 0.0
+        # Diagnostic: household money this month that firms returned for lack of stock, after any retries
+        self.household_unserved = 0.0
+        # Household money this month spent outside the ACP
+        self.household_imports = 0.0
+        # Government money this month meant for each sector, fares paid to Transport, and
+        # the quantity of each product firms need as inputs (sector order), for the month-1 trade base
+        self.monthly_gov_intended = defaultdict(float)
+        self.monthly_fares = 0.0
+        # Investment money this month meant for each sector, and investment bought
+        self.monthly_inv_intended = defaultdict(float)
+        self.monthly_investment = 0.0
+        self.input_need = np.zeros(len(self.technical_matrix.index))
         # Pre-compute numpy column arrays to avoid pandas.loc overhead in the per-firm hot loop
         self._sector_order = list(self.technical_matrix.index)
         self._tech_np = {s: self.technical_matrix[s].values.copy() for s in self._sector_order}
         self._ext_local_np = {s: self.ext_local_matrix[s].values.copy() for s in self._sector_order}
+        self.local_share = None
+        self.national_matrix = pd.read_csv('input/technical_matrix.csv').set_index('sector').loc[
+            self._sector_order, self._sector_order].astype(float)
+        self.set_local_shares(sim.PARAMS['TRADE_POTENTIAL'])
+
+    def set_local_shares(self, shares):
+        """Product i is bought locally in share shares[i] by every buyer. Firms split
+        their national input coefficients by it; households and government import 1 - shares[i] of their spending."""
+        s = pd.Series(shares, dtype=float).reindex(self._sector_order)
+        self.local_share = s.to_dict()
+        self.technical_matrix = self.national_matrix.mul(s, axis=0)
+        self.ext_local_matrix = self.national_matrix.mul(1 - s, axis=0)
+        self._tech_np = {k: self.technical_matrix[k].values.copy() for k in self._sector_order}
+        self._ext_local_np = {k: self.ext_local_matrix[k].values.copy() for k in self._sector_order}
+        self.household_import_share = {k: 1 - v for k, v in self.local_share.items() if v < 1}
+        self.government_import_share = dict(self.household_import_share)
 
     def consume(self):
         self.monthly_hh_consumption = defaultdict(float)
+        self.monthly_hh_intended = defaultdict(float)
         self.household_no_stock = 0.0
+        self.household_unserved = 0.0
+        self.household_imports = 0.0
+        self.monthly_fares = 0.0
         # Household consumption
 
         # Single pass over firms to group by sector, then filter by inventory availability
@@ -129,6 +159,7 @@ class RegionalMarket:
             for key, value in consumption.items():
                 self.monthly_hh_consumption[key] += value
         self.transport_fares(firms_by_sector.get('Transport'))
+        self.household_refused_coverable = household_refused_coverable(self.sim.firms.values())
 
     def transport_fares(self, transport_firms):
         """Commuting costs (Agent.pay_transport) and the employer transport tax (TAX_TRANSPORT) are collected per
@@ -143,23 +174,69 @@ class RegionalMarket:
             money = region.treasure['transport']
             if money <= 0:
                 continue
-            market = transport_firms if len(transport_firms) <= size_market else \
-                self.sim.seed.sample(transport_firms, size_market)
+            if len(transport_firms) <= size_market:
+                market = transport_firms
+            else:
+                market = self.sim.seed.sample(transport_firms, size_market)
             firm = min(market, key=lambda f: f.inventory[0].price)
+            self.monthly_fares += money
             change = firm.sale(money, self.sim.regions, params['TAX_CONSUMPTION'], region.id, self.if_origin)
             region.treasure['transport'] = change
             self.monthly_hh_consumption['Transport'] += money - change
 
     def government_consumption(self):
         self.monthly_gov_consumption = defaultdict(float)
+        self.monthly_gov_intended = defaultdict(float)
         gov_firms = [f for f in self.sim.firms.values() if f.sector == 'Government']
         for firm in gov_firms:
             consumption = firm.consume(self.sim)
             for key, value in consumption.items():
                 self.monthly_gov_consumption[key] += value
 
-    def gross_fixed_capital_formation(self):
-        pass
+    def firm_investment(self):
+        """The ACP's investment fund is spent over products with the national FBCF composition (final_demand FBCF), the
+        import share of each product bought outside, the rest from the cheapest of a sample of local firms with stock;
+        tradables no local firm served are imported. What finds no stock stays in the fund."""
+        from agents.firm import import_price
+        sim = self.sim
+        self.monthly_investment = 0.0
+        self.monthly_inv_intended = defaultdict(float)
+        money = sim.investment_fund
+        if money <= 0:
+            return
+        params = sim.PARAMS
+        shares = self.final_demand['FBCF']
+        shares = shares[shares > 0] / shares.sum()
+        shortage_sectors = params['TRADABLE_SECTORS']
+        freight = import_price(params)
+        left = 0.0
+        for sector, share in shares.items():
+            money_this_sector = money * share
+            self.monthly_inv_intended[sector] += money_this_sector
+            imported = money_this_sector * self.government_import_share.get(sector, 0.0)
+            if imported > 0:
+                sim.external.intermediate_consumption(imported, freight)
+                money_this_sector -= imported
+            pool, share = self.pools.payable(sector)
+            if pool is not None and share > 0:
+                pool.receive(money_this_sector * share, sim.regions, params['TAX_CONSUMPTION'], pool.region_id,
+                             True)
+                money_this_sector -= money_this_sector * share
+            sector_firms = [f for f in sim.firms.values() if f.sector == sector]
+            market = sim.seed.sample(sector_firms, min(len(sector_firms), int(params['SIZE_MARKET'])))
+            market = [f for f in market if f.total_quantity > 0]
+            if market:
+                firm = min(market, key=lambda f: f.prices)
+                change = firm.sale(money_this_sector, sim.regions, params['TAX_CONSUMPTION'], firm.region_id,
+                                   params['TAX_ON_ORIGIN'], buyer='investment')
+            else:
+                change = money_this_sector
+            if change > 0 and sector in shortage_sectors:
+                sim.external.intermediate_consumption(change, freight)
+                change = 0.0
+            left += change
+        sim.investment_fund = left
+        self.monthly_investment = money - left
 
     def exports(self):
         pass
@@ -183,14 +260,22 @@ class External:
         self.cumulative_taxes_paid = 0
         self.tax_consumption = tax_consumption
         # External account of the ACP. Monthly flows: imports (inputs bought outside, freight included), the part of
-        # their tax that returns to the municipalities, exports (final demand from the rest of Brazil) and recycled
-        # demand (EXTERNAL_RECYCLING_SHARE). net_position accumulates exports + recycled - net imports: negative is a
-        # cumulative deficit, i.e. money that left the ACP
+        # their tax that returns to the municipalities and exports (final demand from the rest of Brazil).
+        # net_position accumulates exports - net imports: negative is a cumulative deficit, i.e. money that left the ACP
         self.imports_month = 0.0
         self.import_tax_month = 0.0
-        self.recycle_pending = 0.0
         self.net_position = 0.0
-        self.last_month = {'imports': 0.0, 'exports': 0.0, 'recycled': 0.0}
+        self.last_month = {'imports': 0.0, 'exports': 0.0}
+        # Months of final_consumption so far
+        self.months = 0
+        # Export quantity per sector and national GDP index of month 1 (trade_base)
+        self.trade_exports = None
+        self.trade_base_index = None
+        # Month-1 components of the trade base, month-1 permanent income, income paid since
+        self.trade_components = None
+        self.base_permanent_income = 0.0
+        self.rebase_income = []
+        self.national_gdp = pd.read_csv('input/national_real_gdp.csv', sep=';').set_index('year')['index']
 
     def get_external_amount_sold(self):
         return self.amount_sold
@@ -200,7 +285,7 @@ class External:
         if amount > 0:
             # Sticking to a SINGLE product for firm
             amount_per_product = amount / 1
-            # FREIGHT included for external goods
+            # Freight included in the price of external goods
             bought_quantity = amount / price
             self.amount_sold += amount_per_product
             self.total_quantity -= bought_quantity
@@ -211,27 +296,8 @@ class External:
             # collect_transfer_consumption_tax returns taxes_paid * tax_consumption
             self.import_tax_month += amount_per_product * self.tax_consumption ** 2
 
-    def choose_firms_per_sector(self, firms, seed):
-        """
-        Choose local firms to buy inputs from
-        """
-        params = self.sim.PARAMS
-        chosen_firms = {}
-
-        for sector in self.sim.regional_market.technical_matrix.index:
-            n_firms = len([f for f in firms.values() if (f.sector == sector)])
-            market = seed.sample(
-                [f for f in firms.values() if f.sector == sector],
-                min(n_firms, 3 * int(params['SIZE_MARKET'])))
-            market = [firm for firm in market if firm.total_quantity > 0]
-            # Choose 10 firms with the cheapest prices. None when no firm of the sector has stock, so its exports are
-            # not sold by the previous sector's firms (#29)
-            market.sort(key=lambda firm: firm.prices)
-            chosen_firms[sector] = market[0: min(10, n_firms)] or None
-        return chosen_firms
-
     def stocked_firms_per_sector(self, firms):
-        """EXTERNAL_DEMAND_SPREAD = 'stock': every firm of the sector with stock, each with its share of the sector's
+        """Every firm of the sector with stock, each with its share of the sector's
         stock value. Every firm is served in full whenever the sector's demand does not exceed that value"""
         stocked = defaultdict(list)
         for f in firms.values():
@@ -248,41 +314,148 @@ class External:
             chosen[sector] = [(f, v / total) for f, v in zip(market, values)]
         return chosen
 
-    def final_consumption(self, internal_final_demand, seed):
-        """Consumes from local firms according to the regionalized SAM"""
-        # Selects a subset of firms to buy from playing the role of rest of Brazil demand from simulated region.
-        if self.sim.PARAMS.get('EXTERNAL_DEMAND_SPREAD', 'cheapest') == 'stock':
-            chosen_firms = self.stocked_firms_per_sector(self.sim.firms)
-        else:
-            # Equal split: weight None divides by the number of firms, as the old model did
-            chosen_firms = {sector: [(f, None) for f in market] if market else None
-                            for sector, market in self.choose_firms_per_sector(self.sim.firms, seed).items()}
-        multiplier = self.sim.regional_market.external_demand_multiplier
+    def national_index(self, year):
+        """National real GDP index (2010 = 1); the last published value after it, the first before it"""
+        s = self.national_gdp
+        return float(s.loc[min(max(year, s.index.min()), s.index.max())])
 
-        # External demand is a LINEAR FUNCTION of the internal demand
+    @staticmethod
+    def sector_price(firms):
+        """Stock-weighted mean price over the stocked firms, or the mean over all firms when none has stock"""
+        qty = sum(f.total_quantity for f in firms if f.total_quantity > 0)
+        return (sum(f.total_quantity * f.prices for f in firms if f.total_quantity > 0) / qty if qty > 0
+                else sum(f.prices for f in firms) / len(firms))
+
+    def expected_investment(self, by_sector):
+        """Month 1: the investment the private firms will make a month at full capacity, the investment rate times
+        their value added at capacity (national input coefficients) less wages and firm tax"""
+        sim = self.sim
+        from agents.firm import Firm
+        market = sim.regional_market
+        input_share = market.national_matrix.sum(axis=0)
+        surplus = 0.0
+        for sector, firms in by_sector.items():
+            if sector == 'Government' or not firms:
+                continue
+            wage_share = Firm.wage_shares[sector]
+            value_added = sum(f.last_capacity for f in firms) * self.sector_price(firms) * (1 - input_share[sector])
+            surplus += value_added * (1 - wage_share) * (1 - sim.PARAMS['TAX_FIRM'])
+        return sim.investment_rate * surplus
+
+    def trade_base(self):
+        """Month 1: per product, local output (staff capacity) and local demand (input
+        need, household spending and fares, government spending, money over the sector's price); local share
+        s = TRADE_POTENTIAL x min(output / demand, 1) and exports = output - s x demand, Construction and Government
+        s = TRADE_POTENTIAL and no exports. Demand includes the expected investment. Sets the market's local shares and
+        returns the table. The month-1 components are kept for rebase_trade."""
+        market = self.sim.regional_market
+        by_sector = defaultdict(list)
+        for f in self.sim.firms.values():
+            by_sector[f.sector].append(f)
+        investment = self.expected_investment(by_sector)
+        fbcf = market.final_demand['FBCF'] / market.final_demand['FBCF'].sum()
+        rows = {}
+        for k, sector in enumerate(market._sector_order):
+            firms = by_sector.get(sector, [])
+            rows[sector] = {'output': sum(f.last_capacity for f in firms),
+                            'price': self.sector_price(firms) if firms else 1.0,
+                            'input_need': market.input_need[k], 'household': market.monthly_hh_intended[sector],
+                            'government': market.monthly_gov_intended[sector], 'investment': investment * fbcf[sector],
+                            'fares': market.monthly_fares if sector == 'Transport' else 0.0}
+        self.trade_components = pd.DataFrame(rows).T
+        self.base_permanent_income = sum(f.get_permanent_income() for f in self.sim.families.values())
+        self.trade_base_index = self.national_index(self.sim.clock.year)
+        return self.apply_trade_base(1.0, 'trade_base.csv')
+
+    def apply_trade_base(self, household_scale, name):
+        """Local shares and exports from the kept month-1 components, household spending times household_scale"""
+        potential = self.sim.PARAMS['TRADE_POTENTIAL']
+        table = self.trade_components.copy()
+        for sector, r in table.iterrows():
+            money = r.household * household_scale + r.government + r.investment
+            if sector == 'Transport':
+                money += r.fares * household_scale
+            table.loc[sector, 'demand'] = r.input_need + (money / r.price if r.price > 0 else 0.0)
+            r = table.loc[sector]
+            if sector in ('Construction', 'Government'):
+                share, exports = potential[sector], 0.0
+            else:
+                share = potential[sector] * (min(r.output / r.demand, 1.0) if r.demand > 0 else (1.0 if r.output > 0 else 0.0))
+                exports = r.output - share * r.demand
+            table.loc[sector, 'local_share'], table.loc[sector, 'exports'] = share, exports
+        self.sim.regional_market.set_local_shares(table['local_share'].to_dict())
+        self.trade_exports = table['exports'].to_dict()
+        output = getattr(self.sim, 'output', None)
+        if output is not None:
+            columns = ['output', 'demand', 'price', 'local_share', 'exports']
+            if household_scale != 1.0:
+                table['household_scale'] = household_scale
+                columns.append('household_scale')
+            table[columns].to_csv(os.path.join(output.path, name), index_label='sector')
+        return table
+
+    def rebase_trade(self):
+        """At the start of month 3 and 4 records the household income the model paid in months 2
+        and 3 (wages, profit shares, social transfers); at month 4 recomputes the trade base with month-1 household
+        spending scaled by that income over the month-1 permanent income, output kept at month-1 staff capacity"""
+        if self.months not in (3, 4):
+            return
+        paid = sum(a.wage_paid + a.last_profit_share + a.last_transfer for a in self.sim.agents.values()
+                   if a.family is not None)
+        self.rebase_income.append(paid)
+        if self.months == 4 and self.base_permanent_income > 0:
+            self.apply_trade_base(np.mean(self.rebase_income) / self.base_permanent_income, 'trade_base_rebased.csv')
+
+    def export_demand(self):
+        """External demand in money per sector: the month-1 export quantity of the trade base (trade_base) times the
+        national real GDP index relative to month 1, times (price / P_imp) ** -EXPORTS_PRICE_ELASTICITY, at the
+        sector's price. P_imp = 1. The sector's price is the stock-weighted mean over its stocked firms, or the mean
+        over all its firms when none has stock."""
+        params = self.sim.PARAMS
         demand = {}
-        for sector in self.sim.regional_market.technical_matrix.index:
-            if chosen_firms[sector] and multiplier[sector] and internal_final_demand[sector]:
-                demand[sector] = multiplier[sector] * internal_final_demand[sector]
-        total_demand = sum(demand.values())
+        self.months += 1
+        if self.trade_exports is None:
+            self.trade_base()
+        self.rebase_trade()
+        growth = self.national_index(self.sim.clock.year) / self.trade_base_index
+        by_sector = defaultdict(list)
+        for f in self.sim.firms.values():
+            by_sector[f.sector].append(f)
+        for sector, quantity in self.trade_exports.items():
+            firms = by_sector.get(sector)
+            if not (firms and quantity > 0):
+                continue
+            price = self.sector_price(firms)
+            if price > 0:
+                demand[sector] = quantity * growth * price ** (1 - params['EXPORTS_PRICE_ELASTICITY'])
+        return demand
 
-        # EXTERNAL_RECYCLING_SHARE: that share of what the ACP paid for imports this month, net of the import tax that
-        # returns to the municipalities, comes back as demand for its products, split across sectors like the exports.
-        # What its firms cannot serve waits for next month. 1 = balanced trade, 0 = imports leave for good (old model)
-        share = self.sim.PARAMS.get('EXTERNAL_RECYCLING_SHARE', 0.0)
-        if share > 0:
-            self.recycle_pending += share * (self.imports_month - self.import_tax_month)
-        recycle = self.recycle_pending if (share > 0 and total_demand > 0) else 0.0
+    def final_consumption(self):
+        """The rest of Brazil buys the exports (export_demand) from every firm of the sector with stock, in proportion
+        to the value of its stock, or from all its firms when none has stock"""
+        chosen_firms = self.stocked_firms_per_sector(self.sim.firms)
+        demand = self.export_demand()
+        self.sim.regional_market.input_need[:] = 0.0
+        for sector in demand:
+            if not chosen_firms[sector]:
+                chosen_firms[sector] = [(f, None) for f in self.sim.firms.values() if f.sector == sector]
 
-        exported, recycled = 0.0, 0.0
+        exported = 0.0
+        pools = self.sim.regional_market.pools
         for sector, amount in demand.items():
             # Sticking to a SINGLE product for firm
-            extra = recycle * amount / total_demand if recycle else 0.0
             sold = 0.0
+            rest = amount
+            # The sector's own-account part
+            pool, pshare = pools.payable(sector)
+            if pool is not None and pshare > 0:
+                sold = rest * pshare
+                pool.receive(sold, self.sim.regions, self.sim.PARAMS['TAX_CONSUMPTION'], pool.region_id,
+                             self.sim.PARAMS['TAX_ON_ORIGIN'], external=True)
+                rest -= sold
             # Buys from firms
             for firm, weight in chosen_firms[sector]:
-                amount_per_firm = (amount + extra) / len(chosen_firms[sector]) if weight is None \
-                    else (amount + extra) * weight
+                amount_per_firm = rest / len(chosen_firms[sector]) if weight is None else rest * weight
                 sold += amount_per_firm - firm.sale(amount_per_firm,
                                                     self.sim.regions,
                                                     self.sim.PARAMS['TAX_CONSUMPTION'],
@@ -292,12 +465,11 @@ class External:
             # The consumption tax stays in the ACP only when it is charged at origin
             self.sim.ledger['exports'] += sold * (1 if self.sim.PARAMS['TAX_ON_ORIGIN']
                                                   else 1 - self.sim.PARAMS['TAX_CONSUMPTION'])
-            exported += sold * amount / (amount + extra)
-            recycled += sold * extra / (amount + extra)
-        self.recycle_pending -= recycled
+            exported += sold
 
-        self.net_position += exported + recycled - (self.imports_month - self.import_tax_month)
-        self.last_month = {'imports': self.imports_month, 'exports': exported, 'recycled': recycled}
+        self.net_position += exported - (self.imports_month - self.import_tax_month)
+        self.last_month = {'imports': self.imports_month, 'exports': exported}
+
         self.imports_month, self.import_tax_month = 0.0, 0.0
 
     def collect_transfer_consumption_tax(self):

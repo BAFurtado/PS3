@@ -129,13 +129,16 @@ def compute_derived_monthly_indicators(df):
 
     # -----------------------------
     # Price / monthly family income (months of income to buy a house)
-    # Uses firms_wage_per_worker when available (correct per-worker median computed
-    # only over active firms); falls back to families_wages_received (family level).
+    # Uses workers_median_wage (median gross wage over paid workers) when available, then
+    # firms_wage_per_worker (median over firms of the wage bill per worker), then
+    # families_wages_received (family level).
     # The old firms_median_wage_paid / firms_median_employment ratio is incorrect:
     # dividing two medians across all firms (including 0-wage firms) gives near-zero
     # per-worker wages and price/wage ratios in the thousands.
     # -----------------------------
-    if "firms_wage_per_worker" in df.columns:
+    if "workers_median_wage" in df.columns:
+        df["price_wage"] = safe_ratio(df["house_price"], df["workers_median_wage"])
+    elif "firms_wage_per_worker" in df.columns:
         df["price_wage"] = safe_ratio(df["house_price"], df["firms_wage_per_worker"])
     else:
         df["price_wage"] = safe_ratio(df["house_price"], df["families_wages_received"])

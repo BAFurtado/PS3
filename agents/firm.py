@@ -12,6 +12,33 @@ from dateutil import relativedelta
 from .house import House
 from .product import Product
 
+# Sectors left at capacity output and their own staffing rules (Construction only under CONSTRUCTION_PLAN 'pipeline')
+UNPLANNED_SECTORS = ('Construction', 'Government')
+
+
+def plans_sales(firm):
+    """Whether the firm produces and staffs for its sales plan"""
+    return firm.own_account or firm.sector not in UNPLANNED_SECTORS or (
+            firm.sector == 'Construction' and ConstructionFirm.planned)
+
+
+# Vale-transporte: the employee's part of the public transport fare is capped at this share of the basic wage, the
+# employer pays the rest (Lei 7.418/1985, art. 4; Decreto 95.247/1987, art. 9)
+VT_WAGE_SHARE = 0.06
+
+
+def import_price(params):
+    """Price of a unit bought from the rest of Brazil: P_imp = 1, since the national input coefficients and
+    final-demand shares buy transport margins from Transport"""
+    return 1.0
+
+
+def import_parity(params):
+    """Import-parity price ceiling per tradable sector: P_imp = 1 plus the product's national transport margin
+    (input/transport_margins.csv)"""
+    margins = pd.read_csv('input/transport_margins.csv', sep=';').set_index('sector')['margin']
+    return {s: 1.0 + float(margins[s]) for s in params['TRADABLE_SECTORS']}
+
 np.seterr(divide='ignore', invalid='ignore')
 initial_input_sectors = {'Agriculture': 0,
                          'Mining': 0,
@@ -47,11 +74,30 @@ class Firm:
     unmet_quantity = 0.0
     # Diagnostic: this month's sold and refused quantity by buyer type, {buyer: [sold, refused]}; reset with amount_sold
     demand_by_buyer = None
+    # Own-account pools (world/own_account.py)
+    own_account = False
+    # The own-account workers of a sector (world/own_account.py OwnAccountPool)
+    pool = False
+    owner = None
+    # Eco-efficiency investment this month (invest_eco_efficiency)
+    inno_inv = 0.0
+    # PUBLIC_TRANSIT_COST, the fare per commute unit, of which employers pay vale-transporte (set by Simulation)
+    vale_transporte = None
     # Share of capital advanced as revenue in a month without sales (FIRM_CAPITAL_MONTHS sets it to 1/months)
     cold_start_share = 0.001
     # Consecutive months insolvent / idle (FIRM_EXIT_MONTHS); set when the firm exits
     months_insolvent = 0
+    # Wage bill as a share of value added, by sector (set by Simulation)
+    wage_shares = None
     months_idle = 0
+    # Last month's sold plus refused quantity (None before the firm's first production), the
+    # workers above what this month's demand needs, and this month's output and labour capacity
+    last_demand = None
+    workers_excess = 0
+    last_produced = 0.0
+    last_capacity = 0.0
+    # Output per unit of labour relative to the national mean
+    sector_productivity = 1.0
     exit_date = None
     exit_reason = None
 
@@ -285,7 +331,7 @@ class Firm:
             return
 
         params = regional_market.sim.PARAMS
-        freight_cost = 1.0 + params['REGIONAL_FREIGHT_COST']
+        freight_cost = import_price(params)
         sectors = regional_market._sector_order
 
         # Use pre-computed numpy column arrays (avoids pandas.loc on every call)
@@ -297,6 +343,7 @@ class Firm:
         # Build inventory and quantity arrays without creating pd.Series
         inv_arr = np.array([self.input_inventory[s] for s in sectors])
         gross_needed = desired_quantity * total_tc
+        regional_market.input_need += gross_needed
         net_needed_clipped = np.maximum(gross_needed - inv_arr, 0.0)
         local_needed = input_ratio * net_needed_clipped
         external_needed = net_needed_clipped - local_needed
@@ -346,6 +393,17 @@ class Firm:
             if money_local == 0 and money_external == 0:
                 continue
 
+            # The sector's own-account part of the local purchase
+            to_pool = 0.0
+            pools = getattr(regional_market, 'pools', None)
+            if pools is not None and money_local > 0:
+                pool, share = pools.payable(sector)
+                if pool is not None and share > 0 and pool is not self:
+                    to_pool = money_local * share
+                    pool.receive(to_pool, regional_market.sim.regions, params['TAX_CONSUMPTION'], self.region_id,
+                                 params['TAX_ON_ORIGIN'])
+                    money_local -= to_pool
+
             # Local purchases
             if firms_sector:
                 change = 0.0
@@ -381,21 +439,29 @@ class Firm:
 
             # Inventory + cost update
             self.input_inventory[sector] += (
-                    (money_local - change) / price +
+                    (money_local - change + to_pool) / price +
                     money_external / (ext_price * freight_cost)
             )
 
-            self.input_cost += money_local - change + money_external
+            self.input_cost += money_local - change + money_external + to_pool
 
     def update_product_quantity(self, prod_exponent, prod_divisor, regional_market, firms, seed,
-                               prebuilt_sector_map=None):
+                               prebuilt_sector_map=None, plan=None):
         """
         Based on the MIP sector, buys inputs to produce a given money output of the activity, creates externalities
         and creates a price based on cost.
+        plan: the stock target ratio r, for firms that plan on sales (plans_sales). Output tops the stock up to last month's demand times
+        (1 + r), and to at least r x capacity, within capacity. None: output = capacity.
         """
         quantity = 0
+        self.last_capacity = 0.0
         if self.employees and self.inventory:
-            desired_quantity = self.total_qualification(prod_exponent) / prod_divisor
+            capacity = self.capacity(prod_exponent, prod_divisor)
+            self.last_capacity = capacity
+            desired_quantity = capacity
+            if plan is not None and self.last_demand is not None:
+                shelf = max(self.last_demand * (1 + plan), plan * capacity) + self.plan_reserve()
+                desired_quantity = min(capacity, max(0.0, shelf - self.total_quantity))
 
             technical_matrix = regional_market.technical_matrix
             external_technical_matrix = regional_market.ext_local_matrix
@@ -426,6 +492,7 @@ class Firm:
             quantity = productive_constraint_numeric * desired_quantity
             self.total_quantity += quantity
             self.amount_produced += quantity
+        self.last_produced = quantity
         return quantity
 
     # Commercial department
@@ -442,42 +509,75 @@ class Firm:
             inventory_target_ratio=0.0,
             price_markup_cap=0.25,
             demand_signal_unmet=False,
+            price_demand_response=0.0,
+            price_ceiling=None,
+            plan=None,
     ):
         """ Update prices based on inventory and average prices
-            Save signal for the labor market """
+            Save signal for the labor market
+            plan: the stock target ratio r, for firms that plan on sales (plans_sales). workers_excess = workers whose
+            output exceeds this month's sold plus refused quantity times (1 + r), and r x capacity. """
+        if plan is not None:
+            capacity = self.capacity(prod_exponent, prod_magnitude_divisor)
+            need = (max((self.goods_sold() + self.unmet_quantity) * (1 + plan), plan * capacity) +
+                    max(0.0, self.plan_reserve() - self.total_quantity))
+            self.workers_excess = 0
+            if self.num_employees > 0 and capacity > need:
+                self.workers_excess = int((capacity - need) / (capacity / self.num_employees))
         # Sticky prices (KLENOW, MALIN, 2010)
         if seed_np.rand() < sticky_prices:
             # DEMAND_SIGNAL_UNMET: demand is what was sold plus what was refused for lack of stock. Buyers do not try
             # another local firm after a refusal, so the refused quantity is not served elsewhere in the ACP
-            demand = self.amount_sold + self.unmet_quantity if demand_signal_unmet else self.amount_sold
+            demand = self.goods_sold() + self.unmet_quantity if demand_signal_unmet else self.goods_sold()
+            # PRICE_DEMAND_RESPONSE: share of this month's demand refused for lack of stock. Construction's
+            # amount_sold mixes house sales in money with quantities, so it keeps the old rule
+            refused_share = 0.0
+            if price_demand_response > 0 and self.unmet_quantity > 0 and self.sector != 'Construction':
+                refused_share = self.unmet_quantity / (self.amount_sold + self.unmet_quantity)
             for p in self.inventory.values():
                 delta_price = seed_np.randint(0, int(2 * markup * 100) + 1) / 100
-                productive_capacity = self.total_qualification(prod_exponent) / prod_magnitude_divisor
+                productive_capacity = self.capacity(prod_exponent, prod_magnitude_divisor)
                 # Firms target a safety-stock buffer above bare productive capacity.
-                low_inventory = (self.total_quantity + productive_capacity) <= demand * (1 + inventory_target_ratio)
+                target = demand * (1 + inventory_target_ratio) + self.plan_reserve()
+                low_inventory = (self.total_quantity + productive_capacity) <= target
                 if low_inventory:
                     self.increase_production = True
                     # Workers needed to close the gap at current output per worker (see LaborMarket.add_growth_posts)
                     if self.num_employees > 0 and productive_capacity > 0:
-                        gap = demand * (1 + inventory_target_ratio) - self.total_quantity - productive_capacity
+                        gap = target - self.total_quantity - productive_capacity
                         self.workers_needed = math.ceil(max(gap, 0) / (productive_capacity / self.num_employees))
                     else:
                         self.workers_needed = 1
                     # Rise freely up to avg_prices * (1 + cap); spatial monopoly premium bounded.
                     ceiling = avg_prices * (1 + price_markup_cap)
+                    if price_ceiling is not None:
+                        ceiling = min(ceiling, price_ceiling)
                     if p.price < ceiling:
                         p.price = min(p.price * (1 + delta_price), ceiling)
                 else:
                     self.increase_production = False  # Lengnick
-                    # Fall only if above average, damped by price_ruggedness.
-                    if p.price > avg_prices:
+                    # Fall only if above average, damped by price_ruggedness; never in a month with refused demand
+                    if p.price > avg_prices and not refused_share:
                         p.price *= 1 - delta_price * price_ruggedness
+                # Refused demand raises the price by θ × refused share, beyond PRICE_MARKUP_CAP (which bounds only the
+                # inventory rule): the rationing that labour-bound supply cannot provide
+                if refused_share:
+                    p.price *= 1 + price_demand_response * refused_share
         self.prices = sum(p.price for p in self.inventory.values()) / len(
             self.inventory
         )
 
+    def goods_sold(self):
+        """This month's quantity sold, the demand the sales plan reads"""
+        return self.amount_sold
+
+    def plan_reserve(self):
+        """Stock the sales plan keeps on top of its sales target"""
+        return 0.0
+
     def reset_amount_sold(self):
         # Resetting amount sold to record monthly amounts
+        self.last_demand = self.goods_sold() + self.unmet_quantity if self.amount_produced > 0 else None
         self.amount_sold = 0
         self.unmet_quantity = 0.0
         self.demand_by_buyer = None
@@ -563,24 +663,25 @@ class Firm:
             [employee.qualification ** alpha for employee in self.employees.values()]
         )
 
+    def total_wage_weight(self, alpha):
+        """Sum of the staff's weights in the wage split (Agent.wage_weight)"""
+        return sum(employee.wage_weight(alpha) for employee in self.employees.values())
+
+    def capacity(self, prod_exponent, prod_divisor):
+        """Output the current staff can produce in a month"""
+        return self.total_qualification(prod_exponent) / prod_divisor * self.sector_productivity
+
     def offer_wage(self, unemployment, relevance_unemployment):
         # The wage job seekers compare when the labour market ranks postings: the wage per worker, except for Government
         return self.wage_base(unemployment, relevance_unemployment)
 
     def wage_base(self, unemployment, relevance_unemployment):
-        # Observing global economic performance to set salaries,
-        # guarantees that firms do not spend all revenue on salaries
-        # guarantees that firms do not distribute all money when unemployment is 0
-        # Calculating wage base on a per-employee basis.
-        unemployment = .04 if unemployment == 0 else unemployment
+        # The sector's labour share of value added (revenue - inputs), per employee
         # Cold-start fallback: in months with zero sales revenue (typically month 1),
         # advance a small fraction of capital as implicit revenue so workers receive
         # non-zero wages and bootstrap household permanent income.
         effective_revenue = self.revenue if self.revenue > 0 else self.total_balance * self.cold_start_share
-        # Exponential discount: labor_share = exp(-u * relevance). Approaches 0 asymptotically
-        # as unemployment rises; equals ~0.94 at equilibrium 4% unemployment (same as old linear).
-        # Replaces linear (1 - u*relevance) which crossed zero at u = 1/relevance ≈ 67%.
-        labor_share = np.exp(-unemployment * relevance_unemployment)
+        labor_share = Firm.wage_shares[self.sector]
         if self.num_employees > 0:
             return ((effective_revenue - self.input_cost) / self.num_employees) * labor_share
         else:
@@ -596,16 +697,20 @@ class Firm:
                     * self.num_employees
             )
             if total_salary_paid > 0:
-                total_qualification = self.total_qualification(alpha)
+                total_weight = self.total_wage_weight(alpha)
                 for employee in self.employees.values():
-                    # Making payment according to employees' qualification.
+                    # Making payment according to employees' wage weights.
                     # Deducing it from firms' balance
                     # Deduce LABOR TAXES from employees' salaries as a percentual of each salary
-                    wage = (
-                                   total_salary_paid
-                                   * (employee.qualification ** alpha)
-                                   / total_qualification
-                           ) * (1 - tax_labor)
+                    gross = total_salary_paid * employee.wage_weight(alpha) / total_weight
+                    wage = gross * (1 - tax_labor)
+                    if not employee.has_car:
+                        # The employer's part of the fare the employee pays in Agent.pay_transport; not wage
+                        units = employee.distance if employee.commute_cost_units is None \
+                            else employee.commute_cost_units
+                        subsidy = max(0.0, units * Firm.vale_transporte - VT_WAGE_SHARE * gross)
+                        employee.money += subsidy
+                        self.total_balance -= subsidy
                     if tax_transport:
                         if self.num_employees > 10:
                             transport_tax = wage * tax_transport
@@ -613,6 +718,7 @@ class Firm:
                             regions[self.region_id].collect_taxes(transport_tax, "transport")
                     employee.money += wage
                     employee.last_wage = wage
+                    employee.wage_paid = wage
 
                 # Transfer collected LABOR TAXES to region
                 labor_tax = total_salary_paid * tax_labor
@@ -627,6 +733,7 @@ class Firm:
             # No staff, no wage bill: a stale value would keep entering calculate_profit and pay_taxes
             self.wages_paid = 0
             self.months_unpaid = 0
+
 
     # Human resources department #################
     def add_employee(self, employee):
@@ -661,7 +768,7 @@ class Firm:
         """Value of a month's output of the current staff at the current price, the scale of its monthly cost"""
         if not self.employees or not self.inventory:
             return 0.0
-        return self.total_qualification(prod_exponent) / prod_divisor * self.prices
+        return self.capacity(prod_exponent, prod_divisor) * self.prices
 
     def __repr__(self):
         return "FirmID: %s, $ %d, Emp. %d, Quant. %d, Address: %s at %s" % (
@@ -694,6 +801,12 @@ class ConstructionFirm(Firm):
     # Land bought, spread by month over CONSTRUCTION_ACC_CASH_FLOW months and recovered before wages (with
     # FIRM_CAPITAL_MONTHS > 0). Class-level default so builders unpickled from an older cache have it.
     land_schedule = None
+    # CONSTRUCTION_PLAN 'sales' (set by Simulation). House sales and upgrades received this month (money, in
+    # amount_sold), and the stock completed houses used this month and last month
+    planned = False
+    house_sales = 0.0
+    house_materials = 0.0
+    last_house_materials = 0.0
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -766,15 +879,11 @@ class ConstructionFirm(Firm):
         mu, sigma = self._SIZE_PARAMS[building_quality]
         building_size = seed_np.lognormal(mu, sigma)
 
-        # Number of product quantities needed for the house
-        gross_cost = building_size * building_quality
-        # Productivity is drawn once per firm from [1 - MULTIPLIER*MARKUP, 1.0].
-        # Lower productivity → higher building cost → fewer profitable projects.
-        # Productivity reduces the cost of construction and sets the size of profiting when selling
+        # Productivity is drawn once per firm from [1 - MULTIPLIER*MARKUP, 1.0], over its mean in the building cost
+        # (world/house_values.py). Lower productivity → higher building cost → fewer profitable projects.
         if not self.productivity:
             self.productivity = seed_np.randint(100 - int(params['CONSTRUCTION_FIRM_MARKUP_MULTIPLIER'] *
                                                 params["MARKUP"] * 100), 101) / 100
-        building_cost = gross_cost * self.productivity
 
         # Choose region where construction is most profitable.
         # Expected revenue uses quality-specific price per sqm (quality × region.index),
@@ -790,15 +899,17 @@ class ConstructionFirm(Firm):
         profitable_regions = []
         free_cash = self.free_cash() - params.get('FIRM_CAPITAL_MONTHS', 0) * self.capacity_value(
             params['PRODUCTIVITY_EXPONENT'], params['PRODUCTIVITY_MAGNITUDE_DIVISOR'])
+        values = sim.house_values
         for r in regions:
-            expected_price = building_quality * r.index * building_size * vacancy_factor
-            profit = expected_price - (
-                    r.license_price * building_cost * (1 + params["LOT_COST"])
-            )
+            expected_price = building_quality * r.index * building_size * vacancy_factor * House.price_scale
+            # Land at LOT_COST of the house's value, building at its money cost
+            land = building_quality * r.index * building_size * House.price_scale * params["LOT_COST"]
+            works = values.build_cost(r.id, building_size, building_quality, self.productivity)
+            profit = expected_price - works - land
 
             # The firm must be able to pay for the land (LOT_COST share) from cash not owed as wages and above its
             # working-capital buffer (FIRM_CAPITAL_MONTHS), not just hold one license price
-            if profit > 0 and free_cash >= r.license_price * building_cost * params["LOT_COST"]:
+            if profit > 0 and free_cash >= land:
                 profitable_regions.append(r)
 
         if not profitable_regions:
@@ -812,21 +923,21 @@ class ConstructionFirm(Firm):
         self.building[idx]["region"] = region.id
         self.building[idx]["size"] = building_size
         self.building[idx]["quality"] = building_quality
-        # Product.quantity increases as construction moves forward and is deducted at once.
-        # Divided by HOUSE_PRODUCTION_ADEQUACY to bridge the scale gap between labour output
-        # units (~3-8/month) and building_size in square metres (~60-200 m²).
-        self.building[idx]["cost"] = building_cost * region.license_price / params["HOUSE_PRODUCTION_ADEQUACY"]
+        # Product.quantity increases as construction moves forward and is deducted at once: the building's money
+        # cost in construction output at its current price
+        self.building[idx]["cost"] = values.build_cost(region.id, building_size, building_quality,
+                                                       self.productivity) / self.prices
 
         # Provide temporary cashflow revenue numbers before sales start to trickle in.
         # Additional value per month. Expectations of monthly payments before first sell
         self.monthly_planned_revenue.append(
-            self.building[idx]["cost"] / params["CONSTRUCTION_ACC_CASH_FLOW"]
+            self.building[idx]["cost"] * self.prices / params["CONSTRUCTION_ACC_CASH_FLOW"]
         )
 
         # Buy license
         region.licenses -= 1
-        # Region license price is current QLI. Lot price is the model parameter
-        cost_of_land = region.license_price * building_cost * params["LOT_COST"]
+        # Land at LOT_COST of the house's value
+        cost_of_land = building_quality * region.index * building_size * House.price_scale * params["LOT_COST"]
         self.total_balance -= cost_of_land
         region.collect_taxes(cost_of_land, "transaction")
         if params.get('FIRM_CAPITAL_MONTHS', 0) > 0:
@@ -879,6 +990,7 @@ class ConstructionFirm(Firm):
         building_info = self.building[min_cost_idx]
         paid = min(building_info["cost"], self.total_quantity)
         self.total_quantity -= paid
+        self.house_materials += paid
 
         # Choose random place in region
         region = regions[building_info["region"]]
@@ -896,7 +1008,7 @@ class ConstructionFirm(Firm):
         house_id = generator.gen_id()
         size = building_info["size"]
         quality = building_info["quality"]
-        price = (size * quality) * region.index
+        price = (size * quality) * region.index * House.price_scale
         h = House(
             house_id,
             address,
@@ -921,6 +1033,7 @@ class ConstructionFirm(Firm):
     def update_balance(self, amount, acc_months=None, date=datetime.date(2000, 1, 1)):
         self.total_balance += amount
         self.amount_sold += amount
+        self.house_sales += amount
         if acc_months is not None:
             acc_months = int(acc_months)
             for i in range(acc_months):
@@ -935,6 +1048,25 @@ class ConstructionFirm(Firm):
             return super().wage_base(unemployment, relevance_unemployment)
         finally:
             self.input_cost -= land
+
+    def goods_sold(self):
+        """CONSTRUCTION_PLAN 'sales': goods sold plus the stock last month's completed houses used, without the money
+        of house sales"""
+        if not ConstructionFirm.planned:
+            return self.amount_sold
+        return self.amount_sold - self.house_sales + self.last_house_materials
+
+    def plan_reserve(self):
+        """CONSTRUCTION_PLAN 'sales': the cost of the cheapest pending house, the next one build_house can complete"""
+        if not ConstructionFirm.planned or not self.building:
+            return 0.0
+        return min(b["cost"] for b in self.building.values())
+
+    def reset_amount_sold(self):
+        self.last_house_materials = self.house_materials
+        self.house_materials = 0.0
+        super().reset_amount_sold()
+        self.house_sales = 0.0
 
     def free_cash(self):
         """Balance not yet owed as wages: sale proceeds are banked at once but paid out through cash_flow over
@@ -1077,10 +1209,28 @@ class GovernmentFirm(Firm):
         left = 0.0
         if money <= 0 or shares.sum() <= 0:
             return money
+        # Tradable purchases no local firm served are bought outside at P_imp = 1 plus freight
+        shortage_sectors = sim.PARAMS['TRADABLE_SECTORS']
+        import_share = sim.regional_market.government_import_share
+        freight = import_price(sim.PARAMS)
         for sector, share in (shares / shares.sum()).items():
             money_this_sector = money * share
             if money_this_sector == 0:
                 continue
+            sim.regional_market.monthly_gov_intended[sector] += money_this_sector
+            # The import share of the product is bought outside
+            imported = money_this_sector * import_share.get(sector, 0.0)
+            if imported > 0:
+                sim.external.intermediate_consumption(imported, freight)
+                total_consumption[sector] += imported
+                money_this_sector -= imported
+            pool, share = sim.regional_market.pools.payable(sector)
+            if pool is not None and share > 0:
+                paid = money_this_sector * share
+                pool.receive(paid, sim.regions, sim.PARAMS['TAX_CONSUMPTION'], self.region_id,
+                             sim.PARAMS['TAX_ON_ORIGIN'])
+                total_consumption[sector] += paid
+                money_this_sector -= paid
             sector_firms = [f for f in sim.firms.values() if f.sector == sector]
             market = sim.seed.sample(sector_firms, min(len(sector_firms), int(sim.PARAMS['SIZE_MARKET'])))
             market = [firm for firm in market if firm.total_quantity > 0]
@@ -1088,10 +1238,13 @@ class GovernmentFirm(Firm):
                 chosen_firm = min(market, key=lambda firm: firm.prices)
                 change = chosen_firm.sale(money_this_sector, sim.regions, sim.PARAMS['TAX_CONSUMPTION'],
                                           self.region_id, sim.PARAMS["TAX_ON_ORIGIN"], buyer='government')
-                left += change
-                total_consumption[sector] += money_this_sector - change
             else:
-                left += money_this_sector
+                change = money_this_sector
+            if change > 0 and sector in shortage_sectors:
+                sim.external.intermediate_consumption(change, freight)
+                change = 0.0
+            left += change
+            total_consumption[sector] += money_this_sector - change
         return left
 
     def pay_taxes(self, regions, tax_firm):

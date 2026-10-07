@@ -63,3 +63,4 @@ Thumbs.db
 # Calibration archive: 1.7 GB Sobol run bundle, kept locally only.
 # calibrated/README.md is deliberately NOT ignored.
 calibrated/*.zip
+input/bndes/semob/

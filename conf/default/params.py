@@ -5,13 +5,17 @@ import datetime
 # FIRMS #########################################################
 # Production function, labor with decaying exponent, Alpha for K. [0, 1]
 PRODUCTIVITY_EXPONENT = 0.65
-# Order of magnitude correction of production. Production divided by parameter
+# Production divided by this. Set after start-up hiring so that the value added of the private staff's capacity
+# (national input coefficients) equals the IBGE 2010 value added per resident of the run's municipalities, net of imputed
+# rent and own-account income (input/municipal_va_2010.csv, auxiliary/municipal_va.py), in model money
 PRODUCTIVITY_MAGNITUDE_DIVISOR = 1
 # GENERAL CALIBRATION PARAMETERS
 # INTEREST: market/SELIC scenario. Choose: 'real', 'media', 'fixed'
 INTEREST = "real"
-# INTEREST_HOUSING: SBPE/FGTS regulated rate scenario for PlanHab. Choose: 'alta', 'media', 'baixa'
-INTEREST_HOUSING = "media"
+# INTEREST_HOUSING: SBPE/FGTS regulated rate scenario for PlanHab. Choose: 'alta', 'media', 'baixa', or 'real': the
+# 'media' SBPE and FGTS rates and the market mortgage rate deflated by expected inflation (auxiliary/real_housing_rates.py),
+# the mortgage rate replacing the INTEREST file's
+INTEREST_HOUSING = 'real'
 # By how much percentage to increase prices
 MARKUP = 0.1
 # Frequency firms change prices. Probability < than parameter
@@ -29,8 +33,16 @@ INVENTORY_TARGET_RATIO = 0.2
 # Demand signal for production and hiring (step 2b). True: sales plus the quantity refused for lack of stock, so demand a
 # firm could not serve (household, input or external) asks for more output. False (old model): sales only.
 DEMAND_SIGNAL_UNMET = False
+# Price response to refused demand, θ (step 2b/3). A firm that refused buyers for lack of stock this month raises its
+# price, when it revises it (STICKY_PRICES), by θ × refused / (sold + refused), beyond PRICE_MARKUP_CAP, and does not
+# lower it that month. Goods firms only (not Construction). 0 (old model): refusals do not move prices.
+PRICE_DEMAND_RESPONSE = 0.1
 # Number of firms consulted before consumption
 SIZE_MARKET = 5
+# A household refused (or served only in part) for lack of stock by the firm it picked tries the other stocked firms of
+# the same sample, in the order of its strategy (price or distance), until the money is spent. False (old model): the
+# rest goes back to savings. Refused quantity stays recorded at each firm that refused it (its demand signal).
+HOUSEHOLD_RETRY = False
 # Number of firms to buy from in the INTERMEDIATE market
 INTERMEDIATE_SIZE_MARKET = 10
 # Frequency firms enter the market
@@ -43,11 +55,11 @@ NATURAL_SEPARATION_RATE = 0.010
 FIRE_UNPAID_MONTHS = 3
 # Firm capital, in months of a firm's monthly cost (its staff's output at current price; Construction at least one
 # median project: land plus the building cost it advances as wages before the first sale). Initial firms are sized
-# after start-up hiring; entrants are funded from their sector's incumbents' capital above this buffer (reinvested
-# earnings) and do not enter when that surplus is short, so entry creates no money; builders buy land only from cash
-# above the buffer and not owed as wages; firms with no revenue advance 1/FIRM_CAPITAL_MONTHS of capital as wages.
-# 0 = original: beta(1.5, 10) x 1e6 x IDHM for initial firms and entrants alike (~5,000 months of revenue, created
-# at entry), 0.1% advanced.
+# after start-up hiring; builders buy land only from cash above the buffer and not owed as wages; firms with no revenue
+# advance 1/FIRM_CAPITAL_MONTHS of capital as wages. Each month all of a private firm's cash above the buffer leaves
+# it: the corporate investment rate (FBCF / gross operating surplus, input/investment_rate_2015.csv) is spent the next
+# month as investment demand with the national FBCF composition (final_demand.csv), the rest goes to owners outside
+# the ACP (money_profits_out); entrants' capital comes from those owners (money_firm_entry).
 FIRM_CAPITAL_MONTHS = 3
 # With FIRM_CAPITAL_MONTHS > 0: a construction firm's capital in months of its cost, and at least one median project
 # (land plus the wages it advances before the first sale). Builders have no production credit and a 2-3 year project
@@ -58,6 +70,19 @@ CONSTRUCTION_CAPITAL_MONTHS = 12
 # become unemployed, its remaining capital goes to its sector's firms, and it moves to sim.firm_grave. Government never
 # exits; Construction only with no house for sale or under construction. 0 = original, no exit.
 FIRM_EXIT_MONTHS = 6
+# Builders' output. Other private firms top their stock up to last month's sold plus refused quantity times
+# (1 + INVENTORY_TARGET_RATIO), and to at least INVENTORY_TARGET_RATIO x capacity, within capacity, and shed the
+# workers whose capacity exceeds that need, at most half their staff. 'pipeline': builders produce at capacity and hire and shed on their house pipeline
+# (pending houses short of stock, a profitable plot found, too many houses for sale). 'sales': they plan as the other
+# private firms, their demand being goods sold plus refused plus the stock their completed houses used, and their stock
+# target adding the cost of their cheapest pending house.
+CONSTRUCTION_PLAN = 'pipeline'
+# Firm count by sector, in the IBGE nível 12 classification of the input-output matrix (Trade = G, Business = J,
+# Government = O and public P/Q, OtherServices = I, M, N, R, S, T, U and private P/Q). 'ibge12': RAIS 2010 shares.
+# 'census': Census 2010 employees aged 17-69 (domestic workers included) by sector. Output per unit of labour by sector
+# is national output per job relative to the mean, IBGE national accounts 2015 (input/sector_productivity.csv);
+# builders keep 1.
+SECTOR_SHARES = 'ibge12'
 # Firms refill workers lost to natural separation or death (one post each) unless shrinking. False = off.
 REPLACE_SEPARATIONS = True
 # Growing firms post the vacancies their production plan needs (gap between sales plus stock target and current
@@ -71,27 +96,30 @@ PLANNED_GROWTH_POSTS = True
 # equally-divided share by the number of municipalities, never paid the FPM and local shares, destroyed the regions'
 # share, and let Government firms spend their start-up capital as demand.
 GOV_REVISED = True
-# Public wage rule (GOV_REVISED).
-# 'premium': Government pays what private firms pay per unit of qualification (qualification ** PRODUCTIVITY_EXPONENT,
-#   the same split as make_payment) times (1 + P), for the qualification it actually employs; it offers job seekers
-#   (1 + P) x the municipality's mean private wage. P is the municipality's mix of public jobs by level of government
-#   (input/gov_levels.csv, Ipea Atlas do Estado Brasileiro 2021; auxiliary/gov_levels.py) weighted by the premia below,
-#   which are conditional on schooling, age, gender and race (World Bank, Um Ajuste Justo, 2017: federal 67 %, state
-#   over 30 %, municipal none). Composition comes from the model's own sorting, not from the observed raw ratio.
+# Public wage rule (GOV_REVISED). A municipality's public jobs are split by level of government (input/gov_levels.csv,
+# Ipea Atlas do Estado Brasileiro 2021; auxiliary/gov_levels.py). Federal and state staff are paid the observed
+# multiple of private pay for their level (input/gov_pay.csv: Ipea Atlas state pay per level over the ACP's CEMPRE
+# private pay, 2010; auxiliary/gov_pay.py) times the ACP's private pay per worker, its mean over GOV_PAY_BASE_MONTHS
+# months after GOV_PAY_BURN_IN, then fixed in real terms. Municipal staff:
+# 'premium': what private firms pay per unit of qualification (qualification ** PRODUCTIVITY_EXPONENT, the same split
+#   as make_payment) times (1 + GOV_PREMIUM_MUNICIPAL), for the qualification Government actually employs; job seekers
+#   are offered that times the municipality's mean private wage.
 # 'cempre_ratio': GOV_WAGE_RATIO x the observed raw public/private wage ratio (input/gov_wage_ratio.csv, IBGE CEMPRE;
-#   auxiliary/gov_wage_ratio.py) x the mean private wage. It counts composition twice, as higher-paying firms also hire
-#   the most qualified candidates first.
+#   auxiliary/gov_wage_ratio.py) x the mean private wage.
 # 'uniform': GOV_WAGE_RATIO x the mean private wage.
 GOV_WAGE_RULE = 'premium'
-GOV_PREMIUM_FEDERAL = 0.67
-GOV_PREMIUM_STATE = 0.30
 GOV_PREMIUM_MUNICIPAL = 0.0
 GOV_WAGE_RATIO = 1.0
 # Federal and state staff are paid from national and state revenue, not from the taxes raised in the ACP. True: when a
 # municipality's budget cannot pay its public payroll (and the purchases and inputs that go with it), the shortfall is
-# funded from outside the ACP, up to the non-municipal share of that cost; the inflow is counted in
+# funded from outside the ACP, up to the federal and state staff's cost; the inflow is counted in
 # Funds.external_public_funding. False: the budget caps the public wage.
 GOV_EXTERNAL_FUNDING = True
+# Months before, and months averaged for, the fixed real bases of federal and state pay and of public investment:
+# public investment, the municipal budget's residual after payroll and purchases, is then held at its base months' real
+# level, the difference paid from (or to) outside the ACP
+GOV_PAY_BURN_IN = 12
+GOV_PAY_BASE_MONTHS = 12
 # The taxes pooled 'equally' (labour and firm taxes net of the FPM share, the state share of consumption tax, tax on
 # bank interest, the import tax that returns) are federal and state revenue. True: they leave the ACP through the
 # external account (money_public_taxes_out), so the net public transfer is GOV_EXTERNAL_FUNDING minus these. False: they
@@ -99,9 +127,12 @@ GOV_EXTERNAL_FUNDING = True
 # Off until the model has the federal spending that comes back (pensions, Bolsa Família, SUS): with only the payroll
 # transfer, BH and Goiânia pay out ~10x what returns and unemployment reaches 35 % (step test 2026-09-29).
 PUBLIC_TAXES_OUT = False
+# Education of a vacancy. 'off': none. 'census': each vacancy draws its level from the Census 2010 employees of its
+# sector in the run's municipalities and is filled from applicants of that level; it stays open if none applies.
+POSTING_EDUCATION = 'off'
 # Percentage of employees' firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
-# Ignore unemployment in wage base calculation if parameter is zero, else discount unemployment times parameter
+# GOV_REVISED False: Government's wage share exp(-unemployment x this)
 RELEVANCE_UNEMPLOYMENT_SALARIES = 1.5
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 20
@@ -141,6 +172,12 @@ OGU_INVESTMENT = {'otimista': .25,
 # FUNDS AVAILABILITY can be 'otimista', 'tendencial' or 'pessimista' [positive, tendencial or negative perspectives].
 # NOTICE: It interferes on both OGU investment and FGTS AND SBPE investments
 FUNDS_AVAILABILITY = 'tendencial'
+# Programme funds come from outside the ACP. The OGU and the FGTS and SBPE lines are their shares of last month's
+# municipal GDP for FUNDS_BURN_IN + FUNDS_BASE_MONTHS months; then of the municipality's real GDP over the base months
+# (GDP / the national real GDP index, input/national_real_gdp.csv) times this year's index. FGTS and SBPE instalments
+# go back to the national funds, out of the ACP.
+FUNDS_BURN_IN = 12
+FUNDS_BASE_MONTHS = 12
 INCOME_MODALIDADES = {'faixa1': .38,
                       # 'rural': .38,
                       'melhorias': .38,
@@ -157,7 +194,7 @@ SBPE_INCOME_QUANTILE = 0.85
 # can sweep it without touching the dict.
 MELHORIAS_INCOME_QUANTILE = 0.38
 TOTAL_TARGETING_POLICY = False
-POLICY_MELHORIAS = True
+POLICY_MELHORIAS = False
 # Share of the works' market price the state pays for a melhorias upgrade. The works
 # are the .5 -> 1 quality delta, worth `size * .5 * region.index` under
 # House.update_price, which is the house's own pre-upgrade price. At 1 the builder
@@ -175,6 +212,11 @@ TAX_ON_ORIGIN = True
 # BNDES test with (True) and without (False) TRANSPORT investments.
 # Variation in time_travel implemented in labor market decisions -- BNDES test
 TRANSPORT_TIME = False
+# Opening schedule of the network (world/transport.py): list of [date, spec], date 'YYYY-MM-DD' or a year,
+# spec a matrix state ('base', 'nec', ...) or phi in [0, 1] blending base into nec. Base before the first date.
+# None: static network for the whole run, chosen by TRANSPORT_TIME.
+# E.g. 14-year phase-in from 2026: transport.linear_phase_in(2026, 14)
+TRANSPORT_SCHEDULE = None
 # LOANS ##############################################################################
 # Maximum age of borrower at the end of the contract
 MAX_LOAN_AGE = 70
@@ -192,6 +234,9 @@ MAX_LOAN_TO_VALUE_SBPE = 0.90
 # This parameter refers to the total amount of resources available at the bank.
 MAX_LOAN_BANK_PERCENT = 0.6
 BANK_DEPOSIT_RESERVE = .2
+# The bank and the rest of Brazil: deposits earn each month's rate every month; the cash earns nothing; every month the
+# bank's equity (cash plus the remaining principal of market loans, minus deposits) returns to its initial value, the
+# difference leaving the ACP or covered from outside.
 
 # HOUSING AND REAL ESTATE MARKET #############################################################
 CAPPED_TOP_VALUE = 1.3
@@ -234,6 +279,12 @@ INITIAL_RENTAL_SHARE = 0.40
 # Also calibrates the financial attractiveness comparison in decision_enter_house_market:
 # when the bank rate exceeds this yield, depositing savings is more profitable than buying.
 INITIAL_RENTAL_PRICE = 0.002
+# House values: rents keep the level of INITIAL_RENTAL_PRICE x size x quality x region index; prices are rent x 12 /
+# RENTAL_YIELD, the FipeZAP 2010 national gross rental yield; builders' cost is size x the Sinapi 2010 cost per m² of
+# the state (input/sinapi_2010.csv) x the CUB/m² 2010 ratio of the quality's finish standard to the normal one
+# (input/cub_2010.csv) x productivity over its mean, in money, plus land at LOT_COST of the house value
+# (world/house_values.py)
+RENTAL_YIELD = 0.0664
 # Maximum fraction of permanent income a household will commit to rent when choosing to move.
 # 0.3 matches the Brazilian "comprometimento de renda" standard used in PlanHab/MCMV eligibility.
 # Applies only to already-housed families in maybe_move; homeless families are unaffected.
@@ -292,14 +343,20 @@ MAX_HOUSE_STOCK = 36
 PERC_HOUSE_CATEGORIES = [0.4, 0.3, 0.2, 0.1]
 # HOW LARGER IS CONSTRUCTION FIRMS PROFIT RELATIVE TO USUAL MARKUP (firms' productivity, given current prices)
 CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 5
-# Bridges the scale gap between construction firm labor output (sum of qual^alpha per month, ~3-8 units)
-# and building_size in square metres (~60-200 m²). Without this divisor a median house requires ~190
-# production-units, meaning 25-60 months of dedicated firm output — far too slow.
-# At 15: median cost ≈ 13 units → ~4 months throughput per house for a 10-employee firm,
-# equivalent to maintaining 5 concurrent projects each individually taking ~20 months.
-HOUSE_PRODUCTION_ADEQUACY = 12
 
 # POPULATION AND DEMOGRAPHY
+# Agents per area at the start: the area's Census 2010 total at PERCENTAGE_ACTUAL_POP rounded once and its sex x age
+# cells filled by largest remainder. Education is drawn per agent for its age group (world/education.py), partners by
+# the Census couples' education (world/family_matching.py), wages split by qualification ** PRODUCTIVITY_EXPONENT
+# times a Census age profile and a persistent individual factor (input/wage_dispersion_2010.csv), each area's initial
+# Census income shared among its families by those weights. Who is in the labour force follows Census 2010
+# participation by sex, age group and municipality (world/participation.py); start-up hiring stops at the Census share
+# of the active without a job. Federal benefits (RGPS, BPC, Bolsa Família) are paid from outside the ACP
+# (world/social_transfers.py); own-account workers share their sector's own-account part of every purchase
+# (world/own_account.py); public jobs follow the Census 2010 public servants by residence
+# (input/gov_headcount_census.csv). Immigration and emigration steer each municipality to its population at the start
+# grown at its 2010-2022 Census rate, housed and removed within it.
+
 # Families run parameters (on average) for year 2000, or no information. 2010 uses APs average data
 EXOGENOUS_HEAD_RATE = False
 MEMBERS_PER_FAMILY = 2.5
@@ -308,6 +365,15 @@ MARRIAGE_CHECK_PROBABILITY = 0.03
 # CONSUMPTION #############################################################
 # Fraction of permanent income actually spent on goods; remainder flows to savings.
 CONSUMPTION_PROPENSITY = 1
+# Household wealth norm, on liquid wealth (cash and bank deposits) against WEALTH_TARGET_MONTHS of permanent income:
+# spending moves by WEALTH_ADJUSTMENT of the gap each month, up above the target and down below it, drawing on deposits
+# for any spending cash cannot cover. Agents aged 10+ start with WEALTH_TARGET_MONTHS of their area's Census income per
+# person times their lognormal(3, 0.5) draw over its mean (immigrants: the ACP's initial income per person); the
+# permanent-income average starts full of the Census permanent income.
+WEALTH_TARGET_MONTHS = 4.5
+WEALTH_ADJUSTMENT = 1 / 12
+# Months from the start before the norm applies
+WEALTH_NORM_BURN_IN = 24
 # Fraction of accumulated balance government firms spend each month; remainder carried forward.
 GOVERNMENT_EXECUTION_RATE = 1
 
@@ -340,10 +406,10 @@ TAXES_STRUCTURE = {"consumption_equal": 0.1875, "fpm": 0.235}
 # Cobb-Douglas parameters for matching utility:
 # log(U) = α log_qualification + β log_commuting + γ log_wages
 # GAMMA is 1 - alpha - beta
-# Emphasizes qualification and wages (0.4) equally, with lesser weight (0.2) on commuting time.
-CB_QUALIFICATION = .35
+CB_QUALIFICATION = 0.0
 CB_COMMUTING = .2
 
+# Car ownership by wage decile of the paid workers in a half sample of agents
 WAGE_TO_CAR_OWNERSHIP_QUANTILES = [
     0.1174,
     0.1429,
@@ -358,24 +424,33 @@ WAGE_TO_CAR_OWNERSHIP_QUANTILES = [
 ]
 # PUBLIC_TRANSIT_COST and PRIVATE_TRANSIT_COST reflect perceived commuting penalties,
 # with higher values indicating greater sensitivity to distance when evaluating job offers.
+# Employers pay vale-transporte (Lei 7.418/1985): a public transport commuter's fare above 6 % of the gross wage.
 PRIVATE_TRANSIT_COST = .25
 PUBLIC_TRANSIT_COST = .05
-REGIONAL_FREIGHT_COST = .3
-# Trade with the rest of Brazil (defect #27). True: firms buy the imported part of their inputs, from the external->local
-# block of the regional input-output matrix, so local + imported inputs sum to the national coefficients. False (old
-# model): they read the local->external block, which is ~0, and buy only the local share of their inputs.
-IO_IMPORTS = False
-# Share of the ACP's monthly import bill (net of the import tax that returns) that comes back as demand for its products
-# from the rest of Brazil, split across sectors like its exports. 1: balanced trade. 0: imports leave the ACP for good
-# (old model). Between: a trade deficit, recorded in stats.csv ext_net_position.
-EXTERNAL_RECYCLING_SHARE = 0.0
-# How the rest of Brazil's demand (exports and recycled imports) reaches local firms (step 2b). 'stock': every firm of
-# the sector with stock, in proportion to the value of its stock. 'cheapest' (old model): split equally over the 10
-# cheapest stocked firms of a sample of 3 x SIZE_MARKET, which run out while the rest of the sector keeps its stock.
-EXTERNAL_DEMAND_SPREAD = 'cheapest'
 # Price of imported inputs (step 2b). 'exogenous': 1, the initial goods price held in real terms, plus freight, so local
 # price rises do not feed back into import prices. 'local' (old model): the local seller's price plus freight.
 IMPORT_PRICE = 'local'
+# Sectors whose goods are traded with the rest of Brazil at P_imp = 1, the national input coefficients and final-demand
+# shares buying transport margins from Transport. They price against the tradable average, their ceiling the lower of
+# that average times (1 + PRICE_MARKUP_CAP) and import parity, 1 plus the product's national transport margin
+# (input/transport_margins.csv, IBGE TRU 2015); refused demand does not raise their price; spending on them that no
+# local firm served is bought outside. The other firms price against the non-tradable average.
+TRADABLE_SECTORS = ['Agriculture', 'Mining', 'Manufacturing']
+# Trade with the rest of Brazil follows the Brazilian interstate input-output system (Haddad et al.) for every buyer.
+# The local share of product i is s_i = TRADE_POTENTIAL[i] x min(local output_i / local demand_i, 1); firms buy s_i of
+# their national input coefficients locally and the rest outside, households and government import 1 - s_i of their
+# spending. Exports of i = local output_i - s_i x local demand_i. Output (staff capacity) and demand (inputs, household,
+# government and expected investment spending, fares) are measured in month 1 with s_i = TRADE_POTENTIAL[i]; recomputed
+# once at month 4 with household spending scaled by the household income paid in months 2-3 over the month-1 permanent
+# income. Exports are then held in quantity times the national real GDP index relative to month 1, times
+# (price / P_imp) ** -EXPORTS_PRICE_ELASTICITY, and bought from every stocked firm of the sector by stock value.
+# Construction and Government: s_i = TRADE_POTENTIAL[i], no exports. Written to trade_base.csv.
+EXPORTS_PRICE_ELASTICITY = 1.0
+# Haddad et al. (2019, p. 614), F: 0.5 for products 1-87 (agriculture, mining, manufacturing), 0.9 for products 88-128
+# (utilities, construction, trade and services)
+TRADE_POTENTIAL = {'Agriculture': 0.5, 'Mining': 0.5, 'Manufacturing': 0.5, 'Utilities': 0.9, 'Construction': 0.9,
+                   'Trade': 0.9, 'Transport': 0.9, 'Business': 0.9, 'Financial': 0.9, 'RealEstate': 0.9,
+                   'OtherServices': 0.9, 'Government': 0.9}
 
 # RUN DETAILS ###############################################################################
 # Percentage of actual population to run the simulation

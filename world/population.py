@@ -1,3 +1,4 @@
+from collections import defaultdict
 import math
 
 import numpy as np
@@ -25,6 +26,24 @@ def pop_age_data(pop, code, age, percent_pop):
     if rounded == 0 and n_pop >= 0.5:
         return 1
     return rounded
+
+
+def region_counts(pops, code, percent_pop):
+    """Agents per (gender, age) in a region, its total rounded once and the cells filled
+    by largest remainder, so no cell is lost to rounding."""
+    exact = {}
+    for gender in ('male', 'female'):
+        match = pops[gender][pops[gender]['code'] == str(code)]
+        if match.empty:
+            match = pops[gender][pops[gender]['code'] == str(code)[:7]]
+        for age in range(101):
+            col = age if age in match.columns else str(age)
+            exact[(gender, age)] = float(match[col].iloc[0]) * percent_pop if not match.empty else 0.0
+    counts = {k: int(np.floor(v)) for k, v in exact.items()}
+    left = int(round(sum(exact.values()))) - sum(counts.values())
+    for k in sorted(exact, key=lambda k: exact[k] - counts[k], reverse=True)[:max(left, 0)]:
+        counts[k] += 1
+    return counts
 
 
 def load_pops(mun_codes, params, year):
@@ -84,21 +103,34 @@ class MarriageData:
         return self.data[agent.gender.lower()].get(agent.age, 0)
 
 
-pop_estimates = pd.read_csv('input/Demografia/4_Pop_Estimatives_Munic'
-                            '/pop_total_munic_estimates_cedeplar_2000_2050.csv',
-                            dtype={'year': str, 'mun_code': str}).set_index('mun_code')
 marriage_data = MarriageData()
+CENSUS_POPULATION = 'input/census_population_2010_2022.csv'
+
+
+def census_growth(mun_codes):
+    """Yearly growth factor of each municipality between the 2010 and 2022 Censuses; 1 where either is missing."""
+    census = pd.read_csv(CENSUS_POPULATION, sep=';', index_col='cod_mun')
+    growth = {}
+    for code in mun_codes:
+        row = census.loc[int(code)] if int(code) in census.index else None
+        growth[code] = (row.pop_2022 / row.pop_2010) ** (1 / 12) if row is not None and row.pop_2010 > 0 else 1.0
+    return growth
+
+
+def target_population(sim, mun_code):
+    """The municipality's population at the start x its 2010-2022 Census growth since then"""
+    years = (sim.clock.days - sim.PARAMS['STARTING_DAY']).days / 365.25
+    if mun_code not in sim.pop_start:
+        return sim.mun_pops[mun_code]
+    return sim.pop_start[mun_code] * sim.pop_growth[mun_code] ** years
 
 
 def immigration(sim):
-    """Adjust population for immigration"""
-    year = str(sim.clock.year)
-    pop_pct = sim.PARAMS['PERCENTAGE_ACTUAL_POP']
+    """Adjust population for immigration: each municipality's shortfall is housed, and its excess removed, within it"""
     number_new_families = 0
 
     for mun_code, pop in list(sim.mun_pops.items()):
-        estimated_pop = pop_estimates.at[str(mun_code), year]
-        estimated_pop *= pop_pct
+        estimated_pop = target_population(sim, mun_code)
         # Correction of population by total number of people
         if estimated_pop > pop:
             # Create new agents for immigration
@@ -140,7 +172,10 @@ def immigration(sim):
 
             # Some might have tried to buy houses but failed, pass them directly to the rental market
             homeless = [f for f in families if f.house is None]
-            sim.housing.rental.rental_market(homeless, sim)
+            # Only the vacant houses of the municipality whose shortfall they fill
+            vacant = [h for h in sim.houses.values()
+                      if h.family_id is None and h.family_owner and h.region_id[:7] == mun_code]
+            sim.housing.rental.rental_market(homeless, sim, to_rent=vacant)
 
             # Only keep families that have houses
             families = [f for f in families if f.house is not None]
@@ -159,8 +194,9 @@ def immigration(sim):
         elif pop > estimated_pop:
             # Delete families
             on_the_roof = pop - int(estimated_pop)
-            # Select agents to be removed
-            agents_to_remove = list(sim.seed_np.choice(list(sim.agents.values()), replace=False, size=on_the_roof))
+            # Select agents to be removed among the municipality's residents
+            pool = [a for a in sim.agents.values() if a.family.region_id[:7] == mun_code]
+            agents_to_remove = list(sim.seed_np.choice(pool, replace=False, size=min(on_the_roof, len(pool))))
             while agents_to_remove:
                 terminal = agents_to_remove.pop()
                 sim.demographics.die(sim, terminal)
@@ -184,6 +220,29 @@ class HouseholdsHeads:
         return self.head[['class_range', 'count']].loc[date].values.tolist()
 
 
+def census_pairs(sim, to_marry):
+    """In shuffled order, each unpaired agent takes a partner from the rest by
+    SpouseEducation"""
+    from world.family_matching import SpouseEducation
+    from world.own_account import level
+    if sim.generator.spouses is None:
+        sim.generator.spouses = SpouseEducation(sim.geo.processing_acps, sim.generator.seed_np)
+    pool = defaultdict(list)
+    for a in reversed(to_marry):
+        pool[level(a)].append(a)
+    paired, pairs = set(), []
+    for a in to_marry:
+        if id(a) in paired:
+            continue
+        pool[level(a)].remove(a)
+        b = sim.generator.spouses.pick(a, pool)
+        if b is None:
+            break
+        paired.update((id(a), id(b)))
+        pairs.append((a, b))
+    return pairs
+
+
 def marriage(sim):
     """Adjust families for marriages"""
     to_marry = []
@@ -195,10 +254,11 @@ def marriage(sim):
                 to_marry.append(agent)
 
     # Marry individuals.
-    # NOTE individuals are paired randomly
+    # NOTE individuals are paired by the Census couples' education
     sim.seed_np.shuffle(to_marry)
-    to_marry = iter(to_marry)
-    for a, b in zip(to_marry, to_marry):
+    pairs = census_pairs(sim, to_marry)
+
+    for a, b in pairs:
         if a.family.id != b.family.id:
             # Characterizing family
             # If both families have other adults, the ones getting married leave family and make a new one

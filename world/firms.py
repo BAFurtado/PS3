@@ -3,6 +3,8 @@ from collections import defaultdict
 import numpy as np
 import pandas as pd
 
+from agents.house import House
+
 
 class FirmData:
     """ Firm growth is estimated from a monthly value of growth observed between the years of 2000 and 2012 """
@@ -102,14 +104,49 @@ def firm_growth(sim):
 
 def project_floor(sim):
     """Cost of one median project (ConstructionFirm.plan_house) at the dearest license price: its land (LOT_COST
-    share) plus the building cost it advances as wages before the first sale. Fixed at start-up, like the other
-    capital scales."""
+    share) plus the median building cost it advances as wages before the first sale. Fixed at start-up, like the
+    other capital scales."""
     if not hasattr(sim, '_project_floor'):
         costs = [h.size * h.quality for h in sim.houses.values()]
         licence = max(r.license_price for r in sim.regions.values())
         cost = licence * float(np.median(costs)) if costs else 0.0
-        sim._project_floor = cost * (sim.PARAMS['LOT_COST'] + 1 / sim.PARAMS['HOUSE_PRODUCTION_ADEQUACY'])
+        values = sim.house_values
+        works = [values.build_cost(h.region_id, h.size, h.quality, values.mean_productivity)
+                 for h in sim.houses.values()]
+        sim._project_floor = cost * House.price_scale * sim.PARAMS['LOT_COST'] + float(np.median(works))
     return sim._project_floor
+
+
+SECTOR_PRODUCTIVITY = pd.read_csv('input/sector_productivity.csv', sep=';').set_index('sector')['productivity']
+
+
+def set_sector_productivity(sim, firms):
+    """Each firm's output per unit of labour is its sector's national output per job relative to the mean
+    (input/sector_productivity.csv), except builders, whose cost is in money (world/house_values.py)"""
+
+    for f in firms:
+        f.sector_productivity = 1.0 if f.sector == 'Construction' else float(SECTOR_PRODUCTIVITY[f.sector])
+
+
+def set_productivity_level(sim):
+    """PRODUCTIVITY_MAGNITUDE_DIVISOR such that the value added of the private firms'
+    staff capacity, capacity x (1 - the sector's national input coefficients), equals the 2010 market value added per
+    resident of the run's municipalities (input/municipal_va_2010.csv) times the agents living there, a month, in model
+    money, firms producing the value added that is not own-account income. Set after start-up hiring; returns the
+    divisor."""
+    va = pd.read_csv('input/municipal_va_2010.csv', sep=';').set_index('cod_mun')
+    muns = [int(m) for m in sim.mun_to_regions if int(m) in va.index]
+    residents = sum(1 for a in sim.agents.values()
+                    if a.family is not None and a.family.region_id and int(a.family.region_id[:7]) in va.index)
+    target = (va.loc[muns, 'va_market'].sum() / va.loc[muns, 'pop'].sum() * residents / 12
+              / sim.PARAMS['REAIS_PER_MONEY_UNIT'])
+    target *= 1 - sim.regional_market.pools.mixed_share
+    va_share = 1 - pd.read_csv('input/technical_matrix.csv').set_index('sector').sum(axis=0)
+    pe = sim.PARAMS['PRODUCTIVITY_EXPONENT']
+    labour = sum(f.total_qualification(pe) * f.sector_productivity * va_share[f.sector]
+                 for f in sim.firms.values() if f.sector != 'Government' and not f.pool)
+    sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR'] = labour / target
+    return sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR']
 
 
 def capital_need(sim, sector, capacity):
@@ -120,11 +157,18 @@ def capital_need(sim, sector, capacity):
     return need
 
 
+def own_account_need(sim, capacity):
+    """An own-account pool's buffer, FIRM_CAPITAL_MONTHS of its cost"""
+    return sim.PARAMS['FIRM_CAPITAL_MONTHS'] * capacity
+
+
 def sector_capacity(sim):
     """Median capacity value of the staffed firms of each sector, the scale of a new firm's monthly cost"""
     pe, pd_ = sim.PARAMS['PRODUCTIVITY_EXPONENT'], sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR']
     values = defaultdict(list)
     for f in sim.firms.values():
+        if f.own_account:
+            continue
         v = f.capacity_value(pe, pd_)
         if v > 0:
             values[f.sector].append(v)
@@ -144,38 +188,52 @@ def size_initial_capital(sim):
         if gov_revised and f.sector == 'Government':
             f.total_balance = 0.0
             continue
-        if months > 0:
+        if months > 0 and f.own_account:
+            f.total_balance = own_account_need(sim, f.capacity_value(pe, pd_))
+            f.cold_start_share = 1 / months
+        elif months > 0:
             capacity = f.capacity_value(pe, pd_) or medians.get(f.sector, 0.0)
             f.total_balance = capital_need(sim, f.sector, capacity)
             f.cold_start_share = 1 / months
 
 
-def surplus(sim, firm, pe, pd_):
-    """Capital above the firm's own buffer"""
-    return max(0.0, firm.total_balance - capital_need(sim, firm.sector, firm.capacity_value(pe, pd_)))
+def pay_out_national(sim):
+    """Each private firm's cash above its capital buffer (a builder's cash net of wages already owed) leaves it; the
+    investment rate of it goes to the ACP's investment fund, the rest to owners outside"""
+    pe, pd_ = sim.PARAMS['PRODUCTIVITY_EXPONENT'], sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR']
+    paid = 0.0
+    for firm in sim.firms.values():
+        if firm.sector == 'Government':
+            continue
+        if firm.pool:
+            continue
+        cash = firm.free_cash() if firm.sector == 'Construction' else firm.total_balance
+        excess = cash - capital_need(sim, firm.sector, firm.capacity_value(pe, pd_))
+        if excess > 0:
+            firm.total_balance -= excess
+            paid += excess
+    invested = paid * sim.investment_rate
+    sim.investment_fund += invested
+    sim.ledger['profits_out'] -= paid - invested
+    sim.profit_share_paid = paid
 
 
 def fund_entrant(sim, region):
-    """FIRM_CAPITAL_MONTHS > 0: a new firm enters in a sector drawn from the RAIS shares only if that sector's
-    incumbents hold, above their own buffers, the capital it needs; they pay in proportion to their surplus."""
+    """A new firm enters in a sector drawn from the SECTOR_SHARES shares with the capital it needs, from owners outside
+    the ACP"""
     p = sim.generator.sector_shares()
     if sim.PARAMS.get('GOV_REVISED', False):
         p = p.drop('Government', errors='ignore')
         p = p / p.sum()
     sector = sim.seed_np.choice(list(p.index), p=list(p.values))
-    pe, pd_ = sim.PARAMS['PRODUCTIVITY_EXPONENT'], sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR']
     capacity = sector_capacity(sim).get(sector, 0.0)
-    incumbents = [f for f in sim.firms.values() if f.sector == sector]
-    surpluses = [surplus(sim, f, pe, pd_) for f in incumbents]
     need = capital_need(sim, sector, capacity)
-    available = sum(surpluses)
-    if need <= 0 or available < need:
+    if need <= 0:
         sim.firm_entry_unfunded += 1
         return None
     firm = list(sim.generator.create_firms(1, region, firm_sectors=[sector]).values())[0]
-    for f, s in zip(incumbents, surpluses):
-        f.total_balance -= need * s / available
     firm.total_balance = need
+    sim.ledger['firm_entry'] += need
     firm.cold_start_share = 1 / sim.PARAMS['FIRM_CAPITAL_MONTHS']
     sim.firms[firm.id] = firm
     return firm
@@ -183,14 +241,14 @@ def fund_entrant(sim, region):
 
 def firm_exit(sim):
     """FIRM_EXIT_MONTHS > 0: firms insolvent (balance <= 0) or idle (no staff, no sales) for that many months in a
-    row exit. Reads last month's sales (before reset_amount_sold). Government never exits; Construction only when it
-    has no house for sale or under construction."""
+    row exit. Reads last month's sales (before reset_amount_sold). Government and own-account pools never exit;
+    Construction only when it has no house for sale or under construction."""
     months = sim.PARAMS.get('FIRM_EXIT_MONTHS', 0)
     if months <= 0:
         return
     leaving = []
     for firm in sim.firms.values():
-        if firm.sector == 'Government':
+        if firm.sector == 'Government' or firm.pool:
             continue
         firm.months_insolvent = firm.months_insolvent + 1 if firm.total_balance <= 0 else 0
         firm.months_idle = firm.months_idle + 1 if not firm.employees and firm.amount_sold == 0 else 0

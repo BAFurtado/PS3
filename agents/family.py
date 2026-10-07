@@ -3,6 +3,8 @@ import datetime
 import numpy as np
 from collections import defaultdict, deque
 
+from .firm import import_price as firm_import_price
+
 
 class Family:
     """
@@ -124,7 +126,7 @@ class Family:
             self.savings = reserve_money
 
     def total_wage(self):
-        return sum(member.last_wage for member in self.members.values() if member.last_wage is not None)
+        return sum(member.wage_paid for member in self.members.values())
 
     def get_permanent_income(self):
         return self.permanent_income
@@ -134,8 +136,13 @@ class Family:
         if self.permanent_income > 0 and self.house:
             self.affordability_ratio = self.house.price / self.permanent_income
 
+    def start_permanent_income(self):
+        """The permanent-income window starts full of the initial permanent income"""
+        self.last_permanent_income.extend([self.permanent_income] * self.last_permanent_window)
+
     def update_permanent_income(self, bank, r):
-        t0 = self.total_wage()
+        t0 = self.total_wage() + sum(m.last_profit_share for m in self.members.values())
+        t0 += sum(m.last_transfer for m in self.members.values())
         EPS = 1e-4
         r_eff = max(r, EPS)
         wealth = self.get_wealth(bank)
@@ -237,7 +244,7 @@ class Family:
         # B. Opportunity cost: bank rate vs rental yield (SELIC-sensitive disincentive)
         EPS = 1e-6
         bank_rate = max(sim.central.interest, EPS)
-        rental_yield = sim.PARAMS['INITIAL_RENTAL_PRICE']
+        rental_yield = sim.rent_ratio
         opportunity_cost = max(0.0, bank_rate - rental_yield) * sim.PARAMS['HOUSING_FINANCIAL_WEIGHT']
 
         # C. Liquidity penalty: discourages depleting all savings in the down payment
@@ -275,11 +282,20 @@ class Family:
 
         propensity = params.get('CONSUMPTION_PROPENSITY', 1.0)
         target = max(0, permanent_income - rent - loan) * propensity
+        needed = permanent_income - rent - loan
+
+        start = params['STARTING_DAY']
+        if (year - start.year) * 12 + month - start.month >= params['WEALTH_NORM_BURN_IN']:
+            # Liquid wealth against its target in months of permanent income
+            wealth = money + self.savings + central.sum_deposits(self)
+            gap = wealth - params['WEALTH_TARGET_MONTHS'] * max(0.0, permanent_income)
+            target = max(0.0, target + params['WEALTH_ADJUSTMENT'] * gap)
+            needed = target + rent + loan
 
         # Wages and the savings kept at home first; bank deposits only if they fall short
         money += self.savings
         self.savings = 0
-        if money < permanent_income - rent - loan and central.wallet[self]:
+        if money < needed and central.wallet[self]:
             money += self.grab_savings(central, year, month)
         # Rent and the loan instalment come first, and stay in savings: collect_rent and collect_loan_payments take
         # them from there. They used to be subtracted here as well, so they were paid twice (#35), and a family with
@@ -302,6 +318,11 @@ class Family:
 
         size_market = int(params['SIZE_MARKET'])
         tax_consumption = params['TAX_CONSUMPTION']
+        retry = params.get('HOUSEHOLD_RETRY', False)
+        import_share = regional_market.household_import_share
+        # Tradable spending no local firm served is bought outside at P_imp = 1 plus freight
+        shortage_sectors = params['TRADABLE_SECTORS']
+        import_price = firm_import_price(params)
 
         household_demand = regional_market.final_demand['HouseholdConsumption']
         total_consumption = defaultdict(float)
@@ -319,12 +340,37 @@ class Family:
             money_this_sector = money_to_spend * sector_share
             if money_this_sector <= 0:
                 continue
+            regional_market.monthly_hh_intended[sector] += money_this_sector
+
+            # The import share of the product is bought from the rest of Brazil, which always has stock
+            imported = money_this_sector * import_share.get(sector, 0.0)
+            if imported > 0:
+                regional_market.sim.external.intermediate_consumption(imported, price=import_price)
+                regional_market.household_imports += imported
+                avg_utility += imported
+                total_consumption[sector] += imported
+                money_this_sector -= imported
+
+            # The sector's own-account part
+            pool, share = regional_market.pools.payable(sector)
+            if pool is not None and share > 0:
+                paid = money_this_sector * share
+                pool.receive(paid, regions, tax_consumption, self.region_id, if_origin)
+                avg_utility += paid
+                total_consumption[sector] += paid
+                money_this_sector -= paid
 
             sector_firms = firms_by_sector.get(sector)
             if not sector_firms:
+                regional_market.household_no_stock += money_this_sector
+                if sector in shortage_sectors:
+                    regional_market.sim.external.intermediate_consumption(money_this_sector, price=import_price)
+                    regional_market.household_imports += money_this_sector
+                    avg_utility += money_this_sector
+                    total_consumption[sector] += money_this_sector
+                    continue
                 # No firm of the sector has stock: the money stays with the family
                 savings += money_this_sector
-                regional_market.household_no_stock += money_this_sector
                 continue
 
             n_firms = len(sector_firms)
@@ -334,7 +380,8 @@ class Family:
             else:
                 market = seed.sample(sector_firms, size_market)
 
-            if seed.randint(0, 1):
+            by_price = seed.randint(0, 1)
+            if by_price:
                 # Price strategy: direct inventory[0].price access avoids property dispatch
                 chosen_firm = min(market, key=lambda f: f.inventory[0].price)
             else:
@@ -356,6 +403,22 @@ class Family:
                 money_this_sector, regions, tax_consumption,
                 self.region_id, if_origin
             )
+            if retry and change > 0:
+                # The other firms of the sample, next cheapest or next nearest first (distances already cached)
+                others = [f for f in market if f is not chosen_firm]
+                others.sort(key=(lambda f: f.inventory[0].price) if by_price else
+                            (lambda f: house_dist_cache.get(f.id, float('inf'))))
+                for f in others:
+                    if change <= 0:
+                        break
+                    if f.inventory[0].quantity > 0:
+                        change = f.sale(change, regions, tax_consumption, self.region_id, if_origin)
+            if change > 0 and sector in shortage_sectors:
+                # Counted as consumption below, with the local purchase
+                regional_market.sim.external.intermediate_consumption(change, price=import_price)
+                regional_market.household_imports += change
+                change = 0.0
+            regional_market.household_unserved += change
 
             savings += change
             utility_gain = money_this_sector - change
