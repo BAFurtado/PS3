@@ -411,7 +411,7 @@ INITIAL_RENTAL_PRICE = 0.002
 # that level, prices are rent x 12 / RENTAL_YIELD, and builders' cost is size x the Sinapi 2010 cost per m² of the state
 # (input/sinapi_2010.csv) x the CUB/m² 2010 ratio of the quality's finish standard to the normal one (input/cub_2010.csv)
 # x productivity over its mean, in money, plus land at LOT_COST of the house value (world/house_values.py)
-HOUSE_VALUES = 'legacy'
+HOUSE_VALUES = 'data'
 # Gross rental yield, annual rent / price, FipeZAP 2010 national (HOUSE_VALUES 'data')
 RENTAL_YIELD = 0.0664
 # Maximum fraction of permanent income a household will commit to rent when choosing to move.

@@ -2183,8 +2183,10 @@ _hv = _hv_HV(sim.PARAMS)
 _hv_low, _hv_high = _hv.standards[1][0], _hv.standards[1][2]
 _hv_rid = next(iter(sim.regions))
 _hv_unit = _hv.sinapi[_hv_UF[int(_hv_rid[:2])]] / sim.PARAMS['REAIS_PER_MONEY_UNIT']
+_hv_data = sim.PARAMS.get('HOUSE_VALUES', 'legacy') == 'data'
 _hv_ok_level = (abs(_hv.price_scale * _hv.rent_ratio - sim.PARAMS['INITIAL_RENTAL_PRICE']) < 1e-12
-                and sim.rent_ratio == sim.PARAMS['INITIAL_RENTAL_PRICE'] and _hv_House.price_scale == 1.0)
+                and abs(sim.rent_ratio - (_hv.rent_ratio if _hv_data else sim.PARAMS['INITIAL_RENTAL_PRICE'])) < 1e-12
+                and abs(_hv_House.price_scale - (_hv.price_scale if _hv_data else 1.0)) < 1e-12)
 _hv_ok_cost = (abs(_hv.cost_per_m2(_hv_rid, 2) - _hv_unit) < 1e-12
                and abs(_hv.cost_per_m2(_hv_rid, 1) - _hv_low * _hv_unit) < 1e-12
                and abs(_hv.cost_per_m2(_hv_rid, 4) - _hv_high * _hv_unit) < 1e-12

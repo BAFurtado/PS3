@@ -3,6 +3,7 @@ import logging
 import os
 from collections import defaultdict
 
+import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -61,6 +62,7 @@ OUTPUT_DATA_SPEC = {
                     'firms_avg_eco_eff',
                     'firms_median_wage_paid',
                     'firms_wage_per_worker',
+                    'workers_median_wage',
                     'firms_median_innovation_investment',
                     'emissions',
                     'gini_index',
@@ -321,9 +323,14 @@ DEMAND_BY_BUYER_COLUMNS = tuple(f'{k}_{b}' for b in ('household', 'government', 
 MATCHING_COLUMNS = ('unmet_household_coverable', 'unmet_household_coverable_end')
 
 
+def _legacy_stats_columns_no_worker_wage():
+    """`stats` layout of 34e0ae5 (2026-10-06): no workers_median_wage."""
+    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c != 'workers_median_wage']
+
+
 def _legacy_stats_columns_no_own_account():
     """`stats` layout of 5044d09 (2026-10-02): no own_account_workers, own_account_earnings."""
-    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c not in ('own_account_workers', 'own_account_earnings')]
+    return [c for c in _legacy_stats_columns_no_worker_wage() if c not in ('own_account_workers', 'own_account_earnings')]
 
 
 def _legacy_stats_columns_no_investment():
@@ -415,7 +422,7 @@ def _legacy_stats_columns():
     """`stats` layout used by batches before 2026-08-01: no
     denied_zero_capped_amount, no pct_renters_zero_income, and the decile block
     carries affordability_decis_* rather than rent_burden_decis_*."""
-    dropped = {'denied_zero_capped_amount', 'denied_no_loan_needed',
+    dropped = {'denied_zero_capped_amount', 'denied_no_loan_needed', 'workers_median_wage',
                'pct_renters_zero_income', *FIRM_DEMOGRAPHY_COLUMNS, *EXTERNAL_ACCOUNT_COLUMNS, *MONEY_COLUMNS}
     cols = [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c not in dropped]
     return [c.replace('rent_burden_decis_', 'affordability_decis_') for c in cols]
@@ -452,7 +459,7 @@ def _legacy_regional_columns_single_pot():
 
 
 LEGACY_COLUMNS = {
-    'stats': [_legacy_stats_columns_no_own_account(), _legacy_stats_columns_no_investment(), _legacy_stats_columns_no_income(), _legacy_stats_columns_no_social_transfers(), _legacy_stats_columns_no_utilisation(), _legacy_stats_columns_no_profit_share(), _legacy_stats_columns_no_total_income(), _legacy_stats_columns_no_bank_profit(), _legacy_stats_columns_no_fgts_repaid(), _legacy_stats_columns_no_group_prices(), _legacy_stats_columns_no_household_imports(), _legacy_stats_columns_no_unserved(), _legacy_stats_columns_no_matching(), _legacy_stats_columns_no_demand_by_buyer(), _legacy_stats_columns_no_unmet(),
+    'stats': [_legacy_stats_columns_no_worker_wage(), _legacy_stats_columns_no_own_account(), _legacy_stats_columns_no_investment(), _legacy_stats_columns_no_income(), _legacy_stats_columns_no_social_transfers(), _legacy_stats_columns_no_utilisation(), _legacy_stats_columns_no_profit_share(), _legacy_stats_columns_no_total_income(), _legacy_stats_columns_no_bank_profit(), _legacy_stats_columns_no_fgts_repaid(), _legacy_stats_columns_no_group_prices(), _legacy_stats_columns_no_household_imports(), _legacy_stats_columns_no_unserved(), _legacy_stats_columns_no_matching(), _legacy_stats_columns_no_demand_by_buyer(), _legacy_stats_columns_no_unmet(),
               _legacy_stats_columns_no_money(), _legacy_stats_columns_no_external_account(),
               _legacy_stats_columns_no_firm_demography(),
               _legacy_stats_columns()],
@@ -552,6 +559,10 @@ class Output:
         p_delinquent = len(bank.delinquent_loans()) / n_active if n_active else 0
 
         firm_results = sim.stats.calculate_firms_metrics(sim.firms)
+        # Work income received this month, gross of the labour tax, by each worker of a firm that paid
+        paid = [a.wage_paid for a in sim.agents.values()
+                if a.firm_id is not None and a.wage_paid > 0 and sim.firms[a.firm_id].wages_paid > 0]
+        workers_median_wage = float(np.median(paid)) / (1 - sim.PARAMS["TAX_LABOR"]) if paid else 0.0
         price_level, inflation = sim.stats.update_price(sim.firms)
         gdp_level, gdp_growth_rate, gdp_change = sim.stats.calculate_gdp_and_eco_efficiency(sim.firms, sim.regions)
         unemployment = sim.stats.update_unemployment(sim.agents.values(), True, True)
@@ -608,6 +619,7 @@ class Output:
             "firms_avg_eco_eff": firm_results["eco_efficiency"],
             "firms_median_wage_paid": firm_results["median_wages"],
             "firms_wage_per_worker": firm_results["median_wage_per_worker"],
+            "workers_median_wage": workers_median_wage,
             "firms_median_innovation_investment": firm_results["innovation_investment"],
             "emissions": firm_results["emissions"],
             "gini_index": families_results["gini"],
