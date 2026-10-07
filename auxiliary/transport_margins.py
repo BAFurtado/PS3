@@ -1,4 +1,4 @@
-"""Transport margin by product, for FREIGHT 'margins' (input/transport_margins.csv).
+"""Transport margin by product, for import prices (input/transport_margins.csv).
 
 Source: IBGE, Sistema de Contas Nacionais, Tabelas de Recursos e Usos 2015 (the year of the input-output matrix),
 nível 12, tabela 1, sheet oferta: "Margem de transporte" over "Oferta total a preço básico" by product (R$ million).

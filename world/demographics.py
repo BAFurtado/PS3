@@ -6,15 +6,6 @@ from .population import marriage_data
 # Importing official Data from IBGE, 2000-2030
 # NOTE: There are different DATA available for each year 2000-2030 for each State
 
-def check_education(agent, age):
-    thresholds = [(8, 2), (9, 3), (10, 4), (11, 5), (12, 6), (13, 7), (14, 8), (15, 9), (16, 10), (17, 11)]
-    for threshold_age, threshold_qualification in thresholds:
-        if threshold_age == age and agent.qualification < threshold_qualification:
-            agent.qualification += 1
-            break
-    return agent
-
-
 def check_demographics(sim, birthdays, year, mortality_men, mortality_women, fertility):
     """Agent life cycles: update agent ages, deaths, and births"""
     # One random number per agent drawn in bulk — independent draws across individuals,
@@ -22,7 +13,7 @@ def check_demographics(sim, birthdays, year, mortality_men, mortality_women, fer
     total_agents = sum(len(agents) for agents in birthdays.values())
     random_numbers = sim.seed_np.random(size=total_agents)
     r_idx = 0
-    male = 'male' if sim.PARAMS.get('GENDER_LABELS', 'mixed') == 'lower' else 'Male'
+    male = 'male'
     for age, agents in birthdays.items():
         age = age + 1
         # Always compute rounded_age so fertility fallback can use it even when
@@ -52,10 +43,6 @@ def check_demographics(sim, birthdays, year, mortality_men, mortality_women, fer
             r_idx += 1
             if agent.target is not None:
                 agent.qualification = max(agent.qualification, attained(agent.target, age))
-            elif 7 < age < 18:
-                if r > .17:
-                    # Dropout for schooling years is of the order of magnitude of 17% for Brazil
-                    agent = check_education(agent, age)
             agent.p_marriage = marriage_data.p_marriage(agent)
             if agent.gender == male:
                 if r < prob_mort_m:
@@ -70,12 +57,11 @@ def check_demographics(sim, birthdays, year, mortality_men, mortality_women, fer
 
 
 def birth(sim, mother=None):
-    """Similar to create agent, but just one individual. Under EDUCATION 'census' the child draws its final years of
-    study from its mother's weighting area"""
+    """Similar to create agent, but just one individual. The child draws its final years of study from its mother's
+    weighting area"""
     age = 0
-    education = sim.generator.education
-    if education is not None and mother is not None:
-        target, qualification = education.draw(str(mother.region_id), age)
+    if mother is not None:
+        target, qualification = sim.generator.education.draw(str(mother.region_id), age)
     else:
         target = None
         qualification = int(sim.seed.gammavariate(3, 3))
@@ -83,10 +69,7 @@ def birth(sim, mother=None):
     # Newborns hold no money: the family carries the child (they used to get 20-40 created from nothing)
     money = 0
     month = sim.seed.randrange(1, 13, 1)
-    if sim.PARAMS.get('GENDER_LABELS', 'mixed') == 'lower':
-        gender = sim.seed.choice(['male', 'female'])
-    else:
-        gender = sim.seed.choice(['Male', 'Female'])
+    gender = sim.seed.choice(['male', 'female'])
     sim.total_pop += 1
     child = Agent((sim.total_pop - 1), gender, age, qualification, money, month)
     if target is not None:

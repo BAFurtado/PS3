@@ -35,7 +35,7 @@ from .education import Education
 from .family_matching import SpouseEducation
 from .firms import FirmData, set_sector_productivity
 from .own_account import level
-from .population import pop_age_data, region_counts
+from .population import region_counts
 from .shapes import prepare_shapes
 
 logger = logging.getLogger("generator")
@@ -56,12 +56,8 @@ sectors = {'Agriculture': AgricultureFirm,
 
 # Necessary input Data
 prop_urban = pd.read_csv("input/Demografia/3_Percent_Urban/Munic_Percent_Urban_2000_2010_2022.csv")
-# Percentage of firms by input output sector:
-# SOURCE: Data read from RAIS, 2010, converting CNAE code to ISIS 12.
-# Deleted firms for sectors/municipalities below 3 firms
-# Construction and Government are already 0 in final demand table
-perc_firms_sector = pd.read_csv('input/CONCURBs_SECTOR.csv', sep=';', decimal=',')
-# The same shares in the IBGE nível 12 classification of the input-output matrix (auxiliary/sector_shares_ibge12.py)
+# Percentage of firms by input output sector: RAIS 2010 in the IBGE nível 12 classification of the input-output matrix
+# (auxiliary/sector_shares_ibge12.py)
 perc_firms_sector_ibge12 = pd.read_csv('input/sector_shares_ibge12.csv', sep=';')
 # Census 2010 employee shares in the same classification (auxiliary/sector_shares_census.py)
 perc_firms_sector_census = pd.read_csv('input/sector_shares_census.csv', sep=';')
@@ -78,25 +74,12 @@ class Generator:
         self.central = Central("central", balance=0, params=sim.PARAMS)
         single_ap_muns = pd.read_csv(f"input/single_aps_{self.sim.geo.year}.csv")
         self.single_ap_muns = single_ap_muns["mun_code"].tolist()
-        self.quali = self.load_quali()
-        self.education = None
         self.spouses = None
-        if sim.PARAMS.get('EDUCATION', 'pooled') == 'census':
-            if self.sim.geo.year != 2010:
-                raise ValueError("EDUCATION 'census' needs the 2010 geography")
-            self.education = Education(self.sim.geo.mun_codes, self.seed_np)
+        if self.sim.geo.year != 2010:
+            raise ValueError("Agents' education needs the 2010 geography")
+        self.education = Education(self.sim.geo.mun_codes, self.seed_np)
         self._next_id = 0
 
-    def years_study(self, loc):
-        # Qualification 2010 degrees of instruction transformation into years of study
-        parameters = {
-            "1": self.seed.choice(["1", "2"]),
-            "2": self.seed.choice(["4", "6", "8"]),
-            "3": self.seed.choice(["9", "10", "11"]),
-            "4": self.seed.choice(["12", "13", "14", "15"]),
-            "5": self.seed.choice(["1", "2", "4", "6", "8", "9"]),
-        }
-        return parameters[loc]
 
     def gen_id(self):
         """Unique id, reproducible under a fixed seed.
@@ -254,32 +237,21 @@ class Generator:
         agents = {}
         pops = self.sim.pops
         cols = list(range(101))
-        counts = None
-        if self.sim.PARAMS.get('POP_ROUNDING', 'nearest') == 'remainder':
-            counts = region_counts(pops, region.id, self.sim.PARAMS["PERCENTAGE_ACTUAL_POP"])
+        counts = region_counts(pops, region.id, self.sim.PARAMS["PERCENTAGE_ACTUAL_POP"])
         for age in cols:
             for gender in ["male", "female"]:
                 code = region.id
-                if counts is not None:
-                    pop = counts[(gender, age)]
-                else:
-                    pop = pop_age_data(
-                        pops[gender], code, age, self.sim.PARAMS["PERCENTAGE_ACTUAL_POP"]
-                    )
-                # To see a histogram of qualification check test:
-                qualification = self.qual(code) if self.education is None else None
+                pop = counts[(gender, age)]
                 moneys = self.seed_np.lognormal(3, 0.5, size=pop)
                 months = self.seed_np.randint(1, 13, size=pop)
                 ages = [age] * pop
                 for i in range(pop):
                     agent_id = self.gen_id()
-                    if self.education is not None:
-                        target, qualification = self.education.draw(str(code), age)
+                    target, qualification = self.education.draw(str(code), age)
                     a = Agent(
                         agent_id, gender, ages[i], qualification, moneys[i], months[i]
                     )
-                    if self.education is not None:
-                        a.target = target
+                    a.target = target
                     agents[agent_id] = a
         return agents
 
@@ -307,12 +279,11 @@ class Generator:
             if a.target is not None:
                 new_agent.target = a.target
             new_agents[agent_id] = new_agent
-        if self.sim.PARAMS.get('INITIAL_MONEY', 'lognormal') == 'target':
-            self.money_from_income(new_agents.values(), self.sim.income_per_person)
+        self.money_from_income(new_agents.values(), self.sim.income_per_person)
         return new_agents
 
     def money_from_income(self, agents, per_person):
-        """INITIAL_MONEY 'target': agents aged 10+ hold WEALTH_TARGET_MONTHS of `per_person` income times their
+        """Agents aged 10+ hold WEALTH_TARGET_MONTHS of `per_person` income times their
         lognormal(3, 0.5) draw over its mean; younger ones hold none"""
         scale = self.sim.PARAMS['WEALTH_TARGET_MONTHS'] * per_person / np.exp(3 + 0.5 ** 2 / 2)
         for a in agents:
@@ -348,8 +319,7 @@ class Generator:
         chd = [a for a in agents if a not in adults]
         # Assume there are more adults than families
         # First, distribute adults as equal as possible
-        if self.sim.PARAMS.get('FAMILY_MATCHING', 'random') == 'census':
-            adults = self.match_partners(adults, fams)
+        adults = self.match_partners(adults, fams)
         for i in range(len(adults)):
             if not adults[i].belongs_to_family:
                 fams[i % len(fams)].add_agent(adults[i])
@@ -362,7 +332,7 @@ class Generator:
         return agents, families
 
     def match_partners(self, adults, fams):
-        """FAMILY_MATCHING 'census': the adults in dealing order, the second adult of each family chosen by
+        """The adults in dealing order, the second adult of each family chosen by
         SpouseEducation from the adults left after one per family"""
         n = len(fams)
         if len(adults) <= n:
@@ -502,12 +472,12 @@ class Generator:
             family.owned_houses.append(house)
 
     def sector_shares(self):
-        # RAIS 2010 employment share by sector for the ACP (input/CONCURBs_SECTOR.csv), normalised to sum to 1.
-        # SECTOR_SHARES 'ibge12': in the classification of the input-output matrix (input/sector_shares_ibge12.csv);
-        # 'census': Census 2010 employee shares in that classification (input/sector_shares_census.csv)
+        # Employment share by sector for the ACP, normalised to sum to 1. SECTOR_SHARES 'ibge12': RAIS 2010 in the
+        # classification of the input-output matrix (input/sector_shares_ibge12.csv); 'census': Census 2010 employee
+        # shares in that classification (input/sector_shares_census.csv)
         acp = self.sim.geo.processing_acps[0]
-        table = {'ibge12': perc_firms_sector_ibge12, 'census': perc_firms_sector_census}.get(
-            self.sim.PARAMS.get('SECTOR_SHARES', 'rais'), perc_firms_sector)
+        table = {'ibge12': perc_firms_sector_ibge12, 'census': perc_firms_sector_census}[
+            self.sim.PARAMS['SECTOR_SHARES']]
         p = table[table['concurb_name'] == acp].set_index('sector')['participation']
         return p / p.sum()
 
@@ -570,15 +540,4 @@ class Generator:
         # Returns a dictionary of firms
         return sector
 
-    def load_quali(self):
-        quali_sum = pd.read_csv(f"input/qualification_APs_{self.sim.geo.year}.csv")
-        quali_sum.set_index("code", inplace=True)
-        return quali_sum
 
-    def qual(self, cod):
-        sel = self.quali > self.seed_np.rand()
-        idx = sel.idxmax(1)
-        loc = idx.loc[int(cod)]
-        if self.sim.geo.year == 2010:
-            return int(self.years_study(loc))
-        return int(loc)

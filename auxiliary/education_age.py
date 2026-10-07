@@ -1,4 +1,4 @@
-"""Education levels for EDUCATION 'census': people by age group and level per municipality
+"""Education levels of the agents: people by age group and level per municipality
 (input/education_age_2010.csv) and people aged 10+ by level per weighting area (input/education_AP_2010.csv).
 
 Source: IBGE, Censo Demográfico 2010, Resultados Gerais da Amostra, Sidra table 3572: persons aged 10 or more by

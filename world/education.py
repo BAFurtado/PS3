@@ -1,4 +1,4 @@
-"""EDUCATION 'census': education level by age.
+"""Education level by age.
 
 An agent's level (1 sem instrução e fundamental incompleto, 2 fundamental completo e médio incompleto, 3 médio completo
 e superior incompleto, 4 superior completo) is drawn from its weighting area's distribution for everyone aged 10+

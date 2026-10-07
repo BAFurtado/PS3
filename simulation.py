@@ -1,6 +1,5 @@
 import copy
 import datetime
-import itertools
 import json
 import math
 import os
@@ -17,7 +16,7 @@ import analysis
 import conf
 import markets
 from world import Generator, demographics, clock, population
-from world.firms import firm_growth, firm_exit, size_initial_capital, set_productivity_level, pay_profit_shares, pay_out_national, set_sector_productivity
+from world.firms import firm_growth, firm_exit, size_initial_capital, set_productivity_level, pay_out_national, set_sector_productivity
 from world.funds import Funds
 from analysis.money import money_stock_total
 from world.geography import Geography, STATES_CODES, state_string
@@ -26,17 +25,10 @@ from agents.firm import Firm, ConstructionFirm, plans_sales, import_parity
 from world.transport import TransportNetwork
 from world.participation import Participation
 from world.social_transfers import SocialTransfers
-from world.own_account import OwnAccount, OwnAccountPools, posting_education
+from world.own_account import OwnAccountPools, posting_education
 from world.house_values import HouseValues
 from markets.goods import RegionalMarket, External
 from markets.labor import car_wage_deciles
-
-
-def apply_closure(params):
-    """CLOSURE 'open': the parameters named in CLOSURE_OPEN take its values; 'legacy' leaves them as given"""
-    if params.get('CLOSURE', 'legacy') == 'open':
-        params = {**params, **params['CLOSURE_OPEN']}
-    return params
 
 
 def resolve_seed(params):
@@ -60,7 +52,6 @@ def resolve_seed(params):
 
 class Simulation:
     def __init__(self, params, output_path):
-        params = apply_closure(params)
         self.PARAMS = copy.copy(params)
         self.geo = Geography(params, self.PARAMS["STARTING_DAY"].year)
         self.regional_market = RegionalMarket(self)
@@ -90,21 +81,21 @@ class Simulation:
         # Money crossing the ACP's boundary, cumulative by channel (analysis/money.py), and the stock it started with
         self.ledger = defaultdict(float)
         self.money_initial = 0.0
-        # INITIAL_MONEY 'target': the ACP's Census income per person aged 10+ at the start, in model money
+        # The ACP's Census income per person aged 10+ at the start, in model money
         self.income_per_person = 0.0
-        # FIRM_PAYOUT: profit shares paid this month ('national': all cash above the buffers paid out)
+        # Firms' cash above the buffers paid out this month
         self.profit_share_paid = 0.0
-        # FIRM_PAYOUT 'national': corporate FBCF / gross operating surplus, and the money set aside for investment
+        # Corporate FBCF / gross operating surplus, and the money set aside for investment
         self.investment_rate = 0.0
         self.investment_fund = 0.0
         # Entries skipped because the sector's incumbents had too little capital above their buffer
         self.firm_entry_unfunded = 0
         self.mun_to_regions = defaultdict(set)
-        # PARTICIPATION 'census': who is in the labour force (world/participation.py)
+        # Who is in the labour force (world/participation.py)
         self.participation = None
-        # SOCIAL_TRANSFERS 'data': federal benefits paid to residents (world/social_transfers.py)
+        # Federal benefits paid to residents (world/social_transfers.py)
         self.social_transfers = None
-        # OWN_ACCOUNT: own-account work (world/own_account.py)
+        # Own-account work (world/own_account.py)
         self.own_account = None
         # POSTING_EDUCATION 'census': {sector (None: all): (levels, probabilities)} of a vacancy's education
         self.posting_education = None
@@ -268,31 +259,24 @@ class Simulation:
         self.seed.seed(self._seed)
         self.seed_np.seed(self._seed)
         self.central.ledger = self.ledger
-        House.price_scale = 1.0
-        if self.PARAMS.get('HOUSE_VALUES', 'legacy') == 'data':
-            self.house_values = HouseValues(self.PARAMS)
-            House.price_scale = self.house_values.price_scale
-            for house in self.houses.values():
-                house.price *= House.price_scale
+        self.house_values = HouseValues(self.PARAMS)
+        House.price_scale = self.house_values.price_scale
+        for house in self.houses.values():
+            house.price *= House.price_scale
         # Also for a population loaded from file
         set_sector_productivity(self, self.firms.values())
-        Agent.wage_profile = None
-        if self.PARAMS.get('WAGE_SPLIT', 'q_alpha') == 'census':
-            Agent.wage_profile = self.wage_profile()
-            self.initial_income_by_weight()
-        if self.PARAMS.get('INITIAL_MONEY', 'lognormal') == 'target':
-            self.initial_money_from_income()
-        if self.PARAMS.get('PI_START', 'reset') == 'census':
-            for family in self.families.values():
-                family.start_permanent_income()
+        Agent.wage_profile = self.wage_profile()
+        self.initial_income_by_weight()
+        self.initial_money_from_income()
+        for family in self.families.values():
+            family.start_permanent_income()
 
         if self.transport.matrix is not None:
             self.transport.check_coverage(self.regions.keys())
             self.transport.calibrate_cost(self.regions, self.reg_pops)
 
-        if self.PARAMS.get('POP_TARGET', 'projection') == 'census':
-            self.pop_start = dict(self.mun_pops)
-            self.pop_growth = population.census_growth(self.pop_start)
+        self.pop_start = dict(self.mun_pops)
+        self.pop_growth = population.census_growth(self.pop_start)
 
         # Group regions into their municipalities
         for region_id in self.regions.keys():
@@ -302,62 +286,44 @@ class Simulation:
         # stable across processes.
         for mun_code, regions in self.mun_to_regions.items():
             self.mun_to_regions[mun_code] = sorted(regions)
-        if self.PARAMS.get('PARTICIPATION', 'off') == 'census':
-            self.participation = Participation(self.mun_to_regions, self._seed)
-            self.stats.participation = self.participation
-        if self.PARAMS.get('SOCIAL_TRANSFERS', 'off') == 'data':
-            self.social_transfers = SocialTransfers(self.mun_to_regions, self.PARAMS['REAIS_PER_MONEY_UNIT'])
-        if self.PARAMS.get('FIRM_PAYOUT', 'none') == 'national':
-            self.investment_rate = float(pd.read_csv('input/investment_rate_2015.csv', sep=';').investment_rate.iloc[0])
-        Firm.own_account_market = self.PARAMS.get('OWN_ACCOUNT', 'off') == 'firms'
-        ConstructionFirm.planned = (self.PARAMS.get('CONSTRUCTION_PLAN', 'pipeline') == 'sales'
-                                    and self.PARAMS.get('PRODUCTION_PLAN', 'capacity') == 'sales')
-        Firm.vale_transporte = self.PARAMS['PUBLIC_TRANSIT_COST'] if self.PARAMS.get('VALE_TRANSPORTE', False) else None
+        self.participation = Participation(self.mun_to_regions, self._seed)
+        self.stats.participation = self.participation
+        self.social_transfers = SocialTransfers(self.mun_to_regions, self.PARAMS['REAIS_PER_MONEY_UNIT'])
+        self.investment_rate = float(pd.read_csv('input/investment_rate_2015.csv', sep=';').investment_rate.iloc[0])
+        ConstructionFirm.planned = self.PARAMS.get('CONSTRUCTION_PLAN', 'pipeline') == 'sales'
+        Firm.vale_transporte = self.PARAMS['PUBLIC_TRANSIT_COST']
         if self.PARAMS.get('POSTING_EDUCATION', 'off') == 'census':
             self.posting_education = posting_education(self.mun_to_regions)
-        if Firm.own_account_market:
-            self.own_account = OwnAccount(self)
-        elif self.PARAMS.get('OWN_ACCOUNT', 'off') == 'pool':
-            self.own_account = OwnAccountPools(self)
-            self.regional_market.pools = self.own_account
-        Firm.wage_shares = (pd.read_csv('input/firm_income_2015.csv', sep=';').set_index('sector').wage_share.to_dict()
-                            if self.PARAMS.get('WAGE_SHARE', 'unemployment') == 'tru' else None)
-        if Firm.wage_shares is not None and isinstance(self.own_account, OwnAccountPools):
-            # The pool's share of value added is no longer firms'
-            Firm.wage_shares = self.own_account.firm_wage_shares(Firm.wage_shares)
-        elif Firm.wage_shares is not None and self.own_account is not None:
-            # Own-account income is no longer part of firms' value added
-            Firm.wage_shares = pd.read_csv('input/own_account_productivity_2010.csv', sep=';').set_index(
-                'sector').wage_share_firms.to_dict()
+        self.own_account = OwnAccountPools(self)
+        self.regional_market.pools = self.own_account
+        # The pool's share of value added is no longer firms'
+        Firm.wage_shares = self.own_account.firm_wage_shares(
+            pd.read_csv('input/firm_income_2015.csv', sep=';').set_index('sector').wage_share.to_dict())
 
         # First jobs allocated
         # Create an existing job market
         self.labor_market.look_for_jobs(self.agents)
         total = actual = self.labor_market.num_candidates
         actual_unemployment = self.stats.global_unemployment_rate
-        # Share of those aged 17-69 left without a job (INITIAL_EMPLOYMENT)
-        target = self.initial_nonemployment()
-        census = self.PARAMS.get('INITIAL_EMPLOYMENT', 'legacy') == 'census'
-        if self.own_account is not None:
-            self.own_account.start(self.labor_market.candidates, target)
-            self.labor_market.candidates = [c for c in self.labor_market.candidates if c.firm_id is None]
-            actual = self.labor_market.num_candidates
+        # Share of the active left without a job
+        target = self.participation.unemployment
+        self.own_account.start(self.labor_market.candidates, target)
+        self.labor_market.candidates = [c for c in self.labor_market.candidates if c.firm_id is None]
+        actual = self.labor_market.num_candidates
         while actual / total > target:
             # Government is staffed to its RAIS headcount by gov_hire_fire, not by one post per firm:
             # otherwise it takes start-up hires in proportion to its firm count, and sheds the excess in month 1.
             self.labor_market.gov_hire_fire(self)
             n_gov = len(self.labor_market.available_postings)
             self.labor_market.hire_fire(self.firms, 1, initialize=True)
-            if census:
-                # No more posts than the jobs still missing to the target
-                self.labor_market.cap_postings(n_gov, math.ceil(actual - target * total))
+            # No more posts than the jobs still missing to the target
+            self.labor_market.cap_postings(n_gov, math.ceil(actual - target * total))
             self.labor_market.assign_post(actual_unemployment, None, self.PARAMS)
             self.labor_market.look_for_jobs(self.agents)
             actual = self.labor_market.num_candidates
         self.labor_market.reset()
         divisor = set_productivity_level(self)
-        if self.PARAMS.get('PRODUCTIVITY_LEVEL', 'divisor') == 'municipal':
-            self.logger.logger.info(f'PRODUCTIVITY_LEVEL municipal: PRODUCTIVITY_MAGNITUDE_DIVISOR {divisor:.4f}')
+        self.logger.logger.info(f'PRODUCTIVITY_MAGNITUDE_DIVISOR {divisor:.4f}')
         size_initial_capital(self)
 
         for i, family in enumerate(self.families.values()):
@@ -370,20 +336,8 @@ class Simulation:
         self.money_initial = money_stock_total(self)
         self.central.equity_target = self.central.equity()
 
-    def initial_nonemployment(self):
-        """INITIAL_EMPLOYMENT 'census': the Census 2010 share of those aged 17-69 without a job in the run's
-        municipalities; under PARTICIPATION 'census', the share of the active without a job. 'legacy': 0.086, the mean
-        unemployment rate of six metropolitan regions in January 2000"""
-        if self.PARAMS.get('INITIAL_EMPLOYMENT', 'legacy') != 'census':
-            return 0.086
-        if self.participation is not None:
-            return self.participation.unemployment
-        census = pd.read_csv('input/nonemployment_2010.csv', sep=';').set_index('cod_mun')
-        census = census.loc[[int(m) for m in self.mun_to_regions]]
-        return 1 - census.employed.sum() / census.pop_17_69.sum()
-
     def leave_labour_force(self):
-        """PARTICIPATION 'census': employed agents no longer active leave their job, which the firm may refill"""
+        """Employed agents no longer active leave their job, which the firm may refill"""
         for agent in self.agents.values():
             if agent.firm_id is not None and not self.participation.is_active(agent):
                 firm = self.firms.get(agent.firm_id)
@@ -394,14 +348,14 @@ class Simulation:
                 agent.set_commute(None)
 
     def wage_profile(self):
-        """WAGE_SPLIT 'census': the run's ACP row of input/wage_dispersion_2010.csv ('BRASIL' if it has none)"""
+        """The run's ACP row of input/wage_dispersion_2010.csv ('BRASIL' if it has none)"""
         table = pd.read_csv('input/wage_dispersion_2010.csv', sep=';').set_index('acp')
         acps = [a for a in self.geo.processing_acps if a in table.index]
         row = table.loc[acps[0] if len(acps) == 1 else 'BRASIL']
         return float(row.age_b1), float(row.age_b2), float(row.resid_sd), self._seed
 
     def initial_income_by_weight(self):
-        """WAGE_SPLIT 'census': each area's initial Census income is shared among its families in proportion to the
+        """Each area's initial Census income is shared among its families in proportion to the
         wage weights of their members aged 10+, instead of per person"""
         alpha = self.PARAMS['PRODUCTIVITY_EXPONENT']
         by_region = defaultdict(list)
@@ -416,7 +370,7 @@ class Simulation:
                     f.permanent_income = total * w / sum(weights)
 
     def initial_money_from_income(self):
-        """INITIAL_MONEY 'target': each family's members aged 10+ hold WEALTH_TARGET_MONTHS of its Census income per
+        """Each family's members aged 10+ hold WEALTH_TARGET_MONTHS of its Census income per
         person (its initial permanent income over them), times their own draw over the draw's mean"""
         income, adults = 0.0, 0
         for family in self.families.values():
@@ -474,14 +428,9 @@ class Simulation:
         sector_firm_map = {}
         for f in self.firms.values():
             sector_firm_map.setdefault(f.sector, []).append(f)
-        if Firm.own_account_market:
-            # Staff weights of each sector's sellers this month, for input purchases (Firm.choose_firm_per_sector)
-            self.regional_market.input_cum = {s: list(itertools.accumulate(max(1, f.num_employees) for f in fs))
-                                              for s, fs in sector_firm_map.items()}
-        # PRODUCTION_PLAN 'sales': private firms other than builders produce for last month's demand plus the stock
-        # target; builders plan on the house pipeline and Government's headcount is set by its budget
-        planning = self.PARAMS.get('PRODUCTION_PLAN', 'capacity') == 'sales'
-        plan = self.PARAMS.get("INVENTORY_TARGET_RATIO", 0.0) if planning else None
+        # Private firms other than builders produce for last month's demand plus the stock target; builders plan on the
+        # house pipeline and Government's headcount is set by its budget
+        plan = self.PARAMS.get("INVENTORY_TARGET_RATIO", 0.0)
         for firm in self.firms.values():
             firm.update_product_quantity(prod_exponent, prod_magnitude_divisor,
                                          self.regional_market,
@@ -537,15 +486,10 @@ class Simulation:
         self.regional_market.consume()
         # Government firms consumption
         self.regional_market.government_consumption()
-        # FIRM_PAYOUT 'national': investment demand from last month's payout
+        # Investment demand from last month's payout
         self.regional_market.firm_investment()
-        # External consumption based on internal household and government consumption
-        internal_consumption = defaultdict(float)
-        for key, value in self.regional_market.monthly_gov_consumption.items():
-            internal_consumption[key] += value
-        for key, value in self.regional_market.monthly_hh_consumption.items():
-            internal_consumption[key] += value
-        self.external.final_consumption(internal_consumption, self.seed)
+        # Exports to the rest of Brazil
+        self.external.final_consumption()
         # Make rent payments
         self.housing.process_monthly_rent(self)
         # Collect loan repayments
@@ -567,19 +511,16 @@ class Simulation:
         demand_signal_unmet = self.PARAMS.get("DEMAND_SIGNAL_UNMET", False)
         price_demand_response = self.PARAMS.get("PRICE_DEMAND_RESPONSE", 0.0)
         tax_transport = self.PARAMS["TAX_TRANSPORT"]
-        plan = inventory_target_ratio if self.PARAMS.get('PRODUCTION_PLAN', 'capacity') == 'sales' else None
+        plan = inventory_target_ratio
         self.avg_prices, _ = self.stats.update_price(self.firms, mid_simulation_calculus=True)
-        # IMPORT_PARITY_PRICING: tradable firms price against the tradable average, capped at import parity, with no
-        # price response to refused demand; the others against the non-tradable average
-        parity = self.PARAMS.get('IMPORT_PARITY_PRICING', False)
-        if parity:
-            tradables = set(self.PARAMS['TRADABLE_SECTORS'])
-            avg_t, avg_n = self.stats.group_prices(self.firms, tradables)
-            avg_t, avg_n = avg_t or self.avg_prices, avg_n or self.avg_prices
-            parity_ceiling = import_parity(self.PARAMS)
-        if self.PARAMS.get('FAMILY_WAGE', 'last') == 'month':
-            for agent in self.agents.values():
-                agent.wage_paid = 0.0
+        # Tradable firms price against the tradable average, capped at import parity, with no price response to refused
+        # demand; the others against the non-tradable average
+        tradables = set(self.PARAMS['TRADABLE_SECTORS'])
+        avg_t, avg_n = self.stats.group_prices(self.firms, tradables)
+        avg_t, avg_n = avg_t or self.avg_prices, avg_n or self.avg_prices
+        parity_ceiling = import_parity(self.PARAMS)
+        for agent in self.agents.values():
+            agent.wage_paid = 0.0
         for firm in self.firms.values():
             # Tax workers when paying salaries
             firm.make_payment(
@@ -596,12 +537,12 @@ class Simulation:
             # Profits are after taxes
             firm.calculate_profit()
             # Check whether it is necessary to update prices
-            tradable = parity and firm.sector in tradables
+            tradable = firm.sector in tradables
             firm.decision_on_prices_production(
                 sticky,
                 markup,
                 self.seed_np,
-                (avg_t if tradable else avg_n) if parity else self.avg_prices,
+                avg_t if tradable else avg_n,
                 prod_exponent,
                 prod_magnitude_divisor,
                 const_cash_flow,
@@ -618,12 +559,8 @@ class Simulation:
                 self.regions,
                 self.seed_np)
 
-        if self.PARAMS.get('FIRM_PAYOUT', 'none') == 'staff':
-            pay_profit_shares(self)
-        elif self.PARAMS.get('FIRM_PAYOUT', 'none') == 'national':
-            pay_out_national(self)
-        if self.social_transfers is not None:
-            self.social_transfers.pay(self)
+        pay_out_national(self)
+        self.social_transfers.pay(self)
 
         # Construction firms
         # Probability depends (strongly) on market supply
@@ -649,8 +586,7 @@ class Simulation:
 
         # Initiating Labor Market
         # AGENTS
-        if self.participation is not None:
-            self.leave_labour_force()
+        self.leave_labour_force()
         self.labor_market.look_for_jobs(self.agents)
 
         # FIRMS
@@ -663,18 +599,16 @@ class Simulation:
                                     planned_growth=self.PARAMS.get("PLANNED_GROWTH_POSTS", False),
                                     replace_separations=self.PARAMS.get("REPLACE_SEPARATIONS", False),
                                     gov_headcount_only=self.PARAMS.get("GOV_REVISED", False),
-                                    shed_excess=self.PARAMS.get('PRODUCTION_PLAN', 'capacity') == 'sales')
+                                    shed_excess=True)
 
         # Job Matching
         # Sample used only to calculate wage deciles
         agent_values = list(self.agents.values())
         sample_size = math.floor(len(agent_values) * 0.5)
-        wage_deciles = car_wage_deciles(self.seed.sample(agent_values, sample_size),
-                                        self.PARAMS.get('CAR_DECILES', 'all') == 'employed')
+        wage_deciles = car_wage_deciles(self.seed.sample(agent_values, sample_size))
         del agent_values
         self.labor_market.assign_post(current_unemployment, wage_deciles, self.PARAMS)
-        if self.own_account is not None:
-            self.own_account.monthly(current_unemployment)
+        self.own_account.monthly(current_unemployment)
 
         # Natural job separation: workers quit/reach contract end at an exogenous monthly rate.
         # Runs after matching so separated workers miss this month's pool and must wait
@@ -706,12 +640,8 @@ class Simulation:
         for fam in self.families.values():
             fam.invest(self.central, self.clock.year, self.clock.months, self.PARAMS)
 
-        if self.PARAMS.get('BANK_NATIONAL', False):
-            self.central.accrue_deposit_interest(datetime.date(self.clock.year, self.clock.months, 1))
-            self.central.settle_with_national_bank()
-        else:
-            # Remunerate central bank idle liquid assets
-            self.central.remunerate_liquid_balance()
+        self.central.accrue_deposit_interest(datetime.date(self.clock.year, self.clock.months, 1))
+        self.central.settle_with_national_bank()
         # Using all collected taxes to improve public services
         bank_taxes = self.central.collect_taxes()
 

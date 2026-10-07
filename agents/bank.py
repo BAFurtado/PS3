@@ -3,7 +3,6 @@
 
     Banks will serve to offer mortgage and capitalize on deposits
     """
-import datetime
 from collections import defaultdict
 
 import numpy as np
@@ -104,7 +103,7 @@ class Central:
 
         # Track remaining loan balances
         self.loans = defaultdict(list)
-        # BANK_NATIONAL: equity kept by the bank, set at the start of the run
+        # Equity kept by the bank, set at the start of the run
         self.equity_target = None
 
     def outstanding_principal(self, loan):
@@ -118,7 +117,7 @@ class Central:
         return self.balance + loans - self.total_deposits()
 
     def accrue_deposit_interest(self, date):
-        """BANK_NATIONAL: each client's deposits earn this month's rate, net of the tax on positive interest, and are
+        """Each client's deposits earn this month's rate, net of the tax on positive interest, and are
         kept as one tranche"""
         for client, tranches in self.wallet.items():
             if not tranches:
@@ -131,7 +130,7 @@ class Central:
             self.wallet[client] = [(amount + interest - tax, date)]
 
     def settle_with_national_bank(self):
-        """BANK_NATIONAL: equity above its target leaves the ACP, a shortfall is covered from outside"""
+        """Equity above its target leaves the ACP, a shortfall is covered from outside"""
         surplus = self.equity() - self.equity_target
         self.balance -= surplus
         self.ledger['bank_profit_out'] -= surplus
@@ -156,33 +155,6 @@ class Central:
     def set_interest(self, interest, mortgage, sbpe, fgts):
         self.interest, self.mortgage_rate, self.i_sbpe, self.i_fgts = interest, mortgage, sbpe, fgts
 
-    def pay_interest(self, client, y, m):
-        """ Updates interest to the client
-        """
-        if self.params.get('BANK_NATIONAL', False):
-            return 0
-        # Compute future values
-        interest = 0
-        for amount, date in self.wallet[client]:
-            interest += npf.fv(self.interest,
-                               (datetime.date(y, m, 1) - date).days // 30,
-                               0,
-                               amount * -1)
-            interest -= amount
-
-        # Compute taxes. The bank pays the whole interest: the client gets it net of tax, the tax is collected
-        # later (it used to leave the balance only net of tax, so the tax was paid from nothing)
-        tax = interest * self.tax_firm
-        self.taxes += tax
-        self.balance -= interest
-
-        return interest - tax
-
-    def remunerate_liquid_balance(self):
-        # Remunerate idle capital at economy's basic rate
-        if self.balance > 0:
-            self.ledger['bank_interest'] += self.balance * self.interest
-            self.balance += self.balance * self.interest
 
     def collect_taxes(self):
         """ This function withdraws monthly collected taxes from investments, at tax firm rates and
@@ -198,16 +170,12 @@ class Central:
         self.balance += amount
 
     def withdraw(self, client, y, m):
-        """ Gives the money back to the client
+        """ Gives the money back to the client, with the interest accrued monthly (accrue_deposit_interest)
         """
-        interest = self.pay_interest(client, y, m)
         amount = self.sum_deposits(client)
-        payout = amount + interest
-
         del self.wallet[client]
-
-        self.balance -= amount  # interest already deducted in pay_interest()
-        return payout
+        self.balance -= amount
+        return amount
 
     def sum_deposits(self, client):
         return sum(amount for amount, _ in self.wallet[client])
@@ -410,8 +378,8 @@ class Central:
                     family.have_loan = None
                 family.savings -= payment
 
-                # Market instalments go to the bank; with FUNDS_REAL, FGTS and SBPE instalments to the national funds
-                if loan.loan_type == 'market' or not self.params.get('FUNDS_REAL', False):
+                # Market instalments go to the bank, FGTS and SBPE instalments to the national funds
+                if loan.loan_type == 'market':
                     self.balance += payment
                 else:
                     self.ledger['fgts_sbpe_repaid'] -= payment

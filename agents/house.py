@@ -11,7 +11,7 @@ class House:
     """Holds the fixed households.
     They may have changing owners and changing occupancy."""
     Owner = Owner
-    # Multiplies size x quality x region index in the price (HOUSE_VALUES)
+    # Multiplies size x quality x region index in the price (world/house_values.py)
     price_scale = 1.0
 
     def __init__(self, _id, address, size, price, region_id, quality,

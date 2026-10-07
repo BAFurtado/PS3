@@ -1,4 +1,4 @@
-"""National real GDP index, 2010 = 1, for EXPORTS_REAL (input/national_real_gdp.csv).
+"""National real GDP index, 2010 = 1, for exports and the programme funds (input/national_real_gdp.csv).
 
 Source: IBGE annual real GDP growth, as published in the Banco Central SGS series 7326 ("PIB - taxa de variação real
 no ano"), <https://api.bcb.gov.br/dados/serie/bcdata.sgs.7326/dados?formato=json>. Years after the last one published

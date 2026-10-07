@@ -1,4 +1,4 @@
-"""Age profile and residual dispersion of work income per ACP, for WAGE_SPLIT 'census' (input/wage_dispersion_2010.csv).
+"""Age profile and residual dispersion of work income per ACP, for the wage split (input/wage_dispersion_2010.csv).
 
 Source: IBGE, Censo Demográfico 2010, microdados da amostra, persons file of each state (local copy, CENSUS below).
 Employed (V6910 = 1) aged 17-69 with positive work income in the main job (V6513, R$ of July 2010), weights V0010.

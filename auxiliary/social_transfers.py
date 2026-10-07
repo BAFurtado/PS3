@@ -1,4 +1,4 @@
-"""Federal social transfers paid to residents, by municipality, 2010, for SOCIAL_TRANSFERS 'data'
+"""Federal social transfers paid to residents, by municipality, 2010, for the federal social transfers
 (input/social_transfers_2010.csv): beneficiaries and mean monthly value in 2010 R$ of RGPS benefits, BPC and Bolsa
 Família, and the Census population.
 

@@ -33,18 +33,18 @@ class Agent:
     firm_id, utility, address, distance, region_id.
     """
 
-    # FIRM_PAYOUT: last month's profit share from the employer. Class-level default so agents unpickled from an older
-    # cache have it.
+    # Last month's profit share, read with the wage as income; none is paid. Class-level default so agents unpickled
+    # from an older cache have it.
     last_profit_share = 0.0
-    # Wage received in the latest payroll it was paid in; FAMILY_WAGE 'month' zeroes it before each month's payroll
+    # Wage received in this month's payroll, zeroed before each month's payroll
     wage_paid = 0.0
-    # SOCIAL_TRANSFERS: this month's federal benefits (world/social_transfers.py)
+    # This month's federal benefits (world/social_transfers.py)
     last_transfer = 0.0
-    # EDUCATION 'census': years of study the agent finishes with (world/education.py); None under 'pooled'
+    # Years of study the agent finishes with (world/education.py)
     target = None
-    # WAGE_SPLIT 'census': persistent individual earnings factor exp(e), drawn the first time a weight is needed
+    # Persistent individual earnings factor exp(e), drawn the first time a weight is needed
     earnings = None
-    # WAGE_SPLIT 'census': (age coefficient, age-squared coefficient, residual sd, run seed); None under 'q_alpha'
+    # (age coefficient, age-squared coefficient, residual sd, run seed), set by Simulation
     wage_profile = None
 
     # Class for Agents. Citizens of the model
@@ -77,8 +77,8 @@ class Agent:
         self.has_car = has_car
 
     def wage_factor(self):
-        """WAGE_SPLIT 'census': the Census age profile times the persistent earnings factor exp(e), e ~ N(0, residual
-        sd ** 2); 1 under 'q_alpha'"""
+        """The Census age profile times the persistent earnings factor exp(e), e ~ N(0, residual sd ** 2); 1 before
+        Simulation sets the profile"""
         profile = Agent.wage_profile
         if profile is None:
             return 1.0

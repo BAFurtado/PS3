@@ -1,4 +1,4 @@
-"""HOUSE_VALUES 'data': house prices are rents over the FipeZAP 2010 gross rental yield, and builders' cost per m² is
+"""House values: house prices are rents over the FipeZAP 2010 gross rental yield, and builders' cost per m² is
 the Sinapi 2010 average cost of the state (input/sinapi_2010.csv, auxiliary/sinapi_2010.py), the normal finish
 standard, across qualities by the CUB/m² 2010 ratios of the low and high standards to the normal one (R-1, medians over
 states; input/cub_2010.csv, auxiliary/cub_2010.py)"""

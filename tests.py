@@ -276,6 +276,9 @@ if sim.PARAMS.get("GOV_REVISED", False):
                   "public_wage", "public_offer")
     _gov_state = {_f.id: {_a: getattr(_f, _a) for _a in _gov_attrs} for _f in _gov_all}
     _state_before = (_funds.external_public_funding, dict(_funds.gov_budget_diag))
+    # Public investment in its base window (real_public_spending leaves it as the budget left it)
+    _spend_saved = (_funds.gov_spending_months, _funds.gov_spending_base)
+    _funds.gov_spending_months, _funds.gov_spending_base = defaultdict(list), {}
     _snap = lambda: (sum(f._transfer_current for f in _gov_all), sum(f.purchase_fund for f in _gov_all),
                      sum(f.investment_fund for f in _gov_all), sum(_funds.policy_money.values()),
                      sum(r.applied_flow for r in sim.regions.values()), sum(f.input_fund for f in _gov_all))
@@ -323,32 +326,30 @@ if sim.PARAMS.get("GOV_REVISED", False):
         f"public wage range={min(_gov_wage, default=0):.3f}-{max(_gov_wage, default=0):.3f}, "
         f"private median={np.median(_priv) if _priv else 0:.3f}",
     )
-    # GOV_WAGE_RULE 'premium': each municipality's target payroll is private pay per unit of qualification ** alpha
-    # times one plus its level-weighted premium, for the qualification its Government firms employ; the offer seen by
-    # job seekers is one plus the premium times the mean private wage, not the pay per worker
+    # GOV_WAGE_RULE 'premium': each municipality's target payroll is its municipal staff's share at private pay per
+    # unit of wage weight times one plus the municipal premium, for the wage weight its Government firms employ, plus
+    # the cost of its federal and state staff; the offer seen by job seekers is not the pay per worker
     _alpha = sim.PARAMS["PRODUCTIVITY_EXPONENT"]
     _bill, _heads, _quals = defaultdict(float), defaultdict(int), defaultdict(float)
     for _f in sim.firms.values():
-        if _f.sector != "Government" and _f.num_employees > 0 and _f.wages_paid > 0:
+        if _f.sector != "Government" and not _f.own_account and _f.num_employees > 0 and _f.wages_paid > 0:
             _bill[_f.region_id[:7]] += _f.wages_paid
             _heads[_f.region_id[:7]] += _f.num_employees
-            _quals[_f.region_id[:7]] += _f.total_qualification(_alpha)
-    _prem = {"federal": sim.PARAMS["GOV_PREMIUM_FEDERAL"], "estadual": sim.PARAMS["GOV_PREMIUM_STATE"],
-             "municipal": sim.PARAMS["GOV_PREMIUM_MUNICIPAL"]}
-    _dev, _markups = [], set()
+            _quals[_f.region_id[:7]] += _f.total_wage_weight(_alpha)
+    _dev = []
     for _m, _v in _funds.gov_budget_diag.items():
-        _gq = sum(_f.total_qualification(_alpha) for _f in _funds.mun_gov_firms[int(_m)])
+        _gq = sum(_f.total_wage_weight(_alpha) for _f in _funds.mun_gov_firms[int(_m)])
         if not (_quals[_m] and _gq):
             continue
-        _mk = 1 + sum(_funds.gov_levels[_m][_k] * _prem[_k] for _k in _prem)
-        _markups.add(round(_mk, 3))
-        _dev.append(abs(_v["target"] / (_bill[_m] / _quals[_m] * _gq) - _mk))
+        _w_mun = _funds.gov_levels[_m]["municipal"] * (1 + sim.PARAMS["GOV_PREMIUM_MUNICIPAL"])
+        _expect = _w_mun * _bill[_m] / _quals[_m] * _gq + _v["outside"]
+        _dev.append(abs(_v["target"] / _expect - 1))
     _offers = [(_f.offer_wage(0.05, 1.0), _f.wage_base(0.05, 1.0)) for _f in _gov_all if _f.employees]
     if sim.PARAMS.get("GOV_WAGE_RULE") == "premium":
         check(
-            "Public payroll is private pay per unit of qualification times the level-weighted premium",
-            _dev and max(_dev) < 1e-9 and max(_markups) >= 1.0,
-            f"municipalities={len(_dev)}, max deviation={max(_dev, default=0):.2e}, markups={sorted(_markups)}",
+            "Public payroll: municipal staff at private pay per unit of wage weight, plus federal and state staff",
+            _dev and max(_dev) < 1e-9,
+            f"municipalities={len(_dev)}, max relative deviation={max(_dev, default=0):.2e}",
         )
         check(
             "Government ranks job posts on its offer, set apart from its pay per worker",
@@ -367,28 +368,10 @@ if sim.PARAMS.get("GOV_REVISED", False):
         _funds.settle_government_budget(sim.regions)
         _ext.append(_funds.external_public_funding - _e0)
     _funds.gov_levels[_mun] = _saved_levels
-    # GOV_EXTERNAL_WAGE 'real': doubling private pay and the average goods price together leaves the cost of federal
-    # and state staff and the outside funding unchanged, while the payroll (municipal staff) rises
-    _saved_rule, _saved_price = sim.PARAMS.get("GOV_EXTERNAL_WAGE", "local"), sim.avg_prices
+    _saved_price = sim.avg_prices
     _saved_pay = {_f.id: _f.wages_paid for _f in sim.firms.values() if _f.sector != "Government"}
-    sim.PARAMS["GOV_EXTERNAL_WAGE"] = "real"
-    _real = []
-    for _scale in (1.0, 2.0):
-        for _f in sim.firms.values():
-            if _f.sector != "Government":
-                _f.wages_paid = _saved_pay[_f.id] * _scale
-        sim.avg_prices = _saved_price * _scale
-        _e0 = _funds.external_public_funding
-        for _rid in sim.regions:
-            _funds.pending_public_money[_rid]["equally"] += 1e-6
-        _funds.settle_government_budget(sim.regions)
-        _real.append((sum(_v["outside"] or 0 for _v in _funds.gov_budget_diag.values()),
-                      sum(_v["target"] for _v in _funds.gov_budget_diag.values()),
-                      _funds.external_public_funding - _e0))
-    # GOV_EXTERNAL_WAGE 'national': once the reference private pay is fixed, the cost of federal and state staff is
-    # that reference times each level's observed multiple times their share of the staff, whatever private pay and
-    # prices do afterwards
-    sim.PARAMS["GOV_EXTERNAL_WAGE"] = "national"
+    # Once the reference private pay is fixed, the cost of federal and state staff is that reference times each
+    # level's observed multiple times their share of the staff, whatever private pay and prices do afterwards
     _saved_gov_pay = (_funds.gov_pay, _funds.gov_pay_months, _funds.gov_pay_reference)
     _funds.gov_pay = {str(_r.cod_mun): {"federal": _r.federal, "estadual": _r.estadual}
                       for _r in pd.read_csv("input/gov_pay.csv", sep=";").itertuples()}
@@ -414,7 +397,7 @@ if sim.PARAMS.get("GOV_REVISED", False):
     for _f in sim.firms.values():
         if _f.sector != "Government":
             _f.wages_paid = _saved_pay[_f.id]
-    sim.PARAMS["GOV_EXTERNAL_WAGE"], sim.avg_prices = _saved_rule, _saved_price
+    sim.avg_prices = _saved_price
     check(
         "Federal and state staff at the observed multiple of a private pay reference fixed after the base months",
         _refs[:_burn + _base - 1] == [float(_i) for _i in range(_burn + _base - 1)]
@@ -425,18 +408,11 @@ if sim.PARAMS.get("GOV_REVISED", False):
         f"payroll target "
         f"{_nat[0][1]:.3f} -> {_nat[1][1]:.3f}",
     )
-    if sim.PARAMS.get("GOV_EXTERNAL_FUNDING", False):
-        check(
-            "Federal and state staff at real private pay: outside funding does not follow the price level",
-            _real[0][0] > 0 and abs(_real[1][0] - _real[0][0]) < 1e-9 * _real[0][0]
-            and abs(_real[1][2] - _real[0][2]) < 1e-9 * _real[0][2] and _real[0][2] > 0 and _real[1][1] > _real[0][1],
-            f"outside cost {_real[0][0]:.3f} -> {_real[1][0]:.3f}, payroll target {_real[0][1]:.3f} -> "
-            f"{_real[1][1]:.3f}, outside funding {_real[0][2]:.3f} -> {_real[1][2]:.3f}",
-        )
     for _f in _gov_all:
         for _a, _val in _gov_state[_f.id].items():
             setattr(_f, _a, _val)
     _funds.external_public_funding, _funds.gov_budget_diag = _state_before[0], _state_before[1]
+    _funds.gov_spending_months, _funds.gov_spending_base = _spend_saved
     if sim.PARAMS.get("GOV_EXTERNAL_FUNDING", False):
         check(
             "An underfunded public payroll is paid from outside the ACP only for federal and state staff",
@@ -444,60 +420,25 @@ if sim.PARAMS.get("GOV_REVISED", False):
             f"external funding: non-municipal {_ext[0]:.4f}, municipal-only {_ext[1]:.4f}",
         )
 
-# EXPORTS_REAL: after the base months, a sector's external demand is its base quantity times national growth times
-# (price / P_imp) ** -elasticity, at its price; at elasticity 1 a doubled price leaves the money unchanged, at 0 doubles it
-_ext = sim.external
-_ex_saved = (dict(sim.PARAMS), _ext.months, dict(_ext.export_base), _ext.export_base_index, _ext.national_gdp)
-import pandas as _pd  # noqa: E402
-_ext.national_gdp = _pd.read_csv("input/national_real_gdp.csv", sep=";").set_index("year")["index"]
-sim.PARAMS.update(EXPORTS_REAL=True, EXPORTS_BURN_IN=12, EXPORTS_BASE_MONTHS=12)
-_chosen = _ext.stocked_firms_per_sector(sim.firms)
-_sec = next(s for s, v in _chosen.items() if v and sim.regional_market.external_demand_multiplier[s])
-_ex_money = {}
-for _sigma in (1.0, 0.0):
-    sim.PARAMS["EXPORTS_PRICE_ELASTICITY"] = _sigma
-    for _scale in (1.0, 2.0):
-        for _f, _ in _chosen[_sec]:
-            _f.inventory[0].price *= _scale
-        _ext.months, _ext.export_base, _ext.export_base_index = 24, defaultdict(float, {_sec: 12 * 5.0}), 12 * 1.0
-        _ex_money[(_sigma, _scale)] = _ext.export_demand(_chosen, defaultdict(float),
-                                                         sim.regional_market.external_demand_multiplier)[_sec]
-        for _f, _ in _chosen[_sec]:
-            _f.inventory[0].price /= _scale
-_g = _ext.national_index(sim.clock.year)
-sim.PARAMS.clear()
-sim.PARAMS.update(_ex_saved[0])
-_ext.months, _ext.export_base, _ext.export_base_index, _ext.national_gdp = _ex_saved[1:]
-check(
-    "Real exports: base quantity times national growth, price elasticity applied",
-    abs(_ex_money[(1.0, 1.0)] - 5.0 * _g) < 1e-9 and abs(_ex_money[(1.0, 2.0)] - _ex_money[(1.0, 1.0)]) < 1e-9
-    and abs(_ex_money[(0.0, 2.0)] - 2 * _ex_money[(0.0, 1.0)]) < 1e-9 * _ex_money[(0.0, 1.0)],
-    f"sector {_sec}, index {_g:.4f}, money {({k: round(v, 4) for k, v in _ex_money.items()})}",
-)
-
-# PRICE_INDEX: 'stocked' averages the prices of firms with staff and stock, 'staffed' of firms with staff
-_pi_saved = sim.stats.price_index_stocked
-_pi = {}
-for _mode in (True, False):
-    sim.stats.price_index_stocked = _mode
-    _pi[_mode] = sim.stats.update_price(sim.firms, mid_simulation_calculus=True)[0]
-sim.stats.price_index_stocked = _pi_saved
-_pi_stk = [i.price for f in sim.firms.values() for i in f.inventory.values() if f.num_employees > 0 and i.quantity > 0]
-_pi_stf = [i.price for f in sim.firms.values() for i in f.inventory.values() if f.num_employees > 0]
+# The price index averages the prices of the firms with staff, stocked out or not, own-account pools left out
+_pi_saved = sim.stats.previous_month_price
+_pi = sim.stats.update_price(sim.firms, mid_simulation_calculus=True)[0]
+sim.stats.previous_month_price = _pi_saved
+_pi_stf = [i.price for f in sim.firms.values() for i in f.inventory.values() if f.num_employees > 0 and not f.pool]
 _gp = sim.stats.group_prices(sim.firms, {"Agriculture", "Mining", "Manufacturing"})
 _gp_t = [i.price for f in sim.firms.values() for i in f.inventory.values()
-         if f.num_employees > 0 and i.quantity > 0 and f.sector in ("Agriculture", "Mining", "Manufacturing")]
+         if f.num_employees > 0 and not f.pool and f.sector in ("Agriculture", "Mining", "Manufacturing")]
 _gp_n = [i.price for f in sim.firms.values() for i in f.inventory.values()
-         if f.num_employees > 0 and i.quantity > 0 and f.sector not in ("Agriculture", "Mining", "Manufacturing")]
+         if f.num_employees > 0 and not f.pool and f.sector not in ("Agriculture", "Mining", "Manufacturing")]
 check("Tradable and non-tradable average prices split the firms of the price index",
       abs(_gp[0] - (np.mean(_gp_t) if _gp_t else 0)) < 1e-12 and abs(_gp[1] - np.mean(_gp_n)) < 1e-12,
       f"tradable {_gp[0]:.4f} ({len(_gp_t)}), non-tradable {_gp[1]:.4f} ({len(_gp_n)})")
 check(
-    "Price index averages the firms PRICE_INDEX names",
-    abs(_pi[True] - np.mean(_pi_stk)) < 1e-12 and abs(_pi[False] - np.mean(_pi_stf)) < 1e-12
-    and len(_pi_stf) >= len(_pi_stk),
-    f"stocked {_pi[True]:.4f} over {len(_pi_stk)} firms, staffed {_pi[False]:.4f} over {len(_pi_stf)}",
+    "Price index averages the staffed firms",
+    abs(_pi - np.mean(_pi_stf)) < 1e-12,
+    f"index {_pi:.4f} over {len(_pi_stf)} firms",
 )
+
 
 # Firm demography in stats.csv reconciles with the firm stock: entries - exits = change in the number of firms
 from analysis.output import columns_for  # noqa: E402
@@ -522,15 +463,15 @@ check(
     f"max |unexplained| = {_unexplained:.3g}, stock up to {_st.money_total.max():.3g}",
 )
 
-# Refused demand by buyer type (diagnostic) adds up to each firm's refused quantity, and the stats columns to
-# firms_unmet_share
+# Refused demand by buyer type (diagnostic) adds up to each firm's refused quantity; the stats columns cover
+# households, government, inputs and exports (investment purchases are in firms_unmet_share only)
 _by_ok = all(abs(sum(r[1] for r in f.demand_by_buyer.values()) - f.unmet_quantity) < 1e-9 * max(1, f.unmet_quantity)
              for f in sim.firms.values() if f.demand_by_buyer)
 _b = ['household', 'government', 'input', 'external']
 _d = _st[[f"demand_{b}" for b in _b]].sum(axis=1)
 _u = _st[[f"unmet_{b}" for b in _b]].sum(axis=1)
-check("Refused demand by buyer adds up to the firms' refused quantity and to firms_unmet_share",
-      _by_ok and np.allclose(np.where(_d > 0, _u / _d.where(_d > 0, 1), 0), _st.firms_unmet_share)
+check("Refused demand by buyer adds up to the firms' refused quantity, unmet within demand by buyer",
+      _by_ok and all((_st[f"unmet_{b}"] <= _st[f"demand_{b}"] + 1e-9).all() for b in _b)
       and _st.demand_household.iloc[-1] > 0 and _st.demand_input.iloc[-1] > 0,
       f"per firm {_by_ok}; last month shares by buyer "
       f"{[round(_st[f'unmet_{b}'].iloc[-1] / max(_st[f'demand_{b}'].iloc[-1], 1e-12), 3) for b in _b]}")
@@ -841,19 +782,7 @@ for _p in glob.glob('input/technical_matrices/*_matrix_io.json'):
         _bad.append(_acp)
 check("every ACP matrix: local + imported inputs = national coefficients, no NaN", not _bad, f"{_bad[:5]}")
 
-# IO_IMPORTS picks the block firms and Government import from: external->local when on, the old local->external
-# block (~0) when off
-_markets = {flag: RegionalMarket(SimpleNamespace(PARAMS=dict(sim.PARAMS, IO_IMPORTS=flag), geo=sim.geo))
-            for flag in (False, True)}
-_ll, _el, _le, _ee = read_technical_matrix(sim.geo.processing_acps)
-check("IO_IMPORTS on: firms import from the external->local block",
-      _markets[True].ext_local_matrix.equals(_el) and _el.values.sum() > _le.values.sum())
-check("IO_IMPORTS off: firms read the local->external block, as the old model did",
-      _markets[False].ext_local_matrix.equals(_le))
-
-
-# EXTERNAL_RECYCLING_SHARE = 1 returns the whole net import bill as demand for local firms, and a share in (0, 1)
-# leaves the rest as a deficit in net_position. Stub firms with ample stock, so the only limit is the money.
+# Stub firms with ample stock, so the only limit is the money
 class _StubFirm:
     def __init__(self, sector):
         self.sector, self.region_id, self.total_quantity, self.prices, self.sold = sector, 'r', 1e9, 1.0, 0.0
@@ -863,34 +792,8 @@ class _StubFirm:
         return 0.0
 
 
-def _external_after(share, imports=100.0):
-    _firms = {i: _StubFirm(s) for i, s in enumerate(['Agriculture', 'Manufacturing'])}
-    _market = SimpleNamespace(technical_matrix=pd.DataFrame(index=['Agriculture', 'Manufacturing']),
-                              external_demand_multiplier={'Agriculture': 0.5, 'Manufacturing': 0.1})
-    _stub = SimpleNamespace(PARAMS=dict(sim.PARAMS, EXTERNAL_RECYCLING_SHARE=share), firms=_firms,
-                            regional_market=_market, regions={}, ledger=defaultdict(float))
-    _ext = External(_stub, sim.PARAMS["TAXES_STRUCTURE"]["consumption_equal"])
-    _ext.intermediate_consumption(imports)
-    _net_imports = imports - _ext.import_tax_month
-    _ext.final_consumption({'Agriculture': 10.0, 'Manufacturing': 10.0}, random.Random(0))
-    return _ext, _net_imports, sum(f.sold for f in _firms.values())
-
-
-_ext, _net, _sold = _external_after(1.0)
-check("recycling share 1: the net import bill returns as demand, trade balanced",
-      abs(_ext.last_month['recycled'] - _net) < 1e-9 and abs(_ext.net_position - _ext.last_month['exports']) < 1e-9
-      and abs(_sold - _ext.last_month['exports'] - _net) < 1e-9,
-      f"recycled={_ext.last_month['recycled']:.4f} net imports={_net:.4f} net_position={_ext.net_position:.4f}")
-_ext, _net, _sold = _external_after(0.5)
-check("recycling share 0.5: half the net import bill is a deficit in net_position",
-      abs(_ext.net_position - (_ext.last_month['exports'] - 0.5 * _net)) < 1e-9)
-_ext, _net, _sold = _external_after(0.0)
-check("recycling share 0: exports only, the old model",
-      _ext.last_month['recycled'] == 0 and abs(_sold - 0.5 * 10 - 0.1 * 10) < 1e-9)
-
-
-# EXTERNAL_DEMAND_SPREAD = 'stock': the sector's external demand is split over every stocked firm by stock value, so
-# nothing is refused while demand fits in that value. Stub firms sell at most their stock
+# Exports are split over every stocked firm of the sector by stock value, so nothing is refused while demand fits in
+# that value. Stub firms sell at most their stock
 class _StockedFirm(_StubFirm):
     def __init__(self, sector, quantity, price):
         super().__init__(sector)
@@ -904,13 +807,15 @@ class _StockedFirm(_StubFirm):
 
 _firms = {0: _StockedFirm('Agriculture', 1.0, 1.0), 1: _StockedFirm('Agriculture', 3.0, 2.0),
           2: _StockedFirm('Agriculture', 0.0, 1.0)}
-_market = SimpleNamespace(technical_matrix=pd.DataFrame(index=['Agriculture']),
-                          external_demand_multiplier={'Agriculture': 0.5})
-_stub = SimpleNamespace(PARAMS=dict(sim.PARAMS, EXTERNAL_DEMAND_SPREAD='stock', EXTERNAL_RECYCLING_SHARE=0.0),
-                        firms=_firms, regional_market=_market, regions={}, ledger=defaultdict(float))
+# Own-account pools with no members: nothing is paid to them
+_NO_POOLS = SimpleNamespace(payable=lambda sector: (None, 0.0))
+_market = SimpleNamespace(technical_matrix=pd.DataFrame(index=['Agriculture']), pools=_NO_POOLS,
+                          input_need=np.zeros(1))
+_stub = SimpleNamespace(PARAMS=sim.PARAMS, firms=_firms, regional_market=_market, regions={}, ledger=defaultdict(float))
 _ext = External(_stub, sim.PARAMS["TAXES_STRUCTURE"]["consumption_equal"])
-_ext.final_consumption({'Agriculture': 12.0}, random.Random(0))
-check("EXTERNAL_DEMAND_SPREAD 'stock': demand split by stock value over every stocked firm, none refused",
+_ext.export_demand = lambda: {'Agriculture': 6.0}
+_ext.final_consumption()
+check("Exports split by stock value over every stocked firm, none refused",
       abs(_firms[0].sold - 6 / 7) < 1e-12 and abs(_firms[1].sold - 36 / 7) < 1e-12 and _firms[2].sold == 0
       and abs(_ext.last_month['exports'] - 6.0) < 1e-12,
       f"{[f.sold for f in _firms.values()]}, exports {_ext.last_month['exports']}")
@@ -938,11 +843,12 @@ def _retry_case(retry, by_price):
     house = SimpleNamespace(address=None, _firm_distances={'a': 1.0, 'c': 2.0, 'd': 3.0, 'b': 4.0})
     fam = SimpleNamespace(savings=0.0, house=house, region_id=None, average_utility=0.0,
                           decision_on_consumption=lambda *a: 5.0)
-    rm = SimpleNamespace(final_demand={'HouseholdConsumption': {'Agriculture': 1.0}}, household_no_stock=0.0,
-                         household_unserved=0.0, household_import_share={}, monthly_hh_intended=defaultdict(float))
+    rm = SimpleNamespace(final_demand={'HouseholdConsumption': {'Trade': 1.0}}, household_no_stock=0.0,
+                         household_unserved=0.0, household_import_share={}, monthly_hh_intended=defaultdict(float),
+                         pools=_NO_POOLS)
     seed = SimpleNamespace(randint=lambda a, b: int(by_price), sample=None)
     Family.consume(fam, rm, seed, None, None, {}, dict(sim.PARAMS, SIZE_MARKET=5, HOUSEHOLD_RETRY=retry), 2010, 1,
-                   False, {'Agriculture': firms})
+                   False, {'Trade': firms})
     return [round(10 - f.inventory[0].quantity, 9) if f.id != 'a' else round(1 - f.inventory[0].quantity, 9)
             for f in firms if f.id != 'c'], fam.savings, rm.household_unserved
 
@@ -953,17 +859,17 @@ check("HOUSEHOLD_RETRY: short-served households buy the rest from the next stock
       and _cases[(True, True)] == ([1.0, 2.0, 0.0], 0.0, 0.0) and _cases[(True, False)] == ([1.0, 0.0, 1.0], 0.0, 0.0),
       f"{_cases}")
 
-# SHORTAGE_IMPORTS: tradable spending no local firm served (refused, or no stocked firm) is bought outside at 1 plus
-# freight and counted as consumption; non-tradable spending refused goes back to savings
+# Tradable spending no local firm served (refused, or no stocked firm) is bought outside at 1 plus freight and counted
+# as consumption; non-tradable spending refused goes back to savings
 _sh_ext = External(SimpleNamespace(PARAMS=sim.PARAMS, ledger=defaultdict(float)), 0.0)
 _sh_fam = SimpleNamespace(savings=0.0, house=SimpleNamespace(address=None, _firm_distances={'a': 1.0, 't': 1.0}),
                           region_id=None, average_utility=0.0, decision_on_consumption=lambda *a: 10.0)
 _sh_rm = SimpleNamespace(final_demand={'HouseholdConsumption': {'Agriculture': 0.4, 'Manufacturing': 0.2, 'Trade': 0.4}},
                          household_no_stock=0.0, household_unserved=0.0, household_imports=0.0,
                          household_import_share={}, sim=SimpleNamespace(external=_sh_ext),
-                         monthly_hh_intended=defaultdict(float))
+                         monthly_hh_intended=defaultdict(float), pools=_NO_POOLS)
 _sh_cons = Family.consume(_sh_fam, _sh_rm, SimpleNamespace(randint=lambda a, b: 1), None, None, {},
-                          dict(sim.PARAMS, SIZE_MARKET=5, SHORTAGE_IMPORTS=True), 2010, 1, False,
+                          dict(sim.PARAMS, SIZE_MARKET=5), 2010, 1, False,
                           {'Agriculture': [_ShelfFirm('a', 1.0, 2.0)], 'Trade': [_ShelfFirm('t', 1.0, 1.0)]})
 # Government: with no stocked Manufacturing firm the whole purchase is imported and nothing stays in the fund
 _ext = sim.external
@@ -975,9 +881,10 @@ for _f in _manu:
     _f.total_quantity = 0.0
 _gf = next(f for f in sim.firms.values() if f.sector == 'Government')
 _sh_tc = defaultdict(float)
+_sh_rm_gov = SimpleNamespace(government_import_share={}, monthly_gov_intended=defaultdict(float), pools=_NO_POOLS)
 _sh_left = _gf.spend_fund(type("S", (), {"firms": sim.firms, "seed": sim.seed, "regions": sim.regions,
-                                         "external": _ext, "regional_market": sim.regional_market,
-                                         "PARAMS": dict(sim.PARAMS, SHORTAGE_IMPORTS=True)})(),
+                                         "external": _ext, "regional_market": _sh_rm_gov,
+                                         "PARAMS": sim.PARAMS})(),
                           5.0, pd.Series({'Manufacturing': 1.0}), _sh_tc)
 _sh_gov_imports = _ext.imports_month - _ext_saved['imports_month']
 for _f, _q in zip(_manu, _manu_q):
@@ -985,7 +892,7 @@ for _f, _q in zip(_manu, _manu_q):
 for _k, _v in _ext_saved.items():
     setattr(_ext, _k, _v)
 sim.ledger['imports'] = _led_saved
-check("SHORTAGE_IMPORTS: unserved tradable spending is imported (households and government); services go to savings",
+check("Unserved tradable spending is imported (households and government); services go to savings",
       abs(_sh_ext.imports_month - 4.0) < 1e-12 and abs(_sh_rm.household_imports - 4.0) < 1e-12
       and abs(_sh_fam.savings - 3.0) < 1e-12 and abs(_sh_rm.household_unserved - 3.0) < 1e-12
       and abs(_sh_cons['Agriculture'] - 4.0) < 1e-12 and abs(_sh_cons['Manufacturing'] - 2.0) < 1e-12
@@ -994,8 +901,8 @@ check("SHORTAGE_IMPORTS: unserved tradable spending is imported (households and 
       f"household imports {_sh_ext.imports_month}, savings {_sh_fam.savings}, consumption {dict(_sh_cons)}; "
       f"government left {_sh_left}, imports {_sh_gov_imports}")
 
-# HOUSEHOLD_IMPORTS: the import share of a product goes to the rest of Brazil at once, the rest to the local firm, and
-# all of it counts as consumption; the market's share comes from the import block of the technical matrix
+# Households: the import share of a product goes to the rest of Brazil at once, the rest to the local firm, and all of
+# it counts as consumption
 _imp_ext = External(SimpleNamespace(PARAMS=sim.PARAMS, ledger=defaultdict(float)), 0.0)
 _imp_firm = _ShelfFirm('a', 1.0, 100.0)
 _imp_fam = SimpleNamespace(savings=0.0, house=SimpleNamespace(address=None, _firm_distances={'a': 1.0}), region_id=None,
@@ -1003,42 +910,32 @@ _imp_fam = SimpleNamespace(savings=0.0, house=SimpleNamespace(address=None, _fir
 _imp_rm = SimpleNamespace(final_demand={'HouseholdConsumption': {'Agriculture': 0.6, 'Trade': 0.4}},
                           household_no_stock=0.0, household_unserved=0.0, household_imports=0.0,
                           household_import_share={'Agriculture': 0.25}, sim=SimpleNamespace(external=_imp_ext),
-                          monthly_hh_intended=defaultdict(float))
+                          monthly_hh_intended=defaultdict(float), pools=_NO_POOLS)
 _imp_cons = Family.consume(_imp_fam, _imp_rm, SimpleNamespace(randint=lambda a, b: 1), None, None, {},
                            dict(sim.PARAMS, SIZE_MARKET=5), 2010, 1, False,
                            {'Agriculture': [_imp_firm], 'Trade': [_ShelfFirm('t', 1.0, 100.0)]})
-_rm_on = RegionalMarket(SimpleNamespace(PARAMS=dict(sim.PARAMS, HOUSEHOLD_IMPORTS=True), geo=sim.geo))
-_ll, _el = read_technical_matrix(sim.geo.processing_acps)[:2]
-_m = (_el.sum(axis=1) / (_ll.sum(axis=1) + _el.sum(axis=1)))
-check("HOUSEHOLD_IMPORTS: the tradable import share is bought outside and counted as consumption; services stay local",
+check("Households buy the import share outside and count it as consumption; the rest is bought locally",
       abs(_imp_ext.imports_month - 1.5) < 1e-12 and abs(_imp_rm.household_imports - 1.5) < 1e-12
       and abs(100 - _imp_firm.inventory[0].quantity - 4.5) < 1e-12 and abs(_imp_cons['Agriculture'] - 6.0) < 1e-12
-      and abs(_imp_ext.sim.ledger['imports'] + 1.5) < 1e-12
-      and set(_rm_on.household_import_share) <= set(sim.PARAMS['HOUSEHOLD_IMPORT_SECTORS'])
-      and all(abs(_rm_on.household_import_share[k] - _m[k]) < 1e-12 for k in _rm_on.household_import_share)
-      and sim.regional_market.household_import_share == {},
-      f"imports {_imp_ext.imports_month}, local sold {100 - _imp_firm.inventory[0].quantity}, "
-      f"shares {_rm_on.household_import_share}")
+      and abs(_imp_ext.sim.ledger['imports'] + 1.5) < 1e-12,
+      f"imports {_imp_ext.imports_month}, local sold {100 - _imp_firm.inventory[0].quantity}")
 
-# HOUSEHOLD_REAL_ESTATE False: no household demand for Real Estate, the other shares rescaled in proportion
+# No household demand for Real Estate (rent is paid in the rental market), the other shares rescaled in proportion
 _hh_file = pd.read_csv('input/final_demand.csv').set_index('sector')['HouseholdConsumption']
-_hh_off = RegionalMarket(SimpleNamespace(PARAMS=dict(sim.PARAMS, HOUSEHOLD_REAL_ESTATE=False),
-                                         geo=sim.geo)).final_demand['HouseholdConsumption']
-_hh_on = sim.regional_market.final_demand['HouseholdConsumption']
+_hh_off = sim.regional_market.final_demand['HouseholdConsumption']
 _rest = _hh_file.drop('RealEstate')
-check("HOUSEHOLD_REAL_ESTATE False: Real Estate share 0, others rescaled to sum 1; True keeps the input file",
+check("Household demand: Real Estate share 0, others rescaled to sum 1",
       _hh_off['RealEstate'] == 0 and abs(_hh_off.sum() - 1) < 1e-12
-      and np.allclose(_hh_off[_rest.index], _rest / _rest.sum())
-      and np.allclose(_hh_on[_hh_file.index], _hh_file),
-      f"off {_hh_off.round(4).to_dict()}")
+      and np.allclose(_hh_off[_rest.index], _rest / _rest.sum()),
+      f"{_hh_off.round(4).to_dict()}")
 
-# INTERREGIONAL_TRADE 'iioas': local + imported coefficients are the national ones split by the local share; households
+# Interregional trade: local + imported coefficients are the national ones split by the local share; households
 # and government import 1 - share. The month-1 base: share = potential x min(output / demand, 1), exports = output -
 # share x demand (none for Construction, Government); exports then = quantity x national growth x price ** (1 - sigma)
-_io_params = dict(sim.PARAMS, INTERREGIONAL_TRADE='iioas')
+_io_params = dict(sim.PARAMS)
 _io_rm = RegionalMarket(SimpleNamespace(PARAMS=_io_params, geo=sim.geo))
 _io_sim = SimpleNamespace(PARAMS=_io_params, regional_market=_io_rm, firms=sim.firms, clock=sim.clock,
-                          ledger=defaultdict(float))
+                          ledger=defaultdict(float), investment_rate=0.0, families={})
 _io_ext = External(_io_sim, 0.0)
 _nat = pd.read_csv('input/technical_matrix.csv').set_index('sector').loc[_io_rm._sector_order, _io_rm._sector_order]
 _F = pd.Series(_io_params['TRADE_POTENTIAL'])[_io_rm._sector_order]
@@ -1068,7 +965,7 @@ for _s in _io_rm._sector_order:
 _io_base_ok = all(abs(_io_tab.loc[_s, 'local_share'] - v[0]) < 1e-12 and abs(_io_tab.loc[_s, 'exports'] - v[1]) < 1e-9
                   for _s, v in _io_exp.items())
 _io_shares_ok = all(abs(_io_rm.household_import_share.get(_s, 0.0) - (1 - v[0])) < 1e-12 for _s, v in _io_exp.items())
-# TRADE_BASE 'rebase': the same base with household spending and fares halved
+# The rebased trade base: the same base with household spending and fares halved
 _io_half = _io_ext.apply_trade_base(0.5, 'trade_base_test.csv')
 _io_half_ok = True
 for _s in _io_rm._sector_order:
@@ -1083,19 +980,20 @@ _io_ext.apply_trade_base(1.0, 'trade_base_test.csv')
 _io_ext.months = 5
 _io_sigma = 0.5
 _io_ext.sim.PARAMS = dict(_io_params, EXPORTS_PRICE_ELASTICITY=_io_sigma)
-_io_dem = _io_ext.export_demand(None, None, None)
+_io_dem = _io_ext.export_demand()
 _io_dem_ok = all(abs(_io_dem.get(_s, 0.0) - (_io_exp[_s][1] * External.sector_price(_io_sectors[_s]) ** (1 - _io_sigma)
                                                 if _io_exp[_s][1] > 0 and _io_sectors.get(_s) else 0.0)) < 1e-9
                  for _s in _io_rm._sector_order)
 for _f in sim.firms.values():
     _f.last_capacity = _cap_saved[_f.id]
-check("INTERREGIONAL_TRADE 'iioas': national coefficients split by the local share; month-1 base sets shares and "
+check("Interregional trade: national coefficients split by the local share; month-1 base sets shares and "
       "exports; exports at base quantity x price ** (1 - sigma)",
-      _io_split_ok and _io_base_ok and _io_half_ok and _io_shares_ok and _io_dem_ok and sim.regional_market.local_share is None,
+      _io_split_ok and _io_base_ok and _io_half_ok and _io_shares_ok and _io_dem_ok,
       f"split {_io_split_ok}, base {_io_base_ok}, shares {_io_shares_ok}, exports {_io_dem_ok}\n"
       f"{_io_tab.round(3).to_string()}")
 # Government buys the import share outside, the rest locally, and records what it meant to spend
-_gov_rm = SimpleNamespace(government_import_share={'Trade': 0.25}, monthly_gov_intended=defaultdict(float))
+_gov_rm = SimpleNamespace(government_import_share={'Trade': 0.25}, monthly_gov_intended=defaultdict(float),
+                          pools=_NO_POOLS)
 _gov_ext = External(SimpleNamespace(PARAMS=sim.PARAMS, ledger=defaultdict(float)), 0.0)
 _gov_tc = defaultdict(float)
 _gov_shop = _ShelfFirm('t', 1.0, 4.0)
@@ -1104,7 +1002,7 @@ _gov_left = next(f for f in sim.firms.values() if f.sector == 'Government').spen
     type("S", (), {"firms": {'t': _gov_shop}, "seed": sim.seed, "regions": sim.regions,
                    "external": _gov_ext, "regional_market": _gov_rm, "PARAMS": sim.PARAMS})(),
     8.0, pd.Series({'Trade': 1.0}), _gov_tc)
-check("INTERREGIONAL_TRADE 'iioas': government imports its share of each purchase",
+check("Government imports its share of each purchase",
       abs(_gov_ext.imports_month - 2.0) < 1e-12 and abs(_gov_rm.monthly_gov_intended['Trade'] - 8.0) < 1e-12
       and abs(_gov_tc['Trade'] - 6.0) < 1e-12 and abs(_gov_left - 2.0) < 1e-12,
       f"imports {_gov_ext.imports_month}, consumption {dict(_gov_tc)}, left {_gov_left}")
@@ -1128,13 +1026,13 @@ if sim.PARAMS["FIRM_CAPITAL_MONTHS"] > 0:
         _gov_bal <= 2 * _gov_pay + 1e-6,
         f"Government balances {_gov_bal:.2f} vs monthly payroll {_gov_pay:.2f}",
     )
-    # Entry moves capital from the sector's incumbents to the entrant; it creates none
+    # An entrant's capital comes from owners outside the ACP, recorded in the ledger
     _bal = lambda: sum(f.total_balance for f in sim.firms.values())
-    _before, _n, _unf = _bal(), len(sim.firms), sim.firm_entry_unfunded
+    _before, _n, _unf, _led = _bal(), len(sim.firms), sim.firm_entry_unfunded, sim.ledger['firm_entry']
     _entered = [fund_entrant(sim, _r) for _r in list(sim.regions.values())[:20]]
     check(
-        "Firm entry is funded by incumbents and creates no money",
-        abs(_bal() - _before) < 1e-6 * max(_before, 1)
+        "Firm entry is funded from outside the ACP through the ledger",
+        abs(_bal() - _before - (sim.ledger['firm_entry'] - _led)) < 1e-6 * max(_before, 1)
         and len(sim.firms) - _n + sim.firm_entry_unfunded - _unf == 20
         and all(e is None or e.sector != "Government" for e in _entered),
         f"balances {_before:.4f} -> {_bal():.4f}, entered {len(sim.firms) - _n}, "
@@ -1151,7 +1049,7 @@ if sim.PARAMS["FIRM_CAPITAL_MONTHS"] > 0:
     _w1 = _b.wage_base(0.05, sim.PARAMS["RELEVANCE_UNEMPLOYMENT_SALARIES"])
     _ic = _b.input_cost
     _b.land_schedule, _b.revenue = _saved_sched, _saved_rev
-    _share = np.exp(-0.05 * sim.PARAMS["RELEVANCE_UNEMPLOYMENT_SALARIES"])
+    _share = type(_b).wage_shares['Construction']
     check(
         "A builder deducts this month's land recovery from its wage base, and not from input_cost",
         abs((_w0 - _w1) * _b.num_employees - 12.0 * _share) < 1e-9 and _ic == _b.input_cost,
@@ -1278,7 +1176,7 @@ for _t in (0.0, 0.5):
     _theta.append(_prod.price)
 check("PRICE_DEMAND_RESPONSE: refused demand raises the price beyond the cap; off keeps the old fall",
       _theta[0] < 1.2 and abs(_theta[1] - 1.2 * (1 + 0.5 * 0.75)) < 1e-12, f"{_theta}")
-# IMPORT_PARITY_PRICING: an absolute ceiling below avg × (1 + cap) stops a low-inventory firm's rise at the ceiling
+# Tradables: an absolute ceiling below avg × (1 + cap) stops a low-inventory firm's rise at the ceiling
 _parity = []
 for _ceil in (None, 1.3):
     _prod.quantity, _prod.price, _f.amount_sold, _f.unmet_quantity = 0.0, 1.3, 1e6, 0.0
@@ -1286,13 +1184,13 @@ for _ceil in (None, 1.3):
                                      sim.PARAMS["PRODUCTIVITY_EXPONENT"], sim.PARAMS["PRODUCTIVITY_MAGNITUDE_DIVISOR"],
                                      price_markup_cap=0.0875, price_ceiling=_ceil)
     _parity.append(_prod.price)
-check("IMPORT_PARITY_PRICING: the import-parity ceiling caps the inventory-driven rise",
+check("Tradables: the import-parity ceiling caps the inventory-driven rise",
       1.3 < _parity[0] <= 1.25 * 1.0875 + 1e-12 and _parity[1] == 1.3, f"{_parity}")
 (_prod.quantity, _prod.price, _f.amount_sold, _f.unmet_quantity, _f.total_balance, _f.revenue, _f.prices,
  _f.increase_production, _f.workers_needed) = _saved
 
-# IMPORT_PRICE 'exogenous': imported inputs cost 1 + freight whatever local prices are, and buying them conserves
-# money; FREIGHT 'margins' drops the freight. One firm's column is set to import 0.1 per sector and buy nothing locally.
+# IMPORT_PRICE 'exogenous': imported inputs cost 1 whatever local prices are, and buying them conserves money. One
+# firm's column is set to import 0.1 per sector and buy nothing locally.
 from analysis.money import money_stock_total  # noqa: E402
 from agents.firm import import_price, import_parity  # noqa: E402
 _rm = sim.regional_market
@@ -1300,7 +1198,7 @@ _ext_col = _rm._ext_local_np[_f.sector].copy()
 _loc_col = _rm._tech_np[_f.sector].copy()
 _rm._ext_local_np[_f.sector][:] = 0.1
 _rm._tech_np[_f.sector][:] = 0.0
-_old_ip, _old_fr = sim.PARAMS.get('IMPORT_PRICE', 'local'), sim.PARAMS.get('FREIGHT', 'flat')
+_old_ip = sim.PARAMS.get('IMPORT_PRICE', 'local')
 sim.PARAMS['IMPORT_PRICE'] = 'exogenous'
 _sector_map = defaultdict(list)
 for _g in sim.firms.values():
@@ -1308,8 +1206,7 @@ for _g in sim.firms.values():
 _desired = 3.0
 _n = len(_rm._sector_order)
 _buy = {}
-for _mode, _unit in (('flat', 1 + sim.PARAMS['REGIONAL_FREIGHT_COST']), ('margins', 1.0)):
-    sim.PARAMS['FREIGHT'] = _mode
+for _mode, _unit in (('margins', 1.0),):
     for _s in _f.input_inventory:
         _f.input_inventory[_s] = 0.0
     _f.total_balance = 1e7
@@ -1322,36 +1219,21 @@ for _mode, _unit in (('flat', 1 + sim.PARAMS['REGIONAL_FREIGHT_COST']), ('margin
     _buy[_mode] = (abs(_d_stock - _d_ledger) < 1e-6 and abs(_imp - _n * _desired * 0.1 * _unit) < 1e-9
                    and all(abs(_f.input_inventory[_s] - _inv0[_s] - _desired * 0.1) < 1e-9 for _s in _rm._sector_order),
                    round(_imp, 6), round(_d_stock - _d_ledger, 9))
-check("IMPORT_PRICE 'exogenous': inputs bought outside cost 1 + freight ('flat') or 1 ('margins'), and buying them "
-      "conserves money", _buy['flat'][0] and _buy['margins'][0], f"{_buy}")
+check("IMPORT_PRICE 'exogenous': inputs bought outside cost 1, and buying them conserves money", _buy['margins'][0],
+      f"{_buy}")
 _rm._ext_local_np[_f.sector][:] = _ext_col
 _rm._tech_np[_f.sector][:] = _loc_col
-sim.PARAMS['IMPORT_PRICE'], sim.PARAMS['FREIGHT'] = _old_ip, _old_fr
-# FREIGHT: import price and the import-parity ceiling per tradable sector
+sim.PARAMS['IMPORT_PRICE'] = _old_ip
+# Import price and the import-parity ceiling per tradable sector
 _margins = pd.read_csv('input/transport_margins.csv', sep=';').set_index('sector')['margin']
-_fp = {'flat': dict(sim.PARAMS, FREIGHT='flat'), 'margins': dict(sim.PARAMS, FREIGHT='margins')}
-check("FREIGHT: 'flat' imports and parity at 1 + REGIONAL_FREIGHT_COST; 'margins' imports at 1, parity 1 + the "
-      "product's transport margin",
-      import_price(_fp['flat']) == 1 + sim.PARAMS['REGIONAL_FREIGHT_COST'] and import_price(_fp['margins']) == 1.0
-      and import_parity(_fp['flat']) == {s: 1 + sim.PARAMS['REGIONAL_FREIGHT_COST'] for s in sim.PARAMS['TRADABLE_SECTORS']}
-      and import_parity(_fp['margins']) == {s: 1 + float(_margins[s]) for s in sim.PARAMS['TRADABLE_SECTORS']}
+check("Imports at 1, import parity at 1 + the product's transport margin",
+      import_price(sim.PARAMS) == 1.0
+      and import_parity(sim.PARAMS) == {s: 1 + float(_margins[s]) for s in sim.PARAMS['TRADABLE_SECTORS']}
       and 0 < _margins['Manufacturing'] < 0.05,
-      f"{import_parity(_fp['margins'])}")
-# INITIAL_EMPLOYMENT: start-up hiring stops at 0.086 ('legacy') or at the Census 2010 share of those aged 17-69 without
-# a job in the run's municipalities ('census')
-_ne = pd.read_csv('input/nonemployment_2010.csv', sep=';').set_index('cod_mun').loc[[int(m) for m in sim.mun_to_regions]]
-_ne_old = sim.PARAMS.get('INITIAL_EMPLOYMENT', 'legacy')
-sim.PARAMS['INITIAL_EMPLOYMENT'] = 'census'
-_ne_census = sim.initial_nonemployment()
-sim.PARAMS['INITIAL_EMPLOYMENT'] = 'legacy'
-_ne_legacy = sim.initial_nonemployment()
-sim.PARAMS['INITIAL_EMPLOYMENT'] = _ne_old
-check("INITIAL_EMPLOYMENT: 'legacy' 0.086, 'census' the Census non-employment of the run's municipalities",
-      _ne_legacy == 0.086 and abs(_ne_census - (1 - _ne.employed.sum() / _ne.pop_17_69.sum())) < 1e-12
-      and 0.15 < _ne_census < 0.5, f"census {_ne_census:.4f}")
-# PARTICIPATION 'census': agents 17-69 active with the Census share for their sex, age group and municipality, from a
-# draw they keep; unemployment counts the active and those in a job; INITIAL_EMPLOYMENT 'census' then reads the
-# Census share of the active without a job
+      f"{import_parity(sim.PARAMS)}")
+# Participation: agents 17-69 active with the Census share for their sex, age group and municipality, from a draw they
+# keep; unemployment counts the active and those in a job; start-up hiring reads the Census share of the active
+# without a job
 from world.participation import Participation
 _pt = Participation(sim.mun_to_regions, 7)
 _pf = pd.read_csv('input/participation_2010.csv', sep=';')
@@ -1362,31 +1244,28 @@ _pexp = np.mean([_pt.rates[(a.region_id[:7], a.gender, _pt.groups[np.searchsorte
                  for a in _pa])
 _pold = next(a for a in sim.agents.values() if a.age >= 70)
 _pstable = [_pt.is_active(a) for a in _pa] == _pact and Participation(sim.mun_to_regions, 7).draw(_pa[0]) == _pt.draw(_pa[0])
+_pt_saved = sim.participation
 sim.stats.participation = _pt
 _pu = sim.stats.update_unemployment(sim.agents.values())
-sim.participation = _pt
-_ne_old = sim.PARAMS.get('INITIAL_EMPLOYMENT', 'legacy')
-sim.PARAMS['INITIAL_EMPLOYMENT'] = 'census'
-_pinit = sim.initial_nonemployment()
-sim.PARAMS['INITIAL_EMPLOYMENT'] = _ne_old
-sim.stats.participation = sim.participation = None
+_pinit = _pt.unemployment
+sim.stats.participation = sim.participation = _pt_saved
 _pforce = [a for a, act in zip(_pa, _pact) if act or a.firm_id is not None]
 _pu_exp = sum(1 for a in _pforce if a.firm_id is None) / len(_pforce)
-check("PARTICIPATION: active share matches the Census rates, draws stable, 70+ inactive, unemployment over the labour "
+check("Participation: active share matches the Census rates, draws stable, 70+ inactive, unemployment over the labour "
       "force, start-up at the Census rate of the active",
       abs(np.mean(_pact) - _pexp) < 0.03 and _pstable and not _pt.is_active(_pold) and np.isclose(_pu, _pu_exp)
       and np.isclose(_pinit, 1 - _pf.employed.sum() / _pf.active.sum()) and 0.02 < _pinit < 0.2,
       f"active {np.mean(_pact):.3f} vs {_pexp:.3f}, u {_pu:.3f} vs {_pu_exp:.3f}, start {_pinit:.3f}")
 
-# FUNDS_REAL: after the base months the programme funds follow the municipality's base real GDP times the national
-# index, not its current GDP; FGTS and SBPE instalments leave the ACP, market ones stay in the bank, money conserved
+# Programme funds: after the base months they follow the municipality's base real GDP times the national index, not
+# its current GDP; FGTS and SBPE instalments leave the ACP, market ones stay in the bank, money conserved
 _st = sim.stats
-_st_saved = (_st.funds_real, _st.funds_months, _st.funds_base_sum, _st.funds_base, _st.national_gdp,
-             getattr(_st, "funds_burn_in", None), getattr(_st, "funds_base_months", None), _st.last_gdp)
-_st.funds_real, _st.funds_months, _st.funds_base_sum, _st.funds_base = True, 0, defaultdict(float), None
-_st.national_gdp = _pd.read_csv("input/national_real_gdp.csv", sep=";").set_index("year")["index"]
+_st_saved = (_st.funds_months, _st.funds_base_sum, _st.funds_base, _st.national_gdp,
+             _st.funds_burn_in, _st.funds_base_months, _st.last_gdp)
+_st.funds_months, _st.funds_base_sum, _st.funds_base = 0, defaultdict(float), None
+_st.national_gdp = pd.read_csv("input/national_real_gdp.csv", sep=";").set_index("year")["index"]
 _st.funds_burn_in, _st.funds_base_months = 1, 2
-_mun = next(iter(_st_saved[7]))
+_mun = next(iter(_st_saved[6]))
 _st.last_gdp = defaultdict(float, {_mun: 10.0})
 _before = []
 for _ in range(3):
@@ -1395,9 +1274,9 @@ for _ in range(3):
 _st.last_gdp[_mun] = 99.0
 _after = _st.funds_gdp(_mun, 2014)
 _expect = 10.0 / _st.national_index(2011) * _st.national_index(2014)
-(_st.funds_real, _st.funds_months, _st.funds_base_sum, _st.funds_base, _st.national_gdp, _st.funds_burn_in,
+(_st.funds_months, _st.funds_base_sum, _st.funds_base, _st.national_gdp, _st.funds_burn_in,
  _st.funds_base_months, _st.last_gdp) = _st_saved
-check("FUNDS_REAL: funds follow current GDP until the base is fixed, then base real GDP times the national index",
+check("Programme funds follow current GDP until the base is fixed, then base real GDP times the national index",
       all(v == 10.0 for v in _before) and abs(_after - _expect) < 1e-9, f"before {_before}, after {_after:.4f}")
 
 from agents.bank import Loan  # noqa: E402
@@ -1405,8 +1284,7 @@ _bank = sim.central
 _fam = next(f for f in sim.families.values() if f.house is not None)
 _saved_loans, _saved_savings, _saved_have = _bank.loans, _fam.savings, _fam.have_loan
 _paid = {}
-for _flag in (False, True):
-    sim.PARAMS["FUNDS_REAL"] = _flag
+for _flag in (True,):
     _bank.loans = defaultdict(list, {_fam.id: [Loan(12.0, 0.0, 12, _fam.house, loan_type="fgts", table_type="price"),
                                               Loan(12.0, 0.0, 12, _fam.house, loan_type="market", table_type="price")]})
     _fam.savings = 100.0
@@ -1415,21 +1293,17 @@ for _flag in (False, True):
     _paid[_flag] = (_bank.balance - _bal0, money_stock_total(sim) - _stock0 - (sum(sim.ledger.values()) - _ledger0))
     _bank.balance = _bal0
     sim.ledger["fgts_sbpe_repaid"] = 0.0
-sim.PARAMS["FUNDS_REAL"] = False
 _bank.loans, _fam.savings, _fam.have_loan = _saved_loans, _saved_savings, _saved_have
 _bank.recompute_outstanding_market_loans()
-check("FUNDS_REAL: FGTS instalments leave the ACP, market instalments stay in the bank, money conserved",
-      abs(_paid[False][0] - 2.0) < 1e-9 and abs(_paid[True][0] - 1.0) < 1e-9
-      and abs(_paid[False][1]) < 1e-9 and abs(_paid[True][1]) < 1e-9,
-      f"bank balance change off/on {_paid[False][0]:.4f}/{_paid[True][0]:.4f}, "
-      f"unexplained {_paid[False][1]:.2e}/{_paid[True][1]:.2e}")
+check("FGTS instalments leave the ACP, market instalments stay in the bank, money conserved",
+      abs(_paid[True][0] - 1.0) < 1e-9 and abs(_paid[True][1]) < 1e-9,
+      f"bank balance change {_paid[True][0]:.4f}, unexplained {_paid[True][1]:.2e}")
 
-# BANK_NATIONAL: a deposit earns each month's rate net of tax, and settlement returns equity to its target with money
+# The bank: a deposit earns each month's rate net of tax, and settlement returns equity to its target with money
 # conserved
 import datetime as _dt  # noqa: E402
 _bank = sim.central
 _saved_bank = (_bank.wallet, _bank.balance, _bank.taxes, _bank.interest, _bank.equity_target, dict(sim.ledger))
-sim.PARAMS["BANK_NATIONAL"] = True
 _fam = next(iter(sim.families.values()))
 _bank.wallet = defaultdict(list)
 _stock0, _ledger0 = money_stock_total(sim), sum(sim.ledger.values())
@@ -1454,13 +1328,12 @@ _fam.savings -= _paid - 100.0
 (_bank.wallet, _bank.balance, _bank.taxes, _bank.interest, _bank.equity_target), _ld = _saved_bank[:5], _saved_bank[5]
 sim.ledger.clear()
 sim.ledger.update(_ld)
-sim.PARAMS["BANK_NATIONAL"] = False
-check("BANK_NATIONAL: deposits accrue monthly, withdrawal pays them, settlement restores equity, money conserved",
+check("Bank: deposits accrue monthly, withdrawal pays them, settlement restores equity, money conserved",
       _empty_kept and abs(_owed - _expect) < 1e-9 and abs(_paid - _expect) < 1e-9 and abs(_eq_gap) < 1e-9 and abs(_cons) < 1e-12 * max(1.0, _stock0),
       f"owed {_owed:.6f} vs {_expect:.6f}, paid {_paid:.6f}, equity gap {_eq_gap:.2e}, unexplained {_cons:.2e}")
 
-# WEALTH_NORM: a family above its liquid-wealth target also spends WEALTH_ADJUSTMENT of the excess, from its deposits
-# if needed; below it, 'dissave' spends permanent income and 'symmetric' cuts spending by the same share of the gap
+# Wealth norm: a family above its liquid-wealth target also spends WEALTH_ADJUSTMENT of the excess, from its deposits
+# if needed; below it, it cuts spending by the same share of the gap
 _fam = next((f for f in sim.families.values() if (not f.is_renting or f.rent_voucher) and not f.have_loan
              and f.members), None)
 if _fam is not None:
@@ -1469,7 +1342,7 @@ if _fam is not None:
               list(_bank.wallet.get(_fam, [])), _bank.balance, _bank.taxes)
     _today = _dt.date(sim.clock.year, sim.clock.months, 1)
 
-    def _norm_case(norm, cash, deposits, burn_in=0):
+    def _norm_case(cash, deposits, burn_in=0):
         _fam.savings, _fam.permanent_income = 0.0, 10.0
         for _i, _m in enumerate(_fam.members.values()):
             _m.money = cash if _i == 0 else 0.0
@@ -1477,18 +1350,16 @@ if _fam is not None:
         if deposits:
             _bank.deposit(_fam, deposits, _today)
         _p = dict(sim.PARAMS, PUBLIC_TRANSIT_COST=0, PRIVATE_TRANSIT_COST=0, CONSUMPTION_PROPENSITY=1.0,
-                  WEALTH_NORM=norm, WEALTH_TARGET_MONTHS=6, WEALTH_ADJUSTMENT=1 / 24,
+                  WEALTH_TARGET_MONTHS=6, WEALTH_ADJUSTMENT=1 / 24,
                   WEALTH_NORM_BURN_IN=burn_in)
         _c = _fam.decision_on_consumption(_bank, sim.clock.year, sim.clock.months, _p, sim.regions)
         _left = _fam.savings + _bank.sum_deposits(_fam)
         _bank.wallet.pop(_fam, None)
         return _c, _left
 
-    _above = _norm_case('dissave', 5.0, 200.0)
-    _above_off = _norm_case('off', 5.0, 200.0)
-    _below = _norm_case('dissave', 30.0, 0.0)
-    _below_sym = _norm_case('symmetric', 30.0, 0.0)
-    _burning = _norm_case('symmetric', 5.0, 200.0, burn_in=10 ** 6)
+    _above = _norm_case(5.0, 200.0)
+    _below_sym = _norm_case(30.0, 0.0)
+    _burning = _norm_case(5.0, 200.0, burn_in=10 ** 6)
     _fam.savings, _fam.permanent_income = _saved[0], _saved[1]
     for _k, _m in _fam.members.items():
         _m.money = _saved[2][_k]
@@ -1496,14 +1367,13 @@ if _fam is not None:
         _bank.wallet[_fam] = _saved[3]
     _bank.balance, _bank.taxes = _saved[4], _saved[5]
     _exp_above = 10.0 + (205.0 - 60.0) / 24
-    check("WEALTH_NORM: excess liquid wealth is spent at WEALTH_ADJUSTMENT, from deposits; below target 'dissave' "
-          "spends permanent income, 'symmetric' cuts it; no norm during the burn-in",
+    check("Wealth norm: excess liquid wealth is spent at WEALTH_ADJUSTMENT, from deposits; below target spending is "
+          "cut; no norm during the burn-in",
           abs(_above[0] - _exp_above) < 1e-9 and abs(_above[0] + _above[1] - 205.0) < 1e-9
-          and abs(_above_off[0] - 10.0) < 1e-9 and abs(_below[0] - 10.0) < 1e-9
           and abs(_below_sym[0] - (10.0 - 30.0 / 24)) < 1e-9 and abs(_burning[0] - 10.0) < 1e-9,
-          f"above {_above}, off {_above_off}, below {_below}, symmetric {_below_sym}, burn-in {_burning}")
+          f"above {_above}, below {_below_sym}, burn-in {_burning}")
 
-# INITIAL_MONEY 'target': agents aged 10+ hold WEALTH_TARGET_MONTHS of income per person times their draw over its
+# Initial money: agents aged 10+ hold WEALTH_TARGET_MONTHS of income per person times their draw over its
 # mean, younger ones none
 from types import SimpleNamespace as _NS  # noqa: E402
 _mean_draw = np.exp(3 + 0.5 ** 2 / 2)
@@ -1512,50 +1382,26 @@ _saved_months = sim.PARAMS["WEALTH_TARGET_MONTHS"]
 sim.PARAMS["WEALTH_TARGET_MONTHS"] = 6
 sim.generator.money_from_income(_ags, 1.5)
 sim.PARAMS["WEALTH_TARGET_MONTHS"] = _saved_months
-check("INITIAL_MONEY 'target': money = months × income per person × draw / mean draw, none under 10",
+check("Initial money = months × income per person × draw / mean draw, none under 10",
       abs(_ags[0].money - 9.0) < 1e-9 and abs(_ags[1].money - 18.0) < 1e-9 and _ags[2].money == 0.0,
       f"{[a.money for a in _ags]}")
 
-# CLOSURE: 'open' applies every CLOSURE_OPEN value, 'legacy' changes nothing
-from simulation import apply_closure  # noqa: E402
-_legacy = apply_closure(dict(sim.PARAMS, CLOSURE='legacy'))
-_open = apply_closure(dict(sim.PARAMS, CLOSURE='open'))
-check("CLOSURE: 'open' sets the CLOSURE_OPEN bundle, 'legacy' leaves parameters as given",
-      _legacy == dict(sim.PARAMS, CLOSURE='legacy')
-      and all(_open[k] == v for k, v in sim.PARAMS['CLOSURE_OPEN'].items()),
-      f"{[k for k, v in sim.PARAMS['CLOSURE_OPEN'].items() if _open[k] != v]}")
-
-# FIRM_PAYOUT: a firm pays `rate` of its surplus to its staff in the wage weights, and money only changes hands
-_pf = next(f for f in sim.firms.values() if f.sector != "Government" and len(f.employees) > 1)
 _alpha = sim.PARAMS["PRODUCTIVITY_EXPONENT"]
-_saved_pf = (_pf.total_balance, {k: (e.money, e.last_profit_share) for k, e in _pf.employees.items()})
-_stock0 = money_stock_total(sim)
-_paid = _pf.pay_profit_share(60.0, 1 / 6, _alpha)
-_shares = {k: e.last_profit_share for k, e in _pf.employees.items()}
-_tq = _pf.total_qualification(_alpha)
-_weights_ok = all(abs(_shares[k] - 10.0 * e.qualification ** _alpha / _tq) < 1e-12 for k, e in _pf.employees.items())
-_cons = money_stock_total(sim) - _stock0
-_none = _pf.pay_profit_share(-5.0, 1 / 6, _alpha)
-_pf.total_balance = _saved_pf[0]
-for _k, _e in _pf.employees.items():
-    _e.money, _e.last_profit_share = _saved_pf[1][_k]
-check("FIRM_PAYOUT: rate x surplus paid to staff in the wage weights, nothing when below the buffer, money conserved",
-      abs(_paid - 10.0) < 1e-12 and abs(sum(_shares.values()) - 10.0) < 1e-9 and _weights_ok and _none == 0.0
-      and abs(_cons) < 1e-12 * max(1.0, _stock0), f"paid {_paid}, shares {sum(_shares.values())}, unexplained {_cons}")
 
-# PI_START 'census': the permanent-income window starts full of the initial permanent income
+# The permanent-income window starts full of the initial permanent income
 from agents.family import Family  # noqa: E402
 _nf = Family("pi_start_test")
 _nf.permanent_income = 5.0
 _nf.start_permanent_income()
-check("PI_START 'census': permanent-income window full of the initial value",
+check("Permanent-income window full of the initial value",
       list(_nf.last_permanent_income) == [5.0] * _nf.last_permanent_window, f"{list(_nf.last_permanent_income)}")
 
-# PRODUCTION_PLAN 'sales': output tops the stock up to demand x (1 + ratio) within capacity and buys nothing when the
+# Sales plan: output tops the stock up to demand x (1 + ratio) within capacity and buys nothing when the
 # stock covers it; workers above need are excess, and the labour market sheds them, at most half the staff
-_plf = next(f for f in sim.firms.values() if f.sector not in ("Construction", "Government") and len(f.employees) > 8)
+_plf = next(f for f in sim.firms.values() if f.sector not in ("Construction", "Government") and not f.pool
+            and len(f.employees) > 8)
 _div = sim.PARAMS["PRODUCTIVITY_MAGNITUDE_DIVISOR"]
-_cap = _plf.total_qualification(_alpha) / _div
+_cap = _plf.capacity(_alpha, _div)
 _saved_pl = (_plf.total_quantity, _plf.last_demand, _plf.total_balance, dict(_plf.input_inventory),
              _plf.amount_produced, _plf.amount_sold, _plf.unmet_quantity, dict(_plf.employees))
 _stock0 = money_stock_total(sim)
@@ -1578,15 +1424,14 @@ for _k, _e in _saved_pl[7].items():
 (_plf.total_quantity, _plf.last_demand, _plf.total_balance, _inv, _plf.amount_produced, _plf.amount_sold,
  _plf.unmet_quantity) = _saved_pl[:7]
 _plf.input_inventory.update(_inv)
-check("PRODUCTION_PLAN 'sales': no output and no purchase when the stock covers demand x (1 + ratio); excess workers "
+check("Sales plan: no output and no purchase when the stock covers demand x (1 + ratio); excess workers "
       "above need; excess shed, at most half the staff",
       _q_full_stock == 0 and _plf.last_produced == 0 and abs(_spent) < 1e-9 and _got_excess == _exp_excess > 0
       and _shed == min(_exp_excess, max(1, _n0 // 2)),
       f"q {_q_full_stock}, spent {_spent}, excess {_got_excess} vs {_exp_excess}, shed {_shed}")
 
 # SECTOR_SHARES 'ibge12': sectors that are the same CNAE sections in both classifications keep their RAIS share, the
-# four regrouped ones keep their total; SECTOR_PRODUCTIVITY scales capacity by the sector factor, builders keep 1, and
-# needs the nível 12 shares
+# four regrouped ones keep their total; capacity is scaled by the sector factor, builders keep 1
 from world.firms import set_sector_productivity, SECTOR_PRODUCTIVITY as _SP
 _old = pd.read_csv('input/CONCURBs_SECTOR.csv', sep=';', decimal=',')
 _old = _old.pivot(index='concurb_name', columns='sector', values='participation').fillna(0.0)
@@ -1595,9 +1440,10 @@ _new = pd.read_csv('input/sector_shares_ibge12.csv', sep=';').pivot(index='concu
                                                                      values='participation').loc[_old.index]
 _same = ['Agriculture', 'Mining', 'Manufacturing', 'Utilities', 'Construction', 'Transport', 'Financial', 'RealEstate']
 _regrouped = ['Trade', 'Business', 'OtherServices', 'Government']
-_saved_ss = sim.PARAMS.get('SECTOR_SHARES', 'rais'), sim.PARAMS.get('SECTOR_PRODUCTIVITY', False)
+_saved_ss = sim.PARAMS['SECTOR_SHARES']
 sim.PARAMS['SECTOR_SHARES'] = 'ibge12'
 _gen_shares = sim.generator.sector_shares()
+sim.PARAMS['SECTOR_SHARES'] = _saved_ss
 _acp = sim.geo.processing_acps[0]
 check("SECTOR_SHARES 'ibge12': shares sum to 1, unchanged sections keep their RAIS share, regrouped total kept, "
       "generator reads them",
@@ -1607,40 +1453,28 @@ check("SECTOR_SHARES 'ibge12': shares sum to 1, unchanged sections keep their RA
       f"max diff same {(_new[_same] - _old[_same]).abs().max().max():.2e}")
 _fin = next(f for f in sim.firms.values() if f.employees and f.sector not in ('Construction', 'Government'))
 _bld = next(f for f in sim.firms.values() if f.sector == 'Construction')
+_sp_saved = (_fin.sector_productivity, _bld.sector_productivity)
+_fin.sector_productivity = _bld.sector_productivity = 1.0
 _cap0 = _fin.capacity(_alpha, _div)
-sim.PARAMS['SECTOR_PRODUCTIVITY'] = True
 set_sector_productivity(sim, [_fin, _bld])
 _ratio = _fin.capacity(_alpha, _div) / _cap0
 _bld_factor = _bld.sector_productivity
-sim.PARAMS['SECTOR_SHARES'] = 'rais'
-try:
-    set_sector_productivity(sim, [_fin])
-    _guard = False
-except ValueError:
-    _guard = True
-_fin.sector_productivity = _bld.sector_productivity = 1.0
-sim.PARAMS['SECTOR_SHARES'], sim.PARAMS['SECTOR_PRODUCTIVITY'] = _saved_ss
-check("SECTOR_PRODUCTIVITY: capacity x sector factor, builders 1, refused with SECTOR_SHARES 'rais'",
-      np.isclose(_ratio, _SP[_fin.sector]) and _bld_factor == 1.0 and _guard,
-      f"{_fin.sector} ratio {_ratio} vs {_SP[_fin.sector]}, builder {_bld_factor}, guard {_guard}")
+_fin.sector_productivity, _bld.sector_productivity = _sp_saved
+check("Sector productivity: capacity x sector factor, builders 1",
+      np.isclose(_ratio, _SP[_fin.sector]) and _bld_factor == 1.0,
+      f"{_fin.sector} ratio {_ratio} vs {_SP[_fin.sector]}, builder {_bld_factor}")
 
 # SECTOR_SHARES 'census': Census employee shares sum to 1 in every ACP, in the sectors of 'ibge12', the generator reads
-# them, and SECTOR_PRODUCTIVITY accepts them
+# them
 _cen = pd.read_csv('input/sector_shares_census.csv', sep=';').pivot(index='concurb_name', columns='sector',
                                                                      values='participation')
-_saved_ss = sim.PARAMS.get('SECTOR_SHARES', 'rais'), sim.PARAMS.get('SECTOR_PRODUCTIVITY', False)
-sim.PARAMS['SECTOR_SHARES'], sim.PARAMS['SECTOR_PRODUCTIVITY'] = 'census', True
+_saved_ss = sim.PARAMS['SECTOR_SHARES']
+sim.PARAMS['SECTOR_SHARES'] = 'census'
 _gen_cen = sim.generator.sector_shares()
-try:
-    set_sector_productivity(sim, [])
-    _cen_ok = True
-except ValueError:
-    _cen_ok = False
-sim.PARAMS['SECTOR_SHARES'], sim.PARAMS['SECTOR_PRODUCTIVITY'] = _saved_ss
-check("SECTOR_SHARES 'census': shares sum to 1, the sectors of 'ibge12', generator reads them, SECTOR_PRODUCTIVITY "
-      "accepts them",
+sim.PARAMS['SECTOR_SHARES'] = _saved_ss
+check("SECTOR_SHARES 'census': shares sum to 1, the sectors of 'ibge12', generator reads them",
       np.allclose(_cen.sum(axis=1), 1, atol=1e-5) and set(_cen.columns) == set(_new.columns)
-      and np.isclose(_gen_cen['Construction'], _cen.loc[_acp, 'Construction'] / _cen.loc[_acp].sum()) and _cen_ok,
+      and np.isclose(_gen_cen['Construction'], _cen.loc[_acp, 'Construction'] / _cen.loc[_acp].sum()),
       f"sum range {_cen.sum(axis=1).min():.6f}-{_cen.sum(axis=1).max():.6f}, columns {sorted(_cen.columns)}")
 
 # CONSTRUCTION_PLAN 'sales': a builder's planned demand is its goods sold plus the stock last month's houses used,
@@ -1668,7 +1502,7 @@ check("CONSTRUCTION_PLAN 'sales': builder demand = goods sold + last month's hou
       _pipe == (530.0, 0.0, False) and _plan == (37.0, 25.0, True) and _rolled == (12.0, 0.0, 0.0),
       f"pipeline {_pipe}, sales {_plan}, rolled {_rolled}")
 
-# SOCIAL_TRANSFERS 'data': per municipality round(b x A) RGPS to the oldest, BPC to those without RGPS (65+ first), Bolsa
+# Social transfers: per municipality round(b x A) RGPS to the oldest, BPC to those without RGPS (65+ first), Bolsa
 # Família to the poorest families; what members receive equals the ledger inflow, and it enters permanent income
 from world.social_transfers import SocialTransfers
 _tr = SocialTransfers(sim.mun_to_regions, sim.PARAMS['REAIS_PER_MONEY_UNIT'])
@@ -1712,35 +1546,32 @@ for _a in sim.agents.values():
     _a.last_transfer = 0.0
 _tr_ledger_ok = np.isclose(sim.ledger['social_transfers'] - _tr_led, _tr_paid) and np.isclose(_tr_recv, _tr_paid)
 sim.ledger['social_transfers'] = _tr_led
-check("SOCIAL_TRANSFERS: RGPS to the oldest, Bolsa Família to the poorest families, paid = received = ledger, "
+check("Social transfers: RGPS to the oldest, Bolsa Família to the poorest families, paid = received = ledger, "
       "part of permanent income",
       _tr_ok and _tr_ledger_ok and _tr_paid > 0 and np.isclose(_tr_pi1 - _tr_pi0, 2.5),
       f"{_tr_detail} paid {_tr_paid:.3f} received {_tr_recv:.3f}, PI step {_tr_pi1 - _tr_pi0:.3f}")
 
-# PRODUCTIVITY_LEVEL 'municipal': the divisor makes the private staff's capacity value added (national input
-# coefficients) equal the IBGE market value added per resident times the residents, a month, in model money
+# Productivity level: the divisor makes the private staff's capacity value added (national input coefficients) equal
+# the IBGE market value added per resident times the residents, net of own-account income, a month, in model money
 from world.firms import set_productivity_level
-_pl_saved = sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR'], sim.PARAMS.get('PRODUCTIVITY_LEVEL', 'divisor')
-_pl_same = set_productivity_level(sim) == _pl_saved[0]
-sim.PARAMS['PRODUCTIVITY_LEVEL'] = 'municipal'
+_pl_saved = sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR']
 _pl_div = set_productivity_level(sim)
 _pl_va = pd.read_csv('input/municipal_va_2010.csv', sep=';').set_index('cod_mun')
 _pl_res = [a for a in sim.agents.values() if a.family is not None and a.family.region_id
            and int(a.family.region_id[:7]) in _pl_va.index]
 _pl_m = sorted({int(a.family.region_id[:7]) for a in _pl_res} | {int(m) for m in sim.mun_to_regions if int(m) in _pl_va.index})
 _pl_target = (_pl_va.loc[_pl_m].va_market.sum() / _pl_va.loc[_pl_m, 'pop'].sum() * len(_pl_res) / 12
-              / sim.PARAMS['REAIS_PER_MONEY_UNIT'])
+              / sim.PARAMS['REAIS_PER_MONEY_UNIT']) * (1 - sim.regional_market.pools.mixed_share)
 _pl_vs = 1 - pd.read_csv('input/technical_matrix.csv').set_index('sector').sum(axis=0)
-_pl_cap = sum(f.capacity(sim.PARAMS['PRODUCTIVITY_EXPONENT'], _pl_div) * _pl_vs[f.sector]
-              for f in sim.firms.values() if f.sector != 'Government')
-sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR'], sim.PARAMS['PRODUCTIVITY_LEVEL'] = _pl_saved
-check("PRODUCTIVITY_LEVEL: 'divisor' keeps the parameter, 'municipal' matches capacity value added to IBGE municipal VA",
-      _pl_same and np.isclose(_pl_cap, _pl_target) and _pl_div > 0,
+_pl_cap = sum(f.total_qualification(sim.PARAMS['PRODUCTIVITY_EXPONENT']) / _pl_div * f.sector_productivity
+              * _pl_vs[f.sector] for f in sim.firms.values() if f.sector != 'Government' and not f.pool)
+sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR'] = _pl_saved
+check("Productivity level: capacity value added matches IBGE municipal VA net of own-account income",
+      np.isclose(_pl_cap, _pl_target) and _pl_div > 0,
       f"divisor {_pl_div:.4f}, capacity VA {_pl_cap:.1f} vs {_pl_target:.1f}")
 
-# FAMILY_WAGE: 'last' counts each member's last wage (wage_paid follows last_wage); 'month' zeroes wage_paid before the
-# payroll, so a member without a job adds nothing while the paid staff add this month's wage
-_fw_same = all(a.wage_paid == a.last_wage for a in sim.agents.values())
+# Family wage: wage_paid is zeroed before the payroll, so a member without a job adds nothing while the paid staff add
+# this month's wage
 _fw_jobless = next((a for a in sim.agents.values() if a.firm_id is None and a.last_wage and a.family is not None), None)
 _fw_firm = next(f for f in sim.firms.values() if f.sector != 'Government' and f.employees and f.revenue > f.input_cost)
 _fw_saved = {a.id: a.wage_paid for a in sim.agents.values()}
@@ -1753,44 +1584,42 @@ _fw_zero = _fw_jobless is None or sum(m.wage_paid for m in _fw_jobless.family.me
                                       if m.firm_id is None) == 0 and _fw_jobless.last_wage > 0
 for _a in sim.agents.values():
     _a.wage_paid = _fw_saved[_a.id]
-check("FAMILY_WAGE: 'last' identical to the last wage, 'month' counts only this month's payroll",
-      _fw_same and _fw_paid and _fw_zero, f"same {_fw_same}, paid {_fw_paid}, jobless zero {_fw_zero}")
+check("Family wage counts only this month's payroll",
+      _fw_paid and _fw_zero, f"paid {_fw_paid}, jobless zero {_fw_zero}")
 
-# WAGE_SHARE: 'unemployment' (default) leaves the exp(-u x relevance) share; 'tru' pays the sector's national accounts
-# share of value added, whatever unemployment is; Government keeps its own rule
+# Wage share: private firms pay the sector's national accounts share of value added, net of the own-account pool's
+# share, whatever unemployment is; Government keeps its own rule
 from agents.firm import Firm
-_ws_firm = next(f for f in sim.firms.values() if f.sector not in ('Government', 'Construction') and f.employees and f.revenue > f.input_cost)
+_ws_firm = next(f for f in sim.firms.values() if f.sector not in ('Government', 'Construction') and not f.pool
+                and f.employees and f.revenue > f.input_cost)
 _ws_gov = next(f for f in sim.firms.values() if f.sector == 'Government' and f.employees)
-_ws_u, _ws_r = 0.07, sim.PARAMS['RELEVANCE_UNEMPLOYMENT_SALARIES']
-_ws_old = Firm.wage_shares is None and np.isclose(
-    _ws_firm.wage_base(_ws_u, _ws_r) * _ws_firm.num_employees,
-    (_ws_firm.revenue - _ws_firm.input_cost) * np.exp(-_ws_u * _ws_r))
-_ws_gov0 = _ws_gov.wage_base(_ws_u, _ws_r)
-Firm.wage_shares = pd.read_csv('input/firm_income_2015.csv', sep=';').set_index('sector').wage_share.to_dict()
+_ws_r = sim.PARAMS['RELEVANCE_UNEMPLOYMENT_SALARIES']
+_ws_tru = pd.read_csv('input/firm_income_2015.csv', sep=';').set_index('sector').wage_share.to_dict()
+_ws_exp = sim.own_account.firm_wage_shares(_ws_tru)[_ws_firm.sector]
 _ws_new = all(np.isclose(_ws_firm.wage_base(u, _ws_r) * _ws_firm.num_employees,
-                         (_ws_firm.revenue - _ws_firm.input_cost) * Firm.wage_shares[_ws_firm.sector]) for u in (0.02, 0.3))
-_ws_gov1 = _ws_gov.wage_base(_ws_u, _ws_r)
-Firm.wage_shares = None
-check("WAGE_SHARE: 'unemployment' unchanged, 'tru' pays the sector's share of value added at any unemployment, "
-      "Government unchanged",
-      _ws_old and _ws_new and np.isclose(_ws_gov0, _ws_gov1), f"old {_ws_old}, tru {_ws_new}, gov {_ws_gov0:.3f}/{_ws_gov1:.3f}")
+                         (_ws_firm.revenue - _ws_firm.input_cost) * _ws_exp) for u in (0.02, 0.3))
+_ws_gov_same = np.isclose(_ws_gov.wage_base(0.02, _ws_r), _ws_gov.wage_base(0.3, _ws_r))
+check("Wage share: the sector's share of value added net of own-account income at any unemployment; Government "
+      "pays its budget's wage",
+      _ws_new and _ws_exp < _ws_tru[_ws_firm.sector] + 1e-12 and _ws_gov_same,
+      f"share {_ws_exp:.3f} (TRU {_ws_tru[_ws_firm.sector]:.3f}), gov same {_ws_gov_same}")
 
-# FIRM_PAYOUT 'national': every private firm ends at its buffer, the investment rate of what left goes to the
+# Payout: every private firm ends at its buffer, the investment rate of what left goes to the
 # investment fund and the rest out through money_profits_out; the fund is spent on FBCF products (imports through
 # money_imports) and what finds no stock stays; an entrant's capital comes from outside (money_firm_entry), the
 # incumbents untouched. The money stock moves exactly with the ledger throughout.
 from analysis.money import money_stock_total
 from world.firms import pay_out_national, fund_entrant, capital_need
-_po_saved = (sim.PARAMS.get('FIRM_PAYOUT', 'none'), sim.investment_rate, sim.investment_fund, dict(sim.ledger))
+_po_saved = (sim.investment_rate, sim.investment_fund, dict(sim.ledger))
 _po_pe, _po_pd = sim.PARAMS['PRODUCTIVITY_EXPONENT'], sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR']
-sim.PARAMS['FIRM_PAYOUT'], sim.investment_rate, sim.investment_fund = 'national', 0.403, 0.0
+sim.investment_rate, sim.investment_fund = 0.403, 0.0
 _po_m0, _po_l0 = money_stock_total(sim), sum(sim.ledger.values())
 _po_out0 = sim.ledger['profits_out']
 pay_out_national(sim)
 _po_paid = sim.profit_share_paid
 _po_at_buffer = all((f.free_cash() if f.sector == 'Construction' else f.total_balance)
                     <= capital_need(sim, f.sector, f.capacity_value(_po_pe, _po_pd)) + 1e-9
-                    for f in sim.firms.values() if f.sector != 'Government')
+                    for f in sim.firms.values() if f.sector != 'Government' and not f.pool)
 _po_split = (np.isclose(sim.investment_fund, 0.403 * _po_paid)
              and np.isclose(_po_out0 - sim.ledger['profits_out'], 0.597 * _po_paid))
 _po_cons1 = np.isclose(money_stock_total(sim) - _po_m0, sum(sim.ledger.values()) - _po_l0)
@@ -1808,31 +1637,26 @@ _po_entry = (_po_new is not None and np.isclose(sim.ledger['firm_entry'] - _po_e
              and np.isclose(money_stock_total(sim) - _po_m0, sum(sim.ledger.values()) - _po_l0))
 if _po_new is not None:
     del sim.firms[_po_new.id]
-sim.PARAMS['FIRM_PAYOUT'], sim.investment_rate, sim.investment_fund = _po_saved[:3]
-check("FIRM_PAYOUT 'national': firms end at their buffer, investment rate to the fund and the rest out, the fund spent "
+sim.investment_rate, sim.investment_fund = _po_saved[:2]
+check("Payout: firms end at their buffer, investment rate to the fund and the rest out, the fund spent "
       "on FBCF with stock and ledger in step, entrants funded from outside",
       _po_paid > 0 and _po_at_buffer and _po_split and _po_cons1 and _po_cons2 and _po_spent > 0 and _po_entry,
       f"paid {_po_paid:.2f}, buffer {_po_at_buffer}, split {_po_split}, ledger {_po_cons1}/{_po_cons2}, "
       f"spent {_po_spent:.2f} of {_po_fund:.2f}, imports {_po_imp0 - sim.ledger['imports']:.2f}, entry {_po_entry}")
 
-# GOV_HEADCOUNT: 'rais' reads RAIS public jobs by employer's municipality, 'census' the residence-based file; both
-# restricted to the run's municipalities
-_gh_saved = sim.PARAMS.get('GOV_HEADCOUNT', 'rais')
-_gh_rais = sim.labor_market.process_gov_employees_year()
-sim.PARAMS['GOV_HEADCOUNT'] = 'census'
+# Public headcount: the residence-based Census file, restricted to the run's municipalities
 _gh_census = sim.labor_market.process_gov_employees_year()
-sim.PARAMS['GOV_HEADCOUNT'] = _gh_saved
 _gh_file = pd.read_csv('input/gov_headcount_census.csv')
 _gh_muns = {int(str(c)[:6]) for c in sim.geo.mun_codes}
-_gh_ok = (set(_gh_census.codemun) <= _gh_muns and set(_gh_rais.codemun) <= _gh_muns
+_gh_ok = (set(_gh_census.codemun) <= _gh_muns
           and np.isclose(_gh_census[_gh_census.ano == 2010].qtde_vinc_ativos.sum(),
                          _gh_file[_gh_file.codemun.isin(_gh_muns) & (_gh_file.ano == 2010)].qtde_vinc_ativos.sum())
           and _gh_census[_gh_census.ano == 2010].qtde_vinc_ativos.sum() > 0)
-check("GOV_HEADCOUNT: 'rais' and 'census' read their files for the run's municipalities", _gh_ok,
-      f"2010 rais {_gh_rais[_gh_rais.ano == 2010].qtde_vinc_ativos.sum():.0f}, "
-      f"census {_gh_census[_gh_census.ano == 2010].qtde_vinc_ativos.sum():.0f}")
+check("Public headcount reads the Census file for the run's municipalities", _gh_ok,
+      f"2010 census {_gh_census[_gh_census.ano == 2010].qtde_vinc_ativos.sum():.0f}")
 
-# EDUCATION 'census': levels drawn per agent for its age group match the Census mix of the run's municipalities at
+
+# Education: levels drawn per agent for its age group match the Census mix of the run's municipalities at
 # 18-69; under 25 the final level is held from the school completion ages; immigrants keep it, newborns draw it
 from world.education import Education, attained, YEARS
 _ed = Education(sim.geo.mun_codes, np.random.RandomState(3))
@@ -1848,26 +1672,25 @@ _ed_gen = sim.generator.education
 sim.generator.education = _ed
 _ed_mother = next(a for a in sim.agents.values() if a.gender.lower() == 'female' and 18 <= a.age < 45)
 _ed_baby = birth(sim, _ed_mother)
+_ed_targets = {_a.id: _a.target for _a in sim.agents.values()}
 for _a in sim.agents.values():
     _a.target = 13
 _ed_clone = sim.generator.create_random_agents(1)
 sim.generator.education = _ed_gen
 for _a in sim.agents.values():
-    del _a.target
-check("EDUCATION 'census': 18-69 level mix within 0.04 of the Census, school-age ramp, newborn and immigrant targets",
+    _a.target = _ed_targets[_a.id]
+check("Education: 18-69 level mix within 0.04 of the Census, school-age ramp, newborn and immigrant targets",
       _ed_mix and _ed_ramp and _ed_baby.target in sum(YEARS.values(), []) and _ed_baby.qualification <= 2
       and all(a.target == 13 for a in _ed_clone.values()),
       f"model {_ed_lv.sort_index().round(3).tolist()}, census {_ed_c.round(3).tolist()}, ramp {_ed_ramp}")
 
-# GENDER_LABELS: under 'lower' a generated man takes male mortality and no fertility and newborns are labelled as
-# generated; under 'mixed' the generated man takes female mortality and fertility
+# Gender labels: a generated man takes male mortality and no fertility and newborns are labelled as generated
 import world.demographics as _dm
 _gl_man = next(a for a in sim.agents.values() if a.gender == 'male' and 20 <= a.age < 40)
 _gl_woman = next(a for a in sim.agents.values() if a.gender == 'female' and 20 <= a.age < 40)
-_gl_die, _gl_preg, _gl_param = _dm.die, _dm.pregnant, sim.PARAMS.get('GENDER_LABELS', 'mixed')
+_gl_die, _gl_preg = _dm.die, _dm.pregnant
 _gl_out = {}
-for _gl in ['mixed', 'lower']:
-    sim.PARAMS['GENDER_LABELS'] = _gl
+for _gl in ['lower']:
     _gl_dead, _gl_mothers = [], []
     _dm.die = lambda s, a: _gl_dead.append(a.id)
     _dm.pregnant = lambda s, a, p: _gl_mothers.append(a.id)
@@ -1878,26 +1701,22 @@ for _gl in ['mixed', 'lower']:
         _a.age, _a.qualification, _a.p_marriage = _age, _q, _pm
     _gl_out[_gl] = (_gl_dead, _gl_mothers, _dm.birth(sim, _gl_woman).gender.islower())
 _dm.die, _dm.pregnant = _gl_die, _gl_preg
-sim.PARAMS['GENDER_LABELS'] = _gl_param
-check("GENDER_LABELS: 'lower' gives generated men male mortality, no fertility, lowercase newborns; 'mixed' unchanged",
-      _gl_out['lower'] == ([_gl_man.id], [_gl_woman.id], True)
-      and _gl_out['mixed'] == ([], [_gl_man.id, _gl_woman.id], False), f"{_gl_out}")
+check("Gender labels: generated men take male mortality, no fertility, lowercase newborns",
+      _gl_out['lower'] == ([_gl_man.id], [_gl_woman.id], True), f"{_gl_out}")
 
-# IMMIGRATION 'municipal': a municipality's immigrants are offered only its vacant houses and its excess is removed
-# from its residents; under 'acp' they are offered every vacant house
+# Immigration: a municipality's immigrants are offered only its vacant houses and its excess is removed from its
+# residents
 import world.population as _pp
-_im_param, _im_est, _im_pops = sim.PARAMS.get('IMMIGRATION', 'acp'), _pp.pop_estimates, sim.mun_pops
+_im_pops = sim.mun_pops
+_im_target = (sim.pop_start, sim.pop_growth)
 _im_m = min(_im_pops, key=_im_pops.get)
-_im_pct, _im_y = sim.PARAMS['PERCENTAGE_ACTUAL_POP'], str(sim.clock.year)
 _im_rm = sim.housing.rental.rental_market
 _im_offered = []
 sim.housing.rental.rental_market = lambda fams, s, to_rent=None: _im_offered.append(
     None if to_rent is None else {h.region_id[:7] for h in to_rent})
 _im_out = {}
-for _im_mode, _im_delta in (('acp', 120), ('municipal', 120), ('municipal', -5)):
-    sim.PARAMS['IMMIGRATION'] = _im_mode
-    _pp.pop_estimates = _im_est.copy()
-    _pp.pop_estimates.at[_im_m, _im_y] = (_im_pops[_im_m] + _im_delta) / _im_pct
+for _im_mode, _im_delta in (('municipal', 120), ('municipal', -5)):
+    sim.pop_start, sim.pop_growth = {_im_m: _im_pops[_im_m] + _im_delta}, {_im_m: 1.0}
     sim.mun_pops = defaultdict(int, {_im_m: _im_pops[_im_m]})
     _im_before = {i: a.family.region_id[:7] for i, a in sim.agents.items()}
     _pp.immigration(sim)
@@ -1906,34 +1725,28 @@ for _im_mode, _im_delta in (('acp', 120), ('municipal', 120), ('municipal', -5))
                                       set(_im_gone) <= {_im_m})
     _im_pops[_im_m] = sim.mun_pops[_im_m]
 sim.housing.rental.rental_market = _im_rm
-_pp.pop_estimates, sim.mun_pops = _im_est, _im_pops
-sim.PARAMS['IMMIGRATION'] = _im_param
-check("IMMIGRATION: 'municipal' offers immigrants the municipality's vacant houses only and removes its excess from its "
-      "residents; 'acp' offers every vacant house",
-      _im_out[('acp', 120)][0] is None and _im_out[('municipal', 120)][0] in (set(), {_im_m})
+sim.mun_pops = _im_pops
+sim.pop_start, sim.pop_growth = _im_target
+check("Immigration offers immigrants the municipality's vacant houses only and removes its excess from its residents",
+      _im_out[('municipal', 120)][0] in (set(), {_im_m})
       and _im_out[('municipal', -5)][1] >= 5 and _im_out[('municipal', -5)][2], f"{_im_m}: {_im_out}")
 
-# POP_TARGET 'census': the start population grown at the 2010-2022 Census rate; 'projection' is the estimate file
-_pt_param, _pt_days = sim.PARAMS.get('POP_TARGET', 'projection'), sim.clock.days
+# Population target: the start population grown at the 2010-2022 Census rate
+_pt_days, _pt_target = sim.clock.days, (sim.pop_start, sim.pop_growth)
 _pt_m = max(sim.mun_pops, key=sim.mun_pops.get)
 _pt_c = pd.read_csv(_pp.CENSUS_POPULATION, sep=';', index_col='cod_mun').loc[int(_pt_m)]
 sim.pop_start, sim.pop_growth = {_pt_m: 1000}, _pp.census_growth([_pt_m])
-sim.PARAMS['POP_TARGET'] = 'census'
 sim.clock.days = sim.PARAMS['STARTING_DAY']
 _pt_0 = _pp.target_population(sim, _pt_m)
 sim.clock.days = sim.PARAMS['STARTING_DAY'] + _dt.timedelta(days=round(12 * 365.25))
 _pt_12 = _pp.target_population(sim, _pt_m)
-sim.PARAMS['POP_TARGET'] = 'projection'
-_pt_proj = (_pp.target_population(sim, _pt_m),
-            _pp.pop_estimates.at[_pt_m, str(sim.clock.year)] * sim.PARAMS['PERCENTAGE_ACTUAL_POP'])
-sim.PARAMS['POP_TARGET'], sim.clock.days = _pt_param, _pt_days
-check("POP_TARGET: 'census' starts at the start population and reaches it x Census 2022 / 2010 after 12 years; "
-      "'projection' reads the estimate file",
-      abs(_pt_0 - 1000) < 1e-9 and abs(_pt_12 / 1000 - _pt_c.pop_2022 / _pt_c.pop_2010) < 1e-6
-      and _pt_proj[0] == _pt_proj[1],
-      f"{_pt_m}: {_pt_0}, {_pt_12}, {_pt_proj}")
+sim.clock.days = _pt_days
+sim.pop_start, sim.pop_growth = _pt_target
+check("Population target starts at the start population and reaches it x Census 2022 / 2010 after 12 years",
+      abs(_pt_0 - 1000) < 1e-9 and abs(_pt_12 / 1000 - _pt_c.pop_2022 / _pt_c.pop_2010) < 1e-6,
+      f"{_pt_m}: {_pt_0}, {_pt_12}")
 
-# POP_ROUNDING 'remainder': a region's agents add up to its Census total at the run's scale, each cell its exact value
+# Rounding of the Census cells: a region's agents add up to its Census total at the run's scale, each cell its exact value
 # rounded down or up
 _pr_r = next(iter(sim.regions))
 _pr_pct = sim.PARAMS['PERCENTAGE_ACTUAL_POP']
@@ -1947,74 +1760,20 @@ for _pr_g in ('male', 'female'):
         _pr_col = _pr_a if _pr_a in _pr_m.columns else str(_pr_a)
         _pr_exact[(_pr_g, _pr_a)] = float(_pr_m[_pr_col].iloc[0]) * _pr_pct
 _pr_near = sum(_pp.pop_age_data(sim.pops[g], _pr_r, a, _pr_pct) for g, a in _pr_exact)
-check("POP_ROUNDING: 'remainder' keeps a region's total and rounds each cell down or up",
+check("Rounding of the Census cells keeps a region's total and rounds each cell down or up",
       sum(_pr_c.values()) == round(sum(_pr_exact.values()))
       and all(int(v) <= _pr_c[k] <= int(v) + 1 for k, v in _pr_exact.items()),
       f"{_pr_r}: remainder {sum(_pr_c.values())}, exact {sum(_pr_exact.values()):.1f}, nearest {_pr_near}")
 
-# CAR_DECILES 'employed': car-ownership wage deciles leave out agents without a job or a wage
+# Car-ownership wage deciles leave out agents without a job or a wage
 from types import SimpleNamespace as _cd_ns
 from markets.labor import car_wage_deciles as _cd
 _cd_s = [_cd_ns(last_wage=0, firm_id=None)] * 50 + [_cd_ns(last_wage=w, firm_id=1) for w in range(1, 51)]
-_cd_all, _cd_emp = _cd(_cd_s, False), _cd(_cd_s, True)
-check("CAR_DECILES: 'employed' takes deciles over paid workers only; 'all' counts the unpaid as zero",
-      _cd_all[0] == 0 and _cd_emp[0] > 5 and _cd_emp[-1] == 50, f"all {_cd_all[:3]}, employed {_cd_emp[:3]}")
+_cd_emp = _cd(_cd_s)
+check("Car-ownership deciles are taken over paid workers only",
+      _cd_emp[0] > 5 and _cd_emp[-1] == 50, f"employed {_cd_emp[:3]}")
 
-# OWN_ACCOUNT 'firms': start-up own-account firms at the Census share of each level, one owner each, out of the house
-# pipeline and of hiring; the owner takes the cash above the buffer; a closed firm's cash goes to the owner's family
-from world.own_account import OwnAccount, level as _oa_level
-from world.firms import pay_out_national as _oa_pay, own_account_need as _oa_need
-_oa_param = sim.PARAMS.get('OWN_ACCOUNT', 'off')
-sim.PARAMS['OWN_ACCOUNT'] = 'firms'
-_oa = OwnAccount(sim)
-_oa_pool = [a for a in sim.agents.values() if a.firm_id is None and 16 < a.age < 70 and a.family is not None
-            and a.family.house is not None]
-_oa_by_level = defaultdict(int)
-for _a in _oa_pool:
-    _oa_by_level[_oa_level(_a)] += 1
-_oa_before = set(sim.firms)
-_oa.start(_oa_pool, 0.1)
-_oa_new = [f for i, f in sim.firms.items() if i not in _oa_before]
-_oa_count = defaultdict(int)
-for _f in _oa_new:
-    _oa_count[_oa_level(_f.owner)] += 1
-_oa_expected = {lv: int(round(_oa.share[lv] * 0.9 * n)) for lv, n in _oa_by_level.items()}
-_oa_ok_start = (dict(_oa_count) == {lv: n for lv, n in _oa_expected.items() if n > 0}
-                and all(f.own_account and list(f.employees.values()) == [f.owner] and f.owner.firm_id == f.id
-                        and f.region_id == f.owner.family.house.region_id and f.total_quantity == 0 for f in _oa_new))
-_oa_lm = sim.labor_market
-_oa_lm.available_postings = []
-_oa_lm.hire_fire({f.id: f for f in _oa_new}, 1.0)
-_oa_ok_hire = not _oa_lm.available_postings and all(f.num_employees == 1 for f in _oa_new)
-_oa_f = _oa_new[0]
-_pe, _pd = sim.PARAMS['PRODUCTIVITY_EXPONENT'], sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR']
-_oa_buffer = _oa_need(sim, _oa_f.capacity_value(_pe, _pd))
-_oa_f.total_balance = _oa_buffer + 10.0
-_oa_money = _oa_f.owner.money
-_oa_rate = getattr(sim, 'investment_rate', 0.0)
-sim.investment_rate = 0.0
-_oa_out = sim.ledger['profits_out']
-_oa_pay(sim)
-sim.investment_rate = _oa_rate
-_oa_ok_pay = (abs(_oa_f.owner.money - _oa_money - 10.0) < 1e-9 and abs(_oa_f.total_balance - _oa_buffer) < 1e-9
-              and abs(_oa_f.owner.last_profit_share - 10.0) < 1e-9)
-sim.ledger['profits_out'] = _oa_out
-_oa_owner, _oa_fam = _oa_f.owner, _oa_f.owner.family
-_oa_f.total_balance = 7.0
-_oa_sav = _oa_fam.savings
-_oa.close(_oa_f)
-_oa_ok_close = (abs(_oa_fam.savings - _oa_sav - 7.0) < 1e-9 and _oa_owner.firm_id is None and _oa_f.id not in sim.firms)
-for _f in _oa_new[1:]:
-    _f.total_balance = 0.0
-    _oa.close(_f)
-sim.PARAMS['OWN_ACCOUNT'] = _oa_param
-check("OWN_ACCOUNT 'firms': start-up share by level, one owner per firm, no posts, owner paid above the buffer, cash "
-      "back to the family on closing",
-      _oa_ok_start and _oa_ok_hire and _oa_ok_pay and _oa_ok_close,
-      f"start {_oa_ok_start} {dict(_oa_count)} vs {_oa_expected}, hire {_oa_ok_hire}, pay {_oa_ok_pay}, "
-      f"close {_oa_ok_close}")
-
-# VALE_TRANSPORTE: the employer pays a transit commuter the fare above 6 % of the gross wage, a car owner nothing
+# Vale-transporte: the employer pays a transit commuter the fare above 6 % of the gross wage, a car owner nothing
 from agents.firm import Firm as _VTFirm, VT_WAGE_SHARE as _vt_share
 _vt_firm = next(f for f in sim.firms.values() if f.sector not in ('Government', 'Construction') and not f.own_account
                 and f.num_employees >= 2)
@@ -2038,7 +1797,7 @@ _vt_ok_pay = (abs(_vt_a.money - _vt_money[_vt_a] - _vt_a.wage_paid - _vt_sub_a) 
 _VTFirm.vale_transporte = _vt_old
 for _a, _car, _units, _m in _vt_keep:
     _a.has_car, _a.commute_cost_units, _a.money = _car, _units, _m
-check("VALE_TRANSPORTE: transit commuter paid the fare above 6 % of the gross wage, car owner nothing, firm pays it",
+check("Vale-transporte: transit commuter paid the fare above 6 % of the gross wage, car owner nothing, firm pays it",
       _vt_ok_pay and _vt_sub_a > 0, f"pay {_vt_ok_pay} sub {_vt_sub_a:.3g}")
 
 # POSTING_EDUCATION 'census': a vacancy is filled only from applicants of its drawn level
@@ -2070,7 +1829,7 @@ check("POSTING_EDUCATION 'census': vacancy filled from its level only, open when
       and all(abs(p.sum() - 1) < 1e-9 for _, p in _pe_census.values()),
       f"hired {[_pe_level(a) for a in _pe_hired]}, none-level hires {len(_pe_none)}")
 
-# GOV_SPENDING 'real': public investment unchanged during the base window, then its base real level at this month's
+# Public investment unchanged during the base window, then its base real level at this month's
 # price, the difference booked as a public transfer from outside
 _gs_f = sim.funds
 _gs_price, _gs_ledger, _gs_ext = sim.avg_prices, sim.ledger['public_transfers'], _gs_f.external_public_funding
@@ -2086,11 +1845,12 @@ _gs_ok = (_gs_seen[0] == 10.0 and _gs_seen[-1] == 4.0 and abs(_gs_after - 2.0 * 
 sim.avg_prices, sim.ledger['public_transfers'], _gs_f.external_public_funding = _gs_price, _gs_ledger, _gs_ext
 _gs_f.gov_spending_months.pop('test', None)
 _gs_f.gov_spending_base.pop('test', None)
-check("GOV_SPENDING 'real': unchanged in the base window, then the base real level at this month's price, the "
+check("Public investment: unchanged in the base window, then the base real level at this month's price, the "
       "difference from outside", _gs_ok, f"seen {_gs_seen[0]}, {_gs_seen[-1]}, after {_gs_after}")
 
-# WAGE_SPLIT: 'q_alpha' weights are qualification ** alpha; 'census' adds the age profile and a persistent earnings
-# factor drawn per agent and run, firms still pay exactly their wage bill, and the start keeps each area's income total
+# Wage split: without a profile weights are qualification ** alpha; the profile adds the age profile and a persistent
+# earnings factor drawn per agent and run, firms still pay exactly their wage bill, and the start keeps each area's
+# income total
 from agents import Agent as _ws_Agent
 _ws_alpha = sim.PARAMS['PRODUCTIVITY_EXPONENT']
 _ws_old = _ws_Agent.wage_profile
@@ -2100,6 +1860,8 @@ _ws_Agent.wage_profile = None
 _ws_off = all(a.wage_weight(_ws_alpha) == a.qualification ** _ws_alpha and a.wage_factor() == 1.0 for a in _ws_staff)
 _ws_keep = [(a, a.earnings) for a in sim.agents.values()]
 _ws_Agent.wage_profile = (0.06, -0.0006, 0.6, 12345)
+for _a in _ws_staff:
+    _a.earnings = None
 _ws_w1 = [a.wage_weight(_ws_alpha) for a in _ws_staff]
 _ws_w2 = [a.wage_weight(_ws_alpha) for a in _ws_staff]
 _ws_e = _ws_staff[0].earnings
@@ -2109,10 +1871,9 @@ _ws_spread = len({round(a.earnings, 12) for a in _ws_staff}) == len(_ws_staff)
 _ws_money = [(a, a.money, a.last_wage, a.wage_paid) for a in _ws_staff]
 _ws_bal, _ws_rev = _ws_firm.total_balance, _ws_firm.revenue
 _ws_firm.revenue = _ws_firm.total_balance = 1000.0
-_ws_paid0 = sum(a.money for a in _ws_staff)
 _ws_firm.make_payment(sim.regions, 0.05, _ws_alpha, 0.0, 0.0)
-_ws_gross = sum(a.money for a in _ws_staff) - _ws_paid0
-_ws_split = all(abs((a.money - m) / _ws_gross - w / sum(_ws_w1)) < 1e-9 for (a, m, _, _), w in zip(_ws_money, _ws_w1))
+_ws_gross = sum(a.wage_paid for a in _ws_staff)
+_ws_split = all(abs(a.wage_paid / _ws_gross - w / sum(_ws_w1)) < 1e-9 for (a, _, _, _), w in zip(_ws_money, _ws_w1))
 _ws_bill = abs(_ws_gross - _ws_firm.wages_paid) < 1e-9
 for a, m, lw, wp in _ws_money:
     a.money, a.last_wage, a.wage_paid = m, lw, wp
@@ -2134,14 +1895,14 @@ for a, e in _ws_keep:
     a.earnings = e
 _ws_Agent.wage_profile = _ws_old
 _ws_profile = sim.wage_profile()
-check("WAGE_SPLIT: 'q_alpha' = q ** alpha; 'census' weights fixed per agent and seed, firm pays its bill in the "
+check("Wage split: no profile = q ** alpha; weights fixed per agent and seed, firm pays its bill in the "
       "weights, start keeps area totals, Census row loads",
       _ws_off and _ws_w1 == _ws_w2 and bool(_ws_redraw) and _ws_spread and _ws_split and _ws_bill and _ws_start
       and len(_ws_profile) == 4 and _ws_profile[2] > 0,
       f"off {_ws_off} same {_ws_w1 == _ws_w2} redraw {bool(_ws_redraw)} spread {_ws_spread} split {_ws_split} "
       f"bill {_ws_bill} start {_ws_start} profile {_ws_profile}")
 
-# FAMILY_MATCHING 'census': a partner's level is drawn from the Census spouses of the other's level, the nearest
+# Partner matching: a partner's level is drawn from the Census spouses of the other's level, the nearest
 # level when none is left; the start keeps every adult once and the first adult of each family; marriages pair
 # disjoint agents from the candidates
 import numpy as _fm_np
@@ -2159,7 +1920,7 @@ _fm_got = _fm_se.pick(_fm_lv1, {4: [_fm_by[4][0]], 2: [_fm_by[2][0]]})
 _fm_near = _fm_se.pick(_fm_lv1, {2: [_fm_by[2][0]], 1: [_fm_by[1][0]]})
 _fm_ok_pick = _fm_level(_fm_got) == 4 and _fm_level(_fm_near) == 2
 _fm_gen = sim.generator
-_fm_old_sp, _fm_old_par = _fm_gen.spouses, sim.PARAMS.get('FAMILY_MATCHING')
+_fm_old_sp = _fm_gen.spouses
 _fm_gen.spouses = _fm_SE(sim.geo.processing_acps, _fm_np.random.RandomState(8))
 _fm_fams = list(range(150))
 _fm_out = _fm_gen.match_partners(list(_fm_ad), _fm_fams)
@@ -2168,11 +1929,11 @@ _fm_pr = _fm_pairs(sim, list(_fm_ad[:60]))
 _fm_flat = [id(x) for p in _fm_pr for x in p]
 _fm_ok_pairs = len(_fm_pr) == 30 and len(set(_fm_flat)) == 60 and set(_fm_flat) <= set(map(id, _fm_ad[:60]))
 _fm_gen.spouses = _fm_old_sp
-check("FAMILY_MATCHING 'census': drawn level taken, nearest when absent; start keeps adults and heads; marriages "
+check("Partner matching: drawn level taken, nearest when absent; start keeps adults and heads; marriages "
       "pair disjoint candidates", _fm_ok_pick and _fm_ok_start and _fm_ok_pairs,
       f"pick {_fm_ok_pick} start {_fm_ok_start} pairs {_fm_ok_pairs}")
 
-# HOUSE_VALUES 'data': rents keep the legacy level at the FipeZAP yield; building cost per m² is the state's Sinapi at
+# House values: rents keep the INITIAL_RENTAL_PRICE level at the FipeZAP yield; building cost per m² is the state's Sinapi at
 # quality 2, the CUB low / high ratios at 1 / 4, halfway at 3; a builder's planned house costs that money in output at
 # its price, plus land at LOT_COST of the value
 import copy as _hv_copy
@@ -2183,10 +1944,9 @@ _hv = _hv_HV(sim.PARAMS)
 _hv_low, _hv_high = _hv.standards[1][0], _hv.standards[1][2]
 _hv_rid = next(iter(sim.regions))
 _hv_unit = _hv.sinapi[_hv_UF[int(_hv_rid[:2])]] / sim.PARAMS['REAIS_PER_MONEY_UNIT']
-_hv_data = sim.PARAMS.get('HOUSE_VALUES', 'legacy') == 'data'
 _hv_ok_level = (abs(_hv.price_scale * _hv.rent_ratio - sim.PARAMS['INITIAL_RENTAL_PRICE']) < 1e-12
-                and abs(sim.rent_ratio - (_hv.rent_ratio if _hv_data else sim.PARAMS['INITIAL_RENTAL_PRICE'])) < 1e-12
-                and abs(_hv_House.price_scale - (_hv.price_scale if _hv_data else 1.0)) < 1e-12)
+                and abs(sim.rent_ratio - _hv.rent_ratio) < 1e-12
+                and abs(_hv_House.price_scale - _hv.price_scale) < 1e-12)
 _hv_ok_cost = (abs(_hv.cost_per_m2(_hv_rid, 2) - _hv_unit) < 1e-12
                and abs(_hv.cost_per_m2(_hv_rid, 1) - _hv_low * _hv_unit) < 1e-12
                and abs(_hv.cost_per_m2(_hv_rid, 4) - _hv_high * _hv_unit) < 1e-12
@@ -2210,7 +1970,7 @@ _hv_ok_plan = (_hv_plan is not None and abs(
                                                       _hv_b2.productivity)) < 1e-9
                and abs(1e9 - _hv_b2.total_balance - _hv_plan['quality'] * _hv_reg.index * _hv_plan['size']
                        * _hv.price_scale * sim.PARAMS['LOT_COST']) < 1e-6)
-check("HOUSE_VALUES 'data': rent level kept, cost by Sinapi state and CUB standards, builder plans in money",
+check("House values: rent level kept, cost by Sinapi state and CUB standards, builder plans in money",
       _hv_ok_level and _hv_ok_cost and _hv_ok_plan,
       f"level {_hv_ok_level} cost {_hv_ok_cost} plan {_hv_ok_plan}")
 

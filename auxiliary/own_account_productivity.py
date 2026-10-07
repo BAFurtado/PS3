@@ -1,5 +1,5 @@
 """Value added per own-account worker relative to the other workers of each sector, and the shares of value added that
-are and are not own-account income, for OWN_ACCOUNT 'firms' and 'pool' (input/own_account_productivity_2010.csv).
+are and are not own-account income (input/own_account_productivity_2010.csv).
 
 relative_productivity = (gross mixed income / own-account workers) / ((value added - gross mixed income) / other
 employed), by nível-12 sector, 2010. Gross mixed income is the income of unincorporated household businesses, here

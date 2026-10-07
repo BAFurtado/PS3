@@ -1,6 +1,5 @@
 import copy
 import datetime
-import itertools
 from collections import defaultdict
 from unicodedata import category
 
@@ -13,13 +12,12 @@ from dateutil import relativedelta
 from .house import House
 from .product import Product
 
-# PRODUCTION_PLAN 'sales' leaves these sectors at capacity output and their own staffing rules (Construction only under
-# CONSTRUCTION_PLAN 'pipeline')
+# Sectors left at capacity output and their own staffing rules (Construction only under CONSTRUCTION_PLAN 'pipeline')
 UNPLANNED_SECTORS = ('Construction', 'Government')
 
 
 def plans_sales(firm):
-    """PRODUCTION_PLAN 'sales': whether the firm produces and staffs for its sales plan"""
+    """Whether the firm produces and staffs for its sales plan"""
     return firm.own_account or firm.sector not in UNPLANNED_SECTORS or (
             firm.sector == 'Construction' and ConstructionFirm.planned)
 
@@ -29,26 +27,17 @@ def plans_sales(firm):
 VT_WAGE_SHARE = 0.06
 
 
-def sample_firms(seed, firms, k, cum=None):
-    """OWN_ACCOUNT 'firms': k firms drawn with replacement in proportion to their staff (at least 1), so a buyer meets
-    a seller as often as the seller's workers. `cum`: the cumulative weights, when already built"""
-    if cum is None:
-        cum = list(itertools.accumulate(max(1, f.num_employees) for f in firms))
-    return seed.choices(firms, cum_weights=cum, k=k)
-
-
 def import_price(params):
-    """Price of a unit bought from the rest of Brazil (FREIGHT): P_imp = 1, plus REGIONAL_FREIGHT_COST under 'flat'"""
-    return 1.0 if params.get('FREIGHT', 'flat') == 'margins' else 1.0 + params['REGIONAL_FREIGHT_COST']
+    """Price of a unit bought from the rest of Brazil: P_imp = 1, since the national input coefficients and
+    final-demand shares buy transport margins from Transport"""
+    return 1.0
 
 
 def import_parity(params):
-    """IMPORT_PARITY_PRICING ceiling per tradable sector (FREIGHT): P_imp = 1 plus REGIONAL_FREIGHT_COST ('flat') or
-    plus the product's national transport margin ('margins', input/transport_margins.csv)"""
-    if params.get('FREIGHT', 'flat') == 'margins':
-        margins = pd.read_csv('input/transport_margins.csv', sep=';').set_index('sector')['margin']
-        return {s: 1.0 + float(margins[s]) for s in params['TRADABLE_SECTORS']}
-    return {s: 1.0 + params['REGIONAL_FREIGHT_COST'] for s in params['TRADABLE_SECTORS']}
+    """Import-parity price ceiling per tradable sector: P_imp = 1 plus the product's national transport margin
+    (input/transport_margins.csv)"""
+    margins = pd.read_csv('input/transport_margins.csv', sep=';').set_index('sector')['margin']
+    return {s: 1.0 + float(margins[s]) for s in params['TRADABLE_SECTORS']}
 
 np.seterr(divide='ignore', invalid='ignore')
 initial_input_sectors = {'Agriculture': 0,
@@ -85,31 +74,29 @@ class Firm:
     unmet_quantity = 0.0
     # Diagnostic: this month's sold and refused quantity by buyer type, {buyer: [sold, refused]}; reset with amount_sold
     demand_by_buyer = None
-    # OWN_ACCOUNT 'firms': a one-person firm run by its only worker (world/own_account.py)
+    # Own-account pools (world/own_account.py)
     own_account = False
-    # OWN_ACCOUNT 'pool': the own-account workers of a sector (world/own_account.py OwnAccountPool)
+    # The own-account workers of a sector (world/own_account.py OwnAccountPool)
     pool = False
     owner = None
     # Eco-efficiency investment this month (invest_eco_efficiency)
     inno_inv = 0.0
-    # OWN_ACCOUNT 'firms': input purchases draw sellers in proportion to their staff
-    own_account_market = False
-    # VALE_TRANSPORTE: PUBLIC_TRANSIT_COST, the fare per commute unit; employers pay vale-transporte. None: they do not
+    # PUBLIC_TRANSIT_COST, the fare per commute unit, of which employers pay vale-transporte (set by Simulation)
     vale_transporte = None
     # Share of capital advanced as revenue in a month without sales (FIRM_CAPITAL_MONTHS sets it to 1/months)
     cold_start_share = 0.001
     # Consecutive months insolvent / idle (FIRM_EXIT_MONTHS); set when the firm exits
     months_insolvent = 0
-    # WAGE_SHARE 'tru': wage bill as a share of value added, by sector (set by Simulation); None: exp(-u x relevance)
+    # Wage bill as a share of value added, by sector (set by Simulation)
     wage_shares = None
     months_idle = 0
-    # PRODUCTION_PLAN 'sales': last month's sold plus refused quantity (None before the firm's first production), the
+    # Last month's sold plus refused quantity (None before the firm's first production), the
     # workers above what this month's demand needs, and this month's output and labour capacity
     last_demand = None
     workers_excess = 0
     last_produced = 0.0
     last_capacity = 0.0
-    # SECTOR_PRODUCTIVITY: output per unit of labour relative to the national mean
+    # Output per unit of labour relative to the national mean
     sector_productivity = 1.0
     exit_date = None
     exit_reason = None
@@ -319,17 +306,7 @@ class Firm:
         else:
             sector_map = prebuilt_sector_map
 
-        k = int(market_size)
-        input_cum = getattr(regional_market, 'input_cum', None) if prebuilt_sector_map is not None else None
         for sector in regional_market._sector_order:
-            if self.own_account_market and input_cum and input_cum.get(sector):
-                # Draw from the month's staff weights; the stocked sellers drawn, other than self, unless none
-                drawn = sample_firms(seed, sector_map[sector], 2 * k, input_cum[sector])
-                sampled_firms = [f for f in dict.fromkeys(drawn) if f.id != self.id and f.inventory[0].quantity > 0]
-                if sampled_firms:
-                    sampled_firms.sort(key=lambda f: f.inventory[0].price)
-                    chosen_firms[sector] = sampled_firms[:k]
-                    continue
             # Filter by positive inventory and exclude self; direct inventory[0].quantity
             # access avoids the property dispatch overhead on this hot path
             available_firms = [f for f in sector_map.get(sector, [])
@@ -339,10 +316,7 @@ class Firm:
                 chosen_firms[sector] = None
                 continue
 
-            if self.own_account_market and len(available_firms) > int(market_size):
-                sampled_firms = list(dict.fromkeys(sample_firms(seed, available_firms, int(market_size))))
-            else:
-                sampled_firms = seed.sample(available_firms, min(len(available_firms), int(market_size)))
+            sampled_firms = seed.sample(available_firms, min(len(available_firms), int(market_size)))
             sampled_firms.sort(key=lambda f: f.inventory[0].price)
             chosen_firms[sector] = sampled_firms[:int(market_size)]
 
@@ -419,7 +393,7 @@ class Firm:
             if money_local == 0 and money_external == 0:
                 continue
 
-            # OWN_ACCOUNT 'pool': the sector's own-account part of the local purchase
+            # The sector's own-account part of the local purchase
             to_pool = 0.0
             pools = getattr(regional_market, 'pools', None)
             if pools is not None and money_local > 0:
@@ -476,7 +450,7 @@ class Firm:
         """
         Based on the MIP sector, buys inputs to produce a given money output of the activity, creates externalities
         and creates a price based on cost.
-        plan (PRODUCTION_PLAN 'sales'): the stock target ratio r. Output tops the stock up to last month's demand times
+        plan: the stock target ratio r, for firms that plan on sales (plans_sales). Output tops the stock up to last month's demand times
         (1 + r), and to at least r x capacity, within capacity. None: output = capacity.
         """
         quantity = 0
@@ -541,8 +515,8 @@ class Firm:
     ):
         """ Update prices based on inventory and average prices
             Save signal for the labor market
-            plan (PRODUCTION_PLAN 'sales'): the stock target ratio r. workers_excess = workers whose output exceeds this
-            month's sold plus refused quantity times (1 + r), and r x capacity. """
+            plan: the stock target ratio r, for firms that plan on sales (plans_sales). workers_excess = workers whose
+            output exceeds this month's sold plus refused quantity times (1 + r), and r x capacity. """
         if plan is not None:
             capacity = self.capacity(prod_exponent, prod_magnitude_divisor)
             need = (max((self.goods_sold() + self.unmet_quantity) * (1 + plan), plan * capacity) +
@@ -702,22 +676,12 @@ class Firm:
         return self.wage_base(unemployment, relevance_unemployment)
 
     def wage_base(self, unemployment, relevance_unemployment):
-        # Observing global economic performance to set salaries,
-        # guarantees that firms do not spend all revenue on salaries
-        # guarantees that firms do not distribute all money when unemployment is 0
-        # Calculating wage base on a per-employee basis.
-        unemployment = .04 if unemployment == 0 else unemployment
+        # The sector's labour share of value added (revenue - inputs), per employee
         # Cold-start fallback: in months with zero sales revenue (typically month 1),
         # advance a small fraction of capital as implicit revenue so workers receive
         # non-zero wages and bootstrap household permanent income.
         effective_revenue = self.revenue if self.revenue > 0 else self.total_balance * self.cold_start_share
-        # Exponential discount: labor_share = exp(-u * relevance). Approaches 0 asymptotically
-        # as unemployment rises; equals ~0.94 at equilibrium 4% unemployment (same as old linear).
-        # Replaces linear (1 - u*relevance) which crossed zero at u = 1/relevance ≈ 67%.
-        if Firm.wage_shares is not None:
-            labor_share = Firm.wage_shares[self.sector]
-        else:
-            labor_share = np.exp(-unemployment * relevance_unemployment)
+        labor_share = Firm.wage_shares[self.sector]
         if self.num_employees > 0:
             return ((effective_revenue - self.input_cost) / self.num_employees) * labor_share
         else:
@@ -740,7 +704,7 @@ class Firm:
                     # Deduce LABOR TAXES from employees' salaries as a percentual of each salary
                     gross = total_salary_paid * employee.wage_weight(alpha) / total_weight
                     wage = gross * (1 - tax_labor)
-                    if Firm.vale_transporte is not None and not employee.has_car:
+                    if not employee.has_car:
                         # The employer's part of the fare the employee pays in Agent.pay_transport; not wage
                         units = employee.distance if employee.commute_cost_units is None \
                             else employee.commute_cost_units
@@ -770,18 +734,6 @@ class Firm:
             self.wages_paid = 0
             self.months_unpaid = 0
 
-    def pay_profit_share(self, surplus, rate, alpha):
-        """FIRM_PAYOUT 'staff': `rate` of `surplus` goes to the staff in the wage weights; returns the amount paid"""
-        if not self.employees or surplus <= 0:
-            return 0.0
-        paid = rate * surplus
-        total_weight = self.total_wage_weight(alpha)
-        for employee in self.employees.values():
-            share = paid * employee.wage_weight(alpha) / total_weight
-            employee.money += share
-            employee.last_profit_share = share
-        self.total_balance -= paid
-        return paid
 
     # Human resources department #################
     def add_employee(self, employee):
@@ -927,15 +879,11 @@ class ConstructionFirm(Firm):
         mu, sigma = self._SIZE_PARAMS[building_quality]
         building_size = seed_np.lognormal(mu, sigma)
 
-        # Number of product quantities needed for the house
-        gross_cost = building_size * building_quality
-        # Productivity is drawn once per firm from [1 - MULTIPLIER*MARKUP, 1.0].
-        # Lower productivity → higher building cost → fewer profitable projects.
-        # Productivity reduces the cost of construction and sets the size of profiting when selling
+        # Productivity is drawn once per firm from [1 - MULTIPLIER*MARKUP, 1.0], over its mean in the building cost
+        # (world/house_values.py). Lower productivity → higher building cost → fewer profitable projects.
         if not self.productivity:
             self.productivity = seed_np.randint(100 - int(params['CONSTRUCTION_FIRM_MARKUP_MULTIPLIER'] *
                                                 params["MARKUP"] * 100), 101) / 100
-        building_cost = gross_cost * self.productivity
 
         # Choose region where construction is most profitable.
         # Expected revenue uses quality-specific price per sqm (quality × region.index),
@@ -954,13 +902,9 @@ class ConstructionFirm(Firm):
         values = sim.house_values
         for r in regions:
             expected_price = building_quality * r.index * building_size * vacancy_factor * House.price_scale
-            if values is None:
-                land = r.license_price * building_cost * params["LOT_COST"]
-                works = r.license_price * building_cost
-            else:
-                # Land at LOT_COST of the house's value, building at its money cost
-                land = building_quality * r.index * building_size * House.price_scale * params["LOT_COST"]
-                works = values.build_cost(r.id, building_size, building_quality, self.productivity)
+            # Land at LOT_COST of the house's value, building at its money cost
+            land = building_quality * r.index * building_size * House.price_scale * params["LOT_COST"]
+            works = values.build_cost(r.id, building_size, building_quality, self.productivity)
             profit = expected_price - works - land
 
             # The firm must be able to pay for the land (LOT_COST share) from cash not owed as wages and above its
@@ -979,29 +923,21 @@ class ConstructionFirm(Firm):
         self.building[idx]["region"] = region.id
         self.building[idx]["size"] = building_size
         self.building[idx]["quality"] = building_quality
-        # Product.quantity increases as construction moves forward and is deducted at once.
-        # Divided by HOUSE_PRODUCTION_ADEQUACY to bridge the scale gap between labour output
-        # units (~3-8/month) and building_size in square metres (~60-200 m²).
-        if values is None:
-            self.building[idx]["cost"] = building_cost * region.license_price / params["HOUSE_PRODUCTION_ADEQUACY"]
-        else:
-            # Construction output at its current price
-            self.building[idx]["cost"] = values.build_cost(region.id, building_size, building_quality,
-                                                           self.productivity) / self.prices
+        # Product.quantity increases as construction moves forward and is deducted at once: the building's money
+        # cost in construction output at its current price
+        self.building[idx]["cost"] = values.build_cost(region.id, building_size, building_quality,
+                                                       self.productivity) / self.prices
 
         # Provide temporary cashflow revenue numbers before sales start to trickle in.
         # Additional value per month. Expectations of monthly payments before first sell
         self.monthly_planned_revenue.append(
-            self.building[idx]["cost"] * (self.prices if values is not None else 1) / params["CONSTRUCTION_ACC_CASH_FLOW"]
+            self.building[idx]["cost"] * self.prices / params["CONSTRUCTION_ACC_CASH_FLOW"]
         )
 
         # Buy license
         region.licenses -= 1
-        # Region license price is current QLI. Lot price is the model parameter
-        if values is None:
-            cost_of_land = region.license_price * building_cost * params["LOT_COST"]
-        else:
-            cost_of_land = building_quality * region.index * building_size * House.price_scale * params["LOT_COST"]
+        # Land at LOT_COST of the house's value
+        cost_of_land = building_quality * region.index * building_size * House.price_scale * params["LOT_COST"]
         self.total_balance -= cost_of_land
         region.collect_taxes(cost_of_land, "transaction")
         if params.get('FIRM_CAPITAL_MONTHS', 0) > 0:
@@ -1253,11 +1189,8 @@ class GovernmentFirm(Firm):
             if money_this_sector == 0:
                 continue
             sector_firms = [f for f in sim.firms.values() if f.sector == sector]
-            if sim.PARAMS.get('OWN_ACCOUNT', 'off') == 'firms' and len(sector_firms) > int(sim.PARAMS['SIZE_MARKET']):
-                market = sample_firms(sim.seed, sector_firms, int(sim.PARAMS['SIZE_MARKET']))
-            else:
-                market = sim.seed.sample(sector_firms,
-                                         min(len(sector_firms), int(sim.PARAMS['SIZE_MARKET'])))
+            market = sim.seed.sample(sector_firms,
+                                     min(len(sector_firms), int(sim.PARAMS['SIZE_MARKET'])))
             market = [firm for firm in market if firm.total_quantity > 0]
             if market:
                 chosen_firm = min(market, key=lambda firm: firm.prices)
@@ -1276,8 +1209,8 @@ class GovernmentFirm(Firm):
         left = 0.0
         if money <= 0 or shares.sum() <= 0:
             return money
-        # SHORTAGE_IMPORTS: tradable purchases no local firm served are bought outside at P_imp = 1 plus freight
-        shortage_sectors = sim.PARAMS['TRADABLE_SECTORS'] if sim.PARAMS.get('SHORTAGE_IMPORTS', False) else ()
+        # Tradable purchases no local firm served are bought outside at P_imp = 1 plus freight
+        shortage_sectors = sim.PARAMS['TRADABLE_SECTORS']
         import_share = sim.regional_market.government_import_share
         freight = import_price(sim.PARAMS)
         for sector, share in (shares / shares.sum()).items():
@@ -1285,26 +1218,21 @@ class GovernmentFirm(Firm):
             if money_this_sector == 0:
                 continue
             sim.regional_market.monthly_gov_intended[sector] += money_this_sector
-            # INTERREGIONAL_TRADE 'iioas': the import share of the product is bought outside
+            # The import share of the product is bought outside
             imported = money_this_sector * import_share.get(sector, 0.0)
             if imported > 0:
                 sim.external.intermediate_consumption(imported, freight)
                 total_consumption[sector] += imported
                 money_this_sector -= imported
-            pools = getattr(sim.regional_market, 'pools', None)
-            if pools is not None:
-                pool, share = pools.payable(sector)
-                if pool is not None and share > 0:
-                    paid = money_this_sector * share
-                    pool.receive(paid, sim.regions, sim.PARAMS['TAX_CONSUMPTION'], self.region_id,
-                                 sim.PARAMS['TAX_ON_ORIGIN'])
-                    total_consumption[sector] += paid
-                    money_this_sector -= paid
+            pool, share = sim.regional_market.pools.payable(sector)
+            if pool is not None and share > 0:
+                paid = money_this_sector * share
+                pool.receive(paid, sim.regions, sim.PARAMS['TAX_CONSUMPTION'], self.region_id,
+                             sim.PARAMS['TAX_ON_ORIGIN'])
+                total_consumption[sector] += paid
+                money_this_sector -= paid
             sector_firms = [f for f in sim.firms.values() if f.sector == sector]
-            if sim.PARAMS.get('OWN_ACCOUNT', 'off') == 'firms' and len(sector_firms) > int(sim.PARAMS['SIZE_MARKET']):
-                market = sample_firms(sim.seed, sector_firms, int(sim.PARAMS['SIZE_MARKET']))
-            else:
-                market = sim.seed.sample(sector_firms, min(len(sector_firms), int(sim.PARAMS['SIZE_MARKET'])))
+            market = sim.seed.sample(sector_firms, min(len(sector_firms), int(sim.PARAMS['SIZE_MARKET'])))
             market = [firm for firm in market if firm.total_quantity > 0]
             if market:
                 chosen_firm = min(market, key=lambda firm: firm.prices)

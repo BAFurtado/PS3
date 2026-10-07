@@ -1,4 +1,4 @@
-"""Public jobs per municipality and year by place of residence, for GOV_HEADCOUNT 'census'
+"""Public jobs per municipality and year by place of residence, for the public headcount
 (input/gov_headcount_census.csv, same columns as input/qtde_vinc_gov_rais_stable_from_2020_onwards.csv).
 
 Level, 2010: IBGE, Censo Demográfico 2010, Resultados Gerais da Amostra, Sidra table 1577: employed persons whose main

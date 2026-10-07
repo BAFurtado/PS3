@@ -1,4 +1,4 @@
-"""People, economically active people and employed people by municipality, sex and age group, for PARTICIPATION
+"""People, economically active people and employed people by municipality, sex and age group, for who is in the labour force
 'census' (input/participation_2010.csv).
 
 Source: IBGE, Censo Demográfico 2010, Resultados Gerais da Amostra, Sidra table 3573: persons aged 10 or more by

@@ -1,4 +1,4 @@
-"""Federal and state pay relative to private pay, per municipality, for GOV_EXTERNAL_WAGE = 'national'
+"""Federal and state pay relative to private pay, per municipality, for federal and state public pay
 (input/gov_pay.csv).
 
 Public pay: Ipea, Atlas do Estado Brasileiro, "Remuneração média por nível federativo - Brasil, grandes regiões e UFs"

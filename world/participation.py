@@ -1,4 +1,4 @@
-"""PARTICIPATION 'census': who is in the labour force.
+"""Who is in the labour force.
 
 An agent aged 17-69 is economically active when its own uniform draw is below the Census 2010 share of active people
 for its sex, age group and municipality (input/participation_2010.csv). The draw is fixed per agent, so the same

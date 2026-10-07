@@ -1,70 +1,72 @@
 # calibration_conf.py
 
-# Parameters to calibrate: [lower_bound, upper_bound]
-# Behavioral parameters calibrated on anchor region only.
-# All other capitals inherit these values; only structural
-# data inputs (A' matrix, ε_s, distributions) vary by region.
-#
-# Cut from 11 to 5 on 2026-09-28 (see private/notes/text_emissions/MSG_GUSTAVO_2026-09-28.md).
-# Held at their conf/default/params.py values:
-#   MARKUP, RELEVANCE_UNEMPLOYMENT_SALARIES  low S_Ti in the rescored 08-17 archive
-#   PRICE_RUGGEDNESS, INVENTORY_TARGET_RATIO no fitness moment constrains them
-#   NATURAL_SEPARATION_RATE                  set from published turnover figures, not fitted
-#   ENVIRONMENTAL_EFFICIENCY_STEP            no macro moment constrains it; separate 1-D stage on emissions
-# Ranges are narrowed around the defaults, using the 08-17 archive only as loose guidance (a third of its box
-# was explosive, and it predates the labour-matching fixes). Wave 1 exists to narrow them further.
+# Parameters to calibrate: [lower_bound, upper_bound]. One set of values for every region; regions differ only by
+# their data. Held at their conf/default/params.py values: MARKUP, PRICE_RUGGEDNESS, INVENTORY_TARGET_RATIO (no level
+# constrains them), NATURAL_SEPARATION_RATE (published turnover), ENVIRONMENTAL_EFFICIENCY_STEP (separate 1-D stage on
+# emissions). PRODUCTIVITY_MAGNITUDE_DIVISOR is set from IBGE municipal value added at start-up and
+# RELEVANCE_UNEMPLOYMENT_SALARIES is used only with GOV_REVISED False, so neither can be calibrated.
 CALIBRATION_PARAMETERS = {
 
     # Production
-    "PRODUCTIVITY_MAGNITUDE_DIVISOR": [0.5,   1.5],   # default: 1.0
-    "PRODUCTIVITY_EXPONENT":          [0.5,   0.8],   # default: 0.65
+    "PRODUCTIVITY_EXPONENT":       [0.5,   0.8],   # default: 0.65
 
     # Pricing
-    "STICKY_PRICES":                  [0.3,   0.9],   # default: 0.7
+    "STICKY_PRICES":               [0.3,   0.9],   # default: 0.7
 
     # Labor market
-    "LABOR_MARKET":                   [0.4,   0.9],   # default: 0.8
-    "PCT_DISTANCE_HIRING":            [0.05,  0.4],   # default: 0.2; commuting term live only since ceeb0aa
+    "LABOR_MARKET":                [0.4,   0.9],   # default: 0.8
 
+    # Housing
+    "BUILD_VACANCY_SENSITIVITY":   [7,     19],    # default: 13
+    "HOUSING_FINANCIAL_WEIGHT":    [25,    100],   # default: 60
+
+}
+
+# Parameters with a few options: each set takes one, from a dimension of its own in the Latin hypercube, so the options
+# are drawn in equal numbers
+CALIBRATION_OPTIONS = {
+    "CONSTRUCTION_PLAN": ["pipeline", "sales"],   # default: 'pipeline'
 }
 
 CALIBRATION_SETTINGS = {
 
     # "lhs": Latin hypercube of `samples` sets, for history matching (the default).
-    # "sobol": Saltelli design, N * (k + 2) sets; use powers of 2 and N >= 512 for stable S_Ti.
-    "design":         "lhs",
-    "samples":        64,
-    "runs_per_sample": 2,   # seeds per set; >= 2 needed for noise weights and implausibility
-    "lhs_seed":       42,
-    "seed_base":      1000, # model seed of replication i is seed_base + i, the same in every set
+    # "sobol": Saltelli design, N * (k + 2) sets; use powers of 2 and N >= 512 for stable S_Ti (no options).
+    "design":          "lhs",
+    "samples":         32,
+    "runs_per_sample": 2,    # seeds per set and region; >= 2 needed for the seed noise in the implausibility
+    "lhs_seed":        42,
+    "seed_base":       1000, # model seed of replication i is seed_base + i, the same in every set and region
 
-    # Burn-in excluded from fitness; moments computed over [burn_in_end, target_end_year]
-    "burn_in_end":       "2012-01-01",
+    # Simulated period
     "target_start_year": "2010-01-01",
-    "target_end_year":   "2025-01-01",
+    "target_end_year":   "2020-01-01",
 
-    # Anchor region for calibration
-    "calibration_region": "BELO HORIZONTE",
+    # Every set runs in every region
+    "calibration_regions": ["BELO HORIZONTE", "BRASILIA", "GOIANIA", "PALMAS"],
 
-    # Moments scored. Left out: inflation_mean (the model has no nominal anchor, no set can reach it) and the
-    # Gini (the model measures household permanent income, the observed series is per-capita household
-    # income for the whole state; gini_mean can be added back once a comparable target exists).
-    "fitness_moments": ["gdp_growth_mean", "gdp_growth_std", "unemployment_mean", "unemployment_std",
-                        "inflation_std"],
-    # "inverse_noise": each relative deviation weighted by |obs| / sqrt(seed_sd^2 + (model_discrepancy * obs)^2),
-    # i.e. near equal, down-weighting moments that are noisy across seeds; "equal": 1 / number of moments.
-    "fitness_weights": "inverse_noise",
+    # "levels": the levels of data/level_targets.csv, means of the last levels_window months (calibration/levels.py);
+    # a set is implausible when any run fails a hard constraint (levels.explodes) or, for any region and level,
+    # its seed mean lies outside the band by more than implausibility_cutoff x sqrt(seed_sd^2 +
+    # (model_discrepancy x band midpoint)^2).
+    # "series": Belo Horizonte's moments of GDP growth, unemployment and inflation over [burn_in_end, target_end_year]
+    # (one region, BELO HORIZONTE, and fitness_moments below).
+    "targets":        "levels",
+    "levels_window":  36,
 
-    # History matching: a set is implausible when, for any moment,
-    # |sim - obs| / sqrt(seed_sd^2 + (model_discrepancy * obs)^2) > implausibility_cutoff.
     "model_discrepancy":     0.10,
     "implausibility_cutoff": 3.0,
+
+    # "series" only
+    "burn_in_end":       "2012-01-01",
+    "fitness_moments": ["gdp_growth_mean", "gdp_growth_std", "unemployment_mean", "unemployment_std",
+                        "inflation_std"],
+    "fitness_weights": "inverse_noise",
+    "observed_data_path": 'analysis/calibration/data/observed_bh.csv',
 
     # Sobol / SALib settings
     "sobol_calc_second_order": False,
     "sobol_seed":              42,
-
-    "observed_data_path": 'analysis/calibration/data/observed_bh.csv',
 
     # Parameters with S_Ti (or |rho| in fallback mode) below this threshold are candidates to freeze
     "freeze_threshold_sti": 0.05,

@@ -7,11 +7,11 @@ import pandas as pd
 
 
 
-def car_wage_deciles(sample, employed):
-    """Wage deciles of a sample of agents for WAGE_TO_CAR_OWNERSHIP_QUANTILES: every known last wage, or under
-    CAR_DECILES 'employed' only those of agents in a job with a positive wage."""
+def car_wage_deciles(sample):
+    """Wage deciles of a sample of agents for WAGE_TO_CAR_OWNERSHIP_QUANTILES: the wages of agents in a job with a
+    positive wage."""
     wages = [a.last_wage for a in sample
-             if a.last_wage is not None and (not employed or (a.firm_id is not None and a.last_wage > 0))]
+             if a.last_wage is not None and a.firm_id is not None and a.last_wage > 0]
     return np.percentile(wages, np.arange(10, 101, 10))
 
 class LaborMarket:
@@ -44,9 +44,7 @@ class LaborMarket:
         return max_dist
 
     def process_gov_employees_year(self):
-        employees = pd.read_csv('input/gov_headcount_census.csv'
-                                if self.sim.PARAMS.get('GOV_HEADCOUNT', 'rais') == 'census'
-                                else 'input/qtde_vinc_gov_rais_stable_from_2020_onwards.csv')
+        employees = pd.read_csv('input/gov_headcount_census.csv')
         geo_codes_6_digit = [int(str(_)[:6]) for _ in self.sim.geo.mun_codes]
         # Just municipalities in this run
         return employees[employees['codemun'].isin(geo_codes_6_digit)]
@@ -256,11 +254,8 @@ class LaborMarket:
 
     def look_for_jobs(self, agents):
         participation = self.sim.participation
-        if participation is None:
-            self.candidates += [agent for agent in agents.values() if 16 < agent.age < 70 and agent.firm_id is None]
-        else:
-            self.candidates += [agent for agent in agents.values()
-                                if agent.firm_id is None and participation.is_active(agent)]
+        self.candidates += [agent for agent in agents.values()
+                            if agent.firm_id is None and participation.is_active(agent)]
 
     def gov_hire_fire(self, sim):
         total_gov_employees = ceil(self.gov_employees[self.gov_employees.ano == sim.clock.year].qtde_vinc_ativos.sum() *
@@ -297,7 +292,8 @@ class LaborMarket:
         """Firms adjust their labor force based on profit. With gov_headcount_only, Government firms are skipped.
         With planned_growth a growing firm posts as many vacancies as its production plan needs. With replace_separations, a firm that is not shrinking
         also re-posts one vacancy for each worker it lost to natural separation or death since its last adjustment.
-        With shed_excess (PRODUCTION_PLAN 'sales'), a firm that is not growing sheds its workers_excess, at most half
+        With shed_excess, a firm
+ that is not growing sheds its workers_excess, at most half
         its staff."""
         random_value = self.seed_np.random(size=len(firms.values()))
         n_fired = 0

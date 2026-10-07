@@ -14,28 +14,28 @@ creates or destroys money without a channel.
 LEDGER_CHANNELS = (
     'public_transfers',  # GOV_EXTERNAL_FUNDING: federal and state payroll paid in from outside the ACP
     'public_taxes_out',  # PUBLIC_TAXES_OUT: the federal and state share of the taxes collected in the ACP
-    'bank_interest',     # Central.remunerate_liquid_balance: the bank's liquid balance remunerated at the policy rate
-    'bank_profit_out',   # BANK_NATIONAL: bank equity above its target sent out (negative), a shortfall covered (positive)
+    'bank_interest',     # none: deposits earn interest monthly (Central.accrue_deposit_interest), the cash nothing
+    'bank_profit_out',   # bank equity above its target sent out (negative), a shortfall covered (positive)
     'ogu',               # MCMV and melhorias budget lines (federal)
     'fgts_sbpe',         # FGTS and SBPE loans, funded outside the local bank
-    'fgts_sbpe_repaid',  # FUNDS_REAL: FGTS and SBPE instalments paid back to the national funds
+    'fgts_sbpe_repaid',  # FGTS and SBPE instalments paid back to the national funds
     'immigrants',        # money immigrants bring
-    'exports',           # sales to the rest of Brazil, recycled demand included
+    'exports',           # sales to the rest of Brazil
     'imports',           # inputs bought from the rest of Brazil, freight included
     'import_tax',        # consumption tax on imports returned to the municipalities
-    'firm_entry',        # start-up capital of entrants: FIRM_CAPITAL_MONTHS = 0, or FIRM_PAYOUT 'national'
+    'firm_entry',        # start-up capital of entrants, from owners outside the ACP
     'firm_writeoff',     # negative balances written off at firm exit
     'eco_investment',    # eco-efficiency investment, bought from no one
-    'social_transfers',  # SOCIAL_TRANSFERS: RGPS, BPC and Bolsa Família paid to residents
-    'profits_out',       # FIRM_PAYOUT 'national': firms' cash above the buffer paid to owners outside the ACP
+    'social_transfers',  # RGPS, BPC and Bolsa Família paid to residents
+    'profits_out',       # firms' cash above the buffer paid to owners outside the ACP
 )
 
 
 def money_stock(sim):
     """Money by holder group. Households: members' wallets and family savings (bank deposits are in `bank`, which
     holds the depositors' money as cash). Public: Government firms' budget funds, region treasuries, revenue waiting
-    for the budget, policy pots and interest tax not yet collected. Firms include the investment fund (FIRM_PAYOUT
-    'national') not yet spent."""
+    for the budget, policy pots and interest tax not yet collected. Firms include the investment fund not yet
+    spent."""
     funds = sim.funds
     public = sum(r.total_treasure for r in sim.regions.values())
     public += sum(sum(d.values()) for d in funds.pending_public_money.values())

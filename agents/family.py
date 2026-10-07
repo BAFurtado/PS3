@@ -3,7 +3,7 @@ import datetime
 import numpy as np
 from collections import defaultdict, deque
 
-from .firm import import_price as firm_import_price, sample_firms
+from .firm import import_price as firm_import_price
 
 
 class Family:
@@ -137,7 +137,7 @@ class Family:
             self.affordability_ratio = self.house.price / self.permanent_income
 
     def start_permanent_income(self):
-        """PI_START 'census': the permanent-income window starts full of the initial permanent income"""
+        """The permanent-income window starts full of the initial permanent income"""
         self.last_permanent_income.extend([self.permanent_income] * self.last_permanent_window)
 
     def update_permanent_income(self, bank, r):
@@ -284,14 +284,11 @@ class Family:
         target = max(0, permanent_income - rent - loan) * propensity
         needed = permanent_income - rent - loan
 
-        norm = params.get('WEALTH_NORM', 'off')
         start = params['STARTING_DAY']
-        if norm != 'off' and (year - start.year) * 12 + month - start.month >= params['WEALTH_NORM_BURN_IN']:
+        if (year - start.year) * 12 + month - start.month >= params['WEALTH_NORM_BURN_IN']:
             # Liquid wealth against its target in months of permanent income
             wealth = money + self.savings + central.sum_deposits(self)
             gap = wealth - params['WEALTH_TARGET_MONTHS'] * max(0.0, permanent_income)
-            if norm == 'dissave':
-                gap = max(0.0, gap)
             target = max(0.0, target + params['WEALTH_ADJUSTMENT'] * gap)
             needed = target + rent + loan
 
@@ -323,8 +320,8 @@ class Family:
         tax_consumption = params['TAX_CONSUMPTION']
         retry = params.get('HOUSEHOLD_RETRY', False)
         import_share = regional_market.household_import_share
-        # SHORTAGE_IMPORTS: tradable spending no local firm served is bought outside at P_imp = 1 plus freight
-        shortage_sectors = params['TRADABLE_SECTORS'] if params.get('SHORTAGE_IMPORTS', False) else ()
+        # Tradable spending no local firm served is bought outside at P_imp = 1 plus freight
+        shortage_sectors = params['TRADABLE_SECTORS']
         import_price = firm_import_price(params)
 
         household_demand = regional_market.final_demand['HouseholdConsumption']
@@ -345,8 +342,7 @@ class Family:
                 continue
             regional_market.monthly_hh_intended[sector] += money_this_sector
 
-            # HOUSEHOLD_IMPORTS: the import share of the product is bought from the rest of Brazil, which always has
-            # stock. It counts as consumption, and in the internal demand exports scale with
+            # The import share of the product is bought from the rest of Brazil, which always has stock
             imported = money_this_sector * import_share.get(sector, 0.0)
             if imported > 0:
                 regional_market.sim.external.intermediate_consumption(imported, price=import_price)
@@ -355,16 +351,14 @@ class Family:
                 total_consumption[sector] += imported
                 money_this_sector -= imported
 
-            pools = getattr(regional_market, 'pools', None)
-            if pools is not None:
-                # OWN_ACCOUNT 'pool': the sector's own-account part
-                pool, share = pools.payable(sector)
-                if pool is not None and share > 0:
-                    paid = money_this_sector * share
-                    pool.receive(paid, regions, tax_consumption, self.region_id, if_origin)
-                    avg_utility += paid
-                    total_consumption[sector] += paid
-                    money_this_sector -= paid
+            # The sector's own-account part
+            pool, share = regional_market.pools.payable(sector)
+            if pool is not None and share > 0:
+                paid = money_this_sector * share
+                pool.receive(paid, regions, tax_consumption, self.region_id, if_origin)
+                avg_utility += paid
+                total_consumption[sector] += paid
+                money_this_sector -= paid
 
             sector_firms = firms_by_sector.get(sector)
             if not sector_firms:
@@ -383,8 +377,6 @@ class Family:
 
             if n_firms <= size_market:
                 market = sector_firms
-            elif getattr(regional_market, 'sector_cum', None) is not None:
-                market = sample_firms(seed, sector_firms, size_market, regional_market.sector_cum[sector])
             else:
                 market = seed.sample(sector_firms, size_market)
 

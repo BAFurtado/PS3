@@ -1,4 +1,4 @@
-"""Where firms' value added goes, from the national accounts, for WAGE_SHARE 'tru' and FIRM_PAYOUT 'national'.
+"""Where firms' value added goes, from the national accounts, for firms' wage share and payout.
 
 Outputs:
 - input/firm_income_2015.csv, per sector (the model's twelve, IBGE nível 12 order):

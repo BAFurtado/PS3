@@ -1,4 +1,4 @@
-"""Education of spouses by the education of the household head, per ACP, for FAMILY_MATCHING 'census'
+"""Education of spouses by the education of the household head, per ACP, for partner matching
 (input/spouse_education_2010.csv).
 
 Source: IBGE, Censo Demográfico 2010, microdados da amostra, persons file of each state (local copy, CENSUS below).

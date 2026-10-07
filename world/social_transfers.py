@@ -1,4 +1,4 @@
-"""SOCIAL_TRANSFERS 'data': federal benefits paid to residents from outside the ACP (input/social_transfers_2010.csv,
+"""Federal benefits paid to residents from outside the ACP (input/social_transfers_2010.csv,
 auxiliary/social_transfers.py), fixed in 2010 R$.
 
 Each month and municipality, with A agents living there and the 2010 beneficiaries per resident b:

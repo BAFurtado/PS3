@@ -1,5 +1,5 @@
 """Employed people aged 17-69 and the own-account workers and employees among them, by municipality, education level
-and sector, for OWN_ACCOUNT 'firms' and 'pool' and POSTING_EDUCATION 'census' (input/own_account_2010.csv).
+and sector, for own-account work and POSTING_EDUCATION 'census' (input/own_account_2010.csv).
 
 Source: IBGE, Censo Demográfico 2010, microdados da amostra, persons file of each state (local copy, CENSUS below).
 Employed: V6910 = 1 (ocupadas na semana de referência). Own-account: V6930 = 4 (conta própria, trabalho principal).
@@ -16,7 +16,7 @@ Rows: cod_mun;level;position;sector;persons, position 'employed' (sector 'all'),
 
 input/own_account_income_2010.csv: monthly work income in the main job (V6513, R$ of July 2010) of the employed aged
 17-69 with income, and of the own-account workers among them, by municipality and sector (weights V0010), for
-OWN_ACCOUNT 'pool': cod_mun;sector;work_income;own_account_income.
+Own-account pools: cod_mun;sector;work_income;own_account_income.
 
 Usage: python auxiliary/own_account.py
 """

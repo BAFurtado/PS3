@@ -2,8 +2,9 @@
 Calibration by history matching (LHS waves) or Sobol screening: sample → score → plausible-box / sensitivity
 
 CLI:
-    # Run one wave: Latin hypercube over CALIBRATION_PARAMETERS (default design, see calibration_conf.py)
-    python -m analysis.calibration.sample run-sample --samples 64 --cpus 4
+    # Run one wave: Latin hypercube over CALIBRATION_PARAMETERS and CALIBRATION_OPTIONS, every set in every region
+    # of calibration_regions (default design, see calibration_conf.py)
+    python -m analysis.calibration.sample run-sample --samples 32 --cpus 10
 
     # Score a completed (or partially completed) results folder
     python -m analysis.calibration.sample score path/to/calibration_dir/
@@ -40,6 +41,7 @@ from scipy.stats import qmc
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import analysis.calibration.calibration_conf as calibration_conf
+import analysis.calibration.levels as levels
 import conf
 from analysis.output import columns_for
 from checkpoint import save_jobs, pending_jobs
@@ -197,11 +199,13 @@ def main(ctx):
 def run_sample(ctx, samples, design, cpus):
     """Generate an LHS or Sobol sample and run simulations."""
     params_to_calibrate = calibration_conf.CALIBRATION_PARAMETERS
+    options             = getattr(calibration_conf, "CALIBRATION_OPTIONS", {})
     settings            = calibration_conf.CALIBRATION_SETTINGS
 
     names = list(params_to_calibrate.keys())
     lbs   = [v[0] for v in params_to_calibrate.values()]
     ubs   = [v[1] for v in params_to_calibrate.values()]
+    option_names = list(options.keys())
 
     n_samples = samples if samples is not None else settings["samples"]
     n_runs    = settings["runs_per_sample"]
@@ -212,10 +216,17 @@ def run_sample(ctx, samples, design, cpus):
         "names":    names,
         "bounds":   list(zip(lbs, ubs))
     }
+    choices = [{} for _ in range(n_samples)]
     if design == "lhs":
-        unit = qmc.LatinHypercube(d=len(names), seed=settings["lhs_seed"]).random(n_samples)
-        scaled_samples = qmc.scale(unit, lbs, ubs)
+        unit = qmc.LatinHypercube(d=len(names) + len(option_names), seed=settings["lhs_seed"]).random(n_samples)
+        scaled_samples = qmc.scale(unit[:, :len(names)], lbs, ubs)
+        for j, name in enumerate(option_names):
+            values = options[name]
+            for i in range(n_samples):
+                choices[i][name] = values[min(int(unit[i, len(names) + j] * len(values)), len(values) - 1)]
     else:
+        if option_names:
+            raise click.ClickException("The Sobol design takes no CALIBRATION_OPTIONS; fix them in params.py.")
         from SALib.sample import sobol as sobol_sampler
         if (n_samples & (n_samples - 1)) != 0:
             logger.warning(f"samples={n_samples} is not a power of 2.")
@@ -225,19 +236,16 @@ def run_sample(ctx, samples, design, cpus):
             calc_second_order=settings["sobol_calc_second_order"],
             seed=settings["sobol_seed"],
         )
-    start_date = datetime.strptime(calibration_conf.CALIBRATION_SETTINGS['target_start_year'], '%Y-%m-%d').date()
-    end_date = datetime.strptime(calibration_conf.CALIBRATION_SETTINGS['target_end_year'], '%Y-%m-%d').date()   
-    processing_acp = {"PROCESSING_ACPS":[calibration_conf.CALIBRATION_SETTINGS['calibration_region']],
-                      "STARTING_DAY":start_date,
-                      "TOTAL_DAYS":(end_date-start_date).days}
-    confs = [dict(zip(names, scaled_samples[i])) for i in range(len(scaled_samples))]
-    for conf in confs: 
-        conf.update(processing_acp)
+    start_date = datetime.strptime(settings['target_start_year'], '%Y-%m-%d').date()
+    end_date = datetime.strptime(settings['target_end_year'], '%Y-%m-%d').date()
+    period = {"STARTING_DAY": start_date, "TOTAL_DAYS": (end_date - start_date).days}
+    confs = [{**dict(zip(names, (float(x) for x in scaled_samples[i]))), **(choices[i] if i < len(choices) else {}),
+              **period} for i in range(len(scaled_samples))]
 
     output_dir = gen_output_dir("calibration")
 
-    _save_meta(output_dir, problem, n_samples, n_runs, settings, design)
-    multiple_runs(confs, n_runs, cpus, output_dir)
+    _save_meta(output_dir, problem, n_samples, n_runs, settings, design, options)
+    multiple_runs(confs, n_runs, cpus, output_dir, settings["calibration_regions"])
 
     logger.info(f"Done. Results in: {output_dir}")
 
@@ -284,27 +292,42 @@ def resume(root_dir, cpus):
 
 # ── EXECUTION ─────────────────────────────────────────────────────────────────
 
-def multiple_runs(overrides: list, runs: int, cpus: int, output_dir: str):
-    """Dispatch all (parameter set × Monte Carlo run) jobs in parallel."""
-    paths      = [os.path.join(output_dir, str(n)) for n in range(len(overrides))]
-    param_list = []
-    for o in overrides:
-        p = copy.deepcopy(conf.PARAMS)
-        p.update(o)
-        param_list.append(p)
-
+def multiple_runs(overrides: list, runs: int, cpus: int, output_dir: str, regions: list):
+    """Dispatch all (parameter set × region × Monte Carlo run) jobs in parallel, to <set>/<REGION>/<run>."""
     # Common random numbers: replication i uses the same seed in every set, so sets differ by their parameters,
     # not their draws, and every run is reproducible from its conf.json
     seed_base = calibration_conf.CALIBRATION_SETTINGS.get("seed_base", 1000)
-    job_specs = [
-        {"path": os.path.join(path, str(i)), "params": {**p, "SEED": seed_base + i}}
-        for p, path in zip(param_list, paths)
-        for i in range(runs)
-    ]
+    job_specs = []
+    for n, o in enumerate(overrides):
+        for region in regions:
+            p = copy.deepcopy(conf.PARAMS)
+            p.update(o)
+            p["PROCESSING_ACPS"] = [region]
+            for i in range(runs):
+                job_specs.append({"path": os.path.join(output_dir, str(n), region.replace(" ", "_"), str(i)),
+                                  "params": {**p, "SEED": seed_base + i}})
     save_jobs(output_dir, job_specs, cpus)
+    build_populations(job_specs, output_dir)
 
-    _dispatch(job_specs, cpus, desc="Sobol runs")
+    _dispatch(job_specs, cpus, desc="Calibration runs")
     logger.info("All runs completed.")
+
+
+def build_populations(job_specs: list, output_dir: str):
+    """Creates, one region at a time, the population file each region's runs load (StoragedAgents), so parallel
+    runs never write it at the same time"""
+    done = set()
+    for job in job_specs:
+        region = tuple(job["params"]["PROCESSING_ACPS"])
+        if region in done:
+            continue
+        done.add(region)
+        path = os.path.join(output_dir, "populations", "_".join(region).replace(" ", "_"))
+        os.makedirs(path, exist_ok=True)
+        sim = Simulation(copy.deepcopy(job["params"]), path)
+        if not os.path.isfile("{}.agents".format(sim.output.save_name)):
+            logger.info(f"Creating the population of {region[0]}")
+            sim.generate()
 
 
 def single_run(params: dict, path: str):
@@ -312,9 +335,9 @@ def single_run(params: dict, path: str):
     os.makedirs(path, exist_ok=True)
     with open(os.path.join(path, "conf.json"), "w") as f:
         json.dump({"PARAMS": params}, f, indent=4, default=str)
-    
+
+    conf.RUN["SAVE_PLOTS_FIGURES"] = False
     sim = Simulation(params, path)
-    sim.generate()
     sim.initialize()
     sim.run(log=False)
     open(os.path.join(path, "DONE"), "w").close()
@@ -323,6 +346,126 @@ def single_run(params: dict, path: str):
 # ── SCORING ───────────────────────────────────────────────────────────────────
 
 def score_calibration(root_dir: str) -> pd.DataFrame:
+    """Score each parameter set on the targets of calibration_conf ('levels' or 'series')"""
+    if calibration_conf.CALIBRATION_SETTINGS.get("targets", "series") == "levels":
+        return score_levels(root_dir)
+    return score_series(root_dir)
+
+
+def _set_dirs(root_dir: str) -> list:
+    return sorted([d for d in glob(os.path.join(root_dir, "*/")) if os.path.basename(os.path.normpath(d)).isdigit()],
+                  key=lambda d: int(os.path.basename(os.path.normpath(d))))
+
+
+def _runs(ps_dir: str):
+    """(region, run dir) of a set: <set>/<REGION>/<run>, or <set>/<run> for a batch of one region"""
+    for rd in sorted(glob(os.path.join(ps_dir, "*/"))):
+        name = os.path.basename(os.path.normpath(rd))
+        if name.isdigit():
+            yield None, rd
+        elif name != "populations":
+            for sub in sorted(glob(os.path.join(rd, "*/"))):
+                if os.path.basename(os.path.normpath(sub)).isdigit():
+                    yield name.replace("_", " "), sub
+
+
+def _tracked() -> list:
+    return list(calibration_conf.CALIBRATION_PARAMETERS) + list(getattr(calibration_conf, "CALIBRATION_OPTIONS", {}))
+
+
+def _read_stats(rd: str):
+    csv_path = os.path.join(rd, "stats.csv")
+    if not os.path.exists(csv_path) or not os.path.exists(os.path.join(rd, "DONE")):
+        return None
+    df = pd.read_csv(csv_path, header=None, sep=";")
+    df.columns = columns_for("stats", df.shape[1])
+    return df
+
+
+def _snapshot(rd: str) -> dict:
+    conf_file = os.path.join(rd, "conf.json")
+    if not os.path.exists(conf_file):
+        return {}
+    with open(conf_file) as f:
+        data = json.load(f)
+    return {k: data["PARAMS"].get(k) for k in _tracked()}
+
+
+def score_levels(root_dir: str) -> pd.DataFrame:
+    """
+    Score each parameter set on the levels of data/level_targets.csv in every region and write calibration_scores.csv
+    (one row per set) and calibration_levels.csv (one row per set and region).
+
+    A set is ruled out (max_implausibility = inf) when any of its runs fails a hard constraint (levels.explodes) or a
+    region has no completed run. Otherwise each level is the mean over the region's seeds, and its implausibility is
+    its distance outside the band over sqrt(seed_sd^2 + (model_discrepancy x band midpoint)^2), seed_sd the region's
+    seed sd of that level pooled over sets with >= 2 seeds. max_implausibility is the largest over regions and levels,
+    score the mean.
+    """
+    settings = calibration_conf.CALIBRATION_SETTINGS
+    regions = settings["calibration_regions"]
+    window = settings.get("levels_window", 36)
+    targets = levels.load_targets(regions)
+    moments = list(next(iter(targets.values())))
+
+    sets = []
+    for ps_dir in _set_dirs(root_dir):
+        by_region, snapshot, exploded = defaultdict(list), {}, False
+        for region, rd in _runs(ps_dir):
+            snapshot = snapshot or _snapshot(rd)
+            df = _read_stats(rd)
+            if df is None or len(df) <= 24 + window:
+                continue
+            m = levels.level_moments(df, window)
+            exploded |= levels.explodes(m)
+            by_region[region].append(m)
+        sets.append((ps_dir, snapshot, {r: pd.DataFrame(v) for r, v in by_region.items()}, exploded))
+    if not sets:
+        raise click.ClickException(f"No scorable runs under {root_dir}.")
+
+    seed_sd = {}
+    for region in regions:
+        multi = [runs[region][moments] for _, _, runs, _ in sets if region in runs and len(runs[region]) >= 2]
+        seed_sd[region] = (pd.concat([r.var(ddof=1) for r in multi], axis=1).mean(axis=1) ** 0.5
+                           if multi else pd.Series(0.0, index=moments)).fillna(0.0)
+
+    results, rows = [], []
+    for ps_dir, snapshot, runs, exploded in sets:
+        implaus = []
+        for region in regions:
+            if region not in runs:
+                implaus.append(np.inf)
+                continue
+            mean = runs[region][moments].mean()
+            row = {"set": os.path.basename(os.path.normpath(ps_dir)), "region": region, "n_runs": len(runs[region])}
+            for k in moments:
+                i = levels.implausibility(mean[k], targets[region][k], seed_sd[region][k],
+                                          settings["model_discrepancy"])
+                row[k], row[f"I_{k}"] = mean[k], i
+                implaus.append(i)
+            rows.append(row)
+        complete = all(r in runs for r in regions)
+        results.append({
+            **snapshot,
+            "score":              np.mean(implaus) if complete and not exploded else np.inf,
+            "max_implausibility": max(implaus) if complete and not exploded else np.inf,
+            "exploded":           exploded,
+            "regions":            len(runs),
+            "path":               ps_dir,
+        })
+
+    score_df = pd.DataFrame(results).sort_values("score").reset_index(drop=True)
+    output_path = os.path.join(root_dir, "calibration_scores.csv")
+    score_df.to_csv(output_path, index=False)
+    pd.DataFrame(rows).to_csv(os.path.join(root_dir, "calibration_levels.csv"), index=False)
+    pd.DataFrame(seed_sd).to_csv(os.path.join(root_dir, "seed_sd.csv"))
+
+    logger.info(f"Scores saved to: {output_path}")
+    print(score_df[_tracked() + ["score", "max_implausibility", "exploded"]].head(10).to_string(index=False))
+    return score_df
+
+
+def score_series(root_dir: str) -> pd.DataFrame:
     """
     Score each parameter set and write calibration_scores.csv (plus score_weights.csv) to root_dir.
 
@@ -335,30 +478,17 @@ def score_calibration(root_dir: str) -> pd.DataFrame:
     |E[sim] - obs| / sqrt(seed_sd^2 + (model_discrepancy * obs)^2); `plausible-box` filters on it.
     """
     settings = calibration_conf.CALIBRATION_SETTINGS
-    tracked = list(calibration_conf.CALIBRATION_PARAMETERS.keys())
+    tracked = _tracked()
     moments = settings["fitness_moments"]
     observed = _load_observed_moments(settings["burn_in_end"], settings["target_end_year"])
 
-    param_set_dirs = sorted([
-        d for d in glob(os.path.join(root_dir, "*/"))
-        if os.path.basename(os.path.normpath(d)).isdigit()
-    ], key=lambda d: int(os.path.basename(os.path.normpath(d))))
-
     sets = []
-    for ps_dir in param_set_dirs:
+    for ps_dir in _set_dirs(root_dir):
         runs, param_snapshot = [], {}
-        for rd in sorted(glob(os.path.join(ps_dir, "*/"))):
-            if not os.path.basename(os.path.normpath(rd)).isdigit():
-                continue
-            conf_file = os.path.join(rd, "conf.json")
-            if os.path.exists(conf_file):
-                with open(conf_file) as f:
-                    data = json.load(f)
-                param_snapshot = {k: data["PARAMS"].get(k) for k in tracked}
-            csv_path = os.path.join(rd, "stats.csv")
-            if os.path.exists(csv_path):
-                df = pd.read_csv(csv_path, header=None, sep=";")
-                df.columns = columns_for("stats", df.shape[1])
+        for _, rd in _runs(ps_dir):
+            param_snapshot = param_snapshot or _snapshot(rd)
+            df = _read_stats(rd)
+            if df is not None:
                 m = simulated_moments(df)
                 if m is not None:
                     runs.append(m)
@@ -421,6 +551,7 @@ def plausible_box(root_dir: str, cutoff: float | None = None) -> dict:
     settings = calibration_conf.CALIBRATION_SETTINGS
     cutoff = settings["implausibility_cutoff"] if cutoff is None else cutoff
     tracked = list(calibration_conf.CALIBRATION_PARAMETERS.keys())
+    options = getattr(calibration_conf, "CALIBRATION_OPTIONS", {})
     scores_path = os.path.join(root_dir, "calibration_scores.csv")
     if not os.path.exists(scores_path):
         raise click.ClickException(f"calibration_scores.csv not found in {root_dir}. Run 'score' first.")
@@ -429,9 +560,18 @@ def plausible_box(root_dir: str, cutoff: float | None = None) -> dict:
     print(f"{len(keep)} of {len(df)} sets not ruled out at implausibility <= {cutoff}")
     if keep.empty:
         print("None survive: the observed moments are out of reach in this box, or the discrepancy is too tight.")
-        print("Most binding moment per set (count):")
-        print(df[[f"I_{m}" for m in settings["fitness_moments"]]].idxmax(axis=1).value_counts().to_string())
+        levels_path = os.path.join(root_dir, "calibration_levels.csv")
+        if settings.get("targets", "series") == "levels" and os.path.exists(levels_path):
+            lv = pd.read_csv(levels_path)
+            print("Exploded sets:", int(df["exploded"].sum()), "of", len(df))
+            print("Most binding level per set and region (count):")
+            print(lv[[c for c in lv.columns if c.startswith("I_")]].idxmax(axis=1).value_counts().to_string())
+        else:
+            print("Most binding moment per set (count):")
+            print(df[[f"I_{m}" for m in settings["fitness_moments"]]].idxmax(axis=1).value_counts().to_string())
         return {}
+    for name, values in options.items():
+        print(f'    "{name}": {sorted(keep[name].dropna().unique().tolist())},   # was {values}')
     box = {p: [round(float(keep[p].min()), 4), round(float(keep[p].max()), 4)] for p in tracked}
     for p, (lo, hi) in box.items():
         old_lo, old_hi = calibration_conf.CALIBRATION_PARAMETERS[p]
@@ -545,10 +685,11 @@ def _dispatch(job_specs: list, cpus: int, desc: str):
 
 
 def _save_meta(output_dir: str, problem: dict, n_samples: int,
-               n_runs: int, settings: dict, design: str = "sobol"):
+               n_runs: int, settings: dict, design: str = "sobol", options: dict | None = None):
     """Write meta.json required by compute_sensitivity."""
     meta = {
         "problem":   problem,
+        "options":   options or {},
         "design":    design,
         "n_samples": n_samples,
         "n_runs":    n_runs,

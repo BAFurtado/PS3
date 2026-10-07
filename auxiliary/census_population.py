@@ -1,4 +1,4 @@
-"""Resident population by municipality in the 2010 and 2022 Censuses, for POP_TARGET 'census'
+"""Resident population by municipality in the 2010 and 2022 Censuses, for the population targets
 (input/census_population_2010_2022.csv).
 
 Source: IBGE, Censo Demográfico 2010, Sidra table 202 (var 93, população residente, total of situação and sexo), and

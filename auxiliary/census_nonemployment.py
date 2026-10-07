@@ -1,4 +1,4 @@
-"""People aged 17-69 and those of them employed, per municipality, for INITIAL_EMPLOYMENT 'census'
+"""People aged 17-69 and those of them employed, per municipality
 (input/nonemployment_2010.csv).
 
 Source: IBGE, Censo Demográfico 2010, Resultados Gerais da Amostra, Sidra table 1572: persons aged 10 or more by age and

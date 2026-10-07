@@ -1,10 +1,10 @@
-"""Value added of the market sectors by municipality, 2010, for PRODUCTIVITY_LEVEL 'municipal' (input/municipal_va_2010.csv).
+"""Value added of the market sectors by municipality, 2010, for the level of private output (input/municipal_va_2010.csv).
 
 Sources:
 - IBGE, Produto Interno Bruto dos Municípios, Sidra 5938, 2010, R$ thousand: value added of agriculture (513), industry
   (517) and services other than public administration, defence, education, health and social security (6575).
 - IBGE, Censo Demográfico 2010, Sidra 1378, variable 93: population.
-- Imputed rent, which the model's households do not buy (HOUSEHOLD_REAL_ESTATE False), is taken out at its national
+- Imputed rent, which the model's households do not buy, is taken out at its national
   share of the same value added: output of product 68002 "Aluguel imputado" (Tabelas de Recursos e Usos 2015, nível 68,
   tabela 1, the product has little intermediate consumption) over the value added of the eleven activities other than
   public administration (nível 12, tabela 2).

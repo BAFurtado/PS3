@@ -1,4 +1,4 @@
-"""FAMILY_MATCHING 'census': partners' education levels follow the Census 2010 couples of the ACP
+"""Partners' education levels follow the Census 2010 couples of the ACP
 (input/spouse_education_2010.csv, auxiliary/spouse_education.py)"""
 import pandas as pd
 

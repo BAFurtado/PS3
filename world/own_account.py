@@ -1,35 +1,13 @@
-"""OWN_ACCOUNT 'firms' (OwnAccount) and 'pool' (OwnAccountPools, below): own-account work.
-
-OWN_ACCOUNT 'firms':
-
-An own-account worker runs a one-person firm (Firm.own_account) in its sector: it produces, buys inputs and sells as
-any firm and plans output on sales, at its sector's productivity times the value added per own-account worker relative
-to the sector's other workers (input/own_account_productivity_2010.csv, auxiliary/own_account_productivity.py); its
-owner is its only worker and takes, besides the wage, all its cash above the capital buffer. It never builds houses,
-posts vacancies or fires. Firms then pay the labour share of the value added that is not own-account income.
-
-Start: before start-up hiring, the run's Census 2010 share of the employed aged 17-69 who work on own account, for each
-education level, of the active agents expected to be employed (input/own_account_2010.csv, auxiliary/own_account.py),
-each in a sector drawn from the own-account sector mix of its level, located in its home region. Start-up hiring then
-fills the rest of the employment target with employees.
-
-Each month (after job matching), each active agent without work decides with probability LABOR_MARKET. Expected earnings
-in the job search are (1 - u) times the mean wage of private employees of its level, u the unemployment rate
-(Harris-Todaro); expected own-account earnings are the mean, over the owners of its level, of each owner's earnings in
-its last FIRM_EXIT_MONTHS months. It opens an own-account firm when these exceed the search and its family holds the
-firm's capital need (FIRM_CAPITAL_MONTHS of one worker's capacity, as a non-builder) in savings and deposits. An
-own-account firm closes as any firm (FIRM_EXIT_MONTHS insolvent) or when its owner dies or leaves the labour force; its
-cash goes to the owner's family."""
-from collections import defaultdict, deque
+"""Own-account work (OwnAccountPools, below): the own-account workers of each sector share its own-account part of
+every purchase of it."""
+from collections import defaultdict
 
 import numpy as np
 import pandas as pd
 
 from agents.firm import Firm
-from world.firms import SECTOR_PRODUCTIVITY, exit_firm, own_account_need
 
 FILE = 'input/own_account_2010.csv'
-PRODUCTIVITY = 'input/own_account_productivity_2010.csv'
 INCOME = 'input/own_account_income_2010.csv'
 LABOUR_SHARE = 'input/firm_income_2015.csv'
 LEVELS = [1, 2, 3, 4]
@@ -57,13 +35,11 @@ def posting_education(mun_codes):
     return out
 
 
-def earnings(agent):
-    return (agent.last_wage or 0.0) + (agent.last_profit_share or 0.0)
+class OwnAccountCensus:
+    """The run's Census 2010 own-account share of the employed aged 17-69 of each education level and the own-account
+    sector mix of each level (input/own_account_2010.csv, auxiliary/own_account.py)"""
 
-
-class OwnAccount:
     def __init__(self, sim):
-        self.sim = sim
         t = pd.read_csv(FILE, sep=';')
         t = t[t.cod_mun.isin([int(m) for m in sim.mun_to_regions])]
         employed = t[t.position == 'employed'].groupby('level').persons.sum()
@@ -76,101 +52,10 @@ class OwnAccount:
             if m is None or m.sum() <= 0:
                 m = mix.groupby('sector').sum()
             self.sectors[lv] = (list(m.index), (m / m.sum()).to_numpy())
-        self.opened = self.closed = self.unfunded = 0
-        self.productivity = pd.read_csv(PRODUCTIVITY, sep=';').set_index('sector').relative_productivity.to_dict()
-
-    def open(self, agent, balance):
-        sim = self.sim
-        names, p = self.sectors[level(agent)]
-        sector = names[sim.seed_np.choice(len(names), p=p)]
-        region = sim.regions[agent.family.house.region_id]
-        firm = list(sim.generator.create_firms(1, region, firm_sectors=[sector]).values())[0]
-        firm.own_account = True
-        firm.owner = agent
-        base = float(SECTOR_PRODUCTIVITY[sector]) if sim.PARAMS.get('SECTOR_PRODUCTIVITY', False) else 1.0
-        firm.sector_productivity = base * self.productivity[sector]
-        firm.own_earnings = deque(maxlen=sim.PARAMS['FIRM_EXIT_MONTHS'])
-        firm.total_balance = balance
-        # No builder's start-up stock of materials: it does not build
-        firm.total_quantity = 0.0
-        sim.firms[firm.id] = firm
-        firm.add_employee(agent)
-        agent.set_commute(firm, sim.transport)
-        return firm
-
-    def start(self, candidates, nonemployment):
-        """Own-account workers among the start-up candidates: the Census own-account share of the employed of each
-        level times the employed expected among them, 1 - nonemployment"""
-        by_level = defaultdict(list)
-        for a in candidates:
-            by_level[level(a)].append(a)
-        for lv in LEVELS:
-            pool = by_level[lv]
-            n = int(round(self.share[lv] * (1 - nonemployment) * len(pool)))
-            if n <= 0:
-                continue
-            for i in self.sim.seed_np.choice(len(pool), size=min(n, len(pool)), replace=False):
-                self.open(pool[i], 0.0)
-
-    def close(self, firm):
-        """The owner's family, if the owner is alive, takes the firm's cash (a debt is written off as at any exit); the
-        owner searches"""
-        family = firm.owner.family
-        if family is not None and family.id in self.sim.families and firm.total_balance > 0:
-            family.savings += firm.total_balance
-            firm.total_balance = 0.0
-        exit_firm(self.sim, firm, 'own_account')
-        self.closed += 1
-
-    def monthly(self, unemployment):
-        sim = self.sim
-        pe, pd_ = sim.PARAMS['PRODUCTIVITY_EXPONENT'], sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR']
-        for firm in [f for f in sim.firms.values() if f.own_account and not f.employees]:
-            # The owner died or left the labour force
-            self.close(firm)
-        wages, own = defaultdict(list), defaultdict(list)
-        for f in sim.firms.values():
-            for a in f.employees.values():
-                if f.own_account:
-                    f.own_earnings.append(earnings(a))
-                    own[level(a)].append(np.mean(f.own_earnings))
-                elif a.last_wage and f.sector != 'Government':
-                    wages[level(a)].append(a.last_wage)
-        search = {lv: (1 - unemployment) * np.mean(w) for lv, w in wages.items() if w}
-        own_mean = {lv: np.mean(e) for lv, e in own.items() if e}
-        freq = sim.PARAMS['LABOR_MARKET']
-        capacity = {}
-        participation = sim.participation
-        for agent in list(sim.agents.values()):
-            if agent.firm_id is not None or agent.family is None or agent.family.house is None:
-                continue
-            if participation is None and not 16 < agent.age < 70:
-                continue
-            if participation is not None and not participation.is_active(agent):
-                continue
-            lv = level(agent)
-            if lv not in search or lv not in own_mean or own_mean[lv] <= search[lv]:
-                continue
-            if sim.seed_np.random() >= freq:
-                continue
-            if lv not in capacity:
-                cap = [f.capacity_value(pe, pd_) for f in sim.firms.values()
-                       if f.own_account and f.employees and level(next(iter(f.employees.values()))) == lv]
-                capacity[lv] = float(np.median(cap)) if cap else 0.0
-            need = own_account_need(sim, capacity[lv])
-            family = agent.family
-            if need <= 0 or family.savings + sim.central.sum_deposits(family) < need:
-                self.unfunded += 1
-                continue
-            if family.savings < need:
-                family.savings = family.grab_savings(sim.central, sim.clock.year, sim.clock.months)
-            family.savings -= need
-            self.open(agent, need)
-            self.opened += 1
 
 
 class OwnAccountPool(Firm):
-    """OWN_ACCOUNT 'pool': the own-account workers of one sector. It holds no stock and is never sampled by buyers; it
+    """The own-account workers of one sector. It holds no stock and is never sampled by buyers; it
     is paid directly its sector's share (OwnAccountPools.share) of household, government, investment and input purchases
     and of exports, buys the inputs of that output on the matrix like a firm, and pays the rest to its members in the
     q^α weights."""
@@ -241,7 +126,7 @@ class OwnAccountPool(Firm):
 
 
 class OwnAccountPools:
-    """OWN_ACCOUNT 'pool': the pools and their members.
+    """The pools and their members.
 
     share[s] = own-account workers' share of the work income of sector s in the run's municipalities (Census 2010,
     input/own_account_income_2010.csv) x the sector's labour share of value added (input/firm_income_2015.csv, TRU
@@ -249,8 +134,8 @@ class OwnAccountPools:
     of s (households, government, investment, firms' inputs; after any imported part) and of its exports paid to the
     pool of s while it has members. Firms then pay (labour share - share) / (1 - share) of their value added.
 
-    Start: as OwnAccount, the Census 2010 own-account share of the employed of each level joins the pool of a sector
-    drawn from its level's own-account mix. Each month (after job matching) members, then active agents without work,
+    Start: the Census 2010 own-account share of the employed of each level (OwnAccountCensus) joins the pool of a
+    sector drawn from its level's own-account mix. Each month (after job matching) members, then active agents without work,
     decide one at a time in random order, each with probability LABOR_MARKET: a member's pay is its q^α share of its
     pool's pay last month over the members still in it, a searcher's that share with itself counted in, in a sector
     drawn from its level's mix; the search is worth (1 - u) times the mean wage of private employees of its level
@@ -259,7 +144,7 @@ class OwnAccountPools:
 
     def __init__(self, sim):
         self.sim = sim
-        self.census = OwnAccount(sim)
+        self.census = OwnAccountCensus(sim)
         inc = pd.read_csv(INCOME, sep=';')
         inc = inc[inc.cod_mun.isin([int(m) for m in sim.mun_to_regions]) & ~inc.sector.isin(['Unknown', 'Government'])]
         inc = inc.groupby('sector')[['work_income', 'own_account_income']].sum()
@@ -333,8 +218,8 @@ class OwnAccountPools:
                         wages[level(a)].append(a.last_wage)
                         factors[level(a)].append(a.wage_factor())
         search = {lv: (1 - unemployment) * np.mean(w) for lv, w in wages.items() if w}
-        # WAGE_SPLIT 'census': the private pay an agent compares is its level's mean scaled by its own age and earnings
-        # factor over the level's mean factor (1 under 'q_alpha')
+        # The private pay an agent compares is its level's mean scaled by its own age and earnings factor over the
+        # level's mean factor
         mean_factor = {lv: np.mean(f) for lv, f in factors.items() if f}
 
         def expected(a, lv):
@@ -362,7 +247,7 @@ class OwnAccountPools:
         participation = sim.participation
         searchers = [a for a in sim.agents.values()
                      if a.firm_id is None and a.family is not None and a.family.house is not None
-                     and (participation.is_active(a) if participation is not None else 16 < a.age < 70)]
+                     and participation.is_active(a)]
         for i in sim.seed_np.permutation(len(searchers)):
             agent = searchers[i]
             lv = level(agent)

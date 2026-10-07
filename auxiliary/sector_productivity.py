@@ -1,4 +1,4 @@
-"""Output per job by sector relative to the national mean, for SECTOR_PRODUCTIVITY (input/sector_productivity.csv).
+"""Output per job by sector relative to the national mean (input/sector_productivity.csv).
 
 Source: IBGE, Sistema de Contas Nacionais, Tabelas de Recursos e Usos 2015 (the year of the input-output matrix),
 nível 12, tabela 2, sheet VA: "Valor da produção" (R$ million) and "Fator trabalho (ocupações)" by activity; nível 68,

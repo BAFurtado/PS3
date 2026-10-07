@@ -17,25 +17,20 @@ class Statistics(object):
     The functions include average price of the firms, regional GDP - based on FIRMS' revenues, GDP per
     capita, unemployment, families' wealth, GINI, regional GINI and commuting information.
     """
-    # PARTICIPATION 'census': the Participation in use (world/participation.py)
+    # The Participation in use (world/participation.py)
     participation = None
 
     def __init__(self, params):
         self.previous_month_price = 0
-        # PRICE_INDEX: 'stocked' averages firms with staff and stock, 'staffed' firms with staff
-        self.price_index_stocked = params.get('PRICE_INDEX', 'stocked') == 'stocked'
         self.global_unemployment_rate = .086
         self.last_gdp = defaultdict(float)
-        # FUNDS_REAL: settled months, municipal real GDP summed over the base months, and the fixed base once set
-        self.funds_real = params.get('FUNDS_REAL', False)
+        # Settled months, municipal real GDP summed over the base months, and the fixed base once set
         self.funds_months = 0
         self.funds_base_sum = defaultdict(float)
         self.funds_base = None
-        self.national_gdp = None
-        if self.funds_real:
-            self.funds_burn_in = params['FUNDS_BURN_IN']
-            self.funds_base_months = params['FUNDS_BASE_MONTHS']
-            self.national_gdp = pd.read_csv('input/national_real_gdp.csv', sep=';').set_index('year')['index']
+        self.funds_burn_in = params['FUNDS_BURN_IN']
+        self.funds_base_months = params['FUNDS_BASE_MONTHS']
+        self.national_gdp = pd.read_csv('input/national_real_gdp.csv', sep=';').set_index('year')['index']
         self.vacancy_rate = params['HOUSE_VACANCY']
         self.head_rate = defaultdict(lambda: defaultdict(int))
         self.class_ranges = self._generate_class_ranges()
@@ -118,20 +113,17 @@ class Statistics(object):
     def group_prices(self, firms, tradables):
         """Average price of the firms in TRADABLE_SECTORS and of the others, with the inclusion rule of update_price
         (0 for a group with no firm included)"""
-        stocked = self.price_index_stocked
         groups = ([], [])
         for firm in firms.values():
             if firm.num_employees > 0 and not firm.pool:
                 for item in firm.inventory.values():
-                    if item.quantity > 0 or not stocked:
-                        groups[firm.sector in tradables].append(item.price)
+                    groups[firm.sector in tradables].append(item.price)
         return tuple(np.mean(g) if g else 0 for g in (groups[1], groups[0]))
 
     def update_price(self, firms, mid_simulation_calculus=False):
-        """Compute average price and inflation"""
-        stocked = self.price_index_stocked
+        """Compute average price and inflation over the firms with staff, stocked out or not"""
         prices = [item.price for firm in firms.values() for item in firm.inventory.values()
-                  if firm.num_employees > 0 and not firm.pool and (item.quantity > 0 or not stocked)]
+                  if firm.num_employees > 0 and not firm.pool]
 
         average_price = np.mean(prices) if prices else 0
 
@@ -207,9 +199,9 @@ class Statistics(object):
         return float(s.loc[min(max(year, s.index.min()), s.index.max())])
 
     def update_funds_base(self, year):
-        """FUNDS_REAL: after this month's GDP, add each municipality's real GDP to the base during the base months;
-        fix the base as their mean at the end"""
-        if not self.funds_real or self.funds_base is not None:
+        """After this month's GDP, add each municipality's real GDP to the base during the base months; fix the base as
+        their mean at the end"""
+        if self.funds_base is not None:
             return
         self.funds_months += 1
         if self.funds_months > self.funds_burn_in:
@@ -220,8 +212,8 @@ class Statistics(object):
             self.funds_base = {mun: max(0.0, v / self.funds_base_months) for mun, v in self.funds_base_sum.items()}
 
     def funds_gdp(self, mun, year):
-        """Monthly municipal GDP the programme funds are shares of: last month's, or with FUNDS_REAL once the base is
-        fixed, the base times the national real GDP index of the year"""
+        """Monthly municipal GDP the programme funds are shares of: last month's until the base is fixed, then the base
+        times the national real GDP index of the year"""
         if self.funds_base is None:
             return self.last_gdp[mun]
         return self.funds_base.get(mun, 0.0) * self.national_index(year)
@@ -283,12 +275,9 @@ class Statistics(object):
         return dummy_gdp_capita
 
     def update_unemployment(self, agents, global_u=False, log=False):
-        if self.participation is None:
-            employable = [m for m in agents if 16 < m.age < 70]
-        else:
-            # PARTICIPATION: the labour force, the active and anyone aged 17-69 still in a job
-            employable = [m for m in agents if 16 < m.age < 70 and
-                          (m.firm_id is not None or self.participation.is_active(m))]
+        # The labour force: the active and anyone aged 17-69 still in a job
+        employable = [m for m in agents if 16 < m.age < 70 and
+                      (m.firm_id is not None or self.participation.is_active(m))]
         temp = len([m for m in employable if m.firm_id is None]) / len(employable) if employable else 0
         logger.info(f'Unemployment rate em perc.: {temp * 100:.2f}')
         if global_u:

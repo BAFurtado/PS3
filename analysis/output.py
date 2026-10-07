@@ -149,10 +149,10 @@ OUTPUT_DATA_SPEC = {
                     # Household money firms returned for lack of stock, after any HOUSEHOLD_RETRY (not counting
                     # household_no_stock)
                     "household_unserved",
-                    # Household money spent outside the ACP (HOUSEHOLD_IMPORTS), part of ext_imports
+                    # Household money spent outside the ACP, part of ext_imports
                     "household_imports",
-                    # External account (defect #27): monthly imports, exports and recycled demand; cumulative net
-                    # position and external public funding
+                    # External account: monthly imports and exports (ext_recycled is 0); cumulative net position and
+                    # external public funding
                     "ext_imports",
                     "ext_exports",
                     "ext_recycled",
@@ -169,20 +169,20 @@ OUTPUT_DATA_SPEC = {
                     "money_deposits",
                     *[f"money_{c}" for c in LEDGER_CHANNELS],
                     "money_unexplained",
-                    # Average price of firms in TRADABLE_SECTORS and of the others (PRICE_INDEX inclusion rule)
+                    # Average price of the firms with staff in TRADABLE_SECTORS and of the others
                     "price_tradable",
                     "price_nontradable",
                     # Sum of families' permanent income
                     "families_total_permanent_income",
-                    # FIRM_PAYOUT: profit shares paid to staff this month
+                    # Firms' cash above their buffers paid out this month
                     "firms_profit_share_paid",
                     # Output over labour capacity this month, private firms other than builders
                     "firms_utilisation",
                     # Sum of families' income this month: wages paid, profit shares and social transfers
                     "families_total_income",
-                    # FIRM_PAYOUT 'national': investment bought this month, local and imported
+                    # Investment bought this month, local and imported
                     "firms_investment",
-                    # OWN_ACCOUNT: own-account workers and their earnings this month (wage and profit share)
+                    # Own-account workers and their earnings this month
                     "own_account_workers",
                     "own_account_earnings",
                     ]
@@ -520,16 +520,10 @@ class Output:
             '_'.join([str(self.sim.PARAMS[name]) for name in GENERATOR_PARAMS]),
             '_'.join(sim.geo.states_on_process),
             '_'.join(sim.geo.processing_acps_codes))
-        # Firm sectors are drawn when the population is created
-        if self.sim.PARAMS.get('SECTOR_SHARES', 'rais') != 'rais':
-            self.save_name += '_sectors_{}'.format(self.sim.PARAMS['SECTOR_SHARES'])
-        if self.sim.PARAMS.get('EDUCATION', 'pooled') != 'pooled':
-            self.save_name += '_education_{}'.format(self.sim.PARAMS['EDUCATION'])
-        if self.sim.PARAMS.get('POP_ROUNDING', 'nearest') != 'nearest':
-            self.save_name += '_rounding_{}'.format(self.sim.PARAMS['POP_ROUNDING'])
-        # Families are formed when the population is created
-        if self.sim.PARAMS.get('FAMILY_MATCHING', 'random') != 'random':
-            self.save_name += '_matching_{}'.format(self.sim.PARAMS['FAMILY_MATCHING'])
+        # Firm sectors, education, the rounding of the Census cells and partners are drawn when the population is
+        # created; the suffix keeps these files apart from those of earlier versions of the model
+        self.save_name += '_sectors_{}_education_census_rounding_remainder_matching_census'.format(
+            self.sim.PARAMS['SECTOR_SHARES'])
 
     def _write_parquet(self, name, path, data_dict):
         table = pa.table(data_dict)
@@ -687,7 +681,7 @@ class Output:
         ext = sim.external
         stats_row["ext_imports"] = ext.last_month['imports']
         stats_row["ext_exports"] = ext.last_month['exports']
-        stats_row["ext_recycled"] = ext.last_month['recycled']
+        stats_row["ext_recycled"] = 0.0
         stats_row["ext_net_position"] = ext.net_position
         stats_row["ext_public_funding"] = sim.funds.external_public_funding
         stock = money_stock(sim)
