@@ -1,10 +1,10 @@
 moment,region,low,high,source
 unemployment,BELO HORIZONTE,0.0693,0.1547,Census 2010 unemployment of the active (low); highest PNAD Contínua annual rate 2012-2019 of the metro or capital (high)
-unemployment,BRASILIA,0.0806,0.1345,Census 2010 unemployment of the active (low); highest PNAD Contínua annual rate 2012-2019 of the metro or capital (high)
+unemployment,FORTALEZA,0.0801,0.1260,Census 2010 unemployment of the active (low); highest PNAD Contínua annual rate 2012-2019 of the metro or capital (high)
 unemployment,GOIANIA,0.0536,0.0973,Census 2010 unemployment of the active (low); highest PNAD Contínua annual rate 2012-2019 of the metro or capital (high)
 unemployment,PALMAS,0.0638,0.1375,Census 2010 unemployment of the active (low); highest PNAD Contínua annual rate 2012-2019 of the metro or capital (high)
 household_income_gdp,BELO HORIZONTE,0.5340,0.7917,Census 2010 household income / IBGE 2010 value added of the ACP (low); times the national under-reporting factor (high)
-household_income_gdp,BRASILIA,0.3853,0.5712,Census 2010 household income / IBGE 2010 value added of the ACP (low); times the national under-reporting factor (high)
+household_income_gdp,FORTALEZA,0.6147,0.9113,Census 2010 household income / IBGE 2010 value added of the ACP (low); times the national under-reporting factor (high)
 household_income_gdp,GOIANIA,0.6897,1.0225,Census 2010 household income / IBGE 2010 value added of the ACP (low); times the national under-reporting factor (high)
 household_income_gdp,PALMAS,0.7221,1.0705,Census 2010 household income / IBGE 2010 value added of the ACP (low); times the national under-reporting factor (high)
 nontradable_inflation,ALL,0.0,2.35,IPCA non-tradables over tradables (BCB SGS 4448 / 4447) 2011-2015 in %/yr (high); never negative over a multi-year span (low)
