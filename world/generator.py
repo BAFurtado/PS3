@@ -75,6 +75,8 @@ class Generator:
         single_ap_muns = pd.read_csv(f"input/single_aps_{self.sim.geo.year}.csv")
         self.single_ap_muns = single_ap_muns["mun_code"].tolist()
         self.spouses = None
+        # MARRIAGE 'census': share of the ACP's Census households with a couple
+        self.couple_share = None
         if self.sim.geo.year != 2010:
             raise ValueError("Agents' education needs the 2010 geography")
         self.education = Education(self.sim.geo.mun_codes, self.seed_np)
@@ -321,7 +323,8 @@ class Generator:
         # First, distribute adults as equal as possible
         adults = self.match_partners(adults, fams)
         for i in range(len(adults)):
-            if not adults[i].belongs_to_family:
+            # A head left without a partner of the other sex has None in its place
+            if adults[i] is not None and not adults[i].belongs_to_family:
                 fams[i % len(fams)].add_agent(adults[i])
 
         # Allocate children into random families
@@ -339,15 +342,46 @@ class Generator:
             return adults
         if self.spouses is None:
             self.spouses = SpouseEducation(self.sim.geo.processing_acps, self.seed_np)
+        couples = self.sim.PARAMS['MARRIAGE'] == 'census'
+        if couples and self.couple_share is None:
+            share = pd.read_csv('input/couple_households_2010.csv', sep=';').set_index('acp').share
+            acps = [acp for acp in self.sim.geo.processing_acps if acp in share.index]
+            self.couple_share = float(share[acps].mean()) if acps else float(share.mean())
+            rates = pd.read_csv('input/union_rates_2010.csv', sep=';')
+            self.in_union = {sex: (g.age.values, g.in_union.values) for sex, g in rates.groupby('sex')}
+        heads = adults[:min(n, len(adults) - n)]
+        if couples:
+            # Heads are partnered in proportion to the Census share in a union of their sex and age, the households
+            # with a couple at the Census share
+            union = np.array([self.in_union_share(h) for h in heads])
+            p_partner = np.minimum(1, self.couple_share * union / union.mean()) if len(heads) else union
         pool = defaultdict(list)
         for a in reversed(adults[n:]):
-            pool[level(a)].append(a)
+            pool[(a.gender.lower() if couples else None, level(a))].append(a)
         second = []
-        for head in adults[:min(n, len(adults) - n)]:
-            second.append(self.spouses.pick(head, pool))
-        chosen = {id(a) for a in second}
+        for i, head in enumerate(heads):
+            sex, partner = None, False
+            if couples:
+                # The second adult is the head's partner, of the other sex and the nearest in age; else an adult of
+                # either sex who is not
+                partner = self.seed_np.rand() < p_partner[i]
+                if partner:
+                    sex = 'male' if head.gender.lower() == 'female' else 'female'
+                else:
+                    sex = self.seed_np.choice(['male', 'female'])
+            by_level = {lv: agents for (s, lv), agents in pool.items() if s == sex}
+            other = self.spouses.pick_nearest(head, by_level) if partner else self.spouses.pick(head, by_level)
+            if partner and other is not None:
+                head.partner, other.partner = other, head
+            second.append(other)
+        chosen = {id(a) for a in second if a is not None}
         rest = [a for a in adults[n:] if id(a) not in chosen]
         return adults[:n] + second + rest
+
+    def in_union_share(self, agent):
+        """Census 2010 share living with a partner of the agent's sex and age group"""
+        ages, share = self.in_union[agent.gender.lower()]
+        return float(share[max(np.searchsorted(ages, agent.age, side='right') - 1, 0)])
 
     def get_random_points_in_polygon(
             self, region, number_addresses=1, addresses=None, multiplier=3

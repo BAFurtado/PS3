@@ -524,6 +524,8 @@ class Output:
         # created; the suffix keeps these files apart from those of earlier versions of the model
         self.save_name += '_sectors_{}_education_census_rounding_remainder_matching_census'.format(
             self.sim.PARAMS['SECTOR_SHARES'])
+        if self.sim.PARAMS['MARRIAGE'] == 'census':
+            self.save_name += '_couples'
 
     def _write_parquet(self, name, path, data_dict):
         table = pa.table(data_dict)

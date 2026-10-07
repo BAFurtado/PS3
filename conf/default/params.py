@@ -361,6 +361,11 @@ CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 5
 EXOGENOUS_HEAD_RATE = False
 MEMBERS_PER_FAMILY = 2.5
 MARRIAGE_CHECK_PROBABILITY = 0.03
+# 'legacy': any adult may marry at MARRIAGE_CHECK_PROBABILITY x the age table, leaving a partner behind.
+# 'census': partners are linked; couples separate at the 2010 divorce rate of the woman's age, the man leaving with half
+# the household's savings, and adults not in a union form one at the Census 2010 rate of their sex and age
+# (input/union_rates_2010.csv); a new household buys a house if it can afford one, else rents.
+MARRIAGE = 'legacy'
 
 # CONSUMPTION #############################################################
 # Fraction of permanent income actually spent on goods; remainder flows to savings.

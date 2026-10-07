@@ -89,6 +89,9 @@ def pregnant(sim, agent, p_pregnancy):
 def die(sim, agent):
     """An agent dies"""
     sim.grave.append(agent)
+    partner = getattr(agent, 'partner', None)
+    if partner is not None:
+        partner.partner = agent.partner = None
     old_region_id = agent.family.region_id
     if agent.is_employed:
         sim.firms[agent.firm_id].obit(agent)

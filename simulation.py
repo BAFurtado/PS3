@@ -78,6 +78,8 @@ class Simulation:
         self.firm_grave = dict()
         # Negative balances written off at exit (money already paid out that the firm did not have)
         self.firm_exit_writeoff = 0.0
+        # MARRIAGE 'census': yearly union rates, read at the first month
+        self.union_rates = None
         # Money crossing the ACP's boundary, cumulative by channel (analysis/money.py), and the stock it started with
         self.ledger = defaultdict(float)
         self.money_initial = 0.0
@@ -472,7 +474,10 @@ class Simulation:
         population.immigration(self)
 
         # Adjust families for marriages
-        population.marriage(self)
+        if self.PARAMS['MARRIAGE'] == 'census':
+            population.unions(self)
+        else:
+            population.marriage(self)
 
         # Firms initialization
         for firm in self.firms.values():

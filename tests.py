@@ -1974,6 +1974,106 @@ check("House values: rent level kept, cost by Sinapi state and CUB standards, bu
       _hv_ok_level and _hv_ok_cost and _hv_ok_plan,
       f"level {_hv_ok_level} cost {_hv_ok_cost} plan {_hv_ok_plan}")
 
+# Marriage: the population counters follow every agent who moves to another household
+def _mp_gap():
+    actual = defaultdict(int)
+    for a in sim.agents.values():
+        actual[a.family.region_id] += 1
+    return {r: sim.reg_pops[r] - actual[r] for r in set(actual) | set(sim.reg_pops)}
+
+
+_mp_before, _mp_mun = _mp_gap(), dict(sim.mun_pops)
+_mp_check = sim.PARAMS['MARRIAGE_CHECK_PROBABILITY']
+_mp_p = {a.id: a.p_marriage for a in sim.agents.values()}
+sim.PARAMS['MARRIAGE_CHECK_PROBABILITY'] = 1
+for a in sim.agents.values():
+    a.p_marriage = 1 if a.age >= 21 else 0
+_mp_regions = {i: a.family.region_id for i, a in sim.agents.items()}
+_pp.marriage(sim)
+_mp_moved = sum(a.family.region_id != _mp_regions[i] for i, a in sim.agents.items())
+sim.PARAMS['MARRIAGE_CHECK_PROBABILITY'] = _mp_check
+for a in sim.agents.values():
+    a.p_marriage = _mp_p[a.id]
+_mp_after = _mp_gap()
+check("Marriage: population counters follow the agents who move",
+      _mp_moved > 0 and all(_mp_after[r] == _mp_before.get(r, 0) for r in _mp_after)
+      and sum(sim.mun_pops.values()) == sum(_mp_mun.values()),
+      f"moved {_mp_moved}, gap changed in "
+      f"{sum(_mp_after[r] != _mp_before.get(r, 0) for r in _mp_after)} regions")
+
+# MARRIAGE 'census': yearly rates read as monthly probabilities
+_un_rates = _pp.UnionRates()
+_un_w = next(a for a in sim.agents.values() if a.gender.lower() == 'female' and 25 <= a.age < 30)
+_un_t = pd.read_csv('input/union_rates_2010.csv', sep=';').set_index(['sex', 'age'])
+check("Unions: monthly probabilities from the yearly Census and Registro Civil rates",
+      abs(_un_rates.p(_un_w, 'formation') - (1 - (1 - _un_t.loc[('female', 25), 'formation']) ** (1 / 12))) < 1e-12
+      and abs(_un_rates.p(_un_w, 'separation') - (1 - (1 - _un_t.loc[('female', 25), 'separation']) ** (1 / 12)))
+      < 1e-12 and _un_rates.p(next(a for a in sim.agents.values() if a.age < 15), 'formation') == 0)
+
+# MARRIAGE 'census': the second adult is a partner of the other sex, nearest in age, at the Census couple share
+_un_adults = sorted((a for a in sim.agents.values() if a.age > 21), key=lambda a: a.id)
+_un_fams = list(sim.families.values())[:len(_un_adults) // 2]
+_un_mode = sim.PARAMS['MARRIAGE']
+sim.PARAMS['MARRIAGE'] = 'census'
+for a in _un_adults:
+    a.partner = None
+_un_order = sim.generator.match_partners(list(_un_adults), _un_fams)
+_un_heads = _un_order[:len(_un_fams)]
+_un_linked = [h for h in _un_heads if h.partner is not None]
+_un_share = len(_un_linked) / len(_un_heads)
+_un_gap = float(np.median([abs(h.age - h.partner.age) for h in _un_linked])) if _un_linked else np.inf
+check("Unions: start couples of the other sex, near in age, at the Census couple share",
+      all(h.partner.partner is h and h.gender.lower() != h.partner.gender.lower() for h in _un_linked)
+      and abs(_un_share - sim.generator.couple_share) < 0.1 and _un_gap <= 3,
+      f"share {_un_share:.2f} vs {sim.generator.couple_share:.2f}, median age gap {_un_gap}")
+for a in _un_adults:
+    a.partner = None
+
+# MARRIAGE 'census': a separating man leaves with half the savings; the woman keeps the children and the house
+_un_fam = next((f for f in sim.families.values() if f.house is not None
+                and sorted(m.gender.lower() for m in f.members.values() if m.age > 21) == ['female', 'male']
+                and any(m.age < 18 for m in f.members.values())), None)
+_un_vacant = [h for h in sim.houses.values() if h.family_id is None]
+if _un_fam is not None and _un_vacant:
+    _un_woman = next(m for m in _un_fam.members.values() if m.age > 21 and m.gender.lower() == 'female')
+    _un_man = next(m for m in _un_fam.members.values() if m.age > 21 and m.gender.lower() == 'male')
+    _un_woman.partner, _un_man.partner = _un_man, _un_woman
+    _un_fam.savings, _un_fam.bank_savings = 10.0, 0.0
+    if sim.central.wallet.get(_un_fam):
+        _un_fam.savings += sim.central.withdraw(_un_fam, sim.clock.year, sim.clock.months)
+    _un_kids, _un_house, _un_sav = [m for m in _un_fam.members.values() if m.age < 18], _un_fam.house, _un_fam.savings
+    _mp_before = _mp_gap()
+    _pp.separate(sim, _un_woman)
+    _un_new = _un_man.family
+    check("Unions: separation sends the man out with half the savings, the children and house stay with the woman",
+          _un_new is not _un_fam and _un_new.house is not None and _un_fam.house is _un_house
+          and all(k.family is _un_fam for k in _un_kids) and _un_woman.partner is None and _un_man.partner is None
+          and abs(_un_fam.savings + _un_new.savings - _un_sav) < 1e-9
+          and (_un_new.house.owner_id == _un_new.id or abs(_un_fam.savings - _un_sav / 2) < 1e-9)
+          and all(_mp_gap()[r] == _mp_before.get(r, 0) for r in _mp_gap()),
+          f"new {_un_new is not _un_fam}, savings {_un_fam.savings:.3f} + {_un_new.savings:.3f} of {_un_sav:.3f}")
+else:
+    check("Unions: separation (no couple with children or no vacant house to test it)", False)
+
+# MARRIAGE 'census': unions pair women and men not in a union; a death leaves the partner single
+_un_p = _pp.UnionRates.p
+_pp.UnionRates.p = lambda self, agent, kind: (agent.age >= 18) * (kind == 'formation')
+sim.union_rates = None
+_un_before = {a.id: a.partner for a in sim.agents.values()}
+_mp_before = _mp_gap()
+_pp.unions(sim)
+_pp.UnionRates.p = _un_p
+_un_pairs = [a for a in sim.agents.values() if a.partner is not None and _un_before[a.id] is None]
+check("Unions: new couples are a woman and a man not in a union before, sharing a household",
+      len(_un_pairs) > 0 and all(a.partner.partner is a and a.gender.lower() != a.partner.gender.lower()
+                                 and a.family is a.partner.family for a in _un_pairs)
+      and all(_mp_gap()[r] == _mp_before.get(r, 0) for r in _mp_gap()), f"{len(_un_pairs)} partnered")
+_un_dead = _un_pairs[0]
+_un_alive = _un_dead.partner
+sim.demographics.die(sim, _un_dead)
+check("Unions: a death leaves the partner single", _un_alive.partner is None and _un_dead.partner is None)
+sim.PARAMS['MARRIAGE'] = _un_mode
+
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")
 print(f"Results: {PASS} PASS  |  {FAIL} FAIL  |  {PASS + FAIL} total")
