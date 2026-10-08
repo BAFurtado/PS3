@@ -298,6 +298,45 @@ if sim.PARAMS.get("GOV_REVISED", False):
         f"in={_put:.4f}, out={sum(_d[:4]) + _d[5]:.4f} (payroll {_d[0]:.2f}, purchases {_d[1]:.2f}, "
         f"inputs {_d[5]:.2f}, investment {_d[2]:.2f}, policy {_d[3]:.2f}, recorded for regions {_d[4]:.2f})",
     )
+    # GOV_SPENDING 'observed': with a budget far below the public spending, the payroll is its target and investment
+    # its national ratio to the target, outside money paying the difference; with a budget far above it, nothing comes
+    # from outside and the rest is invested. Money is conserved either way.
+    _saved_spending = (sim.PARAMS.get("GOV_SPENDING", "budget"), _funds.investment_per_payroll)
+    sim.PARAMS["GOV_SPENDING"] = "observed"
+    _funds.investment_per_payroll = float(
+        pd.read_csv("input/public_spending_2010.csv", sep=";").set_index("ratio").value["investment_per_payroll"])
+    _obs, _ratio = [], _funds.investment_per_payroll
+    _saved_public = (dict(getattr(_funds, "policy_money", {})),
+                     {_rid: (dict(_r.applied_treasure), _r.applied_flow) for _rid, _r in sim.regions.items()})
+    for _rev in (1e-6, 1e6):
+        _before, _e0 = _snap(), _funds.external_public_funding
+        for _rid in sim.regions:
+            _funds.pending_public_money[_rid]["equally"] += _rev
+        _funds.settle_government_budget(sim.regions)
+        _in = _rev * len(sim.regions) + _funds.external_public_funding - _e0
+        _d = [a - b for a, b in zip(_snap(), _before)]
+        _v = [v for v in _funds.gov_budget_diag.values() if v["staff"] > 0]
+        _obs.append(dict(
+            conserved=abs(sum(_d[:4]) + _d[5] - _in) < 1e-6 * _in,
+            payroll=max(abs(v["payroll"] / v["target"] - 1) for v in _v),
+            invest=max(abs(v["investment"] - _funds.investment_per_payroll * v["target"]) / v["target"] for v in _v),
+            invest_min=min(v["investment"] / v["target"] for v in _v), external=_funds.external_public_funding - _e0))
+    sim.PARAMS["GOV_SPENDING"], _funds.investment_per_payroll = _saved_spending
+    if hasattr(_funds, "policy_money"):
+        _funds.policy_money.clear()
+        _funds.policy_money.update(_saved_public[0])
+    for _rid, (_t, _fl) in _saved_public[1].items():
+        sim.regions[_rid].applied_treasure.clear()
+        sim.regions[_rid].applied_treasure.update(_t)
+        sim.regions[_rid].applied_flow = _fl
+    check(
+        "GOV_SPENDING 'observed': payroll at target, investment at its ratio to payroll, outside pays the rest; "
+        "a large budget takes nothing from outside and invests the rest",
+        all(_o["conserved"] for _o in _obs) and _obs[0]["payroll"] < 1e-9 and _obs[0]["invest"] < 1e-6
+        and _obs[0]["external"] > 0 and _obs[1]["payroll"] < 1e-9 and _obs[1]["external"] == 0
+        and _obs[1]["invest_min"] > _ratio,
+        f"{_obs}",
+    )
     # Public production inputs come from the input fund, never the start-up capital; unspent input money joins
     # the purchases, and what is spent counts as revenue (output at cost)
     _g = next(f for f in _gov_all if f.employees and f.inventory)
@@ -361,12 +400,16 @@ if sim.PARAMS.get("GOV_REVISED", False):
     _mun = next(_m for _m, _v in _funds.gov_budget_diag.items() if _v["staff"] > 0)
     _saved_levels = _funds.gov_levels[_mun]
     _ext = []
+    # GOV_EXTERNAL_FUNDING applies to GOV_SPENDING 'budget'
+    _gs_saved = sim.PARAMS.get("GOV_SPENDING", "budget")
+    sim.PARAMS["GOV_SPENDING"] = "budget"
     for _lv in ({"federal": 0.5, "estadual": 0.5, "municipal": 0.0}, {"federal": 0.0, "estadual": 0.0, "municipal": 1.0}):
         _funds.gov_levels[_mun] = _lv
         _e0 = _funds.external_public_funding
         _funds.pending_public_money[next(_r for _r in sim.regions if _r[:7] == _mun)]["equally"] += 1e-6
         _funds.settle_government_budget(sim.regions)
         _ext.append(_funds.external_public_funding - _e0)
+    sim.PARAMS["GOV_SPENDING"] = _gs_saved
     _funds.gov_levels[_mun] = _saved_levels
     _saved_price = sim.avg_prices
     _saved_pay = {_f.id: _f.wages_paid for _f in sim.firms.values() if _f.sector != "Government"}
@@ -1113,6 +1156,7 @@ check("A newborn holds no money (#31)", _baby.money == 0, f"money {_baby.money}"
 class _RentFamily:
     def __init__(self, savings, deposit):
         self.savings, self.deposit, self.rent_voucher, self.received = savings, deposit, 0, 0.0
+        self.members = {'m': None}
 
     def grab_savings(self, bank, y, m):
         s, self.savings, self.deposit = self.savings + self.deposit, 0, 0
@@ -1128,15 +1172,16 @@ def _pay_rent(savings, deposit, rent=0.4):
     stub = SimpleNamespace(families={'t': tenant, 'l': landlord}, PARAMS={'TAX_LABOR': sim.PARAMS['TAX_LABOR']},
                            central=SimpleNamespace(wallet={tenant: True}), clock=sim.clock,
                            regions={'r': SimpleNamespace(collect_taxes=lambda a, k: taxes.append(a))})
-    collect_rent([house], stub)
-    return tenant.savings, landlord.received + sum(taxes), savings + deposit
+    received = collect_rent([house], stub)
+    return tenant.savings, landlord.received + sum(taxes), savings + deposit, received
 
 
 _rent_ok = []
 for _cash in (0.1, 0.3):
-    _kept, _paid, _before = _pay_rent(_cash, 5.0)
-    _rent_ok.append(abs(_paid - 0.4) < 1e-9 and abs(_kept + _paid - _before) < 1e-9)
-check("Rent paid from bank deposits is paid in full and conserves money (#32)", all(_rent_ok), f"{_rent_ok}")
+    _kept, _paid, _before, _received = _pay_rent(_cash, 5.0)
+    _rent_ok.append(abs(_paid - 0.4) < 1e-9 and abs(_kept + _paid - _before) < 1e-9 and abs(_received - 0.4) < 1e-9)
+check("Rent paid from bank deposits is paid in full, conserves money and is reported as received before tax (#32)",
+      all(_rent_ok), f"{_rent_ok}")
 
 _renters = [f for f in sim.families.values() if f.is_renting and f.get_permanent_income() > 0]
 if len(_renters) > 20:
@@ -1551,6 +1596,19 @@ check("Social transfers: RGPS to the oldest, Bolsa Família to the poorest famil
       _tr_ok and _tr_ledger_ok and _tr_paid > 0 and np.isclose(_tr_pi1 - _tr_pi0, 2.5),
       f"{_tr_detail} paid {_tr_paid:.3f} received {_tr_recv:.3f}, PI step {_tr_pi1 - _tr_pi0:.3f}")
 
+# PENSIONS 'census': the pension programme takes each municipality's Census pensioners per resident and mean pension;
+# BPC and Bolsa Família are unchanged
+_pen = SocialTransfers(sim.mun_to_regions, sim.PARAMS['REAIS_PER_MONEY_UNIT'], 'census')
+_pen_c = pd.read_csv('input/census_pensions_2010.csv', sep=';').set_index('cod_mun')
+_pen_dev = [max(abs(_pen.rates[_m]['rgps'][0] - _pen_c.loc[int(_m), 'pensioners'] / _pen_c.loc[int(_m), 'pop']),
+                abs(_pen.rates[_m]['rgps'][1] * sim.PARAMS['REAIS_PER_MONEY_UNIT']
+                    - _pen_c.loc[int(_m), 'pension_val'] / _pen_c.loc[int(_m), 'pensioners']))
+            for _m in _pen.rates if int(_m) in _pen_c.index and _pen_c.loc[int(_m), 'pensioners'] > 0]
+check("PENSIONS 'census': Census pensioners per resident and mean pension; BPC and Bolsa Família unchanged",
+      _pen_dev and max(_pen_dev) < 1e-9
+      and all(_pen.rates[_m][k] == _tr.rates[_m][k] for _m in _pen.rates for k in ('bpc', 'pbf')),
+      f"municipalities {len(_pen_dev)}, max deviation {max(_pen_dev, default=0):.2e}")
+
 # Productivity level: the divisor makes the private staff's capacity value added (national input coefficients) equal
 # the IBGE market value added per resident times the residents, net of own-account income, a month, in model money
 from world.firms import set_productivity_level
@@ -1572,13 +1630,17 @@ check("Productivity level 'gross': capacity value added matches IBGE municipal V
       np.isclose(_pl_cap, _pl_target) and _pl_div > 0,
       f"divisor {_pl_div:.4f}, capacity VA {_pl_cap:.1f} vs {_pl_target:.1f}")
 
-# PRODUCTIVITY_VA 'net': the value added of a unit of capacity is net of the consumption tax firms do not keep
+# PRODUCTIVITY_VA 'net': the value added of a unit of capacity is net of the consumption tax firms do not keep (with
+# TAX_RATES 'data', the sector's tax on all its sales)
 sim.PARAMS['PRODUCTIVITY_VA'] = 'net'
 _pl_div_net = set_productivity_level(sim)
 sim.PARAMS['PRODUCTIVITY_VA'] = _pl_mode
 sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR'] = _pl_saved
+from agents.firm import Firm as _pl_Firm
+_pl_tax = (pd.Series(_pl_Firm.product_tax_sales) if _pl_Firm.product_tax_sales is not None
+           else pd.Series(sim.PARAMS['TAX_CONSUMPTION'], index=_pl_vs.index))
 _pl_cap_net = sum(f.total_qualification(sim.PARAMS['PRODUCTIVITY_EXPONENT']) / _pl_div_net * f.sector_productivity
-                  * (_pl_vs[f.sector] - sim.PARAMS['TAX_CONSUMPTION'])
+                  * (_pl_vs[f.sector] - _pl_tax.get(f.sector, 0.0))
                   for f in sim.firms.values() if f.sector != 'Government' and not f.pool)
 check("Productivity level 'net': capacity value added net of the consumption tax matches IBGE municipal VA",
       np.isclose(_pl_cap_net, _pl_target) and 0 < _pl_div_net < _pl_div,
@@ -2048,7 +2110,8 @@ check("Marriage: population counters follow the agents who move",
       f"moved {_mp_moved}, gap changed in "
       f"{sum(_mp_after[r] != _mp_before.get(r, 0) for r in _mp_after)} regions")
 
-# TAX_RATES 'data': the 2010 rates replace the TAX_* values; a sale pays its seller's sector rate, an export none
+# TAX_RATES 'data': the 2010 rates replace the TAX_* values; a sale pays its seller's sector rate, a sale to the rest of
+# Brazil too, collected in the seller's region
 from agents.firm import Firm as _tx_Firm
 _tx_params = dict(sim.PARAMS, TAX_RATES='data', PROCESSING_ACPS=['GOIANIA'])
 _tx_stub = SimpleNamespace(PARAMS=_tx_params)
@@ -2063,14 +2126,16 @@ _tx_f = _hv_copy.copy(next(f for f in sim.firms.values() if f.sector == 'Manufac
 _tx_f.inventory = {0: _hv_copy.copy(_tx_f.inventory[0])}
 _tx_f.inventory[0].quantity, _tx_f.inventory[0].price = 1e9, 1.0
 _tx_f.revenue, _tx_f.total_balance, _tx_f.amount_sold, _tx_f.unmet_quantity = 0.0, 0.0, 0.0, 0.0
-_tx_regions = {_tx_f.region_id: SimpleNamespace(collect_taxes=lambda amount, key: None)}
+_tx_collected = []
+_tx_regions = {_tx_f.region_id: SimpleNamespace(collect_taxes=lambda amount, key: _tx_collected.append(amount))}
 _tx_f.sale(100.0, _tx_regions, 0.15, _tx_f.region_id, True)
 _tx_domestic = _tx_f.revenue
-_tx_f.sale(100.0, _tx_regions, 0.15, _tx_f.region_id, True, external=True)
-_tx_ok_sale = (np.isclose(_tx_domestic, 100 * (1 - _tx_prod.loc['Manufacturing', 'domestic']))
-               and np.isclose(_tx_f.revenue - _tx_domestic, 100.0))
+_tx_f.sale(100.0, _tx_regions, 0.15, 'elsewhere', False, external=True)
+_tx_rate = _tx_prod.loc['Manufacturing', 'domestic']
+_tx_ok_sale = (np.isclose(_tx_domestic, 100 * (1 - _tx_rate)) and np.isclose(_tx_f.revenue, 2 * _tx_domestic)
+               and np.allclose(_tx_collected, [100 * _tx_rate] * 2))
 _tx_Firm.product_tax = _tx_Firm.product_tax_sales = None
-check("Tax rates 'data': 2010 labour, firm, rent and IPTU rates; sales taxed at the seller's sector rate, exports not",
+check("Tax rates 'data': 2010 labour, firm, rent and IPTU rates; sales taxed at the seller's sector rate, exports too",
       _tx_ok_params and _tx_ok_sale, f"params {_tx_ok_params} sale {_tx_ok_sale}")
 
 # TAX_ROUTING 'data': a region receives a month of its municipality's observed FPM per resident from outside; the taxes

@@ -89,6 +89,8 @@ class Simulation:
         # The ACP's Census income per person aged 10+ at the start, in model money
         self.income_per_person = 0.0
         # Firms' cash above the buffers paid out this month
+        # Rent resident landlords received this month (markets/rentmarket.py:collect_rent)
+        self.rent_received = 0.0
         self.profit_share_paid = 0.0
         # Corporate FBCF / gross operating surplus, and the money set aside for investment
         self.investment_rate = 0.0
@@ -301,7 +303,8 @@ class Simulation:
             self.mun_to_regions[mun_code] = sorted(regions)
         self.participation = Participation(self.mun_to_regions, self._seed)
         self.stats.participation = self.participation
-        self.social_transfers = SocialTransfers(self.mun_to_regions, self.PARAMS['REAIS_PER_MONEY_UNIT'])
+        self.social_transfers = SocialTransfers(self.mun_to_regions, self.PARAMS['REAIS_PER_MONEY_UNIT'],
+                                               self.PARAMS.get('PENSIONS', 'rgps'))
         self.investment_rate = float(pd.read_csv('input/investment_rate_2015.csv', sep=';').investment_rate.iloc[0])
         ConstructionFirm.planned = self.PARAMS.get('CONSTRUCTION_PLAN', 'pipeline') == 'sales'
         Firm.vale_transporte = self.PARAMS['PUBLIC_TRANSIT_COST']

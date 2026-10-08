@@ -71,7 +71,7 @@ class OwnAccountPool(Firm):
         revenue = amount * (1 - tax_consumption)
         self.total_balance += revenue
         self.revenue += revenue
-        if external and not if_origin:
+        if external and not if_origin and self.product_tax is None:
             return
         region = self.region_id if if_origin else consumer_region_id
         regions[region if region in regions else self.region_id].collect_taxes(amount * tax_consumption, "consumption")

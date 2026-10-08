@@ -63,7 +63,7 @@ class Firm:
     well as cash flow. Decisions are based on endogenous variables and products are available when
     searched for by consumers.
     """
-    # TAX_RATES 'data': net taxes on products by selling sector, on domestic sales and on all sales
+    # TAX_RATES 'data': net taxes on products by selling sector, on domestic uses and on all uses
     # (input/product_tax_2010.csv); None: TAX_CONSUMPTION on every sale
     product_tax = None
     product_tax_sales = None
@@ -597,10 +597,11 @@ class Firm:
         rec[1] += refused
 
     def consumption_tax(self, rate, external):
-        """The tax on a sale: `rate`, or with TAX_RATES 'data' the seller's sector rate, none on an export"""
+        """The tax on a sale: `rate`, or with TAX_RATES 'data' the seller's sector rate, a sale to the rest of Brazil
+        included"""
         if Firm.product_tax is None:
             return rate
-        return 0.0 if external else Firm.product_tax.get(self.sector, 0.0)
+        return Firm.product_tax.get(self.sector, 0.0)
 
     def sale(self, amount, regions, tax_consumption, consumer_region_id, if_origin, external=False,
              buyer='household'):
@@ -629,7 +630,8 @@ class Firm:
                 self.total_balance += revenue
                 self.revenue += revenue
 
-                if if_origin:
+                # TAX_RATES 'data': the tax on a sale to the rest of Brazil is collected where it is produced
+                if if_origin or (external and Firm.product_tax is not None):
                     regions[self.region_id].collect_taxes(actual_amount * tax_consumption, "consumption")
                 else:
                     if not external:

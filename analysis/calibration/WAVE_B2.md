@@ -1,17 +1,22 @@
-# Calibration wave B1: what to run on the server
+# Calibration wave B2: what to run on the server
 
-First history-matching wave of the frozen model (closure B: the city as a small open economy). One parameter set for
-every city; the cities differ only by their data. The wave asks which parameter sets keep four capitals inside
-observed bands for the levels below. It does not fit time paths.
+History-matching wave of the frozen model (closure B: the city as a small open economy). One parameter set for every
+city; the cities differ only by their data. The wave asks which parameter sets keep four capitals inside observed
+bands for the levels below. It does not fit time paths.
+
+Wave B1 (tag `b-freeze`) ruled out every set on levels that were measured on another basis than the data or that
+missing mechanisms set: household income / GDP, taxes, rents, money returning from the Union and the states. Those
+are now in the base model (2010 tax rates and routing, Census rent level, observed public spending, Census pensions;
+income per resident on the Census basis), so B2 runs the same box again on the new base.
 
 ## Code version
 
-Run the tag **`b-freeze`** (branch `enmu`), the commit that adds this file. Do not run the
-`density-paper-2026` tag or any older commit: their defaults are the legacy model.
+Run the tag **`b-freeze-2`** (branch `enmu`), the commit that adds this file. Do not run `b-freeze`,
+`density-paper-2026` or any older commit: their defaults are earlier models.
 
 ```
 git fetch --tags
-git checkout b-freeze
+git checkout b-freeze-2
 ```
 
 Before running, **empty or delete `conf\params.py`** on the server. It is gitignored and loaded on top of the
@@ -48,14 +53,14 @@ Everything below is set in `analysis/calibration/calibration_conf.py`, so the co
 | | |
 |---|---|
 | Design | Latin hypercube, 32 sets (`lhs_seed` 42) |
-| Cities | BELO HORIZONTE, BRASILIA, GOIANIA, PALMAS (every set runs in all four) |
+| Cities | BELO HORIZONTE, FORTALEZA, GOIANIA, PALMAS (every set runs in all four) |
 | Seeds | 2 per set and city (1000, 1001, the same in every set) |
 | Period | 2010-01 to 2019-12 (10 years), 1 % of the population |
 | Runs | 32 x 4 x 2 = 256 |
 | Levels scored on | Mean of the last 36 months (2017-2019) |
 
-Run time on the desktop: Belo Horizonte about 30 min a run, Brasília 19, Goiânia 12, Palmas 3. That makes about
-68 CPU hours for the wave, roughly 3.5 hours on 20 parallel runs.
+Run time on the desktop: Belo Horizonte about 30 min a run, Fortaleza 15, Goiânia 13, Palmas 4. That makes about
+65 CPU hours for the wave, roughly 3.5 hours on 20 parallel runs.
 
 ### Parameters that vary
 
@@ -78,8 +83,8 @@ are out:
 
 | Level | Band | Source |
 |---|---|---|
-| Unemployment | per city: BH 0.069-0.155, BSB 0.081-0.135, GYN 0.054-0.097, PMW 0.064-0.138 | Census 2010 rate of the active (low), highest PNAD Contínua annual rate 2012-2019 (high) |
-| Household income / GDP | per city: BH 0.53-0.79, BSB 0.39-0.57, GYN 0.69-1.02, PMW 0.72-1.07 | Census 2010 household income / IBGE value added (low), times the national under-reporting factor (high) |
+| Unemployment | per city: BH 0.069-0.155, FOR 0.080-0.126, GYN 0.054-0.097, PMW 0.064-0.138 | Census 2010 rate of the active (low), highest PNAD Contínua annual rate 2012-2019 (high) |
+| Household income per resident, R$ of 2010 a month, deflated by the model price level | per city: BH 939-1392, FOR 637-945, GYN 896-1328, PMW 992-1471 | Census 2010 income per resident x the state's PNAD Contínua real growth 2012 to 2017-19 (low), times the national under-reporting factor (high); model income on the Census basis (wages before the worker's contributions and income tax, rent received) |
 | Non-tradable inflation, %/yr (2011-2019) | 0 to 2.35 | IPCA non-tradables over tradables 2011-2015 |
 | Vacancy | 0.08 to 0.13 | Density paper Table 2 |
 | Consumption / GDP | 0.55 to 0.65 | Density paper Table 2 |
@@ -114,5 +119,5 @@ send these instead:
 ## Next wave
 
 `plausible-box` prints the ranges spanned by the sets that survive, and which CONSTRUCTION_PLAN options survive.
-Those become the ranges of wave B2 in `calibration_conf.py`. If no set survives, it prints the level that binds
+Those become the ranges of the next wave in `calibration_conf.py`. If no set survives, it prints the level that binds
 most often. That level is a model question to settle before any further wave, not a reason to widen the box.

@@ -1,5 +1,7 @@
 """Federal benefits paid to residents from outside the ACP (input/social_transfers_2010.csv,
-auxiliary/social_transfers.py), fixed in 2010 R$.
+auxiliary/social_transfers.py), fixed in 2010 R$. PENSIONS 'census' replaces the RGPS rates with the Census 2010
+official pensions, RGPS and RPPS (input/census_pensions_2010.csv, auxiliary/census_pensions.py): pensioners per
+resident and their mean pension.
 
 Each month and municipality, with A agents living there and the 2010 beneficiaries per resident b:
 - RGPS: the round(b x A) oldest agents receive the municipality's mean benefit;
@@ -13,25 +15,39 @@ from collections import defaultdict
 import pandas as pd
 
 FILE = 'input/social_transfers_2010.csv'
+PENSIONS_FILE = 'input/census_pensions_2010.csv'
 # Program: (beneficiaries column, value column)
 PROGRAMS = {'rgps': ('rgps_ben', 'rgps_val'), 'bpc': ('bpc_ben', 'bpc_val'), 'pbf': ('pbf_fam', 'pbf_val')}
 
 
-def program_rates(row, reais_per_unit):
-    """{program: (beneficiaries per resident, mean benefit in model money)}"""
+def program_rates(row, reais_per_unit, pensions=None):
+    """{program: (beneficiaries per resident, mean benefit in model money)}; `pensions`, a Census row, sets RGPS"""
     rates = {}
     for program, (ben, val) in PROGRAMS.items():
         rates[program] = (row[ben] / row['pop'], row[val] / row[ben] / reais_per_unit if row[ben] > 0 else 0.0)
+    if pensions is not None:
+        n = pensions['pensioners']
+        rates['rgps'] = (n / pensions['pop'], pensions['pension_val'] / n / reais_per_unit if n > 0 else 0.0)
     return rates
 
 
 class SocialTransfers:
-    def __init__(self, mun_codes, reais_per_unit):
+    def __init__(self, mun_codes, reais_per_unit, pensions='rgps'):
         table = pd.read_csv(FILE, sep=';')
         table = table[table.cod_mun.isin([int(m) for m in mun_codes])]
-        pooled = program_rates(table[table['pop'] > 0].sum(), reais_per_unit)
-        self.rates = {str(int(row['cod_mun'])): program_rates(row, reais_per_unit) if row['pop'] > 0 else pooled
-                      for _, row in table.iterrows()}
+        census = None
+        if pensions == 'census':
+            census = pd.read_csv(PENSIONS_FILE, sep=';').set_index('cod_mun')
+            census = census[census.index.isin(table.cod_mun) & (census['pop'] > 0)]
+
+        def pension_row(mun):
+            if census is None:
+                return None
+            return census.loc[mun] if mun in census.index else census.sum()
+
+        pooled = program_rates(table[table['pop'] > 0].sum(), reais_per_unit, pension_row(None))
+        self.rates = {str(int(row['cod_mun'])): program_rates(row, reais_per_unit, pension_row(row['cod_mun']))
+                      if row['pop'] > 0 else pooled for _, row in table.iterrows()}
         self.paid = 0.0
 
     @staticmethod

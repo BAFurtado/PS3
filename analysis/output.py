@@ -191,6 +191,8 @@ OUTPUT_DATA_SPEC = {
                     "families_total_wages",
                     "wage_census_factor",
                     "taxes_products",
+                    # Rent resident landlords received this month, before the tax on it
+                    "families_rent_received",
                     ]
     },
     'families': {
@@ -329,9 +331,14 @@ DEMAND_BY_BUYER_COLUMNS = tuple(f'{k}_{b}' for b in ('household', 'government', 
 MATCHING_COLUMNS = ('unmet_household_coverable', 'unmet_household_coverable_end')
 
 
+def _legacy_stats_columns_no_rent_received():
+    """`stats` layout of a6eabbb (2026-10-08): no families_rent_received."""
+    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c != 'families_rent_received']
+
+
 def _legacy_stats_columns_no_census_basis():
     """`stats` layout of f2d2598 (2026-10-08): no families_total_wages, wage_census_factor, taxes_products."""
-    return [c for c in OUTPUT_DATA_SPEC['stats']['columns']
+    return [c for c in _legacy_stats_columns_no_rent_received()
             if c not in ('families_total_wages', 'wage_census_factor', 'taxes_products')]
 
 
@@ -435,7 +442,7 @@ def _legacy_stats_columns():
     denied_zero_capped_amount, no pct_renters_zero_income, and the decile block
     carries affordability_decis_* rather than rent_burden_decis_*."""
     dropped = {'denied_zero_capped_amount', 'denied_no_loan_needed', 'workers_median_wage', 'families_total_wages',
-               'wage_census_factor', 'taxes_products',
+               'wage_census_factor', 'taxes_products', 'families_rent_received',
                'pct_renters_zero_income', *FIRM_DEMOGRAPHY_COLUMNS, *EXTERNAL_ACCOUNT_COLUMNS, *MONEY_COLUMNS}
     cols = [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c not in dropped]
     return [c.replace('rent_burden_decis_', 'affordability_decis_') for c in cols]
@@ -472,7 +479,7 @@ def _legacy_regional_columns_single_pot():
 
 
 LEGACY_COLUMNS = {
-    'stats': [_legacy_stats_columns_no_census_basis(), _legacy_stats_columns_no_worker_wage(), _legacy_stats_columns_no_own_account(), _legacy_stats_columns_no_investment(), _legacy_stats_columns_no_income(), _legacy_stats_columns_no_social_transfers(), _legacy_stats_columns_no_utilisation(), _legacy_stats_columns_no_profit_share(), _legacy_stats_columns_no_total_income(), _legacy_stats_columns_no_bank_profit(), _legacy_stats_columns_no_fgts_repaid(), _legacy_stats_columns_no_group_prices(), _legacy_stats_columns_no_household_imports(), _legacy_stats_columns_no_unserved(), _legacy_stats_columns_no_matching(), _legacy_stats_columns_no_demand_by_buyer(), _legacy_stats_columns_no_unmet(),
+    'stats': [_legacy_stats_columns_no_rent_received(), _legacy_stats_columns_no_census_basis(), _legacy_stats_columns_no_worker_wage(), _legacy_stats_columns_no_own_account(), _legacy_stats_columns_no_investment(), _legacy_stats_columns_no_income(), _legacy_stats_columns_no_social_transfers(), _legacy_stats_columns_no_utilisation(), _legacy_stats_columns_no_profit_share(), _legacy_stats_columns_no_total_income(), _legacy_stats_columns_no_bank_profit(), _legacy_stats_columns_no_fgts_repaid(), _legacy_stats_columns_no_group_prices(), _legacy_stats_columns_no_household_imports(), _legacy_stats_columns_no_unserved(), _legacy_stats_columns_no_matching(), _legacy_stats_columns_no_demand_by_buyer(), _legacy_stats_columns_no_unmet(),
               _legacy_stats_columns_no_money(), _legacy_stats_columns_no_external_account(),
               _legacy_stats_columns_no_firm_demography(),
               _legacy_stats_columns()],
@@ -718,6 +725,7 @@ class Output:
         stats_row["families_total_wages"] = sum(f.total_wage() for f in sim.families.values())
         stats_row["wage_census_factor"] = census_factor
         stats_row["taxes_products"] = sim.funds.product_taxes_month
+        stats_row["families_rent_received"] = sim.rent_received
         from agents.firm import UNPLANNED_SECTORS
         planned = [f for f in sim.firms.values() if f.sector not in UNPLANNED_SECTORS]
         capacity = sum(f.last_capacity for f in planned)

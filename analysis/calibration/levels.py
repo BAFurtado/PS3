@@ -30,11 +30,14 @@ def growth(series, start=12):
 
 
 def census_income(t):
-    """Families' income as the Census reports it: wages before the worker's contributions and income tax, where the run
-    records them"""
+    """Families' income as the Census reports it: wages before the worker's contributions and income tax, and rent
+    received, where the run records them"""
+    income = t.families_total_income
     if {"families_total_wages", "wage_census_factor"} <= set(t.columns):
-        return t.families_total_income + t.families_total_wages * (t.wage_census_factor - 1)
-    return t.families_total_income
+        income = income + t.families_total_wages * (t.wage_census_factor - 1)
+    if "families_rent_received" in t.columns:
+        income = income + t.families_rent_received
+    return income
 
 
 def level_moments(df, window=36):

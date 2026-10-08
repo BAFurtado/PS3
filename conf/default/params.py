@@ -122,6 +122,12 @@ GOV_WAGE_RATIO = 1.0
 # funded from outside the ACP, up to the federal and state staff's cost; the inflow is counted in
 # Funds.external_public_funding. False: the budget caps the public wage.
 GOV_EXTERNAL_FUNDING = True
+# Public spending in the ACP. 'budget': as GOV_EXTERNAL_FUNDING sets, public investment is what the municipality's budget
+# leaves, held in real terms after the base months. 'observed': the public payroll target (headcount and pay above), its
+# purchases and inputs, and public investment at the national ratio to public payroll (input/public_spending_2010.csv,
+# IBGE Contas Econômicas Integradas 2010) are paid every month; what the municipality's budget cannot pay comes from
+# outside the ACP, and a budget above that is invested too.
+GOV_SPENDING = 'observed'
 # Months before, and months averaged for, the fixed real bases of federal and state pay and of public investment:
 # public investment, the municipal budget's residual after payroll and purchases, is then held at its base months' real
 # level, the difference paid from (or to) outside the ACP
@@ -407,15 +413,19 @@ CARBON_RECYCLING_QUANTILE = 0.25
 # Fpm: ratio of 'labor' and 'firm' taxes distributed per the fpm ruling
 TAXES_STRUCTURE = {"consumption_equal": 0.1875, "fpm": 0.235}
 # Tax rates. 'legacy': the TAX_* values above, TAX_CONSUMPTION on every sale, TAX_LABOR also on rents. 'data': 2010
-# national accounts (auxiliary/taxes_2010.py): taxes on products by selling sector on domestic sales, exports untaxed
-# (input/product_tax_2010.csv); TAX_LABOR, TAX_FIRM, TAX_RENT (input/taxes_2010.csv); TAX_PROPERTY, the ACP's IPTU over
+# national accounts (auxiliary/taxes_2010.py): taxes on products by selling sector on every sale, sales to the rest of
+# Brazil included and collected where produced (input/product_tax_2010.csv); TAX_LABOR, TAX_FIRM, TAX_RENT (input/taxes_2010.csv); TAX_PROPERTY, the ACP's IPTU over
 # its housing stock value (input/tax_shares_2010.csv).
-TAX_RATES = 'legacy'
+TAX_RATES = 'data'
 # Where taxes go. 'legacy': consumption tax 'consumption_equal' to 'equally' and the rest locally, FPM a share of labour
 # and firm taxes, PUBLIC_TAXES_OUT as set. 'data': the ACP's municipal share of product taxes (ISS + cota-parte ICMS,
 # input/tax_shares_2010.csv) locally, the rest with labour, firm and bank taxes to the Union and the state, out of the
 # ACP; each municipality receives its observed FPM per resident in real terms (input/fpm_real_pc.csv) from outside.
-TAX_ROUTING = 'legacy'
+TAX_ROUTING = 'data'
+# Official pensions paid to residents (world/social_transfers.py). 'rgps': RGPS benefits per municipality
+# (input/social_transfers_2010.csv). 'census': Census 2010 pensioners per resident and mean pension from an official
+# institute, RGPS and RPPS (input/census_pensions_2010.csv).
+PENSIONS = 'census'
 
 # TRANSPORT ######################################################################################
 # Cobb-Douglas parameters for matching utility:
