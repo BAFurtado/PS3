@@ -108,6 +108,10 @@ GOV_REVISED = True
 #   auxiliary/gov_wage_ratio.py) x the mean private wage.
 # 'uniform': GOV_WAGE_RATIO x the mean private wage.
 GOV_WAGE_RULE = 'premium'
+# Public headcount by municipality and year (gov_hire_fire). 'census': Census 2010 militares e estatutários by
+# residence x the national RAIS / Census ratio (input/gov_headcount_census.csv); 'pnad': the same Census count x the
+# state's PNAD Contínua 2012 public employees / Census ratio (input/gov_headcount_pnad.csv). Path: the ACP's RAIS trend.
+GOV_HEADCOUNT = 'pnad'
 GOV_PREMIUM_MUNICIPAL = 0.0
 GOV_WAGE_RATIO = 1.0
 # Federal and state staff are paid from national and state revenue, not from the taxes raised in the ACP. True: when a
@@ -353,9 +357,9 @@ CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 5
 # participation by sex, age group and municipality (world/participation.py); start-up hiring stops at the Census share
 # of the active without a job. Federal benefits (RGPS, BPC, Bolsa Família) are paid from outside the ACP
 # (world/social_transfers.py); own-account workers share their sector's own-account part of every purchase
-# (world/own_account.py); public jobs follow the Census 2010 public servants by residence
-# (input/gov_headcount_census.csv). Immigration and emigration steer each municipality to its population at the start
-# grown at its 2010-2022 Census rate, housed and removed within it.
+# (world/own_account.py); public jobs follow the Census 2010 public servants by residence x the state's PNAD Contínua
+# public employment ratio (input/gov_headcount_pnad.csv). Immigration and emigration steer each municipality to its
+# population at the start grown at its 2010-2022 Census rate, housed and removed within it.
 
 # Families run parameters (on average) for year 2000, or no information. 2010 uses APs average data
 EXOGENOUS_HEAD_RATE = False
@@ -365,7 +369,7 @@ MARRIAGE_CHECK_PROBABILITY = 0.03
 # 'census': partners are linked; couples separate at the 2010 divorce rate of the woman's age, the man leaving with half
 # the household's savings, and adults not in a union form one at the Census 2010 rate of their sex and age
 # (input/union_rates_2010.csv); a new household buys a house if it can afford one, else rents.
-MARRIAGE = 'legacy'
+MARRIAGE = 'census'
 
 # CONSUMPTION #############################################################
 # Fraction of permanent income actually spent on goods; remainder flows to savings.

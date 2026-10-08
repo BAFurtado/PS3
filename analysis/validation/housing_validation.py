@@ -129,7 +129,7 @@ def compute_derived_monthly_indicators(df):
 
     # -----------------------------
     # Price / monthly family income (months of income to buy a house)
-    # Uses workers_median_wage (median gross wage over paid workers) when available, then
+    # Uses workers_median_wage (median wage net of the labour tax over paid workers) when available, then
     # firms_wage_per_worker (median over firms of the wage bill per worker), then
     # families_wages_received (family level).
     # The old firms_median_wage_paid / firms_median_employment ratio is incorrect:

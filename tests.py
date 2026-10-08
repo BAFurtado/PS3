@@ -1645,7 +1645,10 @@ check("Payout: firms end at their buffer, investment rate to the fund and the re
       f"spent {_po_spent:.2f} of {_po_fund:.2f}, imports {_po_imp0 - sim.ledger['imports']:.2f}, entry {_po_entry}")
 
 # Public headcount: the residence-based Census file, restricted to the run's municipalities
+_gh_saved = sim.PARAMS.get('GOV_HEADCOUNT', 'pnad')
+sim.PARAMS['GOV_HEADCOUNT'] = 'census'
 _gh_census = sim.labor_market.process_gov_employees_year()
+sim.PARAMS['GOV_HEADCOUNT'] = _gh_saved
 _gh_file = pd.read_csv('input/gov_headcount_census.csv')
 _gh_muns = {int(str(c)[:6]) for c in sim.geo.mun_codes}
 _gh_ok = (set(_gh_census.codemun) <= _gh_muns
@@ -1654,6 +1657,18 @@ _gh_ok = (set(_gh_census.codemun) <= _gh_muns
           and _gh_census[_gh_census.ano == 2010].qtde_vinc_ativos.sum() > 0)
 check("Public headcount reads the Census file for the run's municipalities", _gh_ok,
       f"2010 census {_gh_census[_gh_census.ano == 2010].qtde_vinc_ativos.sum():.0f}")
+
+# GOV_HEADCOUNT 'pnad': the state-ratio file, same municipalities and RAIS path, a different 2010 level
+sim.PARAMS['GOV_HEADCOUNT'] = 'pnad'
+_gh_pnad = sim.labor_market.process_gov_employees_year()
+sim.PARAMS['GOV_HEADCOUNT'] = _gh_saved
+_gh_p10 = _gh_pnad[_gh_pnad.ano == 2010].set_index('codemun').qtde_vinc_ativos
+_gh_c10 = _gh_census[_gh_census.ano == 2010].set_index('codemun').qtde_vinc_ativos
+_gh_growth = lambda d: d.groupby('ano').qtde_vinc_ativos.sum()
+check("GOV_HEADCOUNT 'pnad' reads its file for the same municipalities with the same growth path",
+      set(_gh_pnad.codemun) == set(_gh_census.codemun) and _gh_p10.sum() > 0 and not np.isclose(_gh_p10.sum(), _gh_c10.sum())
+      and np.allclose(_gh_growth(_gh_pnad) / _gh_p10.sum(), _gh_growth(_gh_census) / _gh_c10.sum(), rtol=1e-3),
+      f"2010 pnad {_gh_p10.sum():.0f} vs census {_gh_c10.sum():.0f}")
 
 
 # Education: levels drawn per agent for its age group match the Census mix of the run's municipalities at
@@ -2033,7 +2048,17 @@ for a in _un_adults:
 _un_fam = next((f for f in sim.families.values() if f.house is not None
                 and sorted(m.gender.lower() for m in f.members.values() if m.age > 21) == ['female', 'male']
                 and any(m.age < 18 for m in f.members.values())), None)
-_un_vacant = [h for h in sim.houses.values() if h.family_id is None]
+# The rental market lets only family-owned vacant houses: one is handed to another family, as a sale would
+_un_vacant = [h for h in sim.houses.values() if h.family_id is None and h.family_owner]
+if _un_fam is not None and not _un_vacant:
+    _un_h = next((h for h in sim.houses.values() if h.family_id is None and h.owner_id in sim.firms), None)
+    _un_owner = next((f for f in sim.families.values() if f is not _un_fam), None)
+    if _un_h is not None and _un_owner is not None:
+        if _un_h in sim.firms[_un_h.owner_id].houses_for_sale:
+            sim.firms[_un_h.owner_id].houses_for_sale.remove(_un_h)
+        _un_h.owner_id, _un_h.family_owner = _un_owner.id, True
+        _un_owner.owned_houses.append(_un_h)
+        _un_vacant = [_un_h]
 if _un_fam is not None and _un_vacant:
     _un_woman = next(m for m in _un_fam.members.values() if m.age > 21 and m.gender.lower() == 'female')
     _un_man = next(m for m in _un_fam.members.values() if m.age > 21 and m.gender.lower() == 'male')

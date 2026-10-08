@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 from analysis.validation.housing_validation import compute_derived_monthly_indicators
+from conf.default.params import REAIS_PER_MONEY_UNIT
 
 TARGETS_PATH = os.path.join(os.path.dirname(__file__), "data", "level_targets.csv")
 HOUSING = ["vacancy", "consumption_gdp", "housing_production_per_1000", "price_income", "price_wage",
@@ -35,6 +36,7 @@ def level_moments(df, window=36):
     m = {
         "unemployment": t.unemployment.mean(),
         "household_income_gdp": (t.families_total_income / t.gdp_level).mean(),
+        "household_income_pc": (t.families_total_income / t["pop"]).mean() * REAIS_PER_MONEY_UNIT,
         "nontradable_inflation": growth(df.price_nontradable),
         **{k: h[k].mean() for k in HOUSING},
     }

@@ -555,10 +555,10 @@ class Output:
         p_delinquent = len(bank.delinquent_loans()) / n_active if n_active else 0
 
         firm_results = sim.stats.calculate_firms_metrics(sim.firms)
-        # Work income received this month, gross of the labour tax, by each worker of a firm that paid
+        # Work income received this month, net of the labour tax, by each worker of a firm that paid
         paid = [a.wage_paid for a in sim.agents.values()
                 if a.firm_id is not None and a.wage_paid > 0 and sim.firms[a.firm_id].wages_paid > 0]
-        workers_median_wage = float(np.median(paid)) / (1 - sim.PARAMS["TAX_LABOR"]) if paid else 0.0
+        workers_median_wage = float(np.median(paid)) if paid else 0.0
         price_level, inflation = sim.stats.update_price(sim.firms)
         gdp_level, gdp_growth_rate, gdp_change = sim.stats.calculate_gdp_and_eco_efficiency(sim.firms, sim.regions)
         unemployment = sim.stats.update_unemployment(sim.agents.values(), True, True)

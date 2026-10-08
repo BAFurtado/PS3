@@ -44,7 +44,7 @@ class LaborMarket:
         return max_dist
 
     def process_gov_employees_year(self):
-        employees = pd.read_csv('input/gov_headcount_census.csv')
+        employees = pd.read_csv(f"input/gov_headcount_{self.sim.PARAMS.get('GOV_HEADCOUNT', 'census')}.csv")
         geo_codes_6_digit = [int(str(_)[:6]) for _ in self.sim.geo.mun_codes]
         # Just municipalities in this run
         return employees[employees['codemun'].isin(geo_codes_6_digit)]
