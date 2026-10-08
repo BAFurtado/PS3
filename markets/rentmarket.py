@@ -8,7 +8,7 @@ def collect_rent(houses, sim):
             land_family = sim.families[house.owner_id]
 
             # Collect taxes on transaction
-            taxes = rent * sim.PARAMS['TAX_LABOR']
+            taxes = rent * sim.PARAMS.get('TAX_RENT', sim.PARAMS['TAX_LABOR'])
 
             # If family belongs to rent policy programme, rent is paid for
             if tenant.rent_voucher:

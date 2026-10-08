@@ -46,6 +46,8 @@ class Funds:
         self.gov_pay = {str(r.cod_mun): {'federal': r.federal, 'estadual': r.estadual} for r in pay.itertuples()}
         # GOV_EXTERNAL_FUNDING: money paid in from outside the ACP for federal and state public staff, cumulative
         self.external_public_funding = 0.0
+        # Taxes on products collected in the ACP this month
+        self.product_taxes_month = 0.0
         self.perc_policy_money_spent = 0
         self.allocated_money = 0
         # Per-municipality diagnostics of the two OGU programmes, refreshed every
@@ -57,6 +59,16 @@ class Funds:
         # GOV_REVISED: per municipality, last month's public budget, external funding, target payroll, wage paid per
         # worker, payroll and public investment
         self.gov_budget_diag = {}
+        # TAX_ROUTING 'data': each municipality's share of product taxes kept locally, and its FPM per resident a year in
+        # R$ of 2010 by year
+        self.routing = sim.PARAMS.get('TAX_ROUTING', 'legacy') == 'data'
+        if self.routing:
+            shares = pd.read_csv('input/tax_shares_2010.csv', sep=';').set_index('acp').local_product_share
+            acps = pd.read_csv('input/ACPs_MUN_CODES.csv', sep=';').drop_duplicates('cod_mun')
+            self.local_share = {str(r.cod_mun): float(shares.get(r.ACPs, shares.median())) for r in acps.itertuples()}
+            fpm = pd.read_csv('input/fpm_real_pc.csv', sep=';')
+            self.fpm_pc = {(str(r.cod), int(r.ano)): r.fpm_pc for r in fpm.itertuples()}
+            self.fpm_last_year = int(fpm.ano.max())
         if sim.PARAMS['FPM_DISTRIBUTION']:
             self.fpm = {
                 state: pd.read_csv('input/fpm/%s.csv' % state, sep=',', header=0, decimal='.', encoding='latin1')
@@ -539,6 +551,21 @@ class Funds:
 
             region.update_applied_taxes(regional_fpm, 'fpm')
 
+    def observed_fpm(self, regions, pop_t, year):
+        """TAX_ROUTING 'data': each region receives a month of its municipality's FPM per resident (R$ of 2010, over
+        REAIS_PER_MONEY_UNIT) times its residents, from outside the ACP; the last year observed after it"""
+        year = min(int(year), self.fpm_last_year)
+        kappa = self.sim.PARAMS['REAIS_PER_MONEY_UNIT']
+        for id, region in regions.items():
+            amount = self.fpm_pc.get((id[:7], year), 0.0) / 12 / kappa * pop_t[id]
+            if amount <= 0:
+                continue
+            self.sim.ledger['public_transfers'] += amount
+            if self.sim.PARAMS.get('GOV_REVISED', False):
+                self.pending_public_money[id]['fpm'] += amount
+            else:
+                region.update_applied_taxes(amount, 'fpm')
+
     def locally(self, value, regions, mun_code, pop_t, pop_mun_t):
         for mun in mun_code.keys():
             for id_ in mun_code[mun]:
@@ -565,7 +592,7 @@ class Funds:
                 regions[id_].update_applied_taxes(amount, 'locally')
 
     def equally(self, value, regions, pop_t, pop_total):
-        if self.sim.PARAMS.get('PUBLIC_TAXES_OUT', False):
+        if self.sim.PARAMS.get('PUBLIC_TAXES_OUT', False) or self.routing:
             # Federal and state revenue raised in the ACP leaves it; federal and state staff are paid from outside
             # (GOV_EXTERNAL_FUNDING)
             self.sim.ledger['public_taxes_out'] -= value
@@ -653,10 +680,22 @@ class Funds:
         v_local = defaultdict(float)
         # Every month taxes to distribute start from 0
         v_equal = 0.0
+        self.product_taxes_month = sum(treasure[key]['consumption'] for key in treasure.keys())
         # All taxes charged from other regions return back to the metropolis
         v_equal += self.sim.external.collect_transfer_consumption_tax()
 
-        if self.sim.PARAMS['ALTERNATIVE0']:
+        if self.sim.PARAMS['ALTERNATIVE0'] and self.routing:
+            # The municipal share of product taxes (ISS + cota-parte ICMS) stays; the state's goes to 'equally'
+            mun_code = self.sim.mun_to_regions
+            for mun in mun_code.keys():
+                consumption = sum(treasure[r]['consumption'] for r in mun_code[mun])
+                share = self.local_share.get(mun, float(np.median(list(self.local_share.values()))))
+                v_local[mun] += consumption * share
+                v_equal += consumption * (1 - share)
+                v_local[mun] += sum(treasure[r]['transaction'] for r in mun_code[mun])
+                v_local[mun] += sum(treasure[r]['property'] for r in mun_code[mun])
+            self.locally(v_local, regions, mun_code, pop_t, pop_mun_t)
+        elif self.sim.PARAMS['ALTERNATIVE0']:
             # Dividing proportion of consumption into equal and local (state, municipality)
             # And adding local part of consumption plus transaction and property to local
             v_equal += sum([treasure[key]['consumption'] for key in treasure.keys()]) * \
@@ -673,7 +712,12 @@ class Funds:
             for each in ['consumption', 'property', 'transaction']:
                 v_equal += sum([treasure[key][each] for key in treasure.keys()])
 
-        if self.sim.PARAMS['FPM_DISTRIBUTION']:
+        if self.routing:
+            # Labour and firm taxes are the Union's; FPM comes from outside at its observed level
+            v_equal += (sum([treasure[key]['labor'] for key in treasure.keys()]) +
+                        sum([treasure[key]['firm'] for key in treasure.keys()]))
+            self.observed_fpm(regions, pop_t, year)
+        elif self.sim.PARAMS['FPM_DISTRIBUTION']:
             v_fpm = (sum([treasure[key]['labor'] for key in treasure.keys()]) +
                      sum([treasure[key]['firm'] for key in treasure.keys()]))
             self.distribute_fpm(v_fpm * self.sim.PARAMS['TAXES_STRUCTURE']['fpm'], regions, pop_t, pop_mun_t, year)

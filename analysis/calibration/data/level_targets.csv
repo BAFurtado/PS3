@@ -12,5 +12,5 @@ vacancy,ALL,0.08,0.13,Density paper Table 2
 consumption_gdp,ALL,0.55,0.65,Density paper Table 2
 housing_production_per_1000,ALL,2,4,Density paper Table 2
 price_income,ALL,3.7,6.3,Census 2010 over the 25 capitals: mean rent / FipeZAP 2010 yield over family income
-price_wage,ALL,92,155,"Census 2010 over the 25 capitals: mean rent / FipeZAP 2010 yield over the median worker's monthly wage, moved to 2017-19 by the capital's FipeZAP real sale price index over its PNAD Contínua real mean wage (2017-19) / Census 2010 mean wage"
+price_wage,ALL,81,119,Census 2010 over the 25 capitals: mean rent / FipeZAP 2010 yield over the median worker's monthly wage (2010 level)
 housing_stock_permanent_income,ALL,3.1,4.7,Census 2010 over the 25 capitals: housing stock value over annual family income

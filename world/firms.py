@@ -3,6 +3,7 @@ from collections import defaultdict
 import numpy as np
 import pandas as pd
 
+from agents.firm import Firm
 from agents.house import House
 
 
@@ -108,12 +109,12 @@ def project_floor(sim):
     other capital scales."""
     if not hasattr(sim, '_project_floor'):
         costs = [h.size * h.quality for h in sim.houses.values()]
-        licence = max(r.license_price for r in sim.regions.values())
+        licence = max(r.license_price * House.scale(r.id) for r in sim.regions.values())
         cost = licence * float(np.median(costs)) if costs else 0.0
         values = sim.house_values
         works = [values.build_cost(h.region_id, h.size, h.quality, values.mean_productivity)
                  for h in sim.houses.values()]
-        sim._project_floor = cost * House.price_scale * sim.PARAMS['LOT_COST'] + float(np.median(works))
+        sim._project_floor = cost * sim.PARAMS['LOT_COST'] + float(np.median(works))
     return sim._project_floor
 
 
@@ -130,8 +131,8 @@ def set_sector_productivity(sim, firms):
 
 def set_productivity_level(sim):
     """PRODUCTIVITY_MAGNITUDE_DIVISOR such that the value added of the private firms'
-    staff capacity, capacity x (1 - the sector's national input coefficients, less TAX_CONSUMPTION when PRODUCTIVITY_VA
-    is 'net'), equals the 2010 market value added per
+    staff capacity, capacity x (1 - the sector's national input coefficients, less TAX_CONSUMPTION, or with TAX_RATES
+    'data' the sector's tax on all its sales, when PRODUCTIVITY_VA is 'net'), equals the 2010 market value added per
     resident of the run's municipalities (input/municipal_va_2010.csv) times the agents living there, a month, in model
     money, firms producing the value added that is not own-account income. Set after start-up hiring; returns the
     divisor."""
@@ -144,7 +145,10 @@ def set_productivity_level(sim):
     target *= 1 - sim.regional_market.pools.mixed_share
     va_share = 1 - pd.read_csv('input/technical_matrix.csv').set_index('sector').sum(axis=0)
     if sim.PARAMS.get('PRODUCTIVITY_VA', 'gross') == 'net':
-        va_share -= sim.PARAMS['TAX_CONSUMPTION']
+        if Firm.product_tax_sales is not None:
+            va_share -= pd.Series(Firm.product_tax_sales).reindex(va_share.index).fillna(0.0)
+        else:
+            va_share -= sim.PARAMS['TAX_CONSUMPTION']
     pe = sim.PARAMS['PRODUCTIVITY_EXPONENT']
     labour = sum(f.total_qualification(pe) * f.sector_productivity * va_share[f.sector]
                  for f in sim.firms.values() if f.sector != 'Government' and not f.pool)

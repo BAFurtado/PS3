@@ -283,6 +283,9 @@ REAIS_PER_MONEY_UNIT = 1000
 INITIAL_RENTAL_SHARE = 0.40
 # Monthly rent per unit of size x quality x region index, in model money: the level of rents (world/house_values.py)
 INITIAL_RENTAL_PRICE = 0.002
+# Level of rents and house prices. 'legacy': INITIAL_RENTAL_PRICE. 'census': in each ACP, scaled so that the mean rent
+# of the houses rented at the start equals the Census 2010 mean rent of its renting households (input/rent_AP_2010.csv)
+RENT_LEVEL = 'census'
 # House values: rents keep the level of INITIAL_RENTAL_PRICE x size x quality x region index; prices are rent x 12 /
 # RENTAL_YIELD, the FipeZAP 2010 national gross rental yield; builders' cost is size x the Sinapi 2010 cost per m² of
 # the state (input/sinapi_2010.csv) x the CUB/m² 2010 ratio of the quality's finish standard to the normal one
@@ -403,6 +406,16 @@ CARBON_RECYCLING_QUANTILE = 0.25
 # Consumption_equal: ratio of consumption tax distributed at state level (equal)
 # Fpm: ratio of 'labor' and 'firm' taxes distributed per the fpm ruling
 TAXES_STRUCTURE = {"consumption_equal": 0.1875, "fpm": 0.235}
+# Tax rates. 'legacy': the TAX_* values above, TAX_CONSUMPTION on every sale, TAX_LABOR also on rents. 'data': 2010
+# national accounts (auxiliary/taxes_2010.py): taxes on products by selling sector on domestic sales, exports untaxed
+# (input/product_tax_2010.csv); TAX_LABOR, TAX_FIRM, TAX_RENT (input/taxes_2010.csv); TAX_PROPERTY, the ACP's IPTU over
+# its housing stock value (input/tax_shares_2010.csv).
+TAX_RATES = 'legacy'
+# Where taxes go. 'legacy': consumption tax 'consumption_equal' to 'equally' and the rest locally, FPM a share of labour
+# and firm taxes, PUBLIC_TAXES_OUT as set. 'data': the ACP's municipal share of product taxes (ISS + cota-parte ICMS,
+# input/tax_shares_2010.csv) locally, the rest with labour, firm and bank taxes to the Union and the state, out of the
+# ACP; each municipality receives its observed FPM per resident in real terms (input/fpm_real_pc.csv) from outside.
+TAX_ROUTING = 'legacy'
 
 # TRANSPORT ######################################################################################
 # Cobb-Douglas parameters for matching utility:

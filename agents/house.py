@@ -13,6 +13,13 @@ class House:
     Owner = Owner
     # Multiplies size x quality x region index in the price (world/house_values.py)
     price_scale = 1.0
+    # RENT_LEVEL 'census': the ACP's factor per region id, on top of price_scale
+    area_scale = {}
+
+    @staticmethod
+    def scale(region_id):
+        """Price per unit of size x quality x region index in the region"""
+        return House.price_scale * House.area_scale.get(region_id, 1.0)
 
     def __init__(self, _id, address, size, price, region_id, quality,
                  rural=False, family_id=None, owner_id=None,
@@ -37,7 +44,7 @@ class House:
                      vacancy=0, offer_size=0, vacancy_ref=0.08,
                      max_disc=0.6, max_prem=1.3):
         """Compute new price for the house"""
-        self.price = self.size * self.quality * regions[self.region_id].index * House.price_scale
+        self.price = self.size * self.quality * regions[self.region_id].index * House.scale(self.region_id)
         # Update for too long in the market
         self.price *= (1 - bound) * e ** (k * self.on_market) + bound
         if neighborhood:

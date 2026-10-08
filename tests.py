@@ -1998,10 +1998,28 @@ _hv_ok_plan = (_hv_plan is not None and abs(
     _hv_plan['cost'] * _hv_b2.prices - _hv.build_cost(_hv_rid, _hv_plan['size'], _hv_plan['quality'],
                                                       _hv_b2.productivity)) < 1e-9
                and abs(1e9 - _hv_b2.total_balance - _hv_plan['quality'] * _hv_reg.index * _hv_plan['size']
-                       * _hv.price_scale * sim.PARAMS['LOT_COST']) < 1e-6)
+                       * _hv.price_scale * _hv_House.area_scale.get(_hv_rid, 1.0) * sim.PARAMS['LOT_COST']) < 1e-6)
 check("House values: rent level kept, cost by Sinapi state and CUB standards, builder plans in money",
       _hv_ok_level and _hv_ok_cost and _hv_ok_plan,
       f"level {_hv_ok_level} cost {_hv_ok_cost} plan {_hv_ok_plan}")
+
+# RENT_LEVEL 'census': the ACP factor brings the mean rent of the rented houses to the Census mean rent of its renters,
+# and House.scale applies it on top of the national scale
+_rl = _hv.census_rent_scale(sim.houses.values(), sim.regions)
+_rl_census = pd.read_csv('input/rent_AP_2010.csv', sep=';').set_index('AREAP')
+_rl_aps = [int(r) for r in sim.regions if int(r) in _rl_census.index]
+_rl_target = ((_rl_census.loc[_rl_aps].renters * _rl_census.loc[_rl_aps].mean_rent).sum()
+              / _rl_census.loc[_rl_aps].renters.sum() / sim.PARAMS['REAIS_PER_MONEY_UNIT'])
+_rl_rents = [float(h.rent_data[0]) * _rl[h.region_id] for h in sim.houses.values()
+             if h.rent_data is not None and h.family_id is not None]
+_rl_saved = dict(_hv_House.area_scale)
+_hv_House.area_scale = _rl
+_rl_ok_scale = abs(_hv_House.scale(_rl_aps and str(_rl_aps[0]) or _hv_rid)
+                   - _hv_House.price_scale * _rl.get(str(_rl_aps[0]), 1.0)) < 1e-12 if _rl_aps else False
+_hv_House.area_scale = _rl_saved
+check("Rent level 'census': mean rent of rented houses equals the Census mean rent of the ACP's renters",
+      len(set(_rl.values())) == 1 and _rl_rents and abs(np.mean(_rl_rents) / _rl_target - 1) < 1e-9 and _rl_ok_scale,
+      f"factor {set(_rl.values())}, model {np.mean(_rl_rents) if _rl_rents else 0:.4f} vs Census {_rl_target:.4f}")
 
 # Marriage: the population counters follow every agent who moves to another household
 def _mp_gap():
@@ -2029,6 +2047,57 @@ check("Marriage: population counters follow the agents who move",
       and sum(sim.mun_pops.values()) == sum(_mp_mun.values()),
       f"moved {_mp_moved}, gap changed in "
       f"{sum(_mp_after[r] != _mp_before.get(r, 0) for r in _mp_after)} regions")
+
+# TAX_RATES 'data': the 2010 rates replace the TAX_* values; a sale pays its seller's sector rate, an export none
+from agents.firm import Firm as _tx_Firm
+_tx_params = dict(sim.PARAMS, TAX_RATES='data', PROCESSING_ACPS=['GOIANIA'])
+_tx_stub = SimpleNamespace(PARAMS=_tx_params)
+Simulation.tax_data(_tx_stub)
+_tx_rates = pd.read_csv('input/taxes_2010.csv', sep=';').set_index('tax').rate
+_tx_prod = pd.read_csv('input/product_tax_2010.csv', sep=';').set_index('sector')
+_tx_share = pd.read_csv('input/tax_shares_2010.csv', sep=';').set_index('acp')
+_tx_ok_params = (np.isclose(_tx_params['TAX_LABOR'], _tx_rates['labour']) and np.isclose(_tx_params['TAX_FIRM'], _tx_rates['firm'])
+                 and np.isclose(_tx_params['TAX_RENT'], _tx_rates['rent'])
+                 and np.isclose(_tx_params['TAX_PROPERTY'], _tx_share.loc['GOIANIA', 'iptu_rate']))
+_tx_f = _hv_copy.copy(next(f for f in sim.firms.values() if f.sector == 'Manufacturing' and not f.pool))
+_tx_f.inventory = {0: _hv_copy.copy(_tx_f.inventory[0])}
+_tx_f.inventory[0].quantity, _tx_f.inventory[0].price = 1e9, 1.0
+_tx_f.revenue, _tx_f.total_balance, _tx_f.amount_sold, _tx_f.unmet_quantity = 0.0, 0.0, 0.0, 0.0
+_tx_regions = {_tx_f.region_id: SimpleNamespace(collect_taxes=lambda amount, key: None)}
+_tx_f.sale(100.0, _tx_regions, 0.15, _tx_f.region_id, True)
+_tx_domestic = _tx_f.revenue
+_tx_f.sale(100.0, _tx_regions, 0.15, _tx_f.region_id, True, external=True)
+_tx_ok_sale = (np.isclose(_tx_domestic, 100 * (1 - _tx_prod.loc['Manufacturing', 'domestic']))
+               and np.isclose(_tx_f.revenue - _tx_domestic, 100.0))
+_tx_Firm.product_tax = _tx_Firm.product_tax_sales = None
+check("Tax rates 'data': 2010 labour, firm, rent and IPTU rates; sales taxed at the seller's sector rate, exports not",
+      _tx_ok_params and _tx_ok_sale, f"params {_tx_ok_params} sale {_tx_ok_sale}")
+
+# TAX_ROUTING 'data': a region receives a month of its municipality's observed FPM per resident from outside; the taxes
+# pooled 'equally' leave the ACP
+_tx_funds = sim.funds
+_tx_routing = getattr(_tx_funds, 'routing', False)
+_tx_fpm = pd.read_csv('input/fpm_real_pc.csv', sep=';')
+_tx_funds.fpm_pc = {(str(r.cod), int(r.ano)): r.fpm_pc for r in _tx_fpm.itertuples()}
+_tx_funds.fpm_last_year = int(_tx_fpm.ano.max())
+_tx_rid = next(r for r in sim.regions if (r[:7], 2012) in _tx_funds.fpm_pc)
+_tx_pop = {r: 0 for r in sim.regions}
+_tx_pop[_tx_rid] = 1000
+_tx_ledger = sim.ledger['public_transfers'], sim.ledger['public_taxes_out']
+_tx_pending = _tx_funds.pending_public_money[_tx_rid]['fpm']
+_tx_funds.routing = True
+_tx_funds.observed_fpm(sim.regions, _tx_pop, 2012)
+_tx_got = _tx_funds.pending_public_money[_tx_rid]['fpm'] - _tx_pending
+_tx_funds.equally(10.0, sim.regions, _tx_pop, 1000)
+_tx_expected = _tx_funds.fpm_pc[(_tx_rid[:7], 2012)] / 12 / sim.PARAMS['REAIS_PER_MONEY_UNIT'] * 1000
+_tx_ok_route = (np.isclose(_tx_got, _tx_expected)
+                and np.isclose(sim.ledger['public_transfers'] - _tx_ledger[0], _tx_expected)
+                and np.isclose(sim.ledger['public_taxes_out'] - _tx_ledger[1], -10.0))
+_tx_funds.routing = _tx_routing
+_tx_funds.pending_public_money[_tx_rid]['fpm'] = _tx_pending
+sim.ledger['public_transfers'], sim.ledger['public_taxes_out'] = _tx_ledger
+check("Tax routing 'data': observed FPM per resident paid in from outside; 'equally' taxes leave the ACP",
+      _tx_ok_route, f"FPM {_tx_got:.4f} vs {_tx_expected:.4f}")
 
 # MARRIAGE 'census': yearly rates read as monthly probabilities
 _un_rates = _pp.UnionRates()

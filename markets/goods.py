@@ -433,6 +433,7 @@ class External:
     def final_consumption(self):
         """The rest of Brazil buys the exports (export_demand) from every firm of the sector with stock, in proportion
         to the value of its stock, or from all its firms when none has stock"""
+        from agents.firm import Firm
         chosen_firms = self.stocked_firms_per_sector(self.sim.firms)
         demand = self.export_demand()
         self.sim.regional_market.input_need[:] = 0.0
@@ -463,7 +464,7 @@ class External:
                                                     if_origin=self.sim.PARAMS['TAX_ON_ORIGIN'],
                                                     external=True)
             # The consumption tax stays in the ACP only when it is charged at origin
-            self.sim.ledger['exports'] += sold * (1 if self.sim.PARAMS['TAX_ON_ORIGIN']
+            self.sim.ledger['exports'] += sold * (1 if self.sim.PARAMS['TAX_ON_ORIGIN'] or Firm.product_tax is not None
                                                   else 1 - self.sim.PARAMS['TAX_CONSUMPTION'])
             exported += sold
 

@@ -53,6 +53,7 @@ def resolve_seed(params):
 class Simulation:
     def __init__(self, params, output_path):
         self.PARAMS = copy.copy(params)
+        self.tax_data()
         self.geo = Geography(params, self.PARAMS["STARTING_DAY"].year)
         self.regional_market = RegionalMarket(self)
         self.clock = clock.Clock(self.PARAMS["STARTING_DAY"])
@@ -68,7 +69,9 @@ class Simulation:
         self.generator = Generator(self)
         # Generate the external supplier
         self.avg_prices = 1
-        self.external = External(self, self.PARAMS["TAXES_STRUCTURE"]["consumption_equal"])
+        # TAX_ROUTING 'data': no tax on imports returns to the ACP
+        self.external = External(self, 0.0 if self.PARAMS.get('TAX_ROUTING', 'legacy') == 'data'
+                                 else self.PARAMS["TAXES_STRUCTURE"]["consumption_equal"])
         self.mun_pops = defaultdict(int)
         self.house_values = None
         self.reg_pops = defaultdict(int)
@@ -265,6 +268,14 @@ class Simulation:
         House.price_scale = self.house_values.price_scale
         for house in self.houses.values():
             house.price *= House.price_scale
+        House.area_scale = {}
+        if self.PARAMS.get('RENT_LEVEL', 'legacy') == 'census':
+            House.area_scale = self.house_values.census_rent_scale(self.houses.values(), self.regions)
+            for house in self.houses.values():
+                factor = House.area_scale.get(house.region_id, 1.0)
+                house.price *= factor
+                if house.rent_data is not None:
+                    house.rent_data = house.rent_data[0] * factor, house.rent_data[1]
         # Also for a population loaded from file
         set_sector_productivity(self, self.firms.values())
         Agent.wage_profile = self.wage_profile()
@@ -337,6 +348,21 @@ class Simulation:
             region.pop = self.reg_pops[region.id]
         self.money_initial = money_stock_total(self)
         self.central.equity_target = self.central.equity()
+
+    def tax_data(self):
+        """TAX_RATES 'data': the 2010 rates replace the TAX_* values; the product tax rates go to Firm"""
+        Firm.product_tax = Firm.product_tax_sales = None
+        if self.PARAMS.get('TAX_RATES', 'legacy') != 'data':
+            return
+        product = pd.read_csv('input/product_tax_2010.csv', sep=';').set_index('sector')
+        Firm.product_tax, Firm.product_tax_sales = product.domestic.to_dict(), product.sales.to_dict()
+        rates = pd.read_csv('input/taxes_2010.csv', sep=';').set_index('tax').rate
+        shares = pd.read_csv('input/tax_shares_2010.csv', sep=';').set_index('acp')
+        acps = [a for a in self.PARAMS['PROCESSING_ACPS'] if a in shares.index]
+        self.PARAMS.update(TAX_LABOR=float(rates['labour']), TAX_FIRM=float(rates['firm']),
+                           TAX_RENT=float(rates['rent']), SALARY_SHARE=float(rates['salary_share']),
+                           TAX_PROPERTY=float(shares.loc[acps, 'iptu_rate'].mean() if acps
+                                              else shares.iptu_rate.median()))
 
     def leave_labour_force(self):
         """Employed agents no longer active leave their job, which the firm may refill"""

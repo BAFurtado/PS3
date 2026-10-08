@@ -29,16 +29,24 @@ def growth(series, start=12):
     return 100 * ((series.iloc[-1] / series.iloc[start]) ** (12 / (len(series) - 1 - start)) - 1)
 
 
+def census_income(t):
+    """Families' income as the Census reports it: wages before the worker's contributions and income tax, where the run
+    records them"""
+    if {"families_total_wages", "wage_census_factor"} <= set(t.columns):
+        return t.families_total_income + t.families_total_wages * (t.wage_census_factor - 1)
+    return t.families_total_income
+
+
 def level_moments(df, window=36):
     """Levels of one run, means over its last `window` months, and the measures of the hard constraints. Income per
-    resident is in money of the first month: deflated by the model price level"""
+    resident is on the Census basis (census_income) in money of the first month: deflated by the model price level"""
     t = df.tail(window)
     deflator = (df.price_level / df.price_level.iloc[0]).tail(window)
     h = compute_derived_monthly_indicators(df.copy()).tail(window)
     m = {
         "unemployment": t.unemployment.mean(),
         "household_income_gdp": (t.families_total_income / t.gdp_level).mean(),
-        "household_income_pc": (t.families_total_income / t["pop"] / deflator).mean() * REAIS_PER_MONEY_UNIT,
+        "household_income_pc": (census_income(t) / t["pop"] / deflator).mean() * REAIS_PER_MONEY_UNIT,
         "nontradable_inflation": growth(df.price_nontradable),
         **{k: h[k].mean() for k in HOUSING},
     }

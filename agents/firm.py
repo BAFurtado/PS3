@@ -63,6 +63,10 @@ class Firm:
     well as cash flow. Decisions are based on endogenous variables and products are available when
     searched for by consumers.
     """
+    # TAX_RATES 'data': net taxes on products by selling sector, on domestic sales and on all sales
+    # (input/product_tax_2010.csv); None: TAX_CONSUMPTION on every sale
+    product_tax = None
+    product_tax_sales = None
     # Consecutive staffed months with no wages paid (see FIRE_UNPAID_MONTHS). Class-level default so
     # firms restored from population pickles made before the counter existed start at 0.
     months_unpaid = 0
@@ -592,6 +596,12 @@ class Firm:
         rec[0] += sold
         rec[1] += refused
 
+    def consumption_tax(self, rate, external):
+        """The tax on a sale: `rate`, or with TAX_RATES 'data' the seller's sector rate, none on an export"""
+        if Firm.product_tax is None:
+            return rate
+        return 0.0 if external else Firm.product_tax.get(self.sector, 0.0)
+
     def sale(self, amount, regions, tax_consumption, consumer_region_id, if_origin, external=False,
              buyer='household'):
         """Sell max amount of products for a given amount of money.
@@ -601,6 +611,7 @@ class Firm:
         """
         if external:
             buyer = 'external'
+        tax_consumption = self.consumption_tax(tax_consumption, external)
         if amount > 0:
             product = self.inventory[0]
             if product.quantity > 0:
@@ -901,9 +912,9 @@ class ConstructionFirm(Firm):
             params['PRODUCTIVITY_EXPONENT'], params['PRODUCTIVITY_MAGNITUDE_DIVISOR'])
         values = sim.house_values
         for r in regions:
-            expected_price = building_quality * r.index * building_size * vacancy_factor * House.price_scale
+            expected_price = building_quality * r.index * building_size * vacancy_factor * House.scale(r.id)
             # Land at LOT_COST of the house's value, building at its money cost
-            land = building_quality * r.index * building_size * House.price_scale * params["LOT_COST"]
+            land = building_quality * r.index * building_size * House.scale(r.id) * params["LOT_COST"]
             works = values.build_cost(r.id, building_size, building_quality, self.productivity)
             profit = expected_price - works - land
 
@@ -937,7 +948,7 @@ class ConstructionFirm(Firm):
         # Buy license
         region.licenses -= 1
         # Land at LOT_COST of the house's value
-        cost_of_land = building_quality * region.index * building_size * House.price_scale * params["LOT_COST"]
+        cost_of_land = building_quality * region.index * building_size * House.scale(region.id) * params["LOT_COST"]
         self.total_balance -= cost_of_land
         region.collect_taxes(cost_of_land, "transaction")
         if params.get('FIRM_CAPITAL_MONTHS', 0) > 0:
@@ -1008,7 +1019,7 @@ class ConstructionFirm(Firm):
         house_id = generator.gen_id()
         size = building_info["size"]
         quality = building_info["quality"]
-        price = (size * quality) * region.index * House.price_scale
+        price = (size * quality) * region.index * House.scale(region.id)
         h = House(
             house_id,
             address,
