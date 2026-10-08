@@ -1,6 +1,8 @@
 
 
 def collect_rent(houses, sim):
+    """Tenants pay their rent; returns the rent resident landlords received, before the tax on it"""
+    received = 0.0
     for house in houses:
         if house.rent_data:
             rent = house.rent_data[0]
@@ -8,7 +10,7 @@ def collect_rent(houses, sim):
             land_family = sim.families[house.owner_id]
 
             # Collect taxes on transaction
-            taxes = rent * sim.PARAMS['TAX_LABOR']
+            taxes = rent * sim.PARAMS.get('TAX_RENT', sim.PARAMS['TAX_LABOR'])
 
             # If family belongs to rent policy programme, rent is paid for
             if tenant.rent_voucher:
@@ -57,11 +59,14 @@ def collect_rent(houses, sim):
                 landlord_payment = payment - actual_taxes
                 if landlord_payment > 0:
                     land_family.update_balance(landlord_payment)
+                    if land_family.members:
+                        received += payment
 
                 # If tenant overpaid, return the difference
                 if payment > rent:
                     overpayment = payment - rent
                     tenant.update_balance(overpayment)
+    return received
 
 
 class RentalMarket:

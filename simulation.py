@@ -53,6 +53,7 @@ def resolve_seed(params):
 class Simulation:
     def __init__(self, params, output_path):
         self.PARAMS = copy.copy(params)
+        self.tax_data()
         self.geo = Geography(params, self.PARAMS["STARTING_DAY"].year)
         self.regional_market = RegionalMarket(self)
         self.clock = clock.Clock(self.PARAMS["STARTING_DAY"])
@@ -68,7 +69,9 @@ class Simulation:
         self.generator = Generator(self)
         # Generate the external supplier
         self.avg_prices = 1
-        self.external = External(self, self.PARAMS["TAXES_STRUCTURE"]["consumption_equal"])
+        # TAX_ROUTING 'data': no tax on imports returns to the ACP
+        self.external = External(self, 0.0 if self.PARAMS.get('TAX_ROUTING', 'legacy') == 'data'
+                                 else self.PARAMS["TAXES_STRUCTURE"]["consumption_equal"])
         self.mun_pops = defaultdict(int)
         self.house_values = None
         self.reg_pops = defaultdict(int)
@@ -78,12 +81,16 @@ class Simulation:
         self.firm_grave = dict()
         # Negative balances written off at exit (money already paid out that the firm did not have)
         self.firm_exit_writeoff = 0.0
+        # MARRIAGE 'census': yearly union rates, read at the first month
+        self.union_rates = None
         # Money crossing the ACP's boundary, cumulative by channel (analysis/money.py), and the stock it started with
         self.ledger = defaultdict(float)
         self.money_initial = 0.0
         # The ACP's Census income per person aged 10+ at the start, in model money
         self.income_per_person = 0.0
         # Firms' cash above the buffers paid out this month
+        # Rent resident landlords received this month (markets/rentmarket.py:collect_rent)
+        self.rent_received = 0.0
         self.profit_share_paid = 0.0
         # Corporate FBCF / gross operating surplus, and the money set aside for investment
         self.investment_rate = 0.0
@@ -263,6 +270,14 @@ class Simulation:
         House.price_scale = self.house_values.price_scale
         for house in self.houses.values():
             house.price *= House.price_scale
+        House.area_scale = {}
+        if self.PARAMS.get('RENT_LEVEL', 'legacy') == 'census':
+            House.area_scale = self.house_values.census_rent_scale(self.houses.values(), self.regions)
+            for house in self.houses.values():
+                factor = House.area_scale.get(house.region_id, 1.0)
+                house.price *= factor
+                if house.rent_data is not None:
+                    house.rent_data = house.rent_data[0] * factor, house.rent_data[1]
         # Also for a population loaded from file
         set_sector_productivity(self, self.firms.values())
         Agent.wage_profile = self.wage_profile()
@@ -288,7 +303,8 @@ class Simulation:
             self.mun_to_regions[mun_code] = sorted(regions)
         self.participation = Participation(self.mun_to_regions, self._seed)
         self.stats.participation = self.participation
-        self.social_transfers = SocialTransfers(self.mun_to_regions, self.PARAMS['REAIS_PER_MONEY_UNIT'])
+        self.social_transfers = SocialTransfers(self.mun_to_regions, self.PARAMS['REAIS_PER_MONEY_UNIT'],
+                                               self.PARAMS.get('PENSIONS', 'rgps'))
         self.investment_rate = float(pd.read_csv('input/investment_rate_2015.csv', sep=';').investment_rate.iloc[0])
         ConstructionFirm.planned = self.PARAMS.get('CONSTRUCTION_PLAN', 'pipeline') == 'sales'
         Firm.vale_transporte = self.PARAMS['PUBLIC_TRANSIT_COST']
@@ -335,6 +351,21 @@ class Simulation:
             region.pop = self.reg_pops[region.id]
         self.money_initial = money_stock_total(self)
         self.central.equity_target = self.central.equity()
+
+    def tax_data(self):
+        """TAX_RATES 'data': the 2010 rates replace the TAX_* values; the product tax rates go to Firm"""
+        Firm.product_tax = Firm.product_tax_sales = None
+        if self.PARAMS.get('TAX_RATES', 'legacy') != 'data':
+            return
+        product = pd.read_csv('input/product_tax_2010.csv', sep=';').set_index('sector')
+        Firm.product_tax, Firm.product_tax_sales = product.domestic.to_dict(), product.sales.to_dict()
+        rates = pd.read_csv('input/taxes_2010.csv', sep=';').set_index('tax').rate
+        shares = pd.read_csv('input/tax_shares_2010.csv', sep=';').set_index('acp')
+        acps = [a for a in self.PARAMS['PROCESSING_ACPS'] if a in shares.index]
+        self.PARAMS.update(TAX_LABOR=float(rates['labour']), TAX_FIRM=float(rates['firm']),
+                           TAX_RENT=float(rates['rent']), SALARY_SHARE=float(rates['salary_share']),
+                           TAX_PROPERTY=float(shares.loc[acps, 'iptu_rate'].mean() if acps
+                                              else shares.iptu_rate.median()))
 
     def leave_labour_force(self):
         """Employed agents no longer active leave their job, which the firm may refill"""
@@ -472,7 +503,10 @@ class Simulation:
         population.immigration(self)
 
         # Adjust families for marriages
-        population.marriage(self)
+        if self.PARAMS['MARRIAGE'] == 'census':
+            population.unions(self)
+        else:
+            population.marriage(self)
 
         # Firms initialization
         for firm in self.firms.values():

@@ -1,16 +1,16 @@
 moment,region,low,high,source
 unemployment,BELO HORIZONTE,0.0693,0.1547,Census 2010 unemployment of the active (low); highest PNAD Contínua annual rate 2012-2019 of the metro or capital (high)
-unemployment,BRASILIA,0.0806,0.1345,Census 2010 unemployment of the active (low); highest PNAD Contínua annual rate 2012-2019 of the metro or capital (high)
+unemployment,FORTALEZA,0.0801,0.1260,Census 2010 unemployment of the active (low); highest PNAD Contínua annual rate 2012-2019 of the metro or capital (high)
 unemployment,GOIANIA,0.0536,0.0973,Census 2010 unemployment of the active (low); highest PNAD Contínua annual rate 2012-2019 of the metro or capital (high)
 unemployment,PALMAS,0.0638,0.1375,Census 2010 unemployment of the active (low); highest PNAD Contínua annual rate 2012-2019 of the metro or capital (high)
-household_income_gdp,BELO HORIZONTE,0.5340,0.7917,Census 2010 household income / IBGE 2010 value added of the ACP (low); times the national under-reporting factor (high)
-household_income_gdp,BRASILIA,0.3853,0.5712,Census 2010 household income / IBGE 2010 value added of the ACP (low); times the national under-reporting factor (high)
-household_income_gdp,GOIANIA,0.6897,1.0225,Census 2010 household income / IBGE 2010 value added of the ACP (low); times the national under-reporting factor (high)
-household_income_gdp,PALMAS,0.7221,1.0705,Census 2010 household income / IBGE 2010 value added of the ACP (low); times the national under-reporting factor (high)
+household_income_pc,BELO HORIZONTE,938.8,1391.7,"Census 2010 income per resident (income per person aged 10+ x persons 10+ / residents, R$ of 2010 a month) x the state's PNAD Contínua real growth of household income per capita, 2012 to mean 2017-19 (low); times the national under-reporting factor (high)"
+household_income_pc,FORTALEZA,637.2,944.6,"Census 2010 income per resident (income per person aged 10+ x persons 10+ / residents, R$ of 2010 a month) x the state's PNAD Contínua real growth of household income per capita, 2012 to mean 2017-19 (low); times the national under-reporting factor (high)"
+household_income_pc,GOIANIA,895.6,1327.7,"Census 2010 income per resident (income per person aged 10+ x persons 10+ / residents, R$ of 2010 a month) x the state's PNAD Contínua real growth of household income per capita, 2012 to mean 2017-19 (low); times the national under-reporting factor (high)"
+household_income_pc,PALMAS,992.2,1470.9,"Census 2010 income per resident (income per person aged 10+ x persons 10+ / residents, R$ of 2010 a month) x the state's PNAD Contínua real growth of household income per capita, 2012 to mean 2017-19 (low); times the national under-reporting factor (high)"
 nontradable_inflation,ALL,0.0,2.35,IPCA non-tradables over tradables (BCB SGS 4448 / 4447) 2011-2015 in %/yr (high); never negative over a multi-year span (low)
 vacancy,ALL,0.08,0.13,Density paper Table 2
 consumption_gdp,ALL,0.55,0.65,Density paper Table 2
 housing_production_per_1000,ALL,2,4,Density paper Table 2
 price_income,ALL,3.7,6.3,Census 2010 over the 25 capitals: mean rent / FipeZAP 2010 yield over family income
-price_wage,ALL,81,119,Census 2010 over the 25 capitals: mean rent / FipeZAP 2010 yield over the median worker's monthly wage
+price_wage,ALL,81,119,Census 2010 over the 25 capitals: mean rent / FipeZAP 2010 yield over the median worker's monthly wage (2010 level)
 housing_stock_permanent_income,ALL,3.1,4.7,Census 2010 over the 25 capitals: housing stock value over annual family income

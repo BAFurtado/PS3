@@ -23,3 +23,12 @@ class SpouseEducation:
         for lv in sorted((lv for lv in LEVELS if pool.get(lv)), key=lambda lv: (abs(lv - drawn), lv)):
             return pool[lv].pop()
         return None
+
+    def pick_nearest(self, partner, pool):
+        """As pick, the agent of the drawn level nearest to `partner` in age"""
+        drawn = LEVELS[self.seed_np.choice(len(LEVELS), p=self.p[level(partner)])]
+        for lv in sorted((lv for lv in LEVELS if pool.get(lv)), key=lambda lv: (abs(lv - drawn), lv)):
+            agents = pool[lv]
+            i = min(range(len(agents)), key=lambda i: abs(agents[i].age - partner.age))
+            return agents.pop(i)
+        return None

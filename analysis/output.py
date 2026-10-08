@@ -185,6 +185,14 @@ OUTPUT_DATA_SPEC = {
                     # Own-account workers and their earnings this month
                     "own_account_workers",
                     "own_account_earnings",
+                    # Sum of families' wages this month, the factor that puts a wage on the Census basis (wages and
+                    # salaries, before the worker's contributions and income tax: SALARY_SHARE / (1 - TAX_LABOR) with
+                    # TAX_RATES 'data', else 1) and the taxes on products collected this month
+                    "families_total_wages",
+                    "wage_census_factor",
+                    "taxes_products",
+                    # Rent resident landlords received this month, before the tax on it
+                    "families_rent_received",
                     ]
     },
     'families': {
@@ -323,9 +331,20 @@ DEMAND_BY_BUYER_COLUMNS = tuple(f'{k}_{b}' for b in ('household', 'government', 
 MATCHING_COLUMNS = ('unmet_household_coverable', 'unmet_household_coverable_end')
 
 
+def _legacy_stats_columns_no_rent_received():
+    """`stats` layout of a6eabbb (2026-10-08): no families_rent_received."""
+    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c != 'families_rent_received']
+
+
+def _legacy_stats_columns_no_census_basis():
+    """`stats` layout of f2d2598 (2026-10-08): no families_total_wages, wage_census_factor, taxes_products."""
+    return [c for c in _legacy_stats_columns_no_rent_received()
+            if c not in ('families_total_wages', 'wage_census_factor', 'taxes_products')]
+
+
 def _legacy_stats_columns_no_worker_wage():
     """`stats` layout of 34e0ae5 (2026-10-06): no workers_median_wage."""
-    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c != 'workers_median_wage']
+    return [c for c in _legacy_stats_columns_no_census_basis() if c != 'workers_median_wage']
 
 
 def _legacy_stats_columns_no_own_account():
@@ -422,7 +441,8 @@ def _legacy_stats_columns():
     """`stats` layout used by batches before 2026-08-01: no
     denied_zero_capped_amount, no pct_renters_zero_income, and the decile block
     carries affordability_decis_* rather than rent_burden_decis_*."""
-    dropped = {'denied_zero_capped_amount', 'denied_no_loan_needed', 'workers_median_wage',
+    dropped = {'denied_zero_capped_amount', 'denied_no_loan_needed', 'workers_median_wage', 'families_total_wages',
+               'wage_census_factor', 'taxes_products', 'families_rent_received',
                'pct_renters_zero_income', *FIRM_DEMOGRAPHY_COLUMNS, *EXTERNAL_ACCOUNT_COLUMNS, *MONEY_COLUMNS}
     cols = [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c not in dropped]
     return [c.replace('rent_burden_decis_', 'affordability_decis_') for c in cols]
@@ -459,7 +479,7 @@ def _legacy_regional_columns_single_pot():
 
 
 LEGACY_COLUMNS = {
-    'stats': [_legacy_stats_columns_no_worker_wage(), _legacy_stats_columns_no_own_account(), _legacy_stats_columns_no_investment(), _legacy_stats_columns_no_income(), _legacy_stats_columns_no_social_transfers(), _legacy_stats_columns_no_utilisation(), _legacy_stats_columns_no_profit_share(), _legacy_stats_columns_no_total_income(), _legacy_stats_columns_no_bank_profit(), _legacy_stats_columns_no_fgts_repaid(), _legacy_stats_columns_no_group_prices(), _legacy_stats_columns_no_household_imports(), _legacy_stats_columns_no_unserved(), _legacy_stats_columns_no_matching(), _legacy_stats_columns_no_demand_by_buyer(), _legacy_stats_columns_no_unmet(),
+    'stats': [_legacy_stats_columns_no_rent_received(), _legacy_stats_columns_no_census_basis(), _legacy_stats_columns_no_worker_wage(), _legacy_stats_columns_no_own_account(), _legacy_stats_columns_no_investment(), _legacy_stats_columns_no_income(), _legacy_stats_columns_no_social_transfers(), _legacy_stats_columns_no_utilisation(), _legacy_stats_columns_no_profit_share(), _legacy_stats_columns_no_total_income(), _legacy_stats_columns_no_bank_profit(), _legacy_stats_columns_no_fgts_repaid(), _legacy_stats_columns_no_group_prices(), _legacy_stats_columns_no_household_imports(), _legacy_stats_columns_no_unserved(), _legacy_stats_columns_no_matching(), _legacy_stats_columns_no_demand_by_buyer(), _legacy_stats_columns_no_unmet(),
               _legacy_stats_columns_no_money(), _legacy_stats_columns_no_external_account(),
               _legacy_stats_columns_no_firm_demography(),
               _legacy_stats_columns()],
@@ -524,6 +544,8 @@ class Output:
         # created; the suffix keeps these files apart from those of earlier versions of the model
         self.save_name += '_sectors_{}_education_census_rounding_remainder_matching_census'.format(
             self.sim.PARAMS['SECTOR_SHARES'])
+        if self.sim.PARAMS['MARRIAGE'] == 'census':
+            self.save_name += '_couples'
 
     def _write_parquet(self, name, path, data_dict):
         table = pa.table(data_dict)
@@ -553,10 +575,13 @@ class Output:
         p_delinquent = len(bank.delinquent_loans()) / n_active if n_active else 0
 
         firm_results = sim.stats.calculate_firms_metrics(sim.firms)
-        # Work income received this month, gross of the labour tax, by each worker of a firm that paid
+        # Work income received this month, net of the labour tax, by each worker of a firm that paid; with TAX_RATES
+        # 'data', the Census measure: compensation (pay / (1 - TAX_LABOR)) x wages and salaries over compensation
         paid = [a.wage_paid for a in sim.agents.values()
                 if a.firm_id is not None and a.wage_paid > 0 and sim.firms[a.firm_id].wages_paid > 0]
-        workers_median_wage = float(np.median(paid)) / (1 - sim.PARAMS["TAX_LABOR"]) if paid else 0.0
+        census_factor = (sim.PARAMS['SALARY_SHARE'] / (1 - sim.PARAMS['TAX_LABOR']) if 'SALARY_SHARE' in sim.PARAMS
+                         else 1.0)
+        workers_median_wage = float(np.median(paid)) * census_factor if paid else 0.0
         price_level, inflation = sim.stats.update_price(sim.firms)
         gdp_level, gdp_growth_rate, gdp_change = sim.stats.calculate_gdp_and_eco_efficiency(sim.firms, sim.regions)
         unemployment = sim.stats.update_unemployment(sim.agents.values(), True, True)
@@ -697,6 +722,10 @@ class Output:
         owners = [a for f in sim.firms.values() if f.own_account for a in f.employees.values()]
         stats_row["own_account_workers"] = len(owners)
         stats_row["own_account_earnings"] = sum((a.last_wage or 0.0) + (a.last_profit_share or 0.0) for a in owners)
+        stats_row["families_total_wages"] = sum(f.total_wage() for f in sim.families.values())
+        stats_row["wage_census_factor"] = census_factor
+        stats_row["taxes_products"] = sim.funds.product_taxes_month
+        stats_row["families_rent_received"] = sim.rent_received
         from agents.firm import UNPLANNED_SECTORS
         planned = [f for f in sim.firms.values() if f.sector not in UNPLANNED_SECTORS]
         capacity = sum(f.last_capacity for f in planned)

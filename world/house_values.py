@@ -2,6 +2,8 @@
 the Sinapi 2010 average cost of the state (input/sinapi_2010.csv, auxiliary/sinapi_2010.py), the normal finish
 standard, across qualities by the CUB/m² 2010 ratios of the low and high standards to the normal one (R-1, medians over
 states; input/cub_2010.csv, auxiliary/cub_2010.py)"""
+from collections import defaultdict
+
 import numpy as np
 import pandas as pd
 
@@ -37,6 +39,27 @@ class HouseValues:
 
     def build_cost(self, region_id, size, quality, productivity):
         return size * self.cost_per_m2(region_id, quality) * productivity / self.mean_productivity
+
+    def census_rent_scale(self, houses, regions):
+        """{region id: factor} that makes the mean rent of each ACP's rented houses equal the Census 2010 mean rent
+        of its renting households (input/rent_AP_2010.csv, R$ a month over REAIS_PER_MONEY_UNIT)"""
+        census = pd.read_csv('input/rent_AP_2010.csv', sep=';').set_index('AREAP')
+        acp_of = pd.read_csv('input/ACPs_MUN_CODES.csv', sep=';').drop_duplicates('cod_mun').set_index(
+            'cod_mun').ACPs.to_dict()
+        acp = {r: acp_of.get(int(r[:7])) for r in regions}
+        model = defaultdict(list)
+        for h in houses:
+            if h.rent_data is not None and h.family_id is not None:
+                model[acp[h.region_id]].append(float(h.rent_data[0]))
+        data = defaultdict(lambda: [0.0, 0.0])
+        for r in regions:
+            if int(r) in census.index:
+                row = census.loc[int(r)]
+                data[acp[r]][0] += row.renters * row.mean_rent
+                data[acp[r]][1] += row.renters
+        factor = {a: data[a][0] / data[a][1] / self.kappa / np.mean(model[a])
+                  for a in model if data[a][1] > 0 and np.mean(model[a]) > 0}
+        return {r: factor[a] for r, a in acp.items() if a in factor}
 
     def upgrade_cost(self, region_id, size, productivity):
         """Works that take a quality .5 house to quality 1: half the cost of building at quality 1"""

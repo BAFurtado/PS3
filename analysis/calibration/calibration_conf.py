@@ -43,7 +43,7 @@ CALIBRATION_SETTINGS = {
     "target_end_year":   "2020-01-01",
 
     # Every set runs in every region
-    "calibration_regions": ["BELO HORIZONTE", "BRASILIA", "GOIANIA", "PALMAS"],
+    "calibration_regions": ["BELO HORIZONTE", "FORTALEZA", "GOIANIA", "PALMAS"],
 
     # "levels": the levels of data/level_targets.csv, means of the last levels_window months (calibration/levels.py);
     # a set is implausible when any run fails a hard constraint (levels.explodes) or, for any region and level,

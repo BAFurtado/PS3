@@ -42,6 +42,8 @@ class Agent:
     last_transfer = 0.0
     # Years of study the agent finishes with (world/education.py)
     target = None
+    # Partner in a union (MARRIAGE 'census')
+    partner = None
     # Persistent individual earnings factor exp(e), drawn the first time a weight is needed
     earnings = None
     # (age coefficient, age-squared coefficient, residual sd, run seed), set by Simulation

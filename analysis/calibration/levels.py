@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 from analysis.validation.housing_validation import compute_derived_monthly_indicators
+from conf.default.params import REAIS_PER_MONEY_UNIT
 
 TARGETS_PATH = os.path.join(os.path.dirname(__file__), "data", "level_targets.csv")
 HOUSING = ["vacancy", "consumption_gdp", "housing_production_per_1000", "price_income", "price_wage",
@@ -28,13 +29,27 @@ def growth(series, start=12):
     return 100 * ((series.iloc[-1] / series.iloc[start]) ** (12 / (len(series) - 1 - start)) - 1)
 
 
+def census_income(t):
+    """Families' income as the Census reports it: wages before the worker's contributions and income tax, and rent
+    received, where the run records them"""
+    income = t.families_total_income
+    if {"families_total_wages", "wage_census_factor"} <= set(t.columns):
+        income = income + t.families_total_wages * (t.wage_census_factor - 1)
+    if "families_rent_received" in t.columns:
+        income = income + t.families_rent_received
+    return income
+
+
 def level_moments(df, window=36):
-    """Levels of one run, means over its last `window` months, and the measures of the hard constraints"""
+    """Levels of one run, means over its last `window` months, and the measures of the hard constraints. Income per
+    resident is on the Census basis (census_income) in money of the first month: deflated by the model price level"""
     t = df.tail(window)
+    deflator = (df.price_level / df.price_level.iloc[0]).tail(window)
     h = compute_derived_monthly_indicators(df.copy()).tail(window)
     m = {
         "unemployment": t.unemployment.mean(),
         "household_income_gdp": (t.families_total_income / t.gdp_level).mean(),
+        "household_income_pc": (census_income(t) / t["pop"] / deflator).mean() * REAIS_PER_MONEY_UNIT,
         "nontradable_inflation": growth(df.price_nontradable),
         **{k: h[k].mean() for k in HOUSING},
     }

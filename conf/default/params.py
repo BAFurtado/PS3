@@ -9,6 +9,9 @@ PRODUCTIVITY_EXPONENT = 0.65
 # (national input coefficients) equals the IBGE 2010 value added per resident of the run's municipalities, net of imputed
 # rent and own-account income (input/municipal_va_2010.csv, auxiliary/municipal_va.py), in model money
 PRODUCTIVITY_MAGNITUDE_DIVISOR = 1
+# Value added of a unit of capacity at price 1 in the divisor. 'gross': 1 - the sector's input coefficients. 'net': the
+# same less TAX_CONSUMPTION, which firms do not keep from a sale.
+PRODUCTIVITY_VA = 'net'
 # GENERAL CALIBRATION PARAMETERS
 # INTEREST: market/SELIC scenario. Choose: 'real', 'media', 'fixed'
 INTEREST = "real"
@@ -108,6 +111,10 @@ GOV_REVISED = True
 #   auxiliary/gov_wage_ratio.py) x the mean private wage.
 # 'uniform': GOV_WAGE_RATIO x the mean private wage.
 GOV_WAGE_RULE = 'premium'
+# Public headcount by municipality and year (gov_hire_fire). 'census': Census 2010 militares e estatutários by
+# residence x the national RAIS / Census ratio (input/gov_headcount_census.csv); 'pnad': the same Census count x the
+# state's PNAD Contínua 2012 public employees / Census ratio (input/gov_headcount_pnad.csv). Path: the ACP's RAIS trend.
+GOV_HEADCOUNT = 'pnad'
 GOV_PREMIUM_MUNICIPAL = 0.0
 GOV_WAGE_RATIO = 1.0
 # Federal and state staff are paid from national and state revenue, not from the taxes raised in the ACP. True: when a
@@ -115,6 +122,12 @@ GOV_WAGE_RATIO = 1.0
 # funded from outside the ACP, up to the federal and state staff's cost; the inflow is counted in
 # Funds.external_public_funding. False: the budget caps the public wage.
 GOV_EXTERNAL_FUNDING = True
+# Public spending in the ACP. 'budget': as GOV_EXTERNAL_FUNDING sets, public investment is what the municipality's budget
+# leaves, held in real terms after the base months. 'observed': the public payroll target (headcount and pay above), its
+# purchases and inputs, and public investment at the national ratio to public payroll (input/public_spending_2010.csv,
+# IBGE Contas Econômicas Integradas 2010) are paid every month; what the municipality's budget cannot pay comes from
+# outside the ACP, and a budget above that is invested too.
+GOV_SPENDING = 'observed'
 # Months before, and months averaged for, the fixed real bases of federal and state pay and of public investment:
 # public investment, the municipal budget's residual after payroll and purchases, is then held at its base months' real
 # level, the difference paid from (or to) outside the ACP
@@ -274,11 +287,11 @@ NEIGHBORHOOD_EFFECT = 0.2
 # income in Goiânia (≈ 1,100 from rents, 1,300-1,500 from wages)
 REAIS_PER_MONEY_UNIT = 1000
 INITIAL_RENTAL_SHARE = 0.40
-# Monthly rent as a fraction of house price.
-# At 0.003 this is 3.6% annual gross yield — in line with Brazilian urban rental markets.
-# Also calibrates the financial attractiveness comparison in decision_enter_house_market:
-# when the bank rate exceeds this yield, depositing savings is more profitable than buying.
+# Monthly rent per unit of size x quality x region index, in model money: the level of rents (world/house_values.py)
 INITIAL_RENTAL_PRICE = 0.002
+# Level of rents and house prices. 'legacy': INITIAL_RENTAL_PRICE. 'census': in each ACP, scaled so that the mean rent
+# of the houses rented at the start equals the Census 2010 mean rent of its renting households (input/rent_AP_2010.csv)
+RENT_LEVEL = 'census'
 # House values: rents keep the level of INITIAL_RENTAL_PRICE x size x quality x region index; prices are rent x 12 /
 # RENTAL_YIELD, the FipeZAP 2010 national gross rental yield; builders' cost is size x the Sinapi 2010 cost per m² of
 # the state (input/sinapi_2010.csv) x the CUB/m² 2010 ratio of the quality's finish standard to the normal one
@@ -301,14 +314,7 @@ MIN_DOWN_PAYMENT_FRACTION = 0.20
 # 3 months matches standard financial-planning guidance for employed households.
 SAVINGS_BUFFER_MONTHS = 2
 # Scales the opportunity-cost term in decision_enter_house_market.
-# opportunity_cost = max(0, bank_rate - INITIAL_RENTAL_PRICE) × HOUSING_FINANCIAL_WEIGHT
-# This is now an absolute-difference formula (not normalized), so the weight is larger than
-# the old normalized version. At SELIC ≈ 10% annual (bank_rate ≈ 0.008/month):
-#   opportunity_cost ≈ (0.008 - 0.002) × 25 = 0.15
-# A renter (housing_need=1.0) scores 0.85 > 0 → enters.
-# A comfortable owner (housing_need=0) scores −0.15 → excluded.
-# A crowded owner (crowding_bonus=0.7) scores 0.55 → enters to upgrade.
-# At low SELIC (≈ 2%, bank_rate ≈ 0.0017): opportunity_cost ≈ 0 → some owners enter.
+# opportunity_cost = max(0, bank_rate - RENTAL_YIELD / 12) × HOUSING_FINANCIAL_WEIGHT
 HOUSING_FINANCIAL_WEIGHT = 60
 # Minimum months of permanent income that must remain liquid after the down payment.
 # Discourages families from locking all savings into a house and being cash-poor.
@@ -353,14 +359,19 @@ CONSTRUCTION_FIRM_MARKUP_MULTIPLIER = 5
 # participation by sex, age group and municipality (world/participation.py); start-up hiring stops at the Census share
 # of the active without a job. Federal benefits (RGPS, BPC, Bolsa Família) are paid from outside the ACP
 # (world/social_transfers.py); own-account workers share their sector's own-account part of every purchase
-# (world/own_account.py); public jobs follow the Census 2010 public servants by residence
-# (input/gov_headcount_census.csv). Immigration and emigration steer each municipality to its population at the start
-# grown at its 2010-2022 Census rate, housed and removed within it.
+# (world/own_account.py); public jobs follow the Census 2010 public servants by residence x the state's PNAD Contínua
+# public employment ratio (input/gov_headcount_pnad.csv). Immigration and emigration steer each municipality to its
+# population at the start grown at its 2010-2022 Census rate, housed and removed within it.
 
 # Families run parameters (on average) for year 2000, or no information. 2010 uses APs average data
 EXOGENOUS_HEAD_RATE = False
 MEMBERS_PER_FAMILY = 2.5
 MARRIAGE_CHECK_PROBABILITY = 0.03
+# 'legacy': any adult may marry at MARRIAGE_CHECK_PROBABILITY x the age table, leaving a partner behind.
+# 'census': partners are linked; couples separate at the 2010 divorce rate of the woman's age, the man leaving with half
+# the household's savings, and adults not in a union form one at the Census 2010 rate of their sex and age
+# (input/union_rates_2010.csv); a new household buys a house if it can afford one, else rents.
+MARRIAGE = 'census'
 
 # CONSUMPTION #############################################################
 # Fraction of permanent income actually spent on goods; remainder flows to savings.
@@ -401,6 +412,20 @@ CARBON_RECYCLING_QUANTILE = 0.25
 # Consumption_equal: ratio of consumption tax distributed at state level (equal)
 # Fpm: ratio of 'labor' and 'firm' taxes distributed per the fpm ruling
 TAXES_STRUCTURE = {"consumption_equal": 0.1875, "fpm": 0.235}
+# Tax rates. 'legacy': the TAX_* values above, TAX_CONSUMPTION on every sale, TAX_LABOR also on rents. 'data': 2010
+# national accounts (auxiliary/taxes_2010.py): taxes on products by selling sector on every sale, sales to the rest of
+# Brazil included and collected where produced (input/product_tax_2010.csv); TAX_LABOR, TAX_FIRM, TAX_RENT (input/taxes_2010.csv); TAX_PROPERTY, the ACP's IPTU over
+# its housing stock value (input/tax_shares_2010.csv).
+TAX_RATES = 'data'
+# Where taxes go. 'legacy': consumption tax 'consumption_equal' to 'equally' and the rest locally, FPM a share of labour
+# and firm taxes, PUBLIC_TAXES_OUT as set. 'data': the ACP's municipal share of product taxes (ISS + cota-parte ICMS,
+# input/tax_shares_2010.csv) locally, the rest with labour, firm and bank taxes to the Union and the state, out of the
+# ACP; each municipality receives its observed FPM per resident in real terms (input/fpm_real_pc.csv) from outside.
+TAX_ROUTING = 'data'
+# Official pensions paid to residents (world/social_transfers.py). 'rgps': RGPS benefits per municipality
+# (input/social_transfers_2010.csv). 'census': Census 2010 pensioners per resident and mean pension from an official
+# institute, RGPS and RPPS (input/census_pensions_2010.csv).
+PENSIONS = 'census'
 
 # TRANSPORT ######################################################################################
 # Cobb-Douglas parameters for matching utility:

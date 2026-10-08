@@ -282,51 +282,194 @@ def marriage(sim):
                     old_b.add_agent(b)
                 else:
                     sim.families[new_family.id] = new_family
-                    a_region_id = a.family.region_id
-                    b_region_id = b.family.region_id
-                    sim.update_pop(a_region_id, new_family.house.region_id)
-                    sim.update_pop(b_region_id, new_family.house.region_id)
+                    sim.update_pop(old_a.region_id, new_family.house.region_id)
+                    sim.update_pop(old_b.region_id, new_family.house.region_id)
 
             elif b_to_move_out:
+                old_region_id = b.family.region_id
                 b.family.remove_agent(b)
                 a.family.add_agent(b)
+                sim.update_pop(old_region_id, a.family.region_id)
             elif a_to_move_out:
+                old_region_id = a.family.region_id
                 a.family.remove_agent(a)
                 b.family.add_agent(a)
+                sim.update_pop(old_region_id, b.family.region_id)
             else:
-                # Else adult B and children (if any) move in with A.
-                # Transfer ownership, if any
-                # Copy list, so we don't modify the list as we iterate
-                houses = [h for h in b.family.owned_houses]
-                for house in houses:
-                    b.family.owned_houses.remove(house)
-                    a.family.owned_houses.append(house)
-                    house.owner_id = a.family.id
+                merge_households(sim, a, b)
 
-                # b.family changes as soon as b moves, so B's family is held here (#40: the loop below used to move
-                # only b's population, and B's savings and deposits were taken from A and given back to A, while B's
-                # were destroyed or orphaned in the bank)
-                old_b = b.family
-                old_region_id = old_b.region_id
-                _id = old_b.id
-                old_b.house.empty()
 
-                # Move out of existing rental
-                for house in sim.houses.values():
-                    if house.family_id == _id:
-                        house.family_id = None
-                        house.rent_data = None
+def merge_households(sim, a, b):
+    """Adult B and B's household (children, if any) move in with A; B's houses, savings and loans go to A's household"""
+    # Transfer ownership, if any
+    # Copy list, so we don't modify the list as we iterate
+    houses = [h for h in b.family.owned_houses]
+    for house in houses:
+        b.family.owned_houses.remove(house)
+        a.family.owned_houses.append(house)
+        house.owner_id = a.family.id
 
-                for each in list(old_b.members.values()):
-                    a.family.add_agent(each)
-                    sim.update_pop(old_region_id, a.family.region_id)
+    # b.family changes as soon as b moves, so B's family is held here (#40: the loop below used to move
+    # only b's population, and B's savings and deposits were taken from A and given back to A, while B's
+    # were destroyed or orphaned in the bank)
+    old_b = b.family
+    old_region_id = old_b.region_id
+    _id = old_b.id
+    old_b.house.empty()
 
-                savings = old_b.grab_savings(sim.central, sim.clock.year, sim.clock.months)
-                a.family.update_balance(savings)
-                if _id in sim.central.loans:
-                    loans = sim.central.loans.pop(_id)
-                    sim.central.loans[a.family.id] = loans
+    # Move out of existing rental
+    for house in sim.houses.values():
+        if house.family_id == _id:
+            house.family_id = None
+            house.rent_data = None
 
-                del sim.families[_id]
-                unassigned_houses = [h for h in sim.houses.values() if h.owner_id == _id]
-                assert len(unassigned_houses) == 0
+    for each in list(old_b.members.values()):
+        a.family.add_agent(each)
+        sim.update_pop(old_region_id, a.family.region_id)
+
+    savings = old_b.grab_savings(sim.central, sim.clock.year, sim.clock.months)
+    a.family.update_balance(savings)
+    if _id in sim.central.loans:
+        loans = sim.central.loans.pop(_id)
+        sim.central.loans[a.family.id] = loans
+
+    del sim.families[_id]
+    unassigned_houses = [h for h in sim.houses.values() if h.owner_id == _id]
+    assert len(unassigned_houses) == 0
+
+
+class UnionRates:
+    """Monthly probabilities of forming a union (adults not in one) and of separating (couples, by the woman's age),
+    from the yearly rates of input/union_rates_2010.csv"""
+
+    def __init__(self):
+        t = pd.read_csv('input/union_rates_2010.csv', sep=';')
+        self.ages = {sex: g.age.values for sex, g in t.groupby('sex')}
+        self.monthly = {sex: {k: 1 - (1 - g[k].values) ** (1 / 12) for k in ('formation', 'separation')}
+                        for sex, g in t.groupby('sex')}
+
+    def p(self, agent, kind):
+        sex = agent.gender.lower()
+        if agent.age < self.ages[sex][0]:
+            return 0.0
+        return self.monthly[sex][kind][np.searchsorted(self.ages[sex], agent.age, side='right') - 1]
+
+
+def household_income(family):
+    """The members' current wages, profit shares and transfers, as the start of a new household's permanent income"""
+    family.permanent_income = family.total_wage() + sum(m.last_profit_share + m.last_transfer
+                                                        for m in family.members.values())
+    family.start_permanent_income()
+
+
+def settle(sim, family):
+    """A new household buys a vacant house for sale it can afford, else rents; False when it finds neither"""
+    for_sale = sorted((h for h in sim.housing.for_sale if h.family_id is None), key=lambda h: h.id)
+    if for_sale and family.savings > 0:
+        family.savings_with_loan = family.savings + family.bank_savings + sim.central.max_loan(family)[0]
+        family.loan_rate = 'market'
+        sim.housing.negotiating(family, for_sale, sim, sim.stats.vacancy_rate)
+    if family.house is None:
+        sim.housing.rental.rental_market([family], sim)
+    return family.house is not None
+
+
+def separate(sim, woman):
+    """The man leaves the couple's household with half its savings; the woman keeps the children, the house and the
+    loans. Undone when he finds no house."""
+    man, old = woman.partner, woman.family
+    new = list(sim.generator.create_families(1).values())[0]
+    old.remove_agent(man)
+    new.add_agent(man)
+    savings = old.grab_savings(sim.central, sim.clock.year, sim.clock.months)
+    new.savings = savings / 2
+    old.savings += savings - new.savings
+    household_income(new)
+    if not settle(sim, new):
+        old.savings += new.savings
+        new.savings = 0
+        new.remove_agent(man)
+        old.add_agent(man)
+        return
+    sim.families[new.id] = new
+    new.relatives.add(old.id)
+    old.relatives.add(new.id)
+    woman.partner = man.partner = None
+    sim.update_pop(old.region_id, new.region_id)
+
+
+def lives_with_adults(agent):
+    """Another member of the agent's household is 21 or older"""
+    return any(m is not agent and m.age >= 21 for m in agent.family.members.values())
+
+
+def unite(sim, woman, man):
+    """The couple forms a household of its own when both live with other adults, else the one who does moves in with
+    the other, else the man's household moves in with the woman's. Undone when a new household finds no house."""
+    w_out = lives_with_adults(woman)
+    m_out = lives_with_adults(man)
+    if w_out and m_out:
+        old_w, old_m = woman.family, man.family
+        new = list(sim.generator.create_families(1).values())[0]
+        old_w.remove_agent(woman)
+        old_m.remove_agent(man)
+        new.add_agent(woman)
+        new.add_agent(man)
+        household_income(new)
+        if not settle(sim, new):
+            new.remove_agent(woman)
+            new.remove_agent(man)
+            old_w.add_agent(woman)
+            old_m.add_agent(man)
+            return
+        sim.families[new.id] = new
+        new.relatives.update((old_w.id, old_m.id))
+        sim.update_pop(old_w.region_id, new.region_id)
+        sim.update_pop(old_m.region_id, new.region_id)
+    elif m_out:
+        old_region_id = man.family.region_id
+        man.family.remove_agent(man)
+        woman.family.add_agent(man)
+        sim.update_pop(old_region_id, woman.family.region_id)
+    elif w_out:
+        old_region_id = woman.family.region_id
+        woman.family.remove_agent(woman)
+        man.family.add_agent(woman)
+        sim.update_pop(old_region_id, man.family.region_id)
+    else:
+        merge_households(sim, woman, man)
+    woman.partner, man.partner = man, woman
+
+
+def unions(sim):
+    """Separations, then unions among the adults not in one, women paired with men by the Census couples' education,
+    the nearest in age"""
+    from world.family_matching import SpouseEducation
+    from world.own_account import level
+    if sim.union_rates is None:
+        sim.union_rates = UnionRates()
+    rates = sim.union_rates
+    women = [a for a in sim.agents.values() if a.gender.lower() == 'female']
+    for woman in women:
+        if woman.partner is not None and sim.seed_np.rand() < rates.p(woman, 'separation'):
+            if woman.partner.family is woman.family:
+                separate(sim, woman)
+            else:
+                woman.partner.partner = woman.partner = None
+
+    singles = {'male': [], 'female': []}
+    for agent in sim.agents.values():
+        if agent.partner is None and sim.seed_np.rand() < rates.p(agent, 'formation'):
+            singles[agent.gender.lower()].append(agent)
+    if sim.generator.spouses is None:
+        sim.generator.spouses = SpouseEducation(sim.geo.processing_acps, sim.generator.seed_np)
+    sim.seed_np.shuffle(singles['female'])
+    pool = defaultdict(list)
+    for man in reversed(singles['male']):
+        pool[level(man)].append(man)
+    for woman in singles['female']:
+        man = sim.generator.spouses.pick_nearest(woman, pool)
+        if man is None:
+            break
+        if man.family is not woman.family:
+            unite(sim, woman, man)

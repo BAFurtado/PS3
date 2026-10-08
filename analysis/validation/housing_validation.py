@@ -101,13 +101,22 @@ def compute_derived_monthly_indicators(df):
     # -----------------------------
     df["housing_stock_value"] = df["number_domiciles"] * df["house_price"]
 
+    # Data bases: GDP at market prices (value added + taxes on products) and incomes as the Census reports them,
+    # wages before the worker's contributions and income tax (wage_census_factor), where the run records them
+    gdp = df["gdp_level"] + df["taxes_products"] if "taxes_products" in df.columns else df["gdp_level"]
+    wage_factor = df["wage_census_factor"] if "wage_census_factor" in df.columns else 1.0
+    if {"families_total_wages", "families_total_income"} <= set(df.columns):
+        income_factor = 1 + safe_ratio(df["families_total_wages"], df["families_total_income"]) * (wage_factor - 1)
+    else:
+        income_factor = 1.0
+
     # -----------------------------
     # Housing stock / GDP
     # stock over annualized GDP flow
     # -----------------------------
     df["housing_stock_gdp"] = safe_ratio(
         df["housing_stock_value"],
-        df["gdp_level"] * 12
+        gdp * 12
     )
 
     # -----------------------------
@@ -118,7 +127,7 @@ def compute_derived_monthly_indicators(df):
     # the numerator is the value of ALL dwellings, vacant included, but the
     # denominator is aggregate family income, so it scales with families.
     df["families_permanent_income"] = (
-        df["families_median_permanent_income"] * 12
+        df["families_median_permanent_income"] * 12 * income_factor
         * df["number_domiciles"] * (1 - df["house_vacancy"])
     )
 
@@ -129,7 +138,7 @@ def compute_derived_monthly_indicators(df):
 
     # -----------------------------
     # Price / monthly family income (months of income to buy a house)
-    # Uses workers_median_wage (median gross wage over paid workers) when available, then
+    # Uses workers_median_wage (median wage net of the labour tax over paid workers) when available, then
     # firms_wage_per_worker (median over firms of the wage bill per worker), then
     # families_wages_received (family level).
     # The old firms_median_wage_paid / firms_median_employment ratio is incorrect:
@@ -148,7 +157,7 @@ def compute_derived_monthly_indicators(df):
     # -----------------------------
     df["price_income"] = safe_ratio(
         df["house_price"],
-        df["families_wages_received"] * 12
+        df["families_wages_received"] * wage_factor * 12
     )
 
     # -----------------------------
@@ -191,7 +200,7 @@ def compute_derived_monthly_indicators(df):
 
     df["consumption_gdp"] = safe_ratio(
         df["total_consumption"],
-        df["gdp_level"]
+        gdp
     )
 
     # -----------------------------

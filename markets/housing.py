@@ -21,7 +21,7 @@ class HousingMarket:
     def process_monthly_rent(sim):
         """ Collection of rental payment due made by households that are renting """
         to_pay_rent = [h for h in sim.houses.values() if h.rent_data is not None]
-        collect_rent(to_pay_rent, sim)
+        sim.rent_received = collect_rent(to_pay_rent, sim)
 
     def update_for_sale(self, sim):
         # Using neighborhood_wealth effect as attractive for prices

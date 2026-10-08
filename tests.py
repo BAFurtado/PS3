@@ -298,6 +298,45 @@ if sim.PARAMS.get("GOV_REVISED", False):
         f"in={_put:.4f}, out={sum(_d[:4]) + _d[5]:.4f} (payroll {_d[0]:.2f}, purchases {_d[1]:.2f}, "
         f"inputs {_d[5]:.2f}, investment {_d[2]:.2f}, policy {_d[3]:.2f}, recorded for regions {_d[4]:.2f})",
     )
+    # GOV_SPENDING 'observed': with a budget far below the public spending, the payroll is its target and investment
+    # its national ratio to the target, outside money paying the difference; with a budget far above it, nothing comes
+    # from outside and the rest is invested. Money is conserved either way.
+    _saved_spending = (sim.PARAMS.get("GOV_SPENDING", "budget"), _funds.investment_per_payroll)
+    sim.PARAMS["GOV_SPENDING"] = "observed"
+    _funds.investment_per_payroll = float(
+        pd.read_csv("input/public_spending_2010.csv", sep=";").set_index("ratio").value["investment_per_payroll"])
+    _obs, _ratio = [], _funds.investment_per_payroll
+    _saved_public = (dict(getattr(_funds, "policy_money", {})),
+                     {_rid: (dict(_r.applied_treasure), _r.applied_flow) for _rid, _r in sim.regions.items()})
+    for _rev in (1e-6, 1e6):
+        _before, _e0 = _snap(), _funds.external_public_funding
+        for _rid in sim.regions:
+            _funds.pending_public_money[_rid]["equally"] += _rev
+        _funds.settle_government_budget(sim.regions)
+        _in = _rev * len(sim.regions) + _funds.external_public_funding - _e0
+        _d = [a - b for a, b in zip(_snap(), _before)]
+        _v = [v for v in _funds.gov_budget_diag.values() if v["staff"] > 0]
+        _obs.append(dict(
+            conserved=abs(sum(_d[:4]) + _d[5] - _in) < 1e-6 * _in,
+            payroll=max(abs(v["payroll"] / v["target"] - 1) for v in _v),
+            invest=max(abs(v["investment"] - _funds.investment_per_payroll * v["target"]) / v["target"] for v in _v),
+            invest_min=min(v["investment"] / v["target"] for v in _v), external=_funds.external_public_funding - _e0))
+    sim.PARAMS["GOV_SPENDING"], _funds.investment_per_payroll = _saved_spending
+    if hasattr(_funds, "policy_money"):
+        _funds.policy_money.clear()
+        _funds.policy_money.update(_saved_public[0])
+    for _rid, (_t, _fl) in _saved_public[1].items():
+        sim.regions[_rid].applied_treasure.clear()
+        sim.regions[_rid].applied_treasure.update(_t)
+        sim.regions[_rid].applied_flow = _fl
+    check(
+        "GOV_SPENDING 'observed': payroll at target, investment at its ratio to payroll, outside pays the rest; "
+        "a large budget takes nothing from outside and invests the rest",
+        all(_o["conserved"] for _o in _obs) and _obs[0]["payroll"] < 1e-9 and _obs[0]["invest"] < 1e-6
+        and _obs[0]["external"] > 0 and _obs[1]["payroll"] < 1e-9 and _obs[1]["external"] == 0
+        and _obs[1]["invest_min"] > _ratio,
+        f"{_obs}",
+    )
     # Public production inputs come from the input fund, never the start-up capital; unspent input money joins
     # the purchases, and what is spent counts as revenue (output at cost)
     _g = next(f for f in _gov_all if f.employees and f.inventory)
@@ -361,12 +400,16 @@ if sim.PARAMS.get("GOV_REVISED", False):
     _mun = next(_m for _m, _v in _funds.gov_budget_diag.items() if _v["staff"] > 0)
     _saved_levels = _funds.gov_levels[_mun]
     _ext = []
+    # GOV_EXTERNAL_FUNDING applies to GOV_SPENDING 'budget'
+    _gs_saved = sim.PARAMS.get("GOV_SPENDING", "budget")
+    sim.PARAMS["GOV_SPENDING"] = "budget"
     for _lv in ({"federal": 0.5, "estadual": 0.5, "municipal": 0.0}, {"federal": 0.0, "estadual": 0.0, "municipal": 1.0}):
         _funds.gov_levels[_mun] = _lv
         _e0 = _funds.external_public_funding
         _funds.pending_public_money[next(_r for _r in sim.regions if _r[:7] == _mun)]["equally"] += 1e-6
         _funds.settle_government_budget(sim.regions)
         _ext.append(_funds.external_public_funding - _e0)
+    sim.PARAMS["GOV_SPENDING"] = _gs_saved
     _funds.gov_levels[_mun] = _saved_levels
     _saved_price = sim.avg_prices
     _saved_pay = {_f.id: _f.wages_paid for _f in sim.firms.values() if _f.sector != "Government"}
@@ -1113,6 +1156,7 @@ check("A newborn holds no money (#31)", _baby.money == 0, f"money {_baby.money}"
 class _RentFamily:
     def __init__(self, savings, deposit):
         self.savings, self.deposit, self.rent_voucher, self.received = savings, deposit, 0, 0.0
+        self.members = {'m': None}
 
     def grab_savings(self, bank, y, m):
         s, self.savings, self.deposit = self.savings + self.deposit, 0, 0
@@ -1128,15 +1172,16 @@ def _pay_rent(savings, deposit, rent=0.4):
     stub = SimpleNamespace(families={'t': tenant, 'l': landlord}, PARAMS={'TAX_LABOR': sim.PARAMS['TAX_LABOR']},
                            central=SimpleNamespace(wallet={tenant: True}), clock=sim.clock,
                            regions={'r': SimpleNamespace(collect_taxes=lambda a, k: taxes.append(a))})
-    collect_rent([house], stub)
-    return tenant.savings, landlord.received + sum(taxes), savings + deposit
+    received = collect_rent([house], stub)
+    return tenant.savings, landlord.received + sum(taxes), savings + deposit, received
 
 
 _rent_ok = []
 for _cash in (0.1, 0.3):
-    _kept, _paid, _before = _pay_rent(_cash, 5.0)
-    _rent_ok.append(abs(_paid - 0.4) < 1e-9 and abs(_kept + _paid - _before) < 1e-9)
-check("Rent paid from bank deposits is paid in full and conserves money (#32)", all(_rent_ok), f"{_rent_ok}")
+    _kept, _paid, _before, _received = _pay_rent(_cash, 5.0)
+    _rent_ok.append(abs(_paid - 0.4) < 1e-9 and abs(_kept + _paid - _before) < 1e-9 and abs(_received - 0.4) < 1e-9)
+check("Rent paid from bank deposits is paid in full, conserves money and is reported as received before tax (#32)",
+      all(_rent_ok), f"{_rent_ok}")
 
 _renters = [f for f in sim.families.values() if f.is_renting and f.get_permanent_income() > 0]
 if len(_renters) > 20:
@@ -1551,10 +1596,25 @@ check("Social transfers: RGPS to the oldest, Bolsa Família to the poorest famil
       _tr_ok and _tr_ledger_ok and _tr_paid > 0 and np.isclose(_tr_pi1 - _tr_pi0, 2.5),
       f"{_tr_detail} paid {_tr_paid:.3f} received {_tr_recv:.3f}, PI step {_tr_pi1 - _tr_pi0:.3f}")
 
+# PENSIONS 'census': the pension programme takes each municipality's Census pensioners per resident and mean pension;
+# BPC and Bolsa Família are unchanged
+_pen = SocialTransfers(sim.mun_to_regions, sim.PARAMS['REAIS_PER_MONEY_UNIT'], 'census')
+_pen_c = pd.read_csv('input/census_pensions_2010.csv', sep=';').set_index('cod_mun')
+_pen_dev = [max(abs(_pen.rates[_m]['rgps'][0] - _pen_c.loc[int(_m), 'pensioners'] / _pen_c.loc[int(_m), 'pop']),
+                abs(_pen.rates[_m]['rgps'][1] * sim.PARAMS['REAIS_PER_MONEY_UNIT']
+                    - _pen_c.loc[int(_m), 'pension_val'] / _pen_c.loc[int(_m), 'pensioners']))
+            for _m in _pen.rates if int(_m) in _pen_c.index and _pen_c.loc[int(_m), 'pensioners'] > 0]
+check("PENSIONS 'census': Census pensioners per resident and mean pension; BPC and Bolsa Família unchanged",
+      _pen_dev and max(_pen_dev) < 1e-9
+      and all(_pen.rates[_m][k] == _tr.rates[_m][k] for _m in _pen.rates for k in ('bpc', 'pbf')),
+      f"municipalities {len(_pen_dev)}, max deviation {max(_pen_dev, default=0):.2e}")
+
 # Productivity level: the divisor makes the private staff's capacity value added (national input coefficients) equal
 # the IBGE market value added per resident times the residents, net of own-account income, a month, in model money
 from world.firms import set_productivity_level
 _pl_saved = sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR']
+_pl_mode = sim.PARAMS.get('PRODUCTIVITY_VA', 'gross')
+sim.PARAMS['PRODUCTIVITY_VA'] = 'gross'
 _pl_div = set_productivity_level(sim)
 _pl_va = pd.read_csv('input/municipal_va_2010.csv', sep=';').set_index('cod_mun')
 _pl_res = [a for a in sim.agents.values() if a.family is not None and a.family.region_id
@@ -1566,9 +1626,25 @@ _pl_vs = 1 - pd.read_csv('input/technical_matrix.csv').set_index('sector').sum(a
 _pl_cap = sum(f.total_qualification(sim.PARAMS['PRODUCTIVITY_EXPONENT']) / _pl_div * f.sector_productivity
               * _pl_vs[f.sector] for f in sim.firms.values() if f.sector != 'Government' and not f.pool)
 sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR'] = _pl_saved
-check("Productivity level: capacity value added matches IBGE municipal VA net of own-account income",
+check("Productivity level 'gross': capacity value added matches IBGE municipal VA net of own-account income",
       np.isclose(_pl_cap, _pl_target) and _pl_div > 0,
       f"divisor {_pl_div:.4f}, capacity VA {_pl_cap:.1f} vs {_pl_target:.1f}")
+
+# PRODUCTIVITY_VA 'net': the value added of a unit of capacity is net of the consumption tax firms do not keep (with
+# TAX_RATES 'data', the sector's tax on all its sales)
+sim.PARAMS['PRODUCTIVITY_VA'] = 'net'
+_pl_div_net = set_productivity_level(sim)
+sim.PARAMS['PRODUCTIVITY_VA'] = _pl_mode
+sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR'] = _pl_saved
+from agents.firm import Firm as _pl_Firm
+_pl_tax = (pd.Series(_pl_Firm.product_tax_sales) if _pl_Firm.product_tax_sales is not None
+           else pd.Series(sim.PARAMS['TAX_CONSUMPTION'], index=_pl_vs.index))
+_pl_cap_net = sum(f.total_qualification(sim.PARAMS['PRODUCTIVITY_EXPONENT']) / _pl_div_net * f.sector_productivity
+                  * (_pl_vs[f.sector] - _pl_tax.get(f.sector, 0.0))
+                  for f in sim.firms.values() if f.sector != 'Government' and not f.pool)
+check("Productivity level 'net': capacity value added net of the consumption tax matches IBGE municipal VA",
+      np.isclose(_pl_cap_net, _pl_target) and 0 < _pl_div_net < _pl_div,
+      f"divisor {_pl_div_net:.4f} vs gross {_pl_div:.4f}, capacity VA {_pl_cap_net:.1f} vs {_pl_target:.1f}")
 
 # Family wage: wage_paid is zeroed before the payroll, so a member without a job adds nothing while the paid staff add
 # this month's wage
@@ -1645,7 +1721,10 @@ check("Payout: firms end at their buffer, investment rate to the fund and the re
       f"spent {_po_spent:.2f} of {_po_fund:.2f}, imports {_po_imp0 - sim.ledger['imports']:.2f}, entry {_po_entry}")
 
 # Public headcount: the residence-based Census file, restricted to the run's municipalities
+_gh_saved = sim.PARAMS.get('GOV_HEADCOUNT', 'pnad')
+sim.PARAMS['GOV_HEADCOUNT'] = 'census'
 _gh_census = sim.labor_market.process_gov_employees_year()
+sim.PARAMS['GOV_HEADCOUNT'] = _gh_saved
 _gh_file = pd.read_csv('input/gov_headcount_census.csv')
 _gh_muns = {int(str(c)[:6]) for c in sim.geo.mun_codes}
 _gh_ok = (set(_gh_census.codemun) <= _gh_muns
@@ -1654,6 +1733,18 @@ _gh_ok = (set(_gh_census.codemun) <= _gh_muns
           and _gh_census[_gh_census.ano == 2010].qtde_vinc_ativos.sum() > 0)
 check("Public headcount reads the Census file for the run's municipalities", _gh_ok,
       f"2010 census {_gh_census[_gh_census.ano == 2010].qtde_vinc_ativos.sum():.0f}")
+
+# GOV_HEADCOUNT 'pnad': the state-ratio file, same municipalities and RAIS path, a different 2010 level
+sim.PARAMS['GOV_HEADCOUNT'] = 'pnad'
+_gh_pnad = sim.labor_market.process_gov_employees_year()
+sim.PARAMS['GOV_HEADCOUNT'] = _gh_saved
+_gh_p10 = _gh_pnad[_gh_pnad.ano == 2010].set_index('codemun').qtde_vinc_ativos
+_gh_c10 = _gh_census[_gh_census.ano == 2010].set_index('codemun').qtde_vinc_ativos
+_gh_growth = lambda d: d.groupby('ano').qtde_vinc_ativos.sum()
+check("GOV_HEADCOUNT 'pnad' reads its file for the same municipalities with the same growth path",
+      set(_gh_pnad.codemun) == set(_gh_census.codemun) and _gh_p10.sum() > 0 and not np.isclose(_gh_p10.sum(), _gh_c10.sum())
+      and np.allclose(_gh_growth(_gh_pnad) / _gh_p10.sum(), _gh_growth(_gh_census) / _gh_c10.sum(), rtol=1e-3),
+      f"2010 pnad {_gh_p10.sum():.0f} vs census {_gh_c10.sum():.0f}")
 
 
 # Education: levels drawn per agent for its age group match the Census mix of the run's municipalities at
@@ -1969,10 +2060,209 @@ _hv_ok_plan = (_hv_plan is not None and abs(
     _hv_plan['cost'] * _hv_b2.prices - _hv.build_cost(_hv_rid, _hv_plan['size'], _hv_plan['quality'],
                                                       _hv_b2.productivity)) < 1e-9
                and abs(1e9 - _hv_b2.total_balance - _hv_plan['quality'] * _hv_reg.index * _hv_plan['size']
-                       * _hv.price_scale * sim.PARAMS['LOT_COST']) < 1e-6)
+                       * _hv.price_scale * _hv_House.area_scale.get(_hv_rid, 1.0) * sim.PARAMS['LOT_COST']) < 1e-6)
 check("House values: rent level kept, cost by Sinapi state and CUB standards, builder plans in money",
       _hv_ok_level and _hv_ok_cost and _hv_ok_plan,
       f"level {_hv_ok_level} cost {_hv_ok_cost} plan {_hv_ok_plan}")
+
+# RENT_LEVEL 'census': the ACP factor brings the mean rent of the rented houses to the Census mean rent of its renters,
+# and House.scale applies it on top of the national scale
+_rl = _hv.census_rent_scale(sim.houses.values(), sim.regions)
+_rl_census = pd.read_csv('input/rent_AP_2010.csv', sep=';').set_index('AREAP')
+_rl_aps = [int(r) for r in sim.regions if int(r) in _rl_census.index]
+_rl_target = ((_rl_census.loc[_rl_aps].renters * _rl_census.loc[_rl_aps].mean_rent).sum()
+              / _rl_census.loc[_rl_aps].renters.sum() / sim.PARAMS['REAIS_PER_MONEY_UNIT'])
+_rl_rents = [float(h.rent_data[0]) * _rl[h.region_id] for h in sim.houses.values()
+             if h.rent_data is not None and h.family_id is not None]
+_rl_saved = dict(_hv_House.area_scale)
+_hv_House.area_scale = _rl
+_rl_ok_scale = abs(_hv_House.scale(_rl_aps and str(_rl_aps[0]) or _hv_rid)
+                   - _hv_House.price_scale * _rl.get(str(_rl_aps[0]), 1.0)) < 1e-12 if _rl_aps else False
+_hv_House.area_scale = _rl_saved
+check("Rent level 'census': mean rent of rented houses equals the Census mean rent of the ACP's renters",
+      len(set(_rl.values())) == 1 and _rl_rents and abs(np.mean(_rl_rents) / _rl_target - 1) < 1e-9 and _rl_ok_scale,
+      f"factor {set(_rl.values())}, model {np.mean(_rl_rents) if _rl_rents else 0:.4f} vs Census {_rl_target:.4f}")
+
+# Marriage: the population counters follow every agent who moves to another household
+def _mp_gap():
+    actual = defaultdict(int)
+    for a in sim.agents.values():
+        actual[a.family.region_id] += 1
+    return {r: sim.reg_pops[r] - actual[r] for r in set(actual) | set(sim.reg_pops)}
+
+
+_mp_before, _mp_mun = _mp_gap(), dict(sim.mun_pops)
+_mp_check = sim.PARAMS['MARRIAGE_CHECK_PROBABILITY']
+_mp_p = {a.id: a.p_marriage for a in sim.agents.values()}
+sim.PARAMS['MARRIAGE_CHECK_PROBABILITY'] = 1
+for a in sim.agents.values():
+    a.p_marriage = 1 if a.age >= 21 else 0
+_mp_regions = {i: a.family.region_id for i, a in sim.agents.items()}
+_pp.marriage(sim)
+_mp_moved = sum(a.family.region_id != _mp_regions[i] for i, a in sim.agents.items())
+sim.PARAMS['MARRIAGE_CHECK_PROBABILITY'] = _mp_check
+for a in sim.agents.values():
+    a.p_marriage = _mp_p[a.id]
+_mp_after = _mp_gap()
+check("Marriage: population counters follow the agents who move",
+      _mp_moved > 0 and all(_mp_after[r] == _mp_before.get(r, 0) for r in _mp_after)
+      and sum(sim.mun_pops.values()) == sum(_mp_mun.values()),
+      f"moved {_mp_moved}, gap changed in "
+      f"{sum(_mp_after[r] != _mp_before.get(r, 0) for r in _mp_after)} regions")
+
+# TAX_RATES 'data': the 2010 rates replace the TAX_* values; a sale pays its seller's sector rate, a sale to the rest of
+# Brazil too, collected in the seller's region
+from agents.firm import Firm as _tx_Firm
+_tx_params = dict(sim.PARAMS, TAX_RATES='data', PROCESSING_ACPS=['GOIANIA'])
+_tx_stub = SimpleNamespace(PARAMS=_tx_params)
+Simulation.tax_data(_tx_stub)
+_tx_rates = pd.read_csv('input/taxes_2010.csv', sep=';').set_index('tax').rate
+_tx_prod = pd.read_csv('input/product_tax_2010.csv', sep=';').set_index('sector')
+_tx_share = pd.read_csv('input/tax_shares_2010.csv', sep=';').set_index('acp')
+_tx_ok_params = (np.isclose(_tx_params['TAX_LABOR'], _tx_rates['labour']) and np.isclose(_tx_params['TAX_FIRM'], _tx_rates['firm'])
+                 and np.isclose(_tx_params['TAX_RENT'], _tx_rates['rent'])
+                 and np.isclose(_tx_params['TAX_PROPERTY'], _tx_share.loc['GOIANIA', 'iptu_rate']))
+_tx_f = _hv_copy.copy(next(f for f in sim.firms.values() if f.sector == 'Manufacturing' and not f.pool))
+_tx_f.inventory = {0: _hv_copy.copy(_tx_f.inventory[0])}
+_tx_f.inventory[0].quantity, _tx_f.inventory[0].price = 1e9, 1.0
+_tx_f.revenue, _tx_f.total_balance, _tx_f.amount_sold, _tx_f.unmet_quantity = 0.0, 0.0, 0.0, 0.0
+_tx_collected = []
+_tx_regions = {_tx_f.region_id: SimpleNamespace(collect_taxes=lambda amount, key: _tx_collected.append(amount))}
+_tx_f.sale(100.0, _tx_regions, 0.15, _tx_f.region_id, True)
+_tx_domestic = _tx_f.revenue
+_tx_f.sale(100.0, _tx_regions, 0.15, 'elsewhere', False, external=True)
+_tx_rate = _tx_prod.loc['Manufacturing', 'domestic']
+_tx_ok_sale = (np.isclose(_tx_domestic, 100 * (1 - _tx_rate)) and np.isclose(_tx_f.revenue, 2 * _tx_domestic)
+               and np.allclose(_tx_collected, [100 * _tx_rate] * 2))
+_tx_Firm.product_tax = _tx_Firm.product_tax_sales = None
+check("Tax rates 'data': 2010 labour, firm, rent and IPTU rates; sales taxed at the seller's sector rate, exports too",
+      _tx_ok_params and _tx_ok_sale, f"params {_tx_ok_params} sale {_tx_ok_sale}")
+
+# TAX_ROUTING 'data': a region receives a month of its municipality's observed FPM per resident from outside; the taxes
+# pooled 'equally' leave the ACP
+_tx_funds = sim.funds
+_tx_routing = getattr(_tx_funds, 'routing', False)
+_tx_fpm = pd.read_csv('input/fpm_real_pc.csv', sep=';')
+_tx_funds.fpm_pc = {(str(r.cod), int(r.ano)): r.fpm_pc for r in _tx_fpm.itertuples()}
+_tx_funds.fpm_last_year = int(_tx_fpm.ano.max())
+_tx_rid = next(r for r in sim.regions if (r[:7], 2012) in _tx_funds.fpm_pc)
+_tx_pop = {r: 0 for r in sim.regions}
+_tx_pop[_tx_rid] = 1000
+_tx_ledger = sim.ledger['public_transfers'], sim.ledger['public_taxes_out']
+_tx_pending = _tx_funds.pending_public_money[_tx_rid]['fpm']
+_tx_funds.routing = True
+_tx_funds.observed_fpm(sim.regions, _tx_pop, 2012)
+_tx_got = _tx_funds.pending_public_money[_tx_rid]['fpm'] - _tx_pending
+_tx_funds.equally(10.0, sim.regions, _tx_pop, 1000)
+_tx_expected = _tx_funds.fpm_pc[(_tx_rid[:7], 2012)] / 12 / sim.PARAMS['REAIS_PER_MONEY_UNIT'] * 1000
+_tx_ok_route = (np.isclose(_tx_got, _tx_expected)
+                and np.isclose(sim.ledger['public_transfers'] - _tx_ledger[0], _tx_expected)
+                and np.isclose(sim.ledger['public_taxes_out'] - _tx_ledger[1], -10.0))
+_tx_funds.routing = _tx_routing
+_tx_funds.pending_public_money[_tx_rid]['fpm'] = _tx_pending
+sim.ledger['public_transfers'], sim.ledger['public_taxes_out'] = _tx_ledger
+check("Tax routing 'data': observed FPM per resident paid in from outside; 'equally' taxes leave the ACP",
+      _tx_ok_route, f"FPM {_tx_got:.4f} vs {_tx_expected:.4f}")
+
+# MARRIAGE 'census': yearly rates read as monthly probabilities
+_un_rates = _pp.UnionRates()
+_un_w = next(a for a in sim.agents.values() if a.gender.lower() == 'female' and 25 <= a.age < 30)
+_un_t = pd.read_csv('input/union_rates_2010.csv', sep=';').set_index(['sex', 'age'])
+check("Unions: monthly probabilities from the yearly Census and Registro Civil rates",
+      abs(_un_rates.p(_un_w, 'formation') - (1 - (1 - _un_t.loc[('female', 25), 'formation']) ** (1 / 12))) < 1e-12
+      and abs(_un_rates.p(_un_w, 'separation') - (1 - (1 - _un_t.loc[('female', 25), 'separation']) ** (1 / 12)))
+      < 1e-12 and _un_rates.p(next(a for a in sim.agents.values() if a.age < 15), 'formation') == 0)
+
+# MARRIAGE 'census': the second adult is a partner of the other sex, nearest in age, at the Census couple share
+_un_adults = sorted((a for a in sim.agents.values() if a.age > 21), key=lambda a: a.id)
+_un_fams = list(sim.families.values())[:len(_un_adults) // 2]
+_un_mode = sim.PARAMS['MARRIAGE']
+sim.PARAMS['MARRIAGE'] = 'census'
+for a in _un_adults:
+    a.partner = None
+_un_order = sim.generator.match_partners(list(_un_adults), _un_fams)
+_un_heads = _un_order[:len(_un_fams)]
+_un_linked = [h for h in _un_heads if h.partner is not None]
+_un_share = len(_un_linked) / len(_un_heads)
+_un_gap = float(np.median([abs(h.age - h.partner.age) for h in _un_linked])) if _un_linked else np.inf
+check("Unions: start couples of the other sex, near in age, at the Census couple share",
+      all(h.partner.partner is h and h.gender.lower() != h.partner.gender.lower() for h in _un_linked)
+      and abs(_un_share - sim.generator.couple_share) < 0.1 and _un_gap <= 3,
+      f"share {_un_share:.2f} vs {sim.generator.couple_share:.2f}, median age gap {_un_gap}")
+for a in _un_adults:
+    a.partner = None
+
+# MARRIAGE 'census': a separating man leaves with half the savings; the woman keeps the children and the house
+_un_fam = next((f for f in sim.families.values() if f.house is not None
+                and sorted(m.gender.lower() for m in f.members.values() if m.age > 21) == ['female', 'male']
+                and any(m.age < 18 for m in f.members.values())), None)
+# The rental market lets only family-owned vacant houses: one is handed to another family, as a sale would
+_un_vacant = [h for h in sim.houses.values() if h.family_id is None and h.family_owner]
+if _un_fam is not None and not _un_vacant:
+    _un_h = next((h for h in sim.houses.values() if h.family_id is None and h.owner_id in sim.firms), None)
+    _un_owner = next((f for f in sim.families.values() if f is not _un_fam), None)
+    if _un_h is not None and _un_owner is not None:
+        if _un_h in sim.firms[_un_h.owner_id].houses_for_sale:
+            sim.firms[_un_h.owner_id].houses_for_sale.remove(_un_h)
+        _un_h.owner_id, _un_h.family_owner = _un_owner.id, True
+        _un_owner.owned_houses.append(_un_h)
+        _un_vacant = [_un_h]
+if _un_fam is not None and _un_vacant:
+    _un_woman = next(m for m in _un_fam.members.values() if m.age > 21 and m.gender.lower() == 'female')
+    _un_man = next(m for m in _un_fam.members.values() if m.age > 21 and m.gender.lower() == 'male')
+    _un_woman.partner, _un_man.partner = _un_man, _un_woman
+    _un_fam.savings, _un_fam.bank_savings = 10.0, 0.0
+    if sim.central.wallet.get(_un_fam):
+        _un_fam.savings += sim.central.withdraw(_un_fam, sim.clock.year, sim.clock.months)
+    _un_kids, _un_house, _un_sav = [m for m in _un_fam.members.values() if m.age < 18], _un_fam.house, _un_fam.savings
+    _mp_before = _mp_gap()
+    _pp.separate(sim, _un_woman)
+    _un_new = _un_man.family
+    check("Unions: separation sends the man out with half the savings, the children and house stay with the woman",
+          _un_new is not _un_fam and _un_new.house is not None and _un_fam.house is _un_house
+          and all(k.family is _un_fam for k in _un_kids) and _un_woman.partner is None and _un_man.partner is None
+          and abs(_un_fam.savings + _un_new.savings - _un_sav) < 1e-9
+          and (_un_new.house.owner_id == _un_new.id or abs(_un_fam.savings - _un_sav / 2) < 1e-9)
+          and all(_mp_gap()[r] == _mp_before.get(r, 0) for r in _mp_gap()),
+          f"new {_un_new is not _un_fam}, savings {_un_fam.savings:.3f} + {_un_new.savings:.3f} of {_un_sav:.3f}")
+else:
+    check("Unions: separation (no couple with children or no vacant house to test it)", False)
+
+# MARRIAGE 'census': a young adult living with one parent lives with another adult; a lone adult does not
+_un_lone = next((f for f in sim.families.values() if len(f.members) == 1
+                 and next(iter(f.members.values())).age >= 21), None)
+_un_single_parent = next((f for f in sim.families.values()
+                          if sum(m.age >= 21 for m in f.members.values()) == 1
+                          and any(18 <= m.age < 21 for m in f.members.values())), None)
+if _un_lone is not None and _un_single_parent is not None:
+    _un_young = next(m for m in _un_single_parent.members.values() if 18 <= m.age < 21)
+    _un_parent = next(m for m in _un_single_parent.members.values() if m.age >= 21)
+    check("Unions: living with other adults counts the other members, not the agent",
+          _pp.lives_with_adults(_un_young) and not _pp.lives_with_adults(_un_parent)
+          and not _pp.lives_with_adults(next(iter(_un_lone.members.values()))))
+else:
+    check("Unions: living with other adults (no lone adult or single parent of an 18-20 year old to test it)", False)
+
+# MARRIAGE 'census': unions pair women and men not in a union; a death leaves the partner single
+_un_p = _pp.UnionRates.p
+_pp.UnionRates.p = lambda self, agent, kind: (agent.age >= 18) * (kind == 'formation')
+sim.union_rates = None
+_un_before = {a.id: a.partner for a in sim.agents.values()}
+_mp_before = _mp_gap()
+_pp.unions(sim)
+_pp.UnionRates.p = _un_p
+_un_pairs = [a for a in sim.agents.values() if a.partner is not None and _un_before[a.id] is None]
+_un_new_gap = float(np.median([abs(a.age - a.partner.age) for a in _un_pairs])) if _un_pairs else np.inf
+check("Unions: new couples are a woman and a man not in a union before, near in age, sharing a household",
+      len(_un_pairs) > 0 and all(a.partner.partner is a and a.gender.lower() != a.partner.gender.lower()
+                                 and a.family is a.partner.family for a in _un_pairs)
+      and _un_new_gap <= 3 and all(_mp_gap()[r] == _mp_before.get(r, 0) for r in _mp_gap()),
+      f"{len(_un_pairs)} partnered, median age gap {_un_new_gap}")
+_un_dead = _un_pairs[0]
+_un_alive = _un_dead.partner
+sim.demographics.die(sim, _un_dead)
+check("Unions: a death leaves the partner single", _un_alive.partner is None and _un_dead.partner is None)
+sim.PARAMS['MARRIAGE'] = _un_mode
 
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")
