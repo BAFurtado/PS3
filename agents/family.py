@@ -195,7 +195,7 @@ class Family:
               incentive, never a gate — very crowded owners still try to upgrade.
 
           opportunity_cost ≥ 0
-            max(0, bank_rate − INITIAL_RENTAL_PRICE) × HOUSING_FINANCIAL_WEIGHT
+            max(0, bank_rate − RENTAL_YIELD / 12) × HOUSING_FINANCIAL_WEIGHT
             Dominant disincentive for non-renting owners: when the bank pays more than
             ownership saves, speculative buying is irrational. Scales with the SELIC
             cycle — low rates open the door for some owners; high rates shut it.

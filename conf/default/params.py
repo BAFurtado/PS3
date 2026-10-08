@@ -9,6 +9,9 @@ PRODUCTIVITY_EXPONENT = 0.65
 # (national input coefficients) equals the IBGE 2010 value added per resident of the run's municipalities, net of imputed
 # rent and own-account income (input/municipal_va_2010.csv, auxiliary/municipal_va.py), in model money
 PRODUCTIVITY_MAGNITUDE_DIVISOR = 1
+# Value added of a unit of capacity at price 1 in the divisor. 'gross': 1 - the sector's input coefficients. 'net': the
+# same less TAX_CONSUMPTION, which firms do not keep from a sale.
+PRODUCTIVITY_VA = 'net'
 # GENERAL CALIBRATION PARAMETERS
 # INTEREST: market/SELIC scenario. Choose: 'real', 'media', 'fixed'
 INTEREST = "real"
@@ -278,10 +281,7 @@ NEIGHBORHOOD_EFFECT = 0.2
 # income in Goiânia (≈ 1,100 from rents, 1,300-1,500 from wages)
 REAIS_PER_MONEY_UNIT = 1000
 INITIAL_RENTAL_SHARE = 0.40
-# Monthly rent as a fraction of house price.
-# At 0.003 this is 3.6% annual gross yield — in line with Brazilian urban rental markets.
-# Also calibrates the financial attractiveness comparison in decision_enter_house_market:
-# when the bank rate exceeds this yield, depositing savings is more profitable than buying.
+# Monthly rent per unit of size x quality x region index, in model money: the level of rents (world/house_values.py)
 INITIAL_RENTAL_PRICE = 0.002
 # House values: rents keep the level of INITIAL_RENTAL_PRICE x size x quality x region index; prices are rent x 12 /
 # RENTAL_YIELD, the FipeZAP 2010 national gross rental yield; builders' cost is size x the Sinapi 2010 cost per m² of
@@ -305,14 +305,7 @@ MIN_DOWN_PAYMENT_FRACTION = 0.20
 # 3 months matches standard financial-planning guidance for employed households.
 SAVINGS_BUFFER_MONTHS = 2
 # Scales the opportunity-cost term in decision_enter_house_market.
-# opportunity_cost = max(0, bank_rate - INITIAL_RENTAL_PRICE) × HOUSING_FINANCIAL_WEIGHT
-# This is now an absolute-difference formula (not normalized), so the weight is larger than
-# the old normalized version. At SELIC ≈ 10% annual (bank_rate ≈ 0.008/month):
-#   opportunity_cost ≈ (0.008 - 0.002) × 25 = 0.15
-# A renter (housing_need=1.0) scores 0.85 > 0 → enters.
-# A comfortable owner (housing_need=0) scores −0.15 → excluded.
-# A crowded owner (crowding_bonus=0.7) scores 0.55 → enters to upgrade.
-# At low SELIC (≈ 2%, bank_rate ≈ 0.0017): opportunity_cost ≈ 0 → some owners enter.
+# opportunity_cost = max(0, bank_rate - RENTAL_YIELD / 12) × HOUSING_FINANCIAL_WEIGHT
 HOUSING_FINANCIAL_WEIGHT = 60
 # Minimum months of permanent income that must remain liquid after the down payment.
 # Discourages families from locking all savings into a house and being cash-poor.

@@ -130,7 +130,8 @@ def set_sector_productivity(sim, firms):
 
 def set_productivity_level(sim):
     """PRODUCTIVITY_MAGNITUDE_DIVISOR such that the value added of the private firms'
-    staff capacity, capacity x (1 - the sector's national input coefficients), equals the 2010 market value added per
+    staff capacity, capacity x (1 - the sector's national input coefficients, less TAX_CONSUMPTION when PRODUCTIVITY_VA
+    is 'net'), equals the 2010 market value added per
     resident of the run's municipalities (input/municipal_va_2010.csv) times the agents living there, a month, in model
     money, firms producing the value added that is not own-account income. Set after start-up hiring; returns the
     divisor."""
@@ -142,6 +143,8 @@ def set_productivity_level(sim):
               / sim.PARAMS['REAIS_PER_MONEY_UNIT'])
     target *= 1 - sim.regional_market.pools.mixed_share
     va_share = 1 - pd.read_csv('input/technical_matrix.csv').set_index('sector').sum(axis=0)
+    if sim.PARAMS.get('PRODUCTIVITY_VA', 'gross') == 'net':
+        va_share -= sim.PARAMS['TAX_CONSUMPTION']
     pe = sim.PARAMS['PRODUCTIVITY_EXPONENT']
     labour = sum(f.total_qualification(pe) * f.sector_productivity * va_share[f.sector]
                  for f in sim.firms.values() if f.sector != 'Government' and not f.pool)

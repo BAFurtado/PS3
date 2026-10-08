@@ -30,13 +30,15 @@ def growth(series, start=12):
 
 
 def level_moments(df, window=36):
-    """Levels of one run, means over its last `window` months, and the measures of the hard constraints"""
+    """Levels of one run, means over its last `window` months, and the measures of the hard constraints. Income per
+    resident is in money of the first month: deflated by the model price level"""
     t = df.tail(window)
+    deflator = (df.price_level / df.price_level.iloc[0]).tail(window)
     h = compute_derived_monthly_indicators(df.copy()).tail(window)
     m = {
         "unemployment": t.unemployment.mean(),
         "household_income_gdp": (t.families_total_income / t.gdp_level).mean(),
-        "household_income_pc": (t.families_total_income / t["pop"]).mean() * REAIS_PER_MONEY_UNIT,
+        "household_income_pc": (t.families_total_income / t["pop"] / deflator).mean() * REAIS_PER_MONEY_UNIT,
         "nontradable_inflation": growth(df.price_nontradable),
         **{k: h[k].mean() for k in HOUSING},
     }

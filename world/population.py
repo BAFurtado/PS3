@@ -398,11 +398,16 @@ def separate(sim, woman):
     sim.update_pop(old.region_id, new.region_id)
 
 
+def lives_with_adults(agent):
+    """Another member of the agent's household is 21 or older"""
+    return any(m is not agent and m.age >= 21 for m in agent.family.members.values())
+
+
 def unite(sim, woman, man):
     """The couple forms a household of its own when both live with other adults, else the one who does moves in with
     the other, else the man's household moves in with the woman's. Undone when a new household finds no house."""
-    w_out = len([m for m in woman.family.members.values() if m.age >= 21]) >= 2
-    m_out = len([m for m in man.family.members.values() if m.age >= 21]) >= 2
+    w_out = lives_with_adults(woman)
+    m_out = lives_with_adults(man)
     if w_out and m_out:
         old_w, old_m = woman.family, man.family
         new = list(sim.generator.create_families(1).values())[0]
@@ -437,7 +442,8 @@ def unite(sim, woman, man):
 
 
 def unions(sim):
-    """Separations, then unions among the adults not in one, women paired with men by the Census couples' education"""
+    """Separations, then unions among the adults not in one, women paired with men by the Census couples' education,
+    the nearest in age"""
     from world.family_matching import SpouseEducation
     from world.own_account import level
     if sim.union_rates is None:
@@ -462,7 +468,7 @@ def unions(sim):
     for man in reversed(singles['male']):
         pool[level(man)].append(man)
     for woman in singles['female']:
-        man = sim.generator.spouses.pick(woman, pool)
+        man = sim.generator.spouses.pick_nearest(woman, pool)
         if man is None:
             break
         if man.family is not woman.family:

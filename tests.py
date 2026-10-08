@@ -1555,6 +1555,8 @@ check("Social transfers: RGPS to the oldest, Bolsa Família to the poorest famil
 # the IBGE market value added per resident times the residents, net of own-account income, a month, in model money
 from world.firms import set_productivity_level
 _pl_saved = sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR']
+_pl_mode = sim.PARAMS.get('PRODUCTIVITY_VA', 'gross')
+sim.PARAMS['PRODUCTIVITY_VA'] = 'gross'
 _pl_div = set_productivity_level(sim)
 _pl_va = pd.read_csv('input/municipal_va_2010.csv', sep=';').set_index('cod_mun')
 _pl_res = [a for a in sim.agents.values() if a.family is not None and a.family.region_id
@@ -1566,9 +1568,21 @@ _pl_vs = 1 - pd.read_csv('input/technical_matrix.csv').set_index('sector').sum(a
 _pl_cap = sum(f.total_qualification(sim.PARAMS['PRODUCTIVITY_EXPONENT']) / _pl_div * f.sector_productivity
               * _pl_vs[f.sector] for f in sim.firms.values() if f.sector != 'Government' and not f.pool)
 sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR'] = _pl_saved
-check("Productivity level: capacity value added matches IBGE municipal VA net of own-account income",
+check("Productivity level 'gross': capacity value added matches IBGE municipal VA net of own-account income",
       np.isclose(_pl_cap, _pl_target) and _pl_div > 0,
       f"divisor {_pl_div:.4f}, capacity VA {_pl_cap:.1f} vs {_pl_target:.1f}")
+
+# PRODUCTIVITY_VA 'net': the value added of a unit of capacity is net of the consumption tax firms do not keep
+sim.PARAMS['PRODUCTIVITY_VA'] = 'net'
+_pl_div_net = set_productivity_level(sim)
+sim.PARAMS['PRODUCTIVITY_VA'] = _pl_mode
+sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR'] = _pl_saved
+_pl_cap_net = sum(f.total_qualification(sim.PARAMS['PRODUCTIVITY_EXPONENT']) / _pl_div_net * f.sector_productivity
+                  * (_pl_vs[f.sector] - sim.PARAMS['TAX_CONSUMPTION'])
+                  for f in sim.firms.values() if f.sector != 'Government' and not f.pool)
+check("Productivity level 'net': capacity value added net of the consumption tax matches IBGE municipal VA",
+      np.isclose(_pl_cap_net, _pl_target) and 0 < _pl_div_net < _pl_div,
+      f"divisor {_pl_div_net:.4f} vs gross {_pl_div:.4f}, capacity VA {_pl_cap_net:.1f} vs {_pl_target:.1f}")
 
 # Family wage: wage_paid is zeroed before the payroll, so a member without a job adds nothing while the paid staff add
 # this month's wage
@@ -2080,6 +2094,21 @@ if _un_fam is not None and _un_vacant:
 else:
     check("Unions: separation (no couple with children or no vacant house to test it)", False)
 
+# MARRIAGE 'census': a young adult living with one parent lives with another adult; a lone adult does not
+_un_lone = next((f for f in sim.families.values() if len(f.members) == 1
+                 and next(iter(f.members.values())).age >= 21), None)
+_un_single_parent = next((f for f in sim.families.values()
+                          if sum(m.age >= 21 for m in f.members.values()) == 1
+                          and any(18 <= m.age < 21 for m in f.members.values())), None)
+if _un_lone is not None and _un_single_parent is not None:
+    _un_young = next(m for m in _un_single_parent.members.values() if 18 <= m.age < 21)
+    _un_parent = next(m for m in _un_single_parent.members.values() if m.age >= 21)
+    check("Unions: living with other adults counts the other members, not the agent",
+          _pp.lives_with_adults(_un_young) and not _pp.lives_with_adults(_un_parent)
+          and not _pp.lives_with_adults(next(iter(_un_lone.members.values()))))
+else:
+    check("Unions: living with other adults (no lone adult or single parent of an 18-20 year old to test it)", False)
+
 # MARRIAGE 'census': unions pair women and men not in a union; a death leaves the partner single
 _un_p = _pp.UnionRates.p
 _pp.UnionRates.p = lambda self, agent, kind: (agent.age >= 18) * (kind == 'formation')
@@ -2089,10 +2118,12 @@ _mp_before = _mp_gap()
 _pp.unions(sim)
 _pp.UnionRates.p = _un_p
 _un_pairs = [a for a in sim.agents.values() if a.partner is not None and _un_before[a.id] is None]
-check("Unions: new couples are a woman and a man not in a union before, sharing a household",
+_un_new_gap = float(np.median([abs(a.age - a.partner.age) for a in _un_pairs])) if _un_pairs else np.inf
+check("Unions: new couples are a woman and a man not in a union before, near in age, sharing a household",
       len(_un_pairs) > 0 and all(a.partner.partner is a and a.gender.lower() != a.partner.gender.lower()
                                  and a.family is a.partner.family for a in _un_pairs)
-      and all(_mp_gap()[r] == _mp_before.get(r, 0) for r in _mp_gap()), f"{len(_un_pairs)} partnered")
+      and _un_new_gap <= 3 and all(_mp_gap()[r] == _mp_before.get(r, 0) for r in _mp_gap()),
+      f"{len(_un_pairs)} partnered, median age gap {_un_new_gap}")
 _un_dead = _un_pairs[0]
 _un_alive = _un_dead.partner
 sim.demographics.die(sim, _un_dead)
