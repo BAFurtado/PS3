@@ -53,6 +53,10 @@ LABOR_MARKET = 0.8
 
 # Monthly probability an employed worker separates (quits, contract end, etc.).
 NATURAL_SEPARATION_RATE = 0.010
+# Worker flows: 'legacy' separations at NATURAL_SEPARATION_RATE and every job seeker in the month's matching; 'data'
+# separations at the monthly employee -> unemployed rate and each job seeker in the matching with the monthly
+# unemployed -> employed rate (PME 2010, input/labour_flows_2010.csv)
+LABOUR_FLOWS = 'legacy'
 # Firms that pay no wages for this many consecutive months fire one worker per adjustment (0 = off).
 # Tolerates short revenue droughts from erratic, small-sample demand; sheds staff only when they persist.
 FIRE_UNPAID_MONTHS = 3
@@ -472,9 +476,14 @@ TRADABLE_SECTORS = ['Agriculture', 'Mining', 'Manufacturing']
 # Construction and Government: s_i = TRADE_POTENTIAL[i], no exports. Written to trade_base.csv.
 EXPORTS_PRICE_ELASTICITY = 1.0
 # Local output in the trade base. 'firms': the firms' staff capacity. 'market': the firms' staff capacity over 1 - the
-# own-account pool's part of a purchase of the product (Construction and Government: the firms'), since every buyer
-# pays the pool its part first.
+# own-account pool's part of a purchase of the product (Construction and Government: the firms'), or plus the pool's
+# output under OWN_ACCOUNT_POOL 'census', since every buyer pays the pool its part first.
 TRADE_BASE_OUTPUT = 'firms'
+# Own-account pools: 'entry' members join and leave on the pool's pay against (1 - u) x the private wage of their level;
+# 'census' members of each level held at the Census 2010 own-account share of the employed, joining from the month's
+# job seekers, and each pool sells at most its members' output (own-account relative productivity,
+# input/own_account_productivity_2010.csv), the rest of its share of a purchase going to the firms
+OWN_ACCOUNT_POOL = 'entry'
 # Haddad et al. (2019, p. 614), F: 0.5 for products 1-87 (agriculture, mining, manufacturing), 0.9 for products 88-128
 # (utilities, construction, trade and services)
 TRADE_POTENTIAL = {'Agriculture': 0.5, 'Mining': 0.5, 'Manufacturing': 0.5, 'Utilities': 0.9, 'Construction': 0.9,

@@ -1030,7 +1030,7 @@ _io_dem_ok = all(abs(_io_dem.get(_s, 0.0) - (_io_exp[_s][1] * External.sector_pr
 # TRADE_BASE_OUTPUT 'market': output = firms' capacity over 1 - the pool's part of a purchase (not Construction,
 # Government), so the firms' part of the base demand equals their capacity
 _io_pool_share = {'Manufacturing': 0.2, 'Trade': 0.1, 'Construction': 0.3}
-_io_rm.pools = SimpleNamespace(payable=lambda sector: (object(), _io_pool_share.get(sector, 0.0)))
+_io_rm.pools = SimpleNamespace(payable=lambda sector: (object(), _io_pool_share.get(sector, 0.0)), producing=False)
 _io_ext.sim.PARAMS = dict(_io_params, TRADE_BASE_OUTPUT='market')
 _io_mkt = _io_ext.trade_base()
 _io_mkt_ok = True
@@ -1044,10 +1044,20 @@ for _s in _io_rm._sector_order:
     _ex = 0.0 if _fixed else _q - _sh * _d
     _io_mkt_ok &= (abs(_io_mkt.loc[_s, 'output'] - _q) < 1e-9 and abs(_io_mkt.loc[_s, 'local_share'] - _sh) < 1e-12
                    and abs(_io_mkt.loc[_s, 'exports'] - _ex) < 1e-9)
+# Under OWN_ACCOUNT_POOL 'census' the pool's output is added instead
+_io_pool_out = {'Manufacturing': 0.7, 'Trade': 0.4, 'Construction': 0.9}
+_io_rm.pools = SimpleNamespace(payable=lambda sector: (object(), _io_pool_share.get(sector, 0.0)), producing=True,
+                               output=lambda sector: _io_pool_out.get(sector, 0.0))
+_io_cen = _io_ext.trade_base()
+_io_cen_ok = all(abs(_io_cen.loc[_s, 'output'] - 2.0 * len(_io_sectors.get(_s, []))
+                     - (0.0 if _s in ('Construction', 'Government') else _io_pool_out.get(_s, 0.0))) < 1e-9
+                 for _s in _io_rm._sector_order)
 _io_rm.pools = None
 _io_ext.sim.PARAMS = _io_params
 check("TRADE_BASE_OUTPUT 'market': trade-base output is the firms' capacity over 1 - the pool's part of a purchase",
       _io_mkt_ok, f"\n{_io_mkt.round(3).to_string()}")
+check("TRADE_BASE_OUTPUT 'market' with OWN_ACCOUNT_POOL 'census': trade-base output is the firms' capacity plus the "
+      "pool's output", _io_cen_ok, f"\n{_io_cen.round(3).to_string()}")
 for _f in sim.firms.values():
     _f.last_capacity = _cap_saved[_f.id]
 check("Interregional trade: national coefficients split by the local share; month-1 base sets shares and "
@@ -2284,6 +2294,66 @@ _un_alive = _un_dead.partner
 sim.demographics.die(sim, _un_dead)
 check("Unions: a death leaves the partner single", _un_alive.partner is None and _un_dead.partner is None)
 sim.PARAMS['MARRIAGE'] = _un_mode
+
+print("\n── Labour flows and own-account pools ───────────────────────────────")
+from markets.labor import labour_flows
+from world.firms import SECTOR_PRODUCTIVITY as _lf_sp
+from world.own_account import level as _lf_level, LEVELS as _lf_levels
+_lf_sep, _lf_find = labour_flows()
+check("LABOUR_FLOWS 'data': monthly separation and job-finding rates are probabilities, finding above separation",
+      0 < _lf_sep < _lf_find < 1, f"separation {_lf_sep:.4f}, job finding {_lf_find:.4f}")
+# OWN_ACCOUNT_POOL 'census': each pool's output and the revenue it can take
+_oa = sim.own_account
+_oa_mode = _oa.producing
+_oa.producing = True
+_oa_pe, _oa_div = sim.PARAMS['PRODUCTIVITY_EXPONENT'], sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR']
+_oa.produce(_oa_pe, _oa_div)
+_oa_out_ok = all(
+    abs(_p.output - sum(a.qualification ** _oa_pe for a in _p.employees.values()) / _oa_div
+        * (1.0 if _s == 'Construction' else float(_lf_sp[_s])) * _oa.relative.get(_s, 1.0)) < 1e-9
+    and abs(_p.room - _p.output * _p.sector_price()) < 1e-9 for _s, _p in _oa.pools.items())
+check("OWN_ACCOUNT_POOL 'census': a pool's output is its members' q^α over the divisor x sector and own-account "
+      "productivity, sold at the sector's mean price", _oa_out_ok)
+# A pool takes a purchase up to the revenue still unsold, then nothing
+_oa_pool = max(_oa.pools.values(), key=lambda p: p.room)
+_oa_room = _oa_pool.room
+_oa_tax = _oa_pool.consumption_tax(sim.PARAMS['TAX_CONSUMPTION'], False)
+_oa_regions = {_oa_pool.region_id: SimpleNamespace(collect_taxes=lambda *a: None)}
+_oa_saved = _oa_pool.total_balance, _oa_pool.revenue
+_oa_take1 = _oa_pool.receive(2 * _oa_room / (1 - _oa_tax) + 1.0, _oa_regions, sim.PARAMS['TAX_CONSUMPTION'],
+                             _oa_pool.region_id, True)
+_oa_take2 = _oa_pool.receive(1.0, _oa_regions, sim.PARAMS['TAX_CONSUMPTION'], _oa_pool.region_id, True)
+_oa_cap_ok = (_oa_room > 0 and abs(_oa_take1 * (1 - _oa_tax) - _oa_room) < 1e-9 and _oa_take2 == 0
+              and _oa_pool.room == 0 and abs(_oa_pool.revenue - _oa_saved[1] - _oa_room) < 1e-9)
+_oa_pool.total_balance, _oa_pool.revenue = _oa_saved
+check("OWN_ACCOUNT_POOL 'census': a pool sells up to its output and returns the part of a purchase it took",
+      _oa_cap_ok, f"room {_oa_room:.3f}, took {_oa_take1:.3f} then {_oa_take2:.3f}")
+# Members of each level held at share / (1 - share) x the level's other employed, joining from the job seekers
+
+
+def _oa_counts():
+    own, other = defaultdict(int), defaultdict(int)
+    for a in sim.agents.values():
+        if a.firm_id is not None and a.firm_id in sim.firms:
+            (own if sim.firms[a.firm_id].own_account else other)[_lf_level(a)] += 1
+    return own, other
+
+
+_oa_seekers = [a for a in sim.agents.values() if a.firm_id is None and sim.participation.is_active(a)]
+_oa_left = _oa.pin(_oa_seekers)
+_oa_own, _oa_other = _oa_counts()
+_oa_joined = [a for a in _oa_seekers if a not in _oa_left]
+_oa_pin_ok = all(a.firm_id is not None and sim.firms[a.firm_id].own_account for a in _oa_joined)
+for _lv in _lf_levels:
+    _sh = _oa.census.share.get(_lv, 0.0)
+    _target = int(round(_sh / (1 - _sh) * _oa_other[_lv]))
+    _oa_pin_ok &= (_oa_own[_lv] == _target
+                   or (_oa_own[_lv] < _target and not any(_lf_level(a) == _lv for a in _oa_left)))
+check("OWN_ACCOUNT_POOL 'census': members of each level at the Census share of the employed, joining from job seekers",
+      _oa_pin_ok, f"members {dict(_oa_own)}, others {dict(_oa_other)}, joined {len(_oa_joined)}")
+_oa.producing = _oa_mode
+for _p in _oa.pools.values():
+    _p.output, _p.room = 0.0, float('inf')
 
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")

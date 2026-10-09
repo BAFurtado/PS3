@@ -10,6 +10,7 @@ from agents.firm import Firm
 FILE = 'input/own_account_2010.csv'
 INCOME = 'input/own_account_income_2010.csv'
 LABOUR_SHARE = 'input/firm_income_2015.csv'
+PRODUCTIVITY = 'input/own_account_productivity_2010.csv'
 LEVELS = [1, 2, 3, 4]
 
 
@@ -63,18 +64,32 @@ class OwnAccountPool(Firm):
     own_account = True
     # Members' pay last month it had members (OwnAccountPools.monthly)
     last_net = 0.0
+    # OWN_ACCOUNT_POOL 'census': the members' output this month (OwnAccountPools.produce) and the revenue still unsold
+    output = 0.0
+    room = float('inf')
 
     def receive(self, amount, regions, tax_consumption, consumer_region_id, if_origin, external=False):
         """A purchase from the pool, net of consumption tax as Firm.sale (an export charged at destination leaves its
-        tax outside)"""
+        tax outside), up to the revenue still unsold this month; returns the part of `amount` taken"""
         tax_consumption = self.consumption_tax(tax_consumption, external)
+        if self.room != float('inf'):
+            amount = min(amount, self.room / (1 - tax_consumption)) if tax_consumption < 1 else 0.0
+            self.room = max(0.0, self.room - amount * (1 - tax_consumption))
         revenue = amount * (1 - tax_consumption)
         self.total_balance += revenue
         self.revenue += revenue
         if external and not if_origin and self.product_tax is None:
-            return
+            return amount
         region = self.region_id if if_origin else consumer_region_id
         regions[region if region in regions else self.region_id].collect_taxes(amount * tax_consumption, "consumption")
+        return amount
+
+    def sector_price(self):
+        """Mean price of the sector's staffed firms"""
+        sim = self.sim
+        prices = [f.prices for f in sim.firms.values()
+                  if f.sector == self.sector and not f.pool and f.num_employees > 0]
+        return float(np.mean(prices)) if prices else (sim.avg_prices or 1.0)
 
     def update_product_quantity(self, *args, **kwargs):
         self.last_capacity = 0.0
@@ -104,9 +119,7 @@ class OwnAccountPool(Firm):
         """Inputs for this month's output at the sector's mean price, then all cash to the members"""
         sim = self.sim
         market = sim.regional_market
-        prices = [f.prices for f in sim.firms.values()
-                  if f.sector == self.sector and not f.pool and f.num_employees > 0]
-        price = float(np.mean(prices)) if prices else (sim.avg_prices or 1.0)
+        price = self.sector_price()
         if self.revenue > 0:
             self.buy_inputs(self.revenue / price, market, sim.firms, sim.seed, market.technical_matrix,
                             market.ext_local_matrix)
@@ -141,11 +154,20 @@ class OwnAccountPools:
     pool's pay last month over the members still in it, a searcher's that share with itself counted in, in a sector
     drawn from its level's mix; the search is worth (1 - u) times the mean wage of private employees of its level
     (Harris-Todaro). A member leaves when the pool pays less, a searcher joins when it pays more; each move changes the
-    pay the next one sees, so moves stop where the two are equal."""
+    pay the next one sees, so moves stop where the two are equal.
+
+    OWN_ACCOUNT_POOL 'census': no such moves. Each month (before job matching) the members of each level are held at
+    the Census share of the employed of that level: the excess, drawn at random, leave without work; the shortfall
+    joins from that month's job seekers of the level. Each pool produces its members' output, q^α / the productivity
+    divisor x the sector's productivity x its own-account relative productivity (value added per own-account worker
+    over that per other worker, input/own_account_productivity_2010.csv), and sells at most that output at the
+    sector's mean price; the rest of its share of a purchase goes to the firms."""
 
     def __init__(self, sim):
         self.sim = sim
         self.census = OwnAccountCensus(sim)
+        self.producing = sim.PARAMS.get('OWN_ACCOUNT_POOL', 'entry') == 'census'
+        self.relative = pd.read_csv(PRODUCTIVITY, sep=';').set_index('sector').relative_productivity.to_dict()
         inc = pd.read_csv(INCOME, sep=';')
         inc = inc[inc.cod_mun.isin([int(m) for m in sim.mun_to_regions]) & ~inc.sector.isin(['Unknown', 'Government'])]
         inc = inc.groupby('sector')[['work_income', 'own_account_income']].sum()
@@ -183,6 +205,55 @@ class OwnAccountPools:
             return None, 0.0
         return pool, self.share.get(sector, 0.0)
 
+    def output(self, sector):
+        """The members' output of the pool of `sector` this month (OWN_ACCOUNT_POOL 'census'), else 0"""
+        pool = self.pools.get(sector)
+        return pool.output if self.producing and pool is not None else 0.0
+
+    def produce(self, alpha, divisor):
+        """OWN_ACCOUNT_POOL 'census': each pool's output and the revenue it can take this month"""
+        if not self.producing:
+            return
+        from world.firms import SECTOR_PRODUCTIVITY
+        for s, pool in self.pools.items():
+            productivity = 1.0 if s == 'Construction' else float(SECTOR_PRODUCTIVITY[s])
+            pool.output = (sum(a.qualification ** alpha for a in pool.employees.values()) / divisor * productivity
+                           * self.relative.get(s, 1.0))
+            pool.room = pool.output * pool.sector_price()
+
+    def pin(self, candidates):
+        """OWN_ACCOUNT_POOL 'census': members of each level held at share / (1 - share) x the level's other employed;
+        returns the job seekers left"""
+        if not self.producing:
+            return candidates
+        sim = self.sim
+        others, members = defaultdict(int), defaultdict(list)
+        for a in sim.agents.values():
+            if a.firm_id is not None:
+                firm = sim.firms.get(a.firm_id)
+                if firm is not None and firm.own_account:
+                    members[level(a)].append((firm, a))
+                elif firm is not None:
+                    others[level(a)] += 1
+        seekers = defaultdict(list)
+        for a in candidates:
+            seekers[level(a)].append(a)
+        joined = set()
+        for lv in LEVELS:
+            share = self.census.share.get(lv, 0.0)
+            target = int(round(share / (1 - share) * others[lv])) if share < 1 else len(members[lv])
+            gap = target - len(members[lv])
+            if gap < 0:
+                for i in sim.seed_np.choice(len(members[lv]), size=-gap, replace=False):
+                    self.leave(*members[lv][i])
+                    self.left += 1
+            elif gap > 0 and seekers[lv]:
+                for i in sim.seed_np.choice(len(seekers[lv]), size=min(gap, len(seekers[lv])), replace=False):
+                    self.join(seekers[lv][i])
+                    joined.add(seekers[lv][i].id)
+                    self.joined += 1
+        return [a for a in candidates if a.id not in joined]
+
     def join(self, agent, sector=None):
         if sector is None:
             names, p = self.census.sectors[level(agent)]
@@ -208,6 +279,8 @@ class OwnAccountPools:
                 self.join(pool[i])
 
     def monthly(self, unemployment):
+        if self.producing:
+            return
         sim = self.sim
         alpha = sim.PARAMS['PRODUCTIVITY_EXPONENT']
         freq = sim.PARAMS['LABOR_MARKET']
