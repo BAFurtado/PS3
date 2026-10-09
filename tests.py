@@ -1027,6 +1027,27 @@ _io_dem = _io_ext.export_demand()
 _io_dem_ok = all(abs(_io_dem.get(_s, 0.0) - (_io_exp[_s][1] * External.sector_price(_io_sectors[_s]) ** (1 - _io_sigma)
                                                 if _io_exp[_s][1] > 0 and _io_sectors.get(_s) else 0.0)) < 1e-9
                  for _s in _io_rm._sector_order)
+# TRADE_BASE_OUTPUT 'market': output = firms' capacity over 1 - the pool's part of a purchase (not Construction,
+# Government), so the firms' part of the base demand equals their capacity
+_io_pool_share = {'Manufacturing': 0.2, 'Trade': 0.1, 'Construction': 0.3}
+_io_rm.pools = SimpleNamespace(payable=lambda sector: (object(), _io_pool_share.get(sector, 0.0)))
+_io_ext.sim.PARAMS = dict(_io_params, TRADE_BASE_OUTPUT='market')
+_io_mkt = _io_ext.trade_base()
+_io_mkt_ok = True
+for _s in _io_rm._sector_order:
+    _fs = _io_sectors.get(_s, [])
+    _p = External.sector_price(_fs) if _fs else 1.0
+    _fixed = _s in ('Construction', 'Government')
+    _q = 2.0 * len(_fs) / (1.0 if _fixed else 1 - _io_pool_share.get(_s, 0.0))
+    _d = 1.0 + (3.0 + (4.0 if _s == 'Trade' else 0.0) + (5.0 if _s == 'Transport' else 0.0)) / _p
+    _sh = _F[_s] if _fixed else _F[_s] * min(_q / _d, 1.0)
+    _ex = 0.0 if _fixed else _q - _sh * _d
+    _io_mkt_ok &= (abs(_io_mkt.loc[_s, 'output'] - _q) < 1e-9 and abs(_io_mkt.loc[_s, 'local_share'] - _sh) < 1e-12
+                   and abs(_io_mkt.loc[_s, 'exports'] - _ex) < 1e-9)
+_io_rm.pools = None
+_io_ext.sim.PARAMS = _io_params
+check("TRADE_BASE_OUTPUT 'market': trade-base output is the firms' capacity over 1 - the pool's part of a purchase",
+      _io_mkt_ok, f"\n{_io_mkt.round(3).to_string()}")
 for _f in sim.firms.values():
     _f.last_capacity = _cap_saved[_f.id]
 check("Interregional trade: national coefficients split by the local share; month-1 base sets shares and "

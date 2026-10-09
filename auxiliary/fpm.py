@@ -1,11 +1,7 @@
 """FPM a year per resident in R$ of 2010 (input/fpm_real_pc.csv), from the FPM paid to each municipality
 (input/fpm/{UF}.csv, R$ of the year, net of the FUNDEB retention).
 
-input/fpm/{UF}.csv: Secretaria do Tesouro Nacional, Transferências Constitucionais para Municípios; it equals the
-rows with item and transfer 'FPM' of the STN files (Tesouro Transparente, dataset
-transferencias-constitucionais-para-municipios), three decêndios summed, wherever those files are complete (yearly files
-2010-2015, monthly 2016-2017 checked 2026-10-08). Later monthly files have gaps (October 2019 lists only the FUNDEB
-retention; May 2018 has no transfer column), so extending the table needs the STN transfers API.
+input/fpm/{UF}.csv: auxiliary/fpm_stn.py.
 Deflated by the IPCA annual mean (Sidra 1737, variable 2266), over the municipality's population on its 2010-2022
 Census path (input/census_population_2010_2022.csv, geometric, extended at the same rate after 2022).
 

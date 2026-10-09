@@ -471,6 +471,10 @@ TRADABLE_SECTORS = ['Agriculture', 'Mining', 'Manufacturing']
 # (price / P_imp) ** -EXPORTS_PRICE_ELASTICITY, and bought from every stocked firm of the sector by stock value.
 # Construction and Government: s_i = TRADE_POTENTIAL[i], no exports. Written to trade_base.csv.
 EXPORTS_PRICE_ELASTICITY = 1.0
+# Local output in the trade base. 'firms': the firms' staff capacity. 'market': the firms' staff capacity over 1 - the
+# own-account pool's part of a purchase of the product (Construction and Government: the firms'), since every buyer
+# pays the pool its part first.
+TRADE_BASE_OUTPUT = 'firms'
 # Haddad et al. (2019, p. 614), F: 0.5 for products 1-87 (agriculture, mining, manufacturing), 0.9 for products 88-128
 # (utilities, construction, trade and services)
 TRADE_POTENTIAL = {'Agriculture': 0.5, 'Mining': 0.5, 'Manufacturing': 0.5, 'Utilities': 0.9, 'Construction': 0.9,

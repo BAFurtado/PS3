@@ -343,21 +343,26 @@ class External:
         return sim.investment_rate * surplus
 
     def trade_base(self):
-        """Month 1: per product, local output (staff capacity) and local demand (input
-        need, household spending and fares, government spending, money over the sector's price); local share
-        s = TRADE_POTENTIAL x min(output / demand, 1) and exports = output - s x demand, Construction and Government
-        s = TRADE_POTENTIAL and no exports. Demand includes the expected investment. Sets the market's local shares and
-        returns the table. The month-1 components are kept for rebase_trade."""
+        """Month 1: per product, local output (staff capacity; with TRADE_BASE_OUTPUT 'market' over 1 - the own-account
+        pool's part of a purchase) and local demand (input need, household spending and fares, government spending,
+        money over the sector's price); local share s = TRADE_POTENTIAL x min(output / demand, 1) and exports = output -
+        s x demand, Construction and Government s = TRADE_POTENTIAL and no exports. Demand includes the expected
+        investment. Sets the market's local shares and returns the table. The month-1 components are kept for
+        rebase_trade."""
         market = self.sim.regional_market
         by_sector = defaultdict(list)
         for f in self.sim.firms.values():
             by_sector[f.sector].append(f)
         investment = self.expected_investment(by_sector)
         fbcf = market.final_demand['FBCF'] / market.final_demand['FBCF'].sum()
+        with_pools = self.sim.PARAMS.get('TRADE_BASE_OUTPUT', 'firms') == 'market'
         rows = {}
         for k, sector in enumerate(market._sector_order):
             firms = by_sector.get(sector, [])
-            rows[sector] = {'output': sum(f.last_capacity for f in firms),
+            output = sum(f.last_capacity for f in firms)
+            if with_pools and sector not in ('Construction', 'Government'):
+                output /= 1 - market.pools.payable(sector)[1]
+            rows[sector] = {'output': output,
                             'price': self.sector_price(firms) if firms else 1.0,
                             'input_need': market.input_need[k], 'household': market.monthly_hh_intended[sector],
                             'government': market.monthly_gov_intended[sector], 'investment': investment * fbcf[sector],
