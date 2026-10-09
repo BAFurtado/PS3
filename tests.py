@@ -974,8 +974,9 @@ check("Household demand: Real Estate share 0, others rescaled to sum 1",
 
 # Interregional trade: local + imported coefficients are the national ones split by the local share; households
 # and government import 1 - share. The month-1 base: share = potential x min(output / demand, 1), exports = output -
-# share x demand (none for Construction, Government); exports then = quantity x national growth x price ** (1 - sigma)
-_io_params = dict(sim.PARAMS)
+# share x demand (none for Construction, Government); exports then = quantity x national growth x price ** (1 - sigma).
+# Output is the firms' capacity (TRADE_BASE_OUTPUT 'firms')
+_io_params = dict(sim.PARAMS, TRADE_BASE_OUTPUT='firms')
 _io_rm = RegionalMarket(SimpleNamespace(PARAMS=_io_params, geo=sim.geo))
 _io_sim = SimpleNamespace(PARAMS=_io_params, regional_market=_io_rm, firms=sim.firms, clock=sim.clock,
                           ledger=defaultdict(float), investment_rate=0.0, families={})
