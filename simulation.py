@@ -570,8 +570,9 @@ class Simulation:
                 tax_labor,
                 relevance_unemployment,
                 tax_transport)
-            # Firms update generated externalities, based on own sector and wages paid this month
-            firm.create_externalities(self.regions, tax_emission, self.PARAMS['EMISSIONS_PARAM'])
+            # Firms update generated externalities, based on own sector and this month's revenue
+            firm.create_externalities(self.regions, tax_emission, self.PARAMS['EMISSIONS_PARAM'],
+                                      self.PARAMS['EMISSIONS_BASE'])
             # Tax firms before profits: (revenue - salaries paid)
             firm.pay_taxes(self.regions, tax_firm)
             # Profits are after taxes

@@ -1,22 +1,24 @@
-# Calibration wave B2: what to run on the server
+# Calibration wave B3: what to run on the server
 
 History-matching wave of the frozen model (closure B: the city as a small open economy). One parameter set for every
 city; the cities differ only by their data. The wave asks which parameter sets keep four capitals inside observed
 bands for the levels below. It does not fit time paths.
 
-Wave B1 (tag `b-freeze`) ruled out every set on levels that were measured on another basis than the data or that
-missing mechanisms set: household income / GDP, taxes, rents, money returning from the Union and the states. Those
-are now in the base model (2010 tax rates and routing, Census rent level, observed public spending, Census pensions;
-income per resident on the Census basis), so B2 runs the same box again on the new base.
+Wave B2 (tag `b-freeze-2`) ran on a base model that has since changed: the trade base now counts the own-account
+pools' part of each market (TRADE_BASE_OUTPUT 'market'), workers separate and find jobs at the PME 2010 monthly rates
+(LABOUR_FLOWS 'data'), and the own-account pools hold the Census 2010 own-account share and produce
+(OWN_ACCOUNT_POOL 'census'). B3 runs the box again on this base. Two dimensions of B2 are fixed at their defaults:
+HOUSING_FINANCIAL_WEIGHT (no level moved with it in B2) and CONSTRUCTION_PLAN 'pipeline' (every B2 set that survived
+used it).
 
 ## Code version
 
-Run the tag **`b-freeze-2`** (branch `enmu`), the commit that adds this file. Do not run `b-freeze`,
+Run the tag **`b-freeze-3`** (branch `enmu`), the commit that adds this file. Do not run `b-freeze`, `b-freeze-2`,
 `density-paper-2026` or any older commit: their defaults are earlier models.
 
 ```
 git fetch --tags
-git checkout b-freeze-2
+git checkout b-freeze-3
 ```
 
 Before running, **empty or delete `conf\params.py`** on the server. It is gitignored and loaded on top of the
@@ -59,7 +61,7 @@ Everything below is set in `analysis/calibration/calibration_conf.py`, so the co
 | Runs | 32 x 4 x 2 = 256 |
 | Levels scored on | Mean of the last 36 months (2017-2019) |
 
-Run time on the desktop: Belo Horizonte about 30 min a run, Fortaleza 15, Goiânia 13, Palmas 4. That makes about
+Run time on the desktop: Belo Horizonte about 30 min a run, Fortaleza 15, Goiânia 11, Palmas 4. That makes about
 65 CPU hours for the wave, roughly 3.5 hours on 20 parallel runs.
 
 ### Parameters that vary
@@ -70,14 +72,10 @@ Run time on the desktop: Belo Horizonte about 30 min a run, Fortaleza 15, Goiân
 | STICKY_PRICES | 0.3 to 0.9 | 0.7 |
 | LABOR_MARKET | 0.4 to 0.9 | 0.8 |
 | BUILD_VACANCY_SENSITIVITY | 7 to 19 | 13 |
-| HOUSING_FINANCIAL_WEIGHT | 25 to 100 | 60 |
-| CONSTRUCTION_PLAN | 'pipeline' or 'sales' (16 sets each) | 'pipeline' |
 
-Every other parameter stays at its value in `conf/default/params.py`. Two parameters of the earlier BH-only design
-are out:
-
-- PRODUCTIVITY_MAGNITUDE_DIVISOR is now set at start-up from IBGE municipal value added.
-- PCT_DISTANCE_HIRING does not move the model under B.
+Every other parameter stays at its value in `conf/default/params.py`, among them HOUSING_FINANCIAL_WEIGHT (60) and
+CONSTRUCTION_PLAN ('pipeline'). PRODUCTIVITY_MAGNITUDE_DIVISOR is set at start-up from IBGE municipal value added, and
+the labour flows come from PME 2010, so neither is calibrated.
 
 ### Targets (`analysis/calibration/data/level_targets.csv`)
 
@@ -118,6 +116,6 @@ send these instead:
 
 ## Next wave
 
-`plausible-box` prints the ranges spanned by the sets that survive, and which CONSTRUCTION_PLAN options survive.
-Those become the ranges of the next wave in `calibration_conf.py`. If no set survives, it prints the level that binds
+`plausible-box` prints the ranges spanned by the sets that survive. Those become the ranges of the next wave in
+`calibration_conf.py`. If no set survives, it prints the level that binds
 most often. That level is a model question to settle before any further wave, not a reason to widen the box.

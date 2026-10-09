@@ -160,6 +160,9 @@ ENVIRONMENTAL_EFFICIENCY_STEP = .99
 ECO_INVESTMENT_LAMBDA = 10
 # Adjustment factor for emissions within firms
 EMISSIONS_PARAM = 1000
+# Money base the sector emission intensities (tCO2e per R$ million of gross output) multiply.
+# 'output': the firm's monthly revenue. 'value_added': revenue less input cost.
+EMISSIONS_BASE = 'output'
 
 # GOVERNMENT ####################################################################
 # ALTERNATIVE OF DISTRIBUTION OF TAXES COLLECTED. REPLICATING THE NOTION OF A COMMON POOL OF RESOURCES ################

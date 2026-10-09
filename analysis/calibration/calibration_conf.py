@@ -1,10 +1,10 @@
 # calibration_conf.py
 
 # Parameters to calibrate: [lower_bound, upper_bound]. One set of values for every region; regions differ only by
-# their data. Held at their conf/default/params.py values: MARKUP, PRICE_RUGGEDNESS, INVENTORY_TARGET_RATIO (no level
-# constrains them), NATURAL_SEPARATION_RATE (published turnover), ENVIRONMENTAL_EFFICIENCY_STEP (separate 1-D stage on
-# emissions). PRODUCTIVITY_MAGNITUDE_DIVISOR is set from IBGE municipal value added at start-up and
-# RELEVANCE_UNEMPLOYMENT_SALARIES is used only with GOV_REVISED False, so neither can be calibrated.
+# their data. Every other parameter stays at its conf/default/params.py value, among them MARKUP, PRICE_RUGGEDNESS,
+# INVENTORY_TARGET_RATIO, HOUSING_FINANCIAL_WEIGHT and CONSTRUCTION_PLAN; ENVIRONMENTAL_EFFICIENCY_STEP is a separate
+# 1-D stage on emissions. PRODUCTIVITY_MAGNITUDE_DIVISOR is set from IBGE municipal value added at start-up and the
+# labour flows come from PME 2010 (LABOUR_FLOWS 'data'), so neither is calibrated.
 CALIBRATION_PARAMETERS = {
 
     # Production
@@ -18,15 +18,12 @@ CALIBRATION_PARAMETERS = {
 
     # Housing
     "BUILD_VACANCY_SENSITIVITY":   [7,     19],    # default: 13
-    "HOUSING_FINANCIAL_WEIGHT":    [25,    100],   # default: 60
 
 }
 
 # Parameters with a few options: each set takes one, from a dimension of its own in the Latin hypercube, so the options
-# are drawn in equal numbers
-CALIBRATION_OPTIONS = {
-    "CONSTRUCTION_PLAN": ["pipeline", "sales"],   # default: 'pipeline'
-}
+# are drawn in equal numbers. None in this wave.
+CALIBRATION_OPTIONS = {}
 
 CALIBRATION_SETTINGS = {
 
