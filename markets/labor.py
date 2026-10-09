@@ -5,6 +5,16 @@ from math import ceil
 import numpy as np
 import pandas as pd
 
+FLOWS = 'input/labour_flows_2010.csv'
+
+
+def labour_flows():
+    """LABOUR_FLOWS 'data': the monthly employee -> unemployed and unemployed -> employed rates of the six PME
+    metropolitan regions, 2010 (input/labour_flows_2010.csv, auxiliary/labour_flows.py)"""
+    t = pd.read_csv(FLOWS, sep=';')
+    t = t[t.region == 'all'].set_index('flow').rate
+    return float(t['ee_u']), float(t['u_e'])
+
 
 
 def car_wage_deciles(sample):

@@ -28,7 +28,7 @@ from world.social_transfers import SocialTransfers
 from world.own_account import OwnAccountPools, posting_education
 from world.house_values import HouseValues
 from markets.goods import RegionalMarket, External
-from markets.labor import car_wage_deciles
+from markets.labor import car_wage_deciles, labour_flows
 
 
 def resolve_seed(params):
@@ -302,6 +302,11 @@ class Simulation:
         for mun_code, regions in self.mun_to_regions.items():
             self.mun_to_regions[mun_code] = sorted(regions)
         self.participation = Participation(self.mun_to_regions, self._seed)
+        # Monthly separation and job-finding rates (LABOUR_FLOWS)
+        if self.PARAMS.get('LABOUR_FLOWS', 'legacy') == 'data':
+            self.separation_rate, self.job_finding = labour_flows()
+        else:
+            self.separation_rate, self.job_finding = self.PARAMS.get('NATURAL_SEPARATION_RATE', 0.0), None
         self.stats.participation = self.participation
         self.social_transfers = SocialTransfers(self.mun_to_regions, self.PARAMS['REAIS_PER_MONEY_UNIT'],
                                                self.PARAMS.get('PENSIONS', 'rgps'))
@@ -462,6 +467,7 @@ class Simulation:
         # Private firms other than builders produce for last month's demand plus the stock target; builders plan on the
         # house pipeline and Government's headcount is set by its budget
         plan = self.PARAMS.get("INVENTORY_TARGET_RATIO", 0.0)
+        self.own_account.produce(prod_exponent, prod_magnitude_divisor)
         for firm in self.firms.values():
             firm.update_product_quantity(prod_exponent, prod_magnitude_divisor,
                                          self.regional_market,
@@ -622,6 +628,12 @@ class Simulation:
         # AGENTS
         self.leave_labour_force()
         self.labor_market.look_for_jobs(self.agents)
+        # LABOUR_FLOWS 'data': a job seeker meets the month's posts with the observed job-finding rate
+        if self.job_finding is not None:
+            candidates = self.labor_market.candidates
+            self.labor_market.candidates = [c for c, r in zip(candidates, self.seed_np.random(len(candidates)))
+                                            if r < self.job_finding]
+        self.labor_market.candidates = self.own_account.pin(self.labor_market.candidates)
 
         # FIRMS
         # Government labor first (initialization is for all firms, government specific is monthly)
@@ -647,7 +659,7 @@ class Simulation:
         # Natural job separation: workers quit/reach contract end at an exogenous monthly rate.
         # Runs after matching so separated workers miss this month's pool and must wait
         # until next month — creating a minimum one-month unemployment spell per separation.
-        sep_rate = self.PARAMS.get('NATURAL_SEPARATION_RATE', 0.0)
+        sep_rate = self.separation_rate
         if sep_rate > 0:
             eligible = [a for a in self.agents.values() if a.firm_id is not None and 16 < a.age < 70
                         and not self.firms[a.firm_id].own_account]

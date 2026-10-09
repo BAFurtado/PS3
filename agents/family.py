@@ -354,8 +354,7 @@ class Family:
             # The sector's own-account part
             pool, share = regional_market.pools.payable(sector)
             if pool is not None and share > 0:
-                paid = money_this_sector * share
-                pool.receive(paid, regions, tax_consumption, self.region_id, if_origin)
+                paid = pool.receive(money_this_sector * share, regions, tax_consumption, self.region_id, if_origin)
                 avg_utility += paid
                 total_consumption[sector] += paid
                 money_this_sector -= paid

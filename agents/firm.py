@@ -403,9 +403,8 @@ class Firm:
             if pools is not None and money_local > 0:
                 pool, share = pools.payable(sector)
                 if pool is not None and share > 0 and pool is not self:
-                    to_pool = money_local * share
-                    pool.receive(to_pool, regional_market.sim.regions, params['TAX_CONSUMPTION'], self.region_id,
-                                 params['TAX_ON_ORIGIN'])
+                    to_pool = pool.receive(money_local * share, regional_market.sim.regions,
+                                           params['TAX_CONSUMPTION'], self.region_id, params['TAX_ON_ORIGIN'])
                     money_local -= to_pool
 
             # Local purchases
@@ -1239,9 +1238,8 @@ class GovernmentFirm(Firm):
                 money_this_sector -= imported
             pool, share = sim.regional_market.pools.payable(sector)
             if pool is not None and share > 0:
-                paid = money_this_sector * share
-                pool.receive(paid, sim.regions, sim.PARAMS['TAX_CONSUMPTION'], self.region_id,
-                             sim.PARAMS['TAX_ON_ORIGIN'])
+                paid = pool.receive(money_this_sector * share, sim.regions, sim.PARAMS['TAX_CONSUMPTION'],
+                                    self.region_id, sim.PARAMS['TAX_ON_ORIGIN'])
                 total_consumption[sector] += paid
                 money_this_sector -= paid
             sector_firms = [f for f in sim.firms.values() if f.sector == sector]

@@ -219,9 +219,8 @@ class RegionalMarket:
                 money_this_sector -= imported
             pool, share = self.pools.payable(sector)
             if pool is not None and share > 0:
-                pool.receive(money_this_sector * share, sim.regions, params['TAX_CONSUMPTION'], pool.region_id,
-                             True)
-                money_this_sector -= money_this_sector * share
+                money_this_sector -= pool.receive(money_this_sector * share, sim.regions, params['TAX_CONSUMPTION'],
+                                                  pool.region_id, True)
             sector_firms = [f for f in sim.firms.values() if f.sector == sector]
             market = sim.seed.sample(sector_firms, min(len(sector_firms), int(params['SIZE_MARKET'])))
             market = [f for f in market if f.total_quantity > 0]
@@ -344,7 +343,7 @@ class External:
 
     def trade_base(self):
         """Month 1: per product, local output (staff capacity; with TRADE_BASE_OUTPUT 'market' over 1 - the own-account
-        pool's part of a purchase) and local demand (input need, household spending and fares, government spending,
+        pool's part of a purchase, or plus the pool's output under OWN_ACCOUNT_POOL 'census') and local demand (input need, household spending and fares, government spending,
         money over the sector's price); local share s = TRADE_POTENTIAL x min(output / demand, 1) and exports = output -
         s x demand, Construction and Government s = TRADE_POTENTIAL and no exports. Demand includes the expected
         investment. Sets the market's local shares and returns the table. The month-1 components are kept for
@@ -361,7 +360,10 @@ class External:
             firms = by_sector.get(sector, [])
             output = sum(f.last_capacity for f in firms)
             if with_pools and sector not in ('Construction', 'Government'):
-                output /= 1 - market.pools.payable(sector)[1]
+                if market.pools.producing:
+                    output += market.pools.output(sector)
+                else:
+                    output /= 1 - market.pools.payable(sector)[1]
             rows[sector] = {'output': output,
                             'price': self.sector_price(firms) if firms else 1.0,
                             'input_need': market.input_need[k], 'household': market.monthly_hh_intended[sector],
@@ -455,9 +457,8 @@ class External:
             # The sector's own-account part
             pool, pshare = pools.payable(sector)
             if pool is not None and pshare > 0:
-                sold = rest * pshare
-                pool.receive(sold, self.sim.regions, self.sim.PARAMS['TAX_CONSUMPTION'], pool.region_id,
-                             self.sim.PARAMS['TAX_ON_ORIGIN'], external=True)
+                sold = pool.receive(rest * pshare, self.sim.regions, self.sim.PARAMS['TAX_CONSUMPTION'], pool.region_id,
+                                    self.sim.PARAMS['TAX_ON_ORIGIN'], external=True)
                 rest -= sold
             # Buys from firms
             for firm, weight in chosen_firms[sector]:
