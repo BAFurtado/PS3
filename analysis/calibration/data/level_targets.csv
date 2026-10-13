@@ -1,8 +1,8 @@
 moment,region,low,high,source
-unemployment,BELO HORIZONTE,0.0693,0.1547,Census 2010 unemployment of the active (low); highest PNAD Contínua annual rate 2012-2019 of the metro or capital (high)
-unemployment,FORTALEZA,0.0801,0.1260,Census 2010 unemployment of the active (low); highest PNAD Contínua annual rate 2012-2019 of the metro or capital (high)
-unemployment,GOIANIA,0.0536,0.0973,Census 2010 unemployment of the active (low); highest PNAD Contínua annual rate 2012-2019 of the metro or capital (high)
-unemployment,PALMAS,0.0638,0.1375,Census 2010 unemployment of the active (low); highest PNAD Contínua annual rate 2012-2019 of the metro or capital (high)
+unemployment,BELO HORIZONTE,0.0518,0.1547,lowest of the Census 2010 unemployment of the active and the PNAD Contínua annual rates 2012-2025 of the metro or capital (low); highest PNAD Contínua annual rate 2012-2019 (high)
+unemployment,FORTALEZA,0.0703,0.1260,lowest of the Census 2010 unemployment of the active and the PNAD Contínua annual rates 2012-2025 of the metro or capital (low); highest PNAD Contínua annual rate 2012-2019 (high)
+unemployment,GOIANIA,0.0315,0.0973,lowest of the Census 2010 unemployment of the active and the PNAD Contínua annual rates 2012-2025 of the metro or capital (low); highest PNAD Contínua annual rate 2012-2019 (high)
+unemployment,PALMAS,0.0308,0.1375,lowest of the Census 2010 unemployment of the active and the PNAD Contínua annual rates 2012-2025 of the metro or capital (low); highest PNAD Contínua annual rate 2012-2019 (high)
 household_income_pc,BELO HORIZONTE,938.8,1391.7,"Census 2010 income per resident (income per person aged 10+ x persons 10+ / residents, R$ of 2010 a month) x the state's PNAD Contínua real growth of household income per capita, 2012 to mean 2017-19 (low); times the national under-reporting factor (high)"
 household_income_pc,FORTALEZA,637.2,944.6,"Census 2010 income per resident (income per person aged 10+ x persons 10+ / residents, R$ of 2010 a month) x the state's PNAD Contínua real growth of household income per capita, 2012 to mean 2017-19 (low); times the national under-reporting factor (high)"
 household_income_pc,GOIANIA,895.6,1327.7,"Census 2010 income per resident (income per person aged 10+ x persons 10+ / residents, R$ of 2010 a month) x the state's PNAD Contínua real growth of household income per capita, 2012 to mean 2017-19 (low); times the national under-reporting factor (high)"

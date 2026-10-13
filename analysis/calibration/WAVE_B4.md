@@ -1,24 +1,25 @@
-# Calibration wave B3: what to run on the server
+# Calibration wave B4: what to run on the server
 
 History-matching wave of the frozen model (closure B: the city as a small open economy). One parameter set for every
 city; the cities differ only by their data. The wave asks which parameter sets keep four capitals inside observed
 bands for the levels below. It does not fit time paths.
 
-Wave B2 (tag `b-freeze-2`) ran on a base model that has since changed: the trade base now counts the own-account
-pools' part of each market (TRADE_BASE_OUTPUT 'market'), workers separate and find jobs at the PME 2010 monthly rates
-(LABOUR_FLOWS 'data'), and the own-account pools hold the Census 2010 own-account share and produce
-(OWN_ACCOUNT_POOL 'census'). B3 runs the box again on this base. Two dimensions of B2 are fixed at their defaults:
-HOUSING_FINANCIAL_WEIGHT (no level moved with it in B2) and CONSTRUCTION_PLAN 'pipeline' (every B2 set that survived
-used it).
+Wave B3 (tag `b-freeze-3`) ran on a base model whose local prices had no level anchor: a firm cut its price only when
+it was above the local average, so non-tradable prices drifted up against the rest of Brazil, and unemployment with
+them. Firms now price against the same good in the rest of Brazil (PRICE_ANCHOR 'national'). That moves the levels,
+unemployment above all, so B3's survivors do not carry over and B4 runs the box again on this base. The unemployment floors
+now reach the lowest annual rate PNAD Contínua has measured in each city (2025), not only the Census 2010 rate. The parameters are
+B3's; BUILD_VACANCY_SENSITIVITY is narrowed to the range of B3's survivors (7 to 15), the only parameter whose survivors
+did not span the whole range.
 
 ## Code version
 
-Run the tag **`b-freeze-3`** (branch `enmu`), the commit that adds this file. Do not run `b-freeze`, `b-freeze-2`,
-`density-paper-2026` or any older commit: their defaults are earlier models.
+Run the tag **`b-freeze-4`** (branch `enmu`), the commit that adds this file. Do not run `b-freeze`, `b-freeze-2`,
+`b-freeze-3`, `density-paper-2026` or any older commit: their defaults are earlier models.
 
 ```
 git fetch --tags
-git checkout b-freeze-3
+git checkout b-freeze-4
 ```
 
 Before running, **empty or delete `conf\params.py`** on the server. It is gitignored and loaded on top of the
@@ -71,17 +72,17 @@ Run time on the desktop: Belo Horizonte about 30 min a run, Fortaleza 15, Goiân
 | PRODUCTIVITY_EXPONENT | 0.5 to 0.8 | 0.65 |
 | STICKY_PRICES | 0.3 to 0.9 | 0.7 |
 | LABOR_MARKET | 0.4 to 0.9 | 0.8 |
-| BUILD_VACANCY_SENSITIVITY | 7 to 19 | 13 |
+| BUILD_VACANCY_SENSITIVITY | 7 to 15 | 13 |
 
-Every other parameter stays at its value in `conf/default/params.py`, among them HOUSING_FINANCIAL_WEIGHT (60) and
-CONSTRUCTION_PLAN ('pipeline'). PRODUCTIVITY_MAGNITUDE_DIVISOR is set at start-up from IBGE municipal value added, and
-the labour flows come from PME 2010, so neither is calibrated.
+Every other parameter stays at its value in `conf/default/params.py`, among them HOUSING_FINANCIAL_WEIGHT (60),
+CONSTRUCTION_PLAN ('pipeline') and PRICE_ANCHOR ('national'). PRODUCTIVITY_MAGNITUDE_DIVISOR is set at start-up from
+IBGE municipal value added, and the labour flows come from PME 2010, so neither is calibrated.
 
 ### Targets (`analysis/calibration/data/level_targets.csv`)
 
 | Level | Band | Source |
 |---|---|---|
-| Unemployment | per city: BH 0.069-0.155, FOR 0.080-0.126, GYN 0.054-0.097, PMW 0.064-0.138 | Census 2010 rate of the active (low), highest PNAD Contínua annual rate 2012-2019 (high) |
+| Unemployment | per city: BH 0.052-0.155, FOR 0.070-0.126, GYN 0.032-0.097, PMW 0.031-0.138 | Lowest of the Census 2010 rate of the active and the PNAD Contínua annual rates 2012-2025 (low; 2025 in all four), highest PNAD Contínua annual rate 2012-2019 (high) |
 | Household income per resident, R$ of 2010 a month, deflated by the model price level | per city: BH 939-1392, FOR 637-945, GYN 896-1328, PMW 992-1471 | Census 2010 income per resident x the state's PNAD Contínua real growth 2012 to 2017-19 (low), times the national under-reporting factor (high); model income on the Census basis (wages before the worker's contributions and income tax, rent received) |
 | Non-tradable inflation, %/yr (2011-2019) | 0 to 2.35 | IPCA non-tradables over tradables 2011-2015 |
 | Vacancy | 0.08 to 0.13 | Density paper Table 2 |

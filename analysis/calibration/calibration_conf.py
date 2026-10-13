@@ -17,7 +17,7 @@ CALIBRATION_PARAMETERS = {
     "LABOR_MARKET":                [0.4,   0.9],   # default: 0.8
 
     # Housing
-    "BUILD_VACANCY_SENSITIVITY":   [7,     19],    # default: 13
+    "BUILD_VACANCY_SENSITIVITY":   [7,     15],    # default: 13
 
 }
 

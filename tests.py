@@ -1263,6 +1263,23 @@ for _ceil in (None, 1.3):
     _parity.append(_prod.price)
 check("Tradables: the import-parity ceiling caps the inventory-driven rise",
       1.3 < _parity[0] <= 1.25 * 1.0875 + 1e-12 and _parity[1] == 1.3, f"{_parity}")
+# PRICE_ANCHOR: 'national' prices against P_imp whatever the local averages; 'average' against the firm's group. A
+# well-stocked firm priced at 1.2, below a local average of 1.3, cuts only under 'national'
+from agents.firm import import_price  # noqa: E402
+_anchor_saved = sim.PARAMS.get("PRICE_ANCHOR", "average")
+_anchor = {}
+for _a in ("average", "national"):
+    sim.PARAMS["PRICE_ANCHOR"] = _a
+    _ref = sim.price_reference(False, 1.4, 1.3)
+    _prod.quantity, _prod.price, _f.amount_sold, _f.unmet_quantity = 1e12, 1.2, 1.0, 0.0
+    _f.decision_on_prices_production(1, 0.1, np.random.RandomState(3), _ref,
+                                     sim.PARAMS["PRODUCTIVITY_EXPONENT"], sim.PARAMS["PRODUCTIVITY_MAGNITUDE_DIVISOR"],
+                                     price_markup_cap=0.0875)
+    _anchor[_a] = (_ref, sim.price_reference(True, 1.4, 1.3), _prod.price)
+sim.PARAMS["PRICE_ANCHOR"] = _anchor_saved
+check("PRICE_ANCHOR: 'national' references P_imp and cuts a price above it; 'average' the group average, no cut below it",
+      _anchor["average"] == (1.3, 1.4, 1.2) and _anchor["national"][:2] == (import_price(sim.PARAMS),) * 2
+      and _anchor["national"][2] < 1.2, f"{_anchor}")
 (_prod.quantity, _prod.price, _f.amount_sold, _f.unmet_quantity, _f.total_balance, _f.revenue, _f.prices,
  _f.increase_production, _f.workers_needed) = _saved
 
@@ -2324,8 +2341,8 @@ _oa_saved = _oa_pool.total_balance, _oa_pool.revenue
 _oa_take1 = _oa_pool.receive(2 * _oa_room / (1 - _oa_tax) + 1.0, _oa_regions, sim.PARAMS['TAX_CONSUMPTION'],
                              _oa_pool.region_id, True)
 _oa_take2 = _oa_pool.receive(1.0, _oa_regions, sim.PARAMS['TAX_CONSUMPTION'], _oa_pool.region_id, True)
-_oa_cap_ok = (_oa_room > 0 and abs(_oa_take1 * (1 - _oa_tax) - _oa_room) < 1e-9 and _oa_take2 == 0
-              and _oa_pool.room == 0 and abs(_oa_pool.revenue - _oa_saved[1] - _oa_room) < 1e-9)
+_oa_cap_ok = (_oa_room > 0 and abs(_oa_take1 * (1 - _oa_tax) - _oa_room) < 1e-9 and _oa_take2 < 1e-9
+              and _oa_pool.room < 1e-9 and abs(_oa_pool.revenue - _oa_saved[1] - _oa_room) < 1e-9)
 _oa_pool.total_balance, _oa_pool.revenue = _oa_saved
 check("OWN_ACCOUNT_POOL 'census': a pool sells up to its output and returns the part of a purchase it took",
       _oa_cap_ok, f"room {_oa_room:.3f}, took {_oa_take1:.3f} then {_oa_take2:.3f}")

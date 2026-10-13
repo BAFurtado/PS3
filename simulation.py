@@ -21,7 +21,7 @@ from world.funds import Funds
 from analysis.money import money_stock_total
 from world.geography import Geography, STATES_CODES, state_string
 from agents import Agent, House
-from agents.firm import Firm, ConstructionFirm, plans_sales, import_parity
+from agents.firm import Firm, ConstructionFirm, plans_sales, import_parity, import_price
 from world.transport import TransportNetwork
 from world.participation import Participation
 from world.social_transfers import SocialTransfers
@@ -583,7 +583,7 @@ class Simulation:
                 sticky,
                 markup,
                 self.seed_np,
-                avg_t if tradable else avg_n,
+                self.price_reference(tradable, avg_t, avg_n),
                 prod_exponent,
                 prod_magnitude_divisor,
                 const_cash_flow,
@@ -709,6 +709,13 @@ class Simulation:
 
         if conf.RUN["PRINT_STATISTICS_AND_RESULTS_DURING_PROCESS"]:
             self.logger.info(self.clock.days)
+
+    def price_reference(self, tradable, avg_t, avg_n):
+        """Reference price of the inventory rule: P_imp under PRICE_ANCHOR 'national', else the average price of the
+        firm's group, tradable (avg_t) or not (avg_n)"""
+        if self.PARAMS.get('PRICE_ANCHOR', 'average') == 'national':
+            return import_price(self.PARAMS)
+        return avg_t if tradable else avg_n
 
     def quarterly(self):
         if conf.RUN["SAVE_DATA_PERIDIOCITY"] == "QUARTERLY":
