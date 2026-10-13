@@ -57,6 +57,7 @@ ENVIRONMENTAL_EFFICIENCY_STEP = .99
 ECO_INVESTMENT_LAMBDA = 10
 # Adjustment factor for emissions within firms
 EMISSIONS_PARAM = 1000
+EMISSIONS_BASE = 'output'
 
 # GOVERNMENT ####################################################################
 # ALTERNATIVE OF DISTRIBUTION OF TAXES COLLECTED. REPLICATING THE NOTION OF A COMMON POOL OF RESOURCES ################

@@ -30,6 +30,9 @@ PRICE_RUGGEDNESS = 0.1
 # Decouples the inventory signal from the relative-price gate: firms respond to low inventory
 # freely up to avg_prices * (1 + PRICE_MARKUP_CAP), then stop. Set to 0 for old joint-condition.
 PRICE_MARKUP_CAP = 0.0875
+# Reference price of the inventory rule above. 'national': P_imp, the price of the same good in the rest of Brazil.
+# 'average' (old model): the average price of the firm's group (tradable or not).
+PRICE_ANCHOR = 'national'
 # Safety-stock buffer: fraction of monthly sales firms want to hold above productive capacity.
 # Higher values keep more firms in "low inventory" mode → more hiring signals, less deflation risk.
 INVENTORY_TARGET_RATIO = 0.2
@@ -160,6 +163,9 @@ ENVIRONMENTAL_EFFICIENCY_STEP = .99
 ECO_INVESTMENT_LAMBDA = 10
 # Adjustment factor for emissions within firms
 EMISSIONS_PARAM = 1000
+# Money base the sector emission intensities (tCO2e per R$ million of gross output) multiply.
+# 'output': the firm's monthly revenue. 'value_added': revenue less input cost.
+EMISSIONS_BASE = 'output'
 
 # GOVERNMENT ####################################################################
 # ALTERNATIVE OF DISTRIBUTION OF TAXES COLLECTED. REPLICATING THE NOTION OF A COMMON POOL OF RESOURCES ################
