@@ -4,7 +4,7 @@ import datetime
 
 # FIRMS #########################################################
 # Production function, labor with decaying exponent, Alpha for K. [0, 1]
-PRODUCTIVITY_EXPONENT = 0.65
+PRODUCTIVITY_EXPONENT = 0.686
 # Production divided by this. Set after start-up hiring so that the value added of the private staff's capacity
 # (national input coefficients) equals the IBGE 2010 value added per resident of the run's municipalities, net of imputed
 # rent and own-account income (input/municipal_va_2010.csv, auxiliary/municipal_va.py), in model money
@@ -22,7 +22,7 @@ INTEREST_HOUSING = 'real'
 # By how much percentage to increase prices
 MARKUP = 0.1
 # Frequency firms change prices. Probability < than parameter
-STICKY_PRICES = .7
+STICKY_PRICES = 0.817
 # Price ruggedness a positive value (below 1) that multiplies the magnitude of price reduction
 # Reflects a reluctance of businesses to lower prices. Amount estimated for reduction multiplied by parameter
 PRICE_RUGGEDNESS = 0.1
@@ -52,7 +52,7 @@ HOUSEHOLD_RETRY = False
 # Number of firms to buy from in the INTERMEDIATE market
 INTERMEDIATE_SIZE_MARKET = 10
 # Frequency firms enter the market
-LABOR_MARKET = 0.8
+LABOR_MARKET = 0.41
 
 # Monthly probability an employed worker separates (quits, contract end, etc.).
 NATURAL_SEPARATION_RATE = 0.010
@@ -280,8 +280,8 @@ MAX_OFFER_DISCOUNT = 0.65
 MAX_OFFER_PREMIUM = 1.3
 # How strong construction firms respond to vacancy.
 # Used in exponential suppression: P(skip) = 1 - exp(-vacancy * sensitivity).
-# At equilibrium vacancy (8%) → ~65% skip; at 15% → ~86% skip; at 25% → ~96% skip.
-BUILD_VACANCY_SENSITIVITY = 13
+# At equilibrium vacancy (8%) → ~54% skip; at 15% → ~77% skip; at 25% → ~91% skip.
+BUILD_VACANCY_SENSITIVITY = 9.77
 # Percentage of households pursuing new location (on average families move about once every 20 years)
 # Brazilian households move on average every 15-20 years → 0.4-0.5% per month.
 # At 2.5% the buyer pool (~470/month in BH) far exceeds monthly housing supply (~14),
