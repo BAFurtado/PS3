@@ -8,16 +8,16 @@
 CALIBRATION_PARAMETERS = {
 
     # Production
-    "PRODUCTIVITY_EXPONENT":       [0.5,   0.8],   # default: 0.65
+    "PRODUCTIVITY_EXPONENT":       [0.5,   0.8],   # default: 0.686
 
     # Pricing
-    "STICKY_PRICES":               [0.3,   0.9],   # default: 0.7
+    "STICKY_PRICES":               [0.3,   0.9],   # default: 0.817
 
     # Labor market
-    "LABOR_MARKET":                [0.4,   0.9],   # default: 0.8
+    "LABOR_MARKET":                [0.4,   0.9],   # default: 0.41
 
     # Housing
-    "BUILD_VACANCY_SENSITIVITY":   [7,     15],    # default: 13
+    "BUILD_VACANCY_SENSITIVITY":   [7,     15],    # default: 9.77
 
 }
 
