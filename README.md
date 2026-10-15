@@ -40,7 +40,7 @@ git checkout enanparq-2026
 git log --oneline -3
 ```
 
-The top line must read `ENANPARQ: server driver ...`. If `git checkout` refuses because of local changes, run
+The top lines must start with `ENANPARQ:`, above `b1f809b params-model-freeze`. If `git checkout` refuses because of local changes, run
 `git status` and stash or commit them first (`git stash`).
 
 **2. Activate the Python environment** used for the September server batch.
