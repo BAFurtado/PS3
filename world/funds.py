@@ -172,9 +172,18 @@ class Funds:
             diagnostics[mun] = diag
         return sum(allocation.values())
 
+    def policy_coefficient(self):
+        """POLICY_COEFFICIENT, or 0 before PARAMS['POLICY_START_DATE'] when that key is set (ENANPARQ branch only; not in
+        conf/default, so without it the policies run from the first month as at ps3-model-2026). Before the start no
+        money is set aside and nothing is paid, so the run is identical to the no-policy run."""
+        start = self.sim.PARAMS.get('POLICY_START_DATE')
+        if start is not None and self.sim.clock.days < start:
+            return 0
+        return self.sim.PARAMS['POLICY_COEFFICIENT']
+
     def needs_policy_funding(self):
         return (
-                (self.sim.PARAMS['POLICIES'] in ['buy', 'rent', 'wage'] and self.sim.PARAMS['POLICY_COEFFICIENT'] > 0)
+                (self.sim.PARAMS['POLICIES'] in ['buy', 'rent', 'wage'] and self.policy_coefficient() > 0)
                 or self.sim.PARAMS.get('POLICY_MCMV')
                 or self.sim.PARAMS.get('POLICY_MELHORIAS')
                 or self.sim.PARAMS.get('CARBON_TAX_RECYCLING')
@@ -284,7 +293,7 @@ class Funds:
                 self.policy_families[mun] = [f for f in self.policy_families[mun] if f.house.quality == .5]
             self.apply_house_upgrade(self.policy_money_melhorias, self.melhorias_diag)
 
-        if self.sim.PARAMS['POLICY_COEFFICIENT']:
+        if self.policy_coefficient():
             # ENANPARQ patch (not in ps3-model-2026): the pot is filled under 7-digit municipality codes, families and
             # houses are grouped under 6-digit ones
             pot = defaultdict(float)
@@ -292,7 +301,7 @@ class Funds:
                 pot[str(mun)[:6]] += value
             self.policy_money = pot
             self.allocated_money += sum(self.policy_money.values())
-            self.update_policy_families(self.sim.PARAMS['POLICY_COEFFICIENT'])
+            self.update_policy_families(self.policy_coefficient())
             if self.sim.PARAMS['POLICIES'] == 'buy':
                 self.buy_houses_give_to_families(self.policy_money)
             elif self.sim.PARAMS['POLICIES'] == 'rent':
@@ -557,8 +566,8 @@ class Funds:
 
             # Separating money for policy
             if self.needs_policy_funding():
-                self.policy_money[mun_code] += regional_fpm * self.sim.PARAMS['POLICY_COEFFICIENT']
-                regional_fpm *= 1 - self.sim.PARAMS['POLICY_COEFFICIENT']
+                self.policy_money[mun_code] += regional_fpm * self.policy_coefficient()
+                regional_fpm *= 1 - self.policy_coefficient()
 
             region.update_applied_taxes(regional_fpm, 'fpm')
 
@@ -597,8 +606,8 @@ class Funds:
 
                 # Separating money for policy
                 if self.needs_policy_funding():
-                    self.policy_money[mun] += amount * self.sim.PARAMS['POLICY_COEFFICIENT']
-                    amount *= 1 - self.sim.PARAMS['POLICY_COEFFICIENT']
+                    self.policy_money[mun] += amount * self.policy_coefficient()
+                    amount *= 1 - self.policy_coefficient()
 
                 regions[id_].update_applied_taxes(amount, 'locally')
 
@@ -622,8 +631,8 @@ class Funds:
             amount = value * pop_t[id] / pop_total if pop_total > 0 else 0.0
             # Separating money for policy
             if self.needs_policy_funding():
-                self.policy_money[id[:7]] += amount * self.sim.PARAMS['POLICY_COEFFICIENT']
-                amount *= 1 - self.sim.PARAMS['POLICY_COEFFICIENT']
+                self.policy_money[id[:7]] += amount * self.policy_coefficient()
+                amount *= 1 - self.policy_coefficient()
 
             region.update_applied_taxes(amount, 'equally')
 
@@ -876,8 +885,8 @@ class Funds:
                 for key, amount in self.pending_public_money[id].items():
                     amount *= share
                     if self.needs_policy_funding():
-                        self.policy_money[mun] += amount * params['POLICY_COEFFICIENT']
-                        amount *= 1 - params['POLICY_COEFFICIENT']
+                        self.policy_money[mun] += amount * self.policy_coefficient()
+                        amount *= 1 - self.policy_coefficient()
                     regions[id].update_applied_taxes(amount, key)
                     investment += amount
             if observed:

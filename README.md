@@ -1,14 +1,21 @@
 # ENANPARQ 9 server batch (branch `enanparq-2026`)
 
-This branch is tag `ps3-model-2026` (b1f809b) plus two things:
+This branch is tag `ps3-model-2026` (b1f809b) plus three things:
 
 1. **`world/funds.py`, one fix.** The `POLICY_COEFFICIENT` pot is filled under 7-digit municipality codes but families
    are grouped under 6-digit codes, so `buy`, `rent` and `wage` never paid out at the tag. The fix rekeys the pot to 6
    digits. It does nothing when `POLICY_COEFFICIENT = 0`, so tendencial and otimista run exactly as at the tag.
-2. **`run_enanparq.py`**, the driver for this batch.
+2. **`world/funds.py`, an optional start date.** `PARAMS['POLICY_START_DATE']`: before it, `POLICY_COEFFICIENT` acts
+   as 0 (no money set aside, nothing paid). The key is not in `conf/default`; without it the policies run from the
+   first month, as at the tag. The driver sets it to 2026-01-01.
+3. **`run_enanparq.py`**, the driver for this batch.
 
-**What it runs:** Belo Horizonte (23 municipalities), 2010-2039, five arms x N seeds. Run `i` of every arm uses seed
-`20261015 + i`, so each arm is compared with tendencial of the same seed.
+Tests: 128/128 pass on this branch (`python tests.py`). One union-separation test is random and failed once out of
+three runs; it does not touch funds.
+
+**What it runs:** Belo Horizonte (23 municipalities), 2010-2039, five arms x N seeds. Every arm changes only from
+2026-01, so the five runs of a seed are identical up to 2025-12. Run `i` of every arm uses seed `20261015 + i`, so
+each arm is compared with tendencial of the same seed.
 
 | arm | what changes from 2026 | folder |
 |---|---|---|
@@ -50,14 +57,16 @@ population left by an earlier batch would be reused without warning.
 python run_enanparq.py populacao
 ```
 
-**4. Test: five arms x 1 seed x 2 years** (about 15-30 minutes).
+**4. Test: five arms x 1 seed x 2 years** (about 15-30 minutes). In the test the policies start in 2011, so that two
+years show both the identical first year and the payout.
 
 ```
 python run_enanparq.py teste 5
 ```
 
-It ends with a table. Check two things. First, `families_helped` is larger in the buy, rent and wage rows than in the
-tendencial row: the policies pay out. Second, `rent_default` is near zero in the wage row. If both hold, go on.
+It ends with a table and a line. Check three things. First, `families_helped` is larger in the buy, rent and wage
+rows than in the tendencial row: the policies pay out. Second, `rent_default` is far lower in the wage row. Third,
+the last line reads `identical before 2011-01-01: all seeds`. If all three hold, go on.
 
 **5. Choose CPUS.** A Belo Horizonte run that saves yearly data peaks at about 2 GB of RAM near 2039. Use CPUS <= free
 RAM in GB / 2.5 and at most the number of cores minus 2. Free RAM:
@@ -87,8 +96,7 @@ python run_enanparq.py conferir
 ```
 
 Every arm must show the same number of runs, with `last_month_min` = `2039-12-01`. It also checks that the five arms
-of each seed have identical `stats.csv` rows up to 2025-12 (the arms differ only from 2026): it must print
-`identical up to 2025-12: all seeds`.
+of each seed have identical `stats.csv` rows up to 2025-12: it must print `identical before 2026-01-01: all seeds`.
 
 **8. Zip and send** (roughly 60 MB per run, about 6 GB for 100 runs). You can zip a partial batch at any time.
 

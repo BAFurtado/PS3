@@ -1,17 +1,18 @@
 """ENANPARQ 9 (Oct 2026): Belo Horizonte, five arms x N paired seeds, on tag ps3-model-2026 plus the world/funds.py fix.
 
-Arms (each run 2010-2039, all with MCMV on as in the tag's defaults):
+Arms (each run 2010-2039, all with MCMV on as in the tag's defaults; every arm changes only from 2026-01):
     tendencial   FUNDS_AVAILABILITY tendencial, no municipal policy (reference)
     otimista     FUNDS_AVAILABILITY otimista (more OGU subsidy for MCMV and larger FGTS/SBPE lines from 2026)
     buy          tendencial + POLICIES buy  (municipality buys new houses for the poorest renters, as MCMV faixa 1)
     rent         tendencial + POLICIES rent (24 months of rent paid up front)
     wage         tendencial + POLICIES wage (pot split equally among the poorest 20 %)
-POLICY_COEFFICIENT 0.2 for buy/rent/wage (PS2 standard run: 20 % of the money, poorest 20 % eligible).
+POLICY_COEFFICIENT 0.2 for buy/rent/wage (PS2 standard run: 20 % of the money, poorest 20 % eligible), from
+POLICY_START_DATE 2026-01-01 (a key of this branch only: before it no money is set aside and nothing is paid).
 Seeds 20261015 + i, shared by the five arms, so each arm is compared with tendencial of the same seed.
 
 Modes (cwd = repository root):
     python run_enanparq.py populacao              regenerate the shared BH population once (serial, ~5 min)
-    python run_enanparq.py teste CPUS             five arms x 1 seed x 2 years, then prints a check table
+    python run_enanparq.py teste CPUS             five arms x 1 seed x 2 years (policies from 2011), then checks
     python run_enanparq.py lote N CPUS [FIRST]    five arms x seeds FIRST..FIRST+N-1 (FIRST defaults to 0); rerun the
                                                   same command to resume, a larger N or a FIRST to add seeds
     python run_enanparq.py conferir [PASTA]       count finished runs and their last month
@@ -19,6 +20,7 @@ Modes (cwd = repository root):
 Local conf/params.py and conf/run.py are ignored: every value comes from conf/default plus the overrides below.
 """
 import copy
+import datetime
 import os
 import sys
 
@@ -33,6 +35,7 @@ if locais:
     print('Ignoring local overrides (defaults of the tag are used):', ', '.join(locais))
 
 SEMENTE = 20261015
+INICIO = datetime.date(2026, 1, 1)
 SAIDA = 'output/enanparq_server'
 BRACOS = {
     'tendencial': {'FUNDS_AVAILABILITY': 'tendencial', 'POLICIES': 'no_policy', 'POLICY_COEFFICIENT': 0},
@@ -43,6 +46,7 @@ BRACOS = {
 }
 
 conf.PARAMS['PROCESSING_ACPS'] = ['BELO HORIZONTE']
+conf.PARAMS['POLICY_START_DATE'] = INICIO
 conf.RUN.update({
     'OUTPUT_PATH': SAIDA,
     'KEEP_RANDOM_SEED': False,
@@ -56,7 +60,7 @@ conf.RUN.update({
 })
 
 
-def conferir(pasta):
+def conferir(pasta, inicio=INICIO):
     import glob
     import pandas as pd
     feitos = sorted(glob.glob(os.path.join(pasta, '*', '*', 'DONE')))
@@ -71,15 +75,15 @@ def conferir(pasta):
     t = pd.DataFrame(linhas, columns=['arm', 'run', 'last_month'])
     print(t.groupby('arm').agg(runs=('run', 'count'), last_month_min=('last_month', 'min')).to_string())
     print('\nTotal finished:', len(t))
-    # The arms differ only from 2026: runs of the same seed must be identical before
+    # Every arm changes only from `inicio`: runs of the same seed must be identical before it
     quebrados = []
     for i, g in t.groupby('run'):
         antes = [pd.read_csv(os.path.join(pasta, a, str(i), 'stats.csv'), sep=';', header=None)
                  for a in g.arm]
-        antes = [x[x[0] < '2026-01-01'].reset_index(drop=True) for x in antes]
+        antes = [x[x[0] < str(inicio)].reset_index(drop=True) for x in antes]
         if any(not x.equals(antes[0]) for x in antes[1:]):
             quebrados.append(i)
-    print('identical up to 2025-12:', 'all seeds' if not quebrados else 'NOT for runs {}'.format(quebrados))
+    print('identical before {}:'.format(inicio), 'all seeds' if not quebrados else 'NOT for runs {}'.format(quebrados))
 
 
 def tabela_teste(pasta):
@@ -134,11 +138,15 @@ if __name__ == '__main__':
         ensure_population_exists(p, os.path.join(SAIDA, 'populacao'))
         print('Population generated.')
     elif modo == 'teste':
+        # Policies from 2011 so that two years show both the identical first year and the payout. Otimista still
+        # changes only in 2026, so in the test it must equal tendencial throughout
         conf.PARAMS['TOTAL_DAYS'] = 730
+        conf.PARAMS['POLICY_START_DATE'] = datetime.date(2011, 1, 1)
         conf.RUN['SAVE_DATA'] = []
         pasta = os.path.join(SAIDA, 'teste')
         rodar(pasta, [0], int(sys.argv[2]))
         tabela_teste(pasta)
+        conferir(pasta, datetime.date(2011, 1, 1))
     elif modo == 'lote':
         n, cpus = int(sys.argv[2]), int(sys.argv[3])
         primeira = int(sys.argv[4]) if len(sys.argv) > 4 else 0
