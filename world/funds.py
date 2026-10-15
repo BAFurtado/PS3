@@ -285,6 +285,12 @@ class Funds:
             self.apply_house_upgrade(self.policy_money_melhorias, self.melhorias_diag)
 
         if self.sim.PARAMS['POLICY_COEFFICIENT']:
+            # ENANPARQ patch (not in ps3-model-2026): the pot is filled under 7-digit municipality codes, families and
+            # houses are grouped under 6-digit ones
+            pot = defaultdict(float)
+            for mun, value in self.policy_money.items():
+                pot[str(mun)[:6]] += value
+            self.policy_money = pot
             self.allocated_money += sum(self.policy_money.values())
             self.update_policy_families(self.sim.PARAMS['POLICY_COEFFICIENT'])
             if self.sim.PARAMS['POLICIES'] == 'buy':

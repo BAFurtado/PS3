@@ -1,3 +1,106 @@
+# ENANPARQ 9 server batch (branch `enanparq-2026`)
+
+This branch is tag `ps3-model-2026` (b1f809b) plus two things:
+
+1. **`world/funds.py`, one fix.** The `POLICY_COEFFICIENT` pot is filled under 7-digit municipality codes but families
+   are grouped under 6-digit codes, so `buy`, `rent` and `wage` never paid out at the tag. The fix rekeys the pot to 6
+   digits. It does nothing when `POLICY_COEFFICIENT = 0`, so tendencial and otimista run exactly as at the tag.
+2. **`run_enanparq.py`**, the driver for this batch.
+
+**What it runs:** Belo Horizonte (23 municipalities), 2010-2039, five arms x N seeds. Run `i` of every arm uses seed
+`20261015 + i`, so each arm is compared with tendencial of the same seed.
+
+| arm | what changes from 2026 | folder |
+|---|---|---|
+| tendencial | nothing (reference) | `FUNDS_AVAILABILITY=tendencial__POLICIES=no_policy__POLICY_COEFFICIENT=0` |
+| otimista | more OGU subsidy for MCMV and larger FGTS/SBPE credit lines | `FUNDS_AVAILABILITY=otimista__...` |
+| buy ("MCMV") | the municipality buys new houses for the poorest renters | `...POLICIES=buy__POLICY_COEFFICIENT=0.2` |
+| rent (vale-aluguel) | the municipality pays 24 months of rent up front | `...POLICIES=rent__POLICY_COEFFICIENT=0.2` |
+| wage ("Bolsa Família") | the municipal pot is split equally among the poorest 20 % | `...POLICIES=wage__POLICY_COEFFICIENT=0.2` |
+
+The driver ignores any local `conf\params.py` and `conf\run.py`: every value comes from `conf\default` plus the
+overrides inside `run_enanparq.py`. Nothing in `conf\` needs editing, and those files stay as they are for later
+batches. Output goes to `output\enanparq_server\`.
+
+## Steps (Windows, Anaconda prompt, one line at a time)
+
+**1. Get the branch.** Replace the path with the PS3 folder on the server.
+
+```
+cd /d C:\path\to\PS3
+git fetch origin
+git checkout enanparq-2026
+git log --oneline -3
+```
+
+The top line must read `ENANPARQ: server driver ...`. If `git checkout` refuses because of local changes, run
+`git status` and stash or commit them first (`git stash`).
+
+**2. Activate the Python environment** used for the September server batch.
+
+```
+conda activate <env name>
+python -c "import geopandas, pyogrio; print('ok')"
+```
+
+**3. Regenerate the population once** (about 5-10 minutes). The population file name carries no model version, so a
+population left by an earlier batch would be reused without warning.
+
+```
+python run_enanparq.py populacao
+```
+
+**4. Test: five arms x 1 seed x 2 years** (about 15-30 minutes).
+
+```
+python run_enanparq.py teste 5
+```
+
+It ends with a table. Check two things. First, `families_helped` is larger in the buy, rent and wage rows than in the
+tendencial row: the policies pay out. Second, `rent_default` is near zero in the wage row. If both hold, go on.
+
+**5. Choose CPUS.** A Belo Horizonte run that saves yearly data peaks at about 2 GB of RAM near 2039. Use CPUS <= free
+RAM in GB / 2.5 and at most the number of cores minus 2. Free RAM:
+
+```
+systeminfo | findstr /C:"Available Physical Memory"
+```
+
+**6. Run the batch:** 20 seeds = 100 runs. Replace `30` with your CPUS.
+
+```
+python run_enanparq.py lote 20 30
+```
+
+- Leave the window open and stop the machine from sleeping. With Remote Desktop, disconnect; do not sign out.
+- Runs are queued seed by seed (five arms of seed 0, then the five arms of seed 1, and so on). If the batch stops
+  halfway, the finished seeds are complete pairs and can be used.
+- **To resume** after a stop, run the same command again: finished runs (`DONE` file) are skipped.
+- **To add seeds** later (for example seeds 20-29), run `python run_enanparq.py lote 10 30 20`.
+- A Belo Horizonte run took about 1.5 hours on the server (25-capital screen). With 30 CPUS, 100 runs make 4 waves:
+  roughly 6-8 hours.
+
+**7. Check the batch.**
+
+```
+python run_enanparq.py conferir
+```
+
+Every arm must show the same number of runs, with `last_month_min` = `2039-12-01`. It also checks that the five arms
+of each seed have identical `stats.csv` rows up to 2025-12 (the arms differ only from 2026): it must print
+`identical up to 2025-12: all seeds`.
+
+**8. Zip and send** (roughly 60 MB per run, about 6 GB for 100 runs). You can zip a partial batch at any time.
+
+```
+tar -a -c -f enanparq_server.zip output\enanparq_server\lote
+```
+
+Copy `enanparq_server.zip` to the laptop at `~/Documents/congressos/ENANPARQ/`. The deck scripts there
+(`deck/analise_intervencoes.py` and the figure scripts) read it.
+
+---
+
 # PolicySpace3 (PS3)
 
 ![Python](https://img.shields.io/badge/python-3.12-blue) ![GitHub](https://img.shields.io/github/license/bafurtado/PS3) ![GitHub stars](https://img.shields.io/github/stars/bafurtado/PS3.svg?color=orange) ![GitHub forks](https://img.shields.io/github/forks/bafurtado/PS3)
