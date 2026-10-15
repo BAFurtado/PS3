@@ -153,30 +153,21 @@ def multiple_runs(overrides, runs, cpus, output_dir, fix_seeds=None):
         # use base path, not per-run path
         ensure_population_exists(p, path)
 
-    job_specs = [
-        {"path": os.path.join(path, str(i)), "params": p}
-        for p, path in zip(params, paths)
-        for i in range(runs)
-    ]
-    save_jobs(output_dir, job_specs, cpus)
+    jobs = []
+    for p, path in zip(params, paths):
+        for i in range(runs):
+            job_p = copy.deepcopy(p)
+            if fix_seeds:
+                job_p['SEED'] = fix_seeds[i]
+            jobs.append({'params': job_p, 'path': os.path.join(path, str(i))})
+    save_jobs(output_dir, jobs, cpus)
 
     # run simulations in parallel
     if cpus == 1:
         # run serially if cpus==1, easier debugging
-        for p, path in zip(params, paths):
-            for i in range(runs):
-                p = copy.deepcopy(p)
-                if fix_seeds:
-                    p['SEED'] = fix_seeds[i]
-                single_run(p, os.path.join(path, str(i)))
+        for job in jobs:
+            single_run(job['params'], job['path'])
     else:
-        jobs = []
-        for p, path in zip(params, paths):
-            for i in range(runs):
-                job_p = copy.deepcopy(p)
-                if fix_seeds:
-                    job_p['SEED'] = fix_seeds[i]
-                jobs.append({'params': job_p, 'path': os.path.join(path, str(i))})
         _run_jobs_parallel(jobs, cpus)
 
     logger.info('Averaging run data...')
@@ -586,6 +577,8 @@ def resume(root_dir, cpus):
         return
 
     logger.info(f'Cleaned {cleaned} partial run(s). Resuming {len(pending)} job(s)...')
+    logger.info('Seeds of the pending jobs: %s',
+                sorted({str(j['params'].get('SEED', 'resolved at run time')) for j in pending}))
 
     if cpus == 1:
         for job in pending:
