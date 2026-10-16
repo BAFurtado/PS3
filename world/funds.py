@@ -285,6 +285,11 @@ class Funds:
             self.apply_house_upgrade(self.policy_money_melhorias, self.melhorias_diag)
 
         if self.sim.PARAMS['POLICY_COEFFICIENT']:
+            # Pools the pot by 6-digit municipality code, the key that groups eligible families and houses
+            pot = defaultdict(float)
+            for mun, value in self.policy_money.items():
+                pot[str(mun)[:6]] += value
+            self.policy_money = pot
             self.allocated_money += sum(self.policy_money.values())
             self.update_policy_families(self.sim.PARAMS['POLICY_COEFFICIENT'])
             if self.sim.PARAMS['POLICIES'] == 'buy':
