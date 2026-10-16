@@ -48,6 +48,8 @@ class Family:
         self.last_permanent_income = deque(maxlen=self.last_permanent_window)
         self.permanent_income = 1
         self.affordability_ratio = 10e6
+        # Housing programme that first gave this family a house or an upgrade: 'mcmv', 'melhorias', 'buy' or None
+        self.programme = None
 
         # Previous region id
         if house is not None:
