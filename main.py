@@ -567,9 +567,12 @@ def make_plots(params):
 
 @main.command()
 @click.argument('root_dir')
-@click.option('-c', '--cpus', default=1, help='Number of CPU cores to use')
-def resume(root_dir, cpus):
+@click.option('-w', '--workers', default=None, type=int,
+              help='Number of CPU cores to use (default: the main -c)')
+@click.pass_context
+def resume(ctx, root_dir, workers):
     """Resume an interrupted run from root_dir/jobs.json."""
+    cpus = workers if workers is not None else ctx.obj['cpus']
     pending, cleaned = pending_jobs(root_dir)
 
     if not pending:

@@ -208,7 +208,7 @@ def _log_summary(n_total, pending, job_group, output_dir):
         logger.error(f"{len(pending)} simulation(s) still incomplete after retry:")
         for (capital, scenario_name), n in sorted(counts.items()):
             logger.error(f"  [FAIL] {capital:<20s} {scenario_name:<28s} {n} run(s) missing")
-        logger.error(f'Resume manually with: python main.py resume "{output_dir}" -c {CPUS}')
+        logger.error(f'Resume manually with: python main.py -c {CPUS} resume "{output_dir}"')
     else:
         logger.info("All emissions runs completed successfully.")
     logger.info(sep)
