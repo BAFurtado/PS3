@@ -265,7 +265,7 @@ class Funds:
             self.sim.ledger['ogu'] += topped
             quantile = self.sim.PARAMS['INCOME_MODALIDADES']['faixa1']
             self.update_policy_families(quantile)
-            self.buy_houses_give_to_families(self.policy_money_mcmv, self.mcmv_diag)
+            self.buy_houses_give_to_families(self.policy_money_mcmv, self.mcmv_diag, 'mcmv')
             # RURAL
             # quantile = self.sim.PARAMS['INCOME_MODALIDADES']['rural']
             # self.update_policy_families(quantile)
@@ -359,6 +359,8 @@ class Funds:
                         continue
                     self.upgrade_house(mun, family.house, firm, work_cost,
                                        upgrade_cost, policy_money)
+                    if getattr(family, 'programme', None) is None:
+                        family.programme = 'melhorias'
                     diag['upgrades'] += 1
                 if denied_capacity:
                     stop = 'no_capacity'
@@ -435,7 +437,7 @@ class Funds:
                 # Reset fund because it has been totally expended.
                 self.policy_money[mun] = 0
 
-    def buy_houses_give_to_families(self, policy_money, diagnostics=None):
+    def buy_houses_give_to_families(self, policy_money, diagnostics=None, programme='buy'):
         houses_by_mun = defaultdict(list)
         for firm in self.sim.firms.values():
             if firm.sector == 'Construction' and not firm.pool:
@@ -480,7 +482,7 @@ class Funds:
                     if house.price >= policy_money[mun]:
                         stop = 'indivisible'
                         break
-                    self._buy_house_for_family(mun, house, policy_money)
+                    self._buy_house_for_family(mun, house, policy_money, programme)
                     diag['units_bought'] += 1
                 diag['stop_{}'.format(stop)] = 1
 
@@ -489,9 +491,9 @@ class Funds:
         # Clean up list for next month
         self.temporary_houses = defaultdict(list)
 
-    def _buy_house_for_family(self, mun, house, policy_money):
+    def _buy_house_for_family(self, mun, house, policy_money, programme):
         """Municipality buys `house` from its construction firm and hands it to the
-        poorest remaining eligible family in `mun`."""
+        poorest remaining eligible family in `mun`, labelled with `programme`."""
         # Getting poorest family first, given permanent income
         family = self.policy_families[mun].pop(0)
         # Transaction taxes help reduce the price of the bulk buying by the municipality
@@ -513,6 +515,8 @@ class Funds:
         house.family_owner = True
         family.owned_houses.append(house)
         house.on_market = 0
+        if getattr(family, 'programme', None) is None:
+            family.programme = programme
         # Move out. Move in
         HousingMarket.make_move(family, house, self.sim)
 
