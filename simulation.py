@@ -332,6 +332,7 @@ class Simulation:
         self.labor_market.candidates = [c for c in self.labor_market.candidates if c.firm_id is None]
         actual = self.labor_market.num_candidates
         while actual / total > target:
+            before = actual
             # Government is staffed to its RAIS headcount by gov_hire_fire, not by one post per firm:
             # otherwise it takes start-up hires in proportion to its firm count, and sheds the excess in month 1.
             self.labor_market.gov_hire_fire(self)
@@ -339,9 +340,14 @@ class Simulation:
             self.labor_market.hire_fire(self.firms, 1, initialize=True)
             # No more posts than the jobs still missing to the target
             self.labor_market.cap_postings(n_gov, math.ceil(actual - target * total))
+            # assign_post matches no one with fewer than two postings
+            unmatched = len(self.labor_market.available_postings) < 2
             self.labor_market.assign_post(actual_unemployment, None, self.PARAMS)
             self.labor_market.look_for_jobs(self.agents)
             actual = self.labor_market.num_candidates
+            # Nobody hired or fired: every later pass would repeat this one
+            if unmatched and actual == before:
+                break
         self.labor_market.reset()
         divisor = set_productivity_level(self)
         self.logger.logger.info(f'PRODUCTIVITY_MAGNITUDE_DIVISOR {divisor:.4f}')

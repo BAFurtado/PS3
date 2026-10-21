@@ -148,7 +148,7 @@ def conferir(root, start=START):
     print('\nTotal finished:', len(t))
 
     def before(s, city, i):
-        x = pd.read_csv(os.path.join(run_path(root, s, city, i), 'stats.csv'), sep=';', header=None)
+        x = pd.read_csv(os.path.join(run_path(root, s, city, i), 'stats.csv'), sep=';', header=None, dtype=str)
         return x[x[0] < str(start)].reset_index(drop=True)
 
     done = set(zip(t.scenario, t.city, t.run))
