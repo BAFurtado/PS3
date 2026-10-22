@@ -998,7 +998,8 @@ class Output:
             data['gender'].append(agent.gender)
             data['x'].append(agent.address.x)
             data['y'].append(agent.address.y)
-            data['id'].append(agent.id)
+            # Newborns carry integer ids, everyone else a string id
+            data['id'].append(str(agent.id))
             data['age'].append(agent.age)
             data['qualification'].append(agent.qualification)
             data['firm_id'].append(agent.firm_id)
