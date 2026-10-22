@@ -34,6 +34,8 @@ GENERATOR_PARAMS = [
 
 BENEFICIARY_STATS_COLUMNS = ('families_count', 'beneficiary_families', 'beneficiary_permanent_income',
                              'beneficiary_total_income')
+HOUSE_SALES_COLUMNS = ('house_sales', 'house_sales_paid', 'house_sales_list', 'house_sales_new',
+                       'house_sales_new_paid')
 BENEFICIARY_REGIONAL_COLUMNS = ('families_count', 'families_total_permanent_income', 'beneficiary_families',
                                 'beneficiary_permanent_income')
 
@@ -201,6 +203,10 @@ OUTPUT_DATA_SPEC = {
                     # Families this month; of them, those a housing programme gave a house or an upgrade
                     # (Family.programme): their number, summed permanent income and income this month
                     *BENEFICIARY_STATS_COLUMNS,
+                    # Sales negotiated in the housing market this month (programme purchases excluded): number,
+                    # summed price paid and summed list price; the same number and price paid for new houses,
+                    # sold by construction firms
+                    *HOUSE_SALES_COLUMNS,
                     ]
     },
     'families': {
@@ -342,9 +348,14 @@ DEMAND_BY_BUYER_COLUMNS = tuple(f'{k}_{b}' for b in ('household', 'government', 
 MATCHING_COLUMNS = ('unmet_household_coverable', 'unmet_household_coverable_end')
 
 
+def _legacy_stats_columns_no_house_sales():
+    """`stats` layout of 803c602 (2026-10-22): no house_sales columns."""
+    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c not in HOUSE_SALES_COLUMNS]
+
+
 def _legacy_stats_columns_no_beneficiary():
     """`stats` layout of ps3-model-2026 (b1f809b): no families_count or beneficiary columns."""
-    return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c not in BENEFICIARY_STATS_COLUMNS]
+    return [c for c in _legacy_stats_columns_no_house_sales() if c not in BENEFICIARY_STATS_COLUMNS]
 
 
 def _legacy_stats_columns_no_rent_received():
@@ -460,7 +471,7 @@ def _legacy_stats_columns():
     dropped = {'denied_zero_capped_amount', 'denied_no_loan_needed', 'workers_median_wage', 'families_total_wages',
                'wage_census_factor', 'taxes_products', 'families_rent_received',
                'pct_renters_zero_income', *FIRM_DEMOGRAPHY_COLUMNS, *EXTERNAL_ACCOUNT_COLUMNS, *MONEY_COLUMNS,
-               *BENEFICIARY_STATS_COLUMNS}
+               *BENEFICIARY_STATS_COLUMNS, *HOUSE_SALES_COLUMNS}
     cols = [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c not in dropped]
     return [c.replace('rent_burden_decis_', 'affordability_decis_') for c in cols]
 
@@ -502,7 +513,7 @@ def _legacy_regional_columns_single_pot():
 
 
 LEGACY_COLUMNS = {
-    'stats': [_legacy_stats_columns_no_beneficiary(), _legacy_stats_columns_no_rent_received(), _legacy_stats_columns_no_census_basis(), _legacy_stats_columns_no_worker_wage(), _legacy_stats_columns_no_own_account(), _legacy_stats_columns_no_investment(), _legacy_stats_columns_no_income(), _legacy_stats_columns_no_social_transfers(), _legacy_stats_columns_no_utilisation(), _legacy_stats_columns_no_profit_share(), _legacy_stats_columns_no_total_income(), _legacy_stats_columns_no_bank_profit(), _legacy_stats_columns_no_fgts_repaid(), _legacy_stats_columns_no_group_prices(), _legacy_stats_columns_no_household_imports(), _legacy_stats_columns_no_unserved(), _legacy_stats_columns_no_matching(), _legacy_stats_columns_no_demand_by_buyer(), _legacy_stats_columns_no_unmet(),
+    'stats': [_legacy_stats_columns_no_house_sales(), _legacy_stats_columns_no_beneficiary(),_legacy_stats_columns_no_rent_received(), _legacy_stats_columns_no_census_basis(), _legacy_stats_columns_no_worker_wage(), _legacy_stats_columns_no_own_account(), _legacy_stats_columns_no_investment(), _legacy_stats_columns_no_income(), _legacy_stats_columns_no_social_transfers(), _legacy_stats_columns_no_utilisation(), _legacy_stats_columns_no_profit_share(), _legacy_stats_columns_no_total_income(), _legacy_stats_columns_no_bank_profit(), _legacy_stats_columns_no_fgts_repaid(), _legacy_stats_columns_no_group_prices(), _legacy_stats_columns_no_household_imports(), _legacy_stats_columns_no_unserved(), _legacy_stats_columns_no_matching(), _legacy_stats_columns_no_demand_by_buyer(), _legacy_stats_columns_no_unmet(),
               _legacy_stats_columns_no_money(), _legacy_stats_columns_no_external_account(),
               _legacy_stats_columns_no_firm_demography(),
               _legacy_stats_columns()],
@@ -757,8 +768,16 @@ class Output:
         stats_row["beneficiary_total_income"] = sum(
             f.total_wage() + sum(m.last_profit_share + m.last_transfer for m in f.members.values())
             for f in beneficiaries)
+        sales = sim.house_sales
+        new = [s for s in sales if s[2]]
+        stats_row["house_sales"] = len(sales)
+        stats_row["house_sales_paid"] = sum(s[0] for s in sales)
+        stats_row["house_sales_list"] = sum(s[1] for s in sales)
+        stats_row["house_sales_new"] = len(new)
+        stats_row["house_sales_new_paid"] = sum(s[0] for s in new)
+        sim.house_sales = []
         from agents.firm import UNPLANNED_SECTORS
-        planned = [f for f in sim.firms.values() if f.sector not in UNPLANNED_SECTORS]
+        planned =[f for f in sim.firms.values() if f.sector not in UNPLANNED_SECTORS]
         capacity = sum(f.last_capacity for f in planned)
         stats_row["firms_utilisation"] = sum(f.last_produced for f in planned) / capacity if capacity else 0.0
         stats_row["price_tradable"], stats_row["price_nontradable"] = sim.stats.group_prices(

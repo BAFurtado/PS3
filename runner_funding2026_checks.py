@@ -9,7 +9,8 @@ Batches:
              stats.csv row.
     oferta   base and ogu with OFFER_SIZE_ON_PRICE 2.5 and 7.5 (default 5), the weight of vacancy in the house price
              formula. Scenarios base_o25, ogu_o25, base_o75, ogu_o75.
-Both batches save firms, agents and families annually.
+Both batches save firms, agents and families annually; stats.csv carries the house_sales columns (price paid and
+list price of negotiated sales).
 
 Modes (cwd = repository root):
     python runner_funding2026_checks.py teste CPUS             every scenario in Palmas, 1 seed, 2 years, then the checks
@@ -71,7 +72,8 @@ def run(items, cpus, manifest_dir, params=None):
 
 
 def conferir_painel(root, twin_root=R.OUTPUT):
-    """Every finished painel run against the run with the same scenario, city and seed in twin_root, all rows."""
+    """Every finished painel run against the run with the same scenario, city and seed in twin_root, all rows. Columns
+    added to stats.csv after the twin ran sit at the end of the row, so the comparison covers the twin's columns."""
     import glob
     import pandas as pd
     same, differ, missing = 0, [], 0
@@ -83,7 +85,7 @@ def conferir_painel(root, twin_root=R.OUTPUT):
             missing += 1
             continue
         a, b = (pd.read_csv(os.path.join(x, 'stats.csv'), sep=';', header=None, dtype=str) for x in (d, twin))
-        if a.equals(b):
+        if a.iloc[:, :b.shape[1]].equals(b):
             same += 1
         else:
             differ.append((s, city, i))

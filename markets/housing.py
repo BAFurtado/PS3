@@ -303,6 +303,7 @@ class HousingMarket:
     def notarial_procedures(self, family, house, price, change, sim):
         # Withdraw money from buying family and distribute back the difference
         family.update_balance(change)
+        sim.house_sales.append((price, house.price, not house.family_owner))
         # Collect taxes on transaction
         taxes = price * sim.PARAMS['TAX_ESTATE_TRANSACTION']
         sim.regions[house.region_id].collect_taxes(taxes, 'transaction')

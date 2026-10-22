@@ -91,6 +91,8 @@ class Simulation:
         # Firms' cash above the buffers paid out this month
         # Rent resident landlords received this month (markets/rentmarket.py:collect_rent)
         self.rent_received = 0.0
+        # Negotiated house sales since the last stats row: (price paid, list price, sold by a firm)
+        self.house_sales = []
         self.profit_share_paid = 0.0
         # Corporate FBCF / gross operating surplus, and the money set aside for investment
         self.investment_rate = 0.0
