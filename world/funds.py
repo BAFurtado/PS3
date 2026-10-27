@@ -90,7 +90,7 @@ class Funds:
             self.mcmv = MCMV(sim)
             # MCMV and melhorias are two distinct programmes, each with its own OGU
             # budget line of the same size. One persistent pot each: topped up every
-            # month by `share x GDP / 12` and never reset, so money a municipality
+            # month by `share / 100 x monthly GDP` and never reset, so money a municipality
             # could not spend -- typically because the cheapest remaining unit cost
             # more than what was left -- is still there next month.
             self.policy_money_mcmv = defaultdict(float)
