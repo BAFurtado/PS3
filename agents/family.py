@@ -284,7 +284,7 @@ class Family:
 
         propensity = params.get('CONSUMPTION_PROPENSITY', 1.0)
         target = max(0, permanent_income - rent - loan) * propensity
-        needed = permanent_income - rent - loan
+        needed = target + rent + loan
 
         start = params['STARTING_DAY']
         if (year - start.year) * 12 + month - start.month >= params['WEALTH_NORM_BURN_IN']:
