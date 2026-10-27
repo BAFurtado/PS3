@@ -290,6 +290,11 @@ BUILD_VACANCY_SENSITIVITY = 9.77
 # available houses exceed active buyers and vacancy begins to accumulate.
 PERCENTAGE_ENTERING_ESTATE_MARKET = 0.005
 NEIGHBORHOOD_EFFECT = 0.2
+# 'legacy': a house stays on the sales list after a family moves in, a house sold stays in the month's submarket list
+# and can be sold again the same month, and a buyer moves only between houses it owns, so a tenant that buys keeps
+# renting. 'occupy': only vacant houses are for sale, a house is sold at most once a month, and a tenant that buys moves
+# into the house.
+HOUSING_PURCHASE = 'occupy'
 
 # RENTAL #######################
 # Reais (2010) per model money unit (κ). Converts Census income into each family's initial permanent income, which

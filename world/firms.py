@@ -8,11 +8,12 @@ from agents.house import House
 
 
 class FirmData:
-    """ Firm growth is estimated from a monthly value of growth observed between the years of 2000 and 2012 """
+    """ Firm growth is the mean monthly change in the number of RAIS establishments per municipality between the
+    two years of the data """
     def __init__(self, year):
-        # Using APs code of year 2000 (they are not compatible with year 2010 APs)
+        # APs of 2000 and of 2010 are different geographies, each with its own files
         # If year == 2000, data refers to years 2002 and 2012
-        # If year == 2010, data refers to years 2010 and 2017
+        # If year == 2010, data refers to years 2010 and 2021 (input/ap_estabelecimentos_10_21.csv, commit 9fa3844)
         self.num_emp_t0 = self._load(f'input/firms_by_APs{year}_t0_full.csv')
         self.num_emp_t1 = self._load(f'input/firms_by_APs{year}_t1_full.csv')
 

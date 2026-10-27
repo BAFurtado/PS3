@@ -41,6 +41,7 @@ class HousingMarket:
         except AttributeError:
             vacancy = 0
 
+        occupy = sim.PARAMS.get('HOUSING_PURCHASE', 'occupy') == 'occupy'
         for house in sim.houses.values():
             # Updating all houses values every month
             house.update_price(sim.regions,
@@ -62,6 +63,9 @@ class HousingMarket:
                     self.for_sale.add(house)
                 else:
                     house.on_market += 1
+            elif occupy:
+                # An occupied house is not for sale
+                self.for_sale.discard(house)
 
         # Order houses by price most expensive first
         # self.for_sale.sort(key=lambda h: h.price, reverse=True)
@@ -237,7 +241,11 @@ class HousingMarket:
         else:
             max_loan_to_value = params['MAX_LOAN_TO_VALUE']
 
+        occupy = params.get('HOUSING_PURCHASE', 'occupy') == 'occupy'
         for house in my_market:
+            # A house can be occupied since the list was drawn up this month
+            if occupy and house.is_occupied:
+                continue
             cash = 0
             # house.price already incorporates the vacancy adjustment via update_price()
             p = house.price
@@ -296,6 +304,9 @@ class HousingMarket:
             # leaves and is re-added has its on_market counter reset, which suppresses the
             # time-on-market price decay in House.update_price.
             self.for_sale.discard(house)
+            if occupy:
+                # Later buyers this month draw from the same submarket list
+                for_sale.remove(house)
 
             # Having bought a house, then it can move on to the next family
             return
@@ -332,6 +343,9 @@ class HousingMarket:
         # Decision on moving
         if family.house is None:
             # If previously without a house, move into the new acquired one
+            self.make_move(family, house, sim)
+        elif family.is_renting and sim.PARAMS.get('HOUSING_PURCHASE', 'occupy') == 'occupy':
+            # A tenant leaves its rental and moves into the house it bought
             self.make_move(family, house, sim)
         else:
             # Check if there is more than one option and choose
