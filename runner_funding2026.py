@@ -22,8 +22,9 @@ Modes (cwd = repository root):
         part=K/N                the K-th of N contiguous slices of the queue, for N servers (default 1/1)
     python runner_funding2026.py conferir [FOLDER]      finished runs per scenario and city, identity before 2026-01
 
-Output: output/funding2026/<scenario>/<CITY>/<i>/, the same tree on every server; the queue manifest and the log of
-each batch go to output/funding2026/queue_<cities>_<K>of<N>/. Local conf/params.py and conf/run.py are ignored: every
+Output: output/funding2026_final/<scenario>/<CITY>/<i>/ with stats.csv, regional.csv and firms, agents and families
+parquet saved every January; the same tree on every server; the queue manifest and the log of each batch go to
+output/funding2026_final/queue_<cities>_<K>of<N>/. Local conf/params.py and conf/run.py are ignored: every
 value comes from conf/default plus the overrides below.
 """
 import copy
@@ -44,7 +45,7 @@ for _n in ('params', 'run'):
 SEED = 1000
 RUNS = 10
 START = datetime.date(2026, 1, 1)
-OUTPUT = 'output/funding2026_ogufix'
+OUTPUT = 'output/funding2026_final'
 
 OGU_HIGH = {'otimista': .25, 'tendencial': .25, 'pessimista': .04}
 OGU_TENDENCIAL = {'otimista': .09, 'tendencial': .09, 'pessimista': .04}
@@ -77,7 +78,8 @@ conf.RUN.update({
     'KEEP_RANDOM_SEED': False,
     'SEED': SEED,
     'FORCE_NEW_POPULATION': True,
-    'SAVE_DATA': ['firms'],
+    'SAVE_DATA': ['firms', 'agents', 'family'],
+    'SAVE_DATA_PERIDIOCITY': 'ANNUALLY',
     'PLOT_EACH_RUN': False,
     'SAVE_PLOTS_FIGURES': False,
     'PRINT_STATISTICS_AND_RESULTS_DURING_PROCESS': False,

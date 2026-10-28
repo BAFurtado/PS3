@@ -1,7 +1,8 @@
 """
 Funding from 2026, the ogu result at other values of OFFER_SIZE_ON_PRICE (default 5), the weight of vacancy in the
-house price formula, in the 26 capitals without Sao Paulo, 2010-2039. Scenarios, seeds (SEED + i, 5 runs) and every
-other setting come from runner_funding2026; value 5 is the base and ogu pair already in output/funding2026.
+house price formula, in the 26 capitals without Sao Paulo, 2010-2039. Scenarios, seeds (SEED + i, 10 runs) and every
+other setting come from runner_funding2026; value 5 is its base and ogu pair (output/funding2026_final). Value 2.7 is
+the median of Wheaton and Torto (1994), Table 2, in PS3 units.
 
 For each value V the batch runs base_oV and ogu_oV (V with p for the decimal point: 0 -> o0, 2.5 -> o2p5), and ogu_oV is
 compared with base_oV before 2026-01. Value 0 switches the vacancy factor off.
@@ -9,12 +10,12 @@ compared with base_oV before 2026-01. Value 0 switches the vacancy factor off.
 Modes (cwd = repository root):
     python runner_oferta26.py teste CPUS [valores=...]           every scenario in Palmas, 1 seed, 2 years, then the check
     python runner_oferta26.py lote CPUS [OPTIONS]                the batch; rerun the same command to resume
-        valores=0,1.5           values of OFFER_SIZE_ON_PRICE (default 0)
+        valores=0,2.7           values of OFFER_SIZE_ON_PRICE (default 0,2.7)
         part=K/N                the K-th of N contiguous slices of the queue, for N servers (default 1/1)
     python runner_oferta26.py conferir                           finished runs, identity with the reference before 2026-01
 
-Output: output/funding2026_oferta26/<scenario>/<CITY>/<i>/ with stats.csv and regional.csv only (no parquet); the
-queue manifest and log go to output/funding2026_oferta26/queue_<K>of<N>/. Local conf/params.py and conf/run.py are
+Output: output/funding2026_final_oferta/<scenario>/<CITY>/<i>/ with stats.csv and regional.csv only (no parquet); the
+queue manifest and log go to output/funding2026_final_oferta/queue_<K>of<N>/. Local conf/params.py and conf/run.py are
 ignored.
 """
 import datetime
@@ -26,7 +27,7 @@ import runner_funding2026 as R
 
 R.conf.RUN.update({'SAVE_DATA': []})
 
-OUTPUT = 'output/funding2026_oferta26'
+OUTPUT = 'output/funding2026_final_oferta'
 logger = logging.getLogger('main')
 
 
@@ -53,7 +54,7 @@ def queue(scenarios, cities, indices):
 
 def options(args):
     """key=value options of the lote and teste modes."""
-    opts = {'valores': '0', 'part': '1/1'}
+    opts = {'valores': '0,2.7', 'part': '1/1'}
     for a in args:
         k, sep, v = a.partition('=')
         if not sep or k not in opts:
