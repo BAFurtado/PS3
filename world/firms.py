@@ -250,7 +250,7 @@ def fund_entrant(sim, region):
 def firm_exit(sim):
     """FIRM_EXIT_MONTHS > 0: firms insolvent (balance <= 0) or idle (no staff, no sales) for that many months in a
     row exit. Reads last month's sales (before reset_amount_sold). Government and own-account pools never exit;
-    Construction only when it has no house for sale or under construction."""
+    Construction only when it has no house for sale, under construction or awaiting hand-over."""
     months = sim.PARAMS.get('FIRM_EXIT_MONTHS', 0)
     if months <= 0:
         return
@@ -260,7 +260,7 @@ def firm_exit(sim):
             continue
         firm.months_insolvent = firm.months_insolvent + 1 if firm.total_balance <= 0 else 0
         firm.months_idle = firm.months_idle + 1 if not firm.employees and firm.amount_sold == 0 else 0
-        if firm.sector == 'Construction' and (firm.houses_for_sale or firm.building):
+        if firm.sector == 'Construction' and (firm.houses_for_sale or firm.building or firm.commissioned):
             continue
         if firm.months_insolvent >= months:
             leaving.append((firm, 'insolvent'))
