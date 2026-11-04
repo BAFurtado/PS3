@@ -63,7 +63,7 @@ lista completa não cabe na nota de rodapé.
 | 3 | Número médio de moradores por família, por área de ponderação | IBGE, Censo Demográfico 2010 | 2010 | `input/average_num_members_families_2010.csv` | PS2 Tab. 4 |
 | 4 | Distribuição de qualidade dos domicílios particulares permanentes (DPP0–DPP5) por AP | IBGE, Censo Demográfico 2010 | 2010 | `input/dpp_2010_quali.csv` | processamento em `censo2010` |
 | 5 | Proporção da população urbana por município | IBGE, Censos 2000, 2010 e 2022 (Sidra, tabela 202, <https://sidra.ibge.gov.br/tabela/202> — "População residente, por sexo e situação do domicílio") | 2000, 2010, 2022 | `input/Demografia/3_Percent_Urban/` | `LEIA-ME.txt` |
-| 6 | Número de firmas por área de ponderação | Rais — Ministério do Trabalho e Emprego | 2000 e 2010 (cortes t0/t1) | `input/firms_by_APs{2000,2010}_t*_full.csv` | PS1 p. 45; PS2 Tab. 4 |
+| 6 | Número de estabelecimentos por área de ponderação | Rais — Ministério do Trabalho e Emprego | base 2010: t0 = 2010, t1 = 2021 (de `ap_estabelecimentos_10_21.csv`, commit 9fa3844); base 2000: cortes t0/t1 | `input/firms_by_APs{2000,2010}_t*_full.csv` | PS1 p. 45; PS2 Tab. 4 |
 | 7 | Participação setorial do emprego por ACP (12 setores) | Rais — Ministério do Trabalho e Emprego | 2010 | `input/CONCURBs_SECTOR.csv` | PS2; paper de emissões |
 | 8 | Vínculos ativos do setor Governo por município | Rais — Ministério do Trabalho e Emprego (série estabilizada a partir de 2020; 2019 interpolado, ver nota abaixo) | 2010–2045 | `input/qtde_vinc_gov_rais_stable_from_2020_onwards.csv` | — |
 | 9 | Tábuas de fecundidade por UF e idade quinquenal (10–50 anos) | IBGE, Projeção da População do Brasil e Unidades da Federação | 2000–2070 | `input/Demografia/1_Fertility/` | PS1 p. 44; `LEIA-ME.txt` |

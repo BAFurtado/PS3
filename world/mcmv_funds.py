@@ -6,7 +6,8 @@ class MCMV:
         self.sim = sim
 
     def monthly_allocation(self, year):
-        """This month's OGU top-up per municipality: `share x municipal GDP / 12` (Statistics.funds_gdp).
+        """This month's OGU top-up per municipality: `share / 100 x monthly municipal GDP` (Statistics.funds_gdp),
+        the share being a percentage of GDP.
 
         Returns a fresh dictionary of increments. The caller owns the persistent
         pot and adds these to it, so an unspent balance survives into next month.
@@ -28,12 +29,15 @@ class MCMV:
             # conf.PARAMS at its defaults.
             params = self.sim.PARAMS
             value = params['OGU_INVESTMENT'][params['FUNDS_AVAILABILITY']]
+            after = params.get('OGU_AFTER_DOSE')
+            if after is not None and year > after[0]:
+                value = after[1]
         else:
             value = 0
 
         muns = {int(str(mun)[:6]) for mun in self.sim.geo.mun_codes}
 
         for mun in muns:
-            allocation[str(mun)] += (value * self.sim.stats.funds_gdp(mun, year) / 12)
+            allocation[str(mun)] += (value / 100 * self.sim.stats.funds_gdp(mun, year))
 
         return allocation

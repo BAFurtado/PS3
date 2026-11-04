@@ -4,11 +4,11 @@ Funding from 2026: every scenario x city x seed in one queue, 2010-2039.
 Groups and scenarios (each scenario changes only the money; the main and both scenarios differ from base only from
 2026-01, the melhorias pair differ from each other only from 2026-01):
     main       base      tendencial
-               ogu       MCMV subsidy (OGU) at .25 of municipal GDP from 2026, credit lines tendencial
-               credito   FGTS and SBPE lines otimista, OGU tendencial (.09)
+               ogu       MCMV subsidy (OGU) at .25 % of municipal GDP from 2026, credit lines tendencial
+    credito    credito   FGTS and SBPE lines otimista, OGU tendencial (.09 %)
     melhorias  melh_base MCMV off, melhorias on, OGU tendencial
-               melh_ogu  MCMV off, melhorias on, OGU .25 from 2026
-    both       both      FUNDS_AVAILABILITY otimista (OGU .25 and otimista credit lines)
+               melh_ogu  MCMV off, melhorias on, OGU .25 % from 2026
+    both       both      FUNDS_AVAILABILITY otimista (OGU .25 % and otimista credit lines)
 City sets: '26' = the 26 capitals without Sao Paulo (main and both), with melhorias in Macapa, Belem and Goiania;
 'sp' = Sao Paulo (main and both). Run i of every scenario and city uses seed SEED + i. Each run builds its population
 from its own seed.
@@ -18,12 +18,13 @@ Modes (cwd = repository root):
     python runner_funding2026.py lote CPUS [OPTIONS]    the batch; rerun the same command to resume (finished runs,
                                                         marked DONE, are skipped)
         cities=26|sp            city set (default 26)
-        groups=main,melhorias,both   groups, queued in this order (default all)
+        groups=main,credito,melhorias,both   groups, queued in this order (default all)
         part=K/N                the K-th of N contiguous slices of the queue, for N servers (default 1/1)
     python runner_funding2026.py conferir [FOLDER]      finished runs per scenario and city, identity before 2026-01
 
-Output: output/funding2026/<scenario>/<CITY>/<i>/, the same tree on every server; the queue manifest and the log of
-each batch go to output/funding2026/queue_<cities>_<K>of<N>/. Local conf/params.py and conf/run.py are ignored: every
+Output: output/funding2026_final/<scenario>/<CITY>/<i>/ with stats.csv, regional.csv and firms, agents and families
+parquet saved every January; the same tree on every server; the queue manifest and the log of each batch go to
+output/funding2026_final/queue_<cities>_<K>of<N>/. Local conf/params.py and conf/run.py are ignored: every
 value comes from conf/default plus the overrides below.
 """
 import copy
@@ -42,9 +43,9 @@ for _n in ('params', 'run'):
     conf.load_conf_module('default.{}'.format(_n), key=_n)
 
 SEED = 1000
-RUNS = 5
+RUNS = 10
 START = datetime.date(2026, 1, 1)
-OUTPUT = 'output/funding2026'
+OUTPUT = 'output/funding2026_final'
 
 OGU_HIGH = {'otimista': .25, 'tendencial': .25, 'pessimista': .04}
 OGU_TENDENCIAL = {'otimista': .09, 'tendencial': .09, 'pessimista': .04}
@@ -64,10 +65,10 @@ CAPITALS = ['RIO DE JANEIRO', 'BELO HORIZONTE', 'PORTO ALEGRE', 'BRASILIA', 'REC
             'RIO BRANCO', 'PALMAS']
 MELHORIAS_CITIES = ['BELEM', 'GOIANIA', 'MACAPA']
 CITY_SETS = {
-    '26': {'main': CAPITALS, 'melhorias': MELHORIAS_CITIES, 'both': CAPITALS},
-    'sp': {'main': ['SAO PAULO'], 'melhorias': [], 'both': ['SAO PAULO']},
+    '26': {'main': CAPITALS, 'credito': CAPITALS, 'melhorias': MELHORIAS_CITIES, 'both': CAPITALS},
+    'sp': {'main': ['SAO PAULO'], 'credito': ['SAO PAULO'], 'melhorias': [], 'both': ['SAO PAULO']},
 }
-GROUPS = {'main': ['base', 'ogu', 'credito'], 'melhorias': ['melh_base', 'melh_ogu'], 'both': ['both']}
+GROUPS = {'main': ['base', 'ogu'], 'credito': ['credito'], 'melhorias': ['melh_base', 'melh_ogu'], 'both': ['both']}
 # Scenario whose runs every other scenario of the group must equal before START
 REFERENCE = {'base': 'base', 'ogu': 'base', 'credito': 'base', 'both': 'base',
              'melh_base': 'melh_base', 'melh_ogu': 'melh_base'}
@@ -77,7 +78,8 @@ conf.RUN.update({
     'KEEP_RANDOM_SEED': False,
     'SEED': SEED,
     'FORCE_NEW_POPULATION': True,
-    'SAVE_DATA': ['firms'],
+    'SAVE_DATA': ['firms', 'agents', 'family'],
+    'SAVE_DATA_PERIDIOCITY': 'ANNUALLY',
     'PLOT_EACH_RUN': False,
     'SAVE_PLOTS_FIGURES': False,
     'PRINT_STATISTICS_AND_RESULTS_DURING_PROCESS': False,
@@ -148,7 +150,7 @@ def conferir(root, start=START):
     print('\nTotal finished:', len(t))
 
     def before(s, city, i):
-        x = pd.read_csv(os.path.join(run_path(root, s, city, i), 'stats.csv'), sep=';', header=None)
+        x = pd.read_csv(os.path.join(run_path(root, s, city, i), 'stats.csv'), sep=';', header=None, dtype=str)
         return x[x[0] < str(start)].reset_index(drop=True)
 
     done = set(zip(t.scenario, t.city, t.run))

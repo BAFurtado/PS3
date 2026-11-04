@@ -2373,6 +2373,120 @@ _oa.producing = _oa_mode
 for _p in _oa.pools.values():
     _p.output, _p.room = 0.0, float('inf')
 
+# ── MCMV_ALLOCATION 'metro' ──────────────────────────────────────────────────
+print("\n── MCMV metro pot ───────────────────────────────────────────────────")
+from world.funds import METRO  # noqa: E402
+
+_f = sim.funds
+_for_sale = sorted((h for fm in sim.firms.values() if fm.sector == 'Construction' and not fm.pool
+                    for h in fm.houses_for_sale), key=lambda h: h.price)
+_f.update_policy_families(sim.PARAMS['INCOME_MODALIDADES']['faixa1'], pooled=True)
+_renters = [fam for fam in _f.policy_families[METRO] if not fam.owned_houses]
+_k = min(len(_renters), len(_for_sale))
+_pot = defaultdict(float, {METRO: sum(h.price for h in _for_sale) + 1.0})
+_start = _pot[METRO]
+_cheapest = {h.id for h in _for_sale[:_k]}
+_prices = sum(h.price for h in _for_sale[:_k])
+_diag = {METRO: _f.blank_mcmv_diag()}
+_f.buy_houses_give_to_families(_pot, _diag, 'mcmv', pooled=True)
+_bought = [h for h in _for_sale if h.family_owner and h.owner_id in sim.families]
+check("MCMV metro pot buys the cheapest units for sale anywhere in the ACP, one per eligible renter",
+      _diag[METRO]['units_bought'] == _k and {h.id for h in _bought} == _cheapest
+      and abs(_start - _pot[METRO] - _prices) < 1e-6 * max(_start, 1),
+      f"bought {_diag[METRO]['units_bought']}, expected {_k}, muns {len({h.region_id[:6] for h in _bought})}")
+_contrib = {m: 1.0 + i for i, m in enumerate(sorted({r[:6] for r in sim.regions}))}
+_diag[METRO]['money_topup'] = sum(_contrib.values())
+_spread = _f.spread_pool_diag(_diag[METRO], _contrib)
+check("MCMV metro diagnostics by municipality add up to the pot",
+      sum(d['units_bought'] for d in _spread.values()) == _diag[METRO]['units_bought']
+      and abs(sum(d['money_topup'] for d in _spread.values()) - sum(_contrib.values())) < 1e-9
+      and abs(sum(d['money_residual'] for d in _spread.values()) - _diag[METRO]['money_residual']) < 1e-6,
+      f"{len(_spread)} municipalities")
+_f.policy_families = defaultdict(list)
+
+# ── MCMV_COMMISSION ──────────────────────────────────────────────────────────
+print("\n── MCMV commissioning ───────────────────────────────────────────────")
+_yr = sim.clock.year
+_cm_ceiling = 80.0
+_cm_factor = {r[:2]: 1.1 for r in sim.regions}
+_f.ceiling, _f.works_factor, _f.committed = {_yr: _cm_ceiling}, {_yr: _cm_factor}, 0.0
+_cm_regions = list(sim.regions.values())
+for _r in _cm_regions:
+    _r.licenses = max(_r.licenses, 1)
+_cm_builders = [fm for fm in sim.firms.values() if fm.sector == 'Construction' and not fm.own_account and not fm.pool]
+_cm = max(_cm_builders, key=lambda fm: fm.free_cash())
+_cm.productivity = _cm.productivity or 1.0
+_cm_free = _cm.free_cash() - sim.PARAMS.get('FIRM_CAPITAL_MONTHS', 0) * _cm.capacity_value(
+    sim.PARAMS['PRODUCTIVITY_EXPONENT'], sim.PARAMS['PRODUCTIVITY_MAGNITUDE_DIVISOR'])
+_cm_balance0, _cm_before = _cm.total_balance, set(_cm.building)
+_cm_lic = {r.id: r.licenses for r in _cm_regions}
+_cm_signed = _cm.take_contract(_cm_regions, sim.PARAMS, sim, sim.seed_np, _cm_ceiling, _cm_factor)
+_cm_new = [k for k in _cm.building if k not in _cm_before]
+_cm_ok = _cm_signed and len(_cm_new) == 1
+if _cm_ok:
+    _b = _cm.building[_cm_new[0]]
+    _land = {r.id: r.index * _b["size"] * _hv_House.scale(r.id) * sim.PARAMS['LOT_COST'] for r in _cm_regions}
+    _profit = {r.id: _cm_ceiling - sim.house_values.build_cost(r.id, _b['size'], 1, _cm.productivity) * 1.1
+               - _land[r.id] for r in _cm_regions
+               if _cm_lic[r.id] > 0 and _cm_balance0 > r.license_price and _cm_free >= _land[r.id]}
+    _best = _b['region']
+    _cm_ok = (_profit.get(_best, -1) > 0 and _b['quality'] == 1 and _b['contract'] == _cm_ceiling
+              and abs(_cm_balance0 - _cm.total_balance - _land[_best]) < 1e-9
+              and sim.regions[_best].licenses == _cm_lic[_best] - 1)
+check("MCMV_COMMISSION: a builder signs one quality-1 contract in a region where ceiling - works - land > 0,"
+      " paying its land",
+      _cm_ok, f"signed {_cm_signed}, new projects {len(_cm_new)}")
+_cm_before = dict(_cm.building)
+check("MCMV_COMMISSION: no contract when the ceiling covers no region's works and land",
+      not _cm.take_contract(_cm_regions, sim.PARAMS, sim, sim.seed_np, 0.0, _cm_factor)
+      and dict(_cm.building) == _cm_before)
+
+# The commissioned project completes alone; it is held for the programme, off the market
+_cm_others = {k: v for k, v in _cm.building.items() if k != _cm_new[0]}
+_cm.building = defaultdict(dict, {_cm_new[0]: _cm.building[_cm_new[0]]})
+_cm_tq = _cm.total_quantity
+_cm.total_quantity = _cm.building[_cm_new[0]]['cost'] + 1.0
+_cm_done = _cm.build_house(sim.regions, sim.generator)
+_cm.building = defaultdict(dict, _cm_others)
+_cm.total_quantity = _cm_tq
+_cm_unit, _cm_price = _cm.commissioned[-1] if _cm.commissioned else (None, None)
+check("MCMV_COMMISSION: a finished commissioned unit waits for hand-over, not for sale and not in the housing stock",
+      _cm_done is None and _cm_unit is not None and _cm_price == _cm_ceiling and _cm_unit.quality == 1
+      and _cm_unit not in _cm.houses_for_sale and _cm_unit.id not in sim.houses)
+
+_f.update_policy_families(sim.PARAMS['INCOME_MODALIDADES']['faixa1'], pooled=True)
+_cm_renters = [fam for fam in _f.policy_families[METRO] if not fam.owned_houses]
+_f.committed = _cm_price
+_cm_pot = defaultdict(float, {METRO: _cm_price + 2 * _cm_ceiling + 1.0})
+_cm_diag = _f.blank_mcmv_diag()
+_cm_projects = {fm.id: sum(1 for b in fm.building.values() if 'contract' in b) for fm in _cm_builders}
+_f.commission_units(_cm_pot, _cm_diag)
+_cm_signed_now = {fm.id: sum(1 for b in fm.building.values() if 'contract' in b) - _cm_projects[fm.id]
+                  for fm in _cm_builders}
+_cm_n = sum(_cm_signed_now.values())
+check("MCMV_COMMISSION: the pot hands the unit to the poorest renter at the contract price, then signs contracts its"
+      " uncommitted money covers, one per builder",
+      bool(_cm_renters) and _cm_unit.id in sim.houses and _cm_unit.owner_id == _cm_renters[0].id
+      and _cm_diag['units_bought'] == 1 and abs(_cm_pot[METRO] - (2 * _cm_ceiling + 1.0)) < 1e-9
+      and _cm_n <= 2 and max(_cm_signed_now.values()) <= 1 and abs(_f.committed - _cm_n * _cm_ceiling) < 1e-9
+      and abs(_cm_diag['money_residual'] - (_cm_pot[METRO] - _f.committed)) < 1e-9,
+      f"renters {len(_cm_renters)}, delivered {_cm_diag['units_bought']}, contracts signed {_cm_n}")
+_f.policy_families = defaultdict(list)
+
+# ── OGU_AFTER_DOSE ───────────────────────────────────────────────────────────
+_od_keys = ('OGU_INVESTMENT', 'OGU_AFTER_DOSE')
+_od_saved = {k: sim.PARAMS.get(k) for k in _od_keys}
+sim.PARAMS['OGU_INVESTMENT'] = {'otimista': .25, 'tendencial': .25, 'pessimista': .25}
+sim.PARAMS['OGU_AFTER_DOSE'] = (2030, .09)
+_od = {y: sum(sim.funds.mcmv.monthly_allocation(y).values()) for y in (2030, 2031)}
+_od_gdp = {y: sum(sim.stats.funds_gdp(int(m), y) for m in {int(str(c)[:6]) for c in sim.geo.mun_codes})
+           for y in (2030, 2031)}
+check("OGU_AFTER_DOSE: the OGU_INVESTMENT share to the last year, the after share from the next",
+      abs(_od[2030] - .25 / 100 * _od_gdp[2030]) < 1e-9 * max(_od[2030], 1)
+      and abs(_od[2031] - .09 / 100 * _od_gdp[2031]) < 1e-9 * max(_od[2031], 1) and _od[2031] > 0,
+      f"{_od}")
+sim.PARAMS.update(_od_saved)
+
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")
 print(f"Results: {PASS} PASS  |  {FAIL} FAIL  |  {PASS + FAIL} total")

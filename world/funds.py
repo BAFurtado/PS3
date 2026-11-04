@@ -6,7 +6,11 @@ import numpy as np
 
 from markets.housing import HousingMarket
 from .geography import STATES_CODES, state_string
+from .house_values import UF
 from .mcmv_funds import MCMV
+
+# Key of the single ACP pot under MCMV_ALLOCATION 'metro'
+METRO = 'metro'
 
 
 class Funds:
@@ -90,11 +94,27 @@ class Funds:
             self.mcmv = MCMV(sim)
             # MCMV and melhorias are two distinct programmes, each with its own OGU
             # budget line of the same size. One persistent pot each: topped up every
-            # month by `share x GDP / 12` and never reset, so money a municipality
+            # month by `share / 100 x monthly GDP` and never reset, so money a municipality
             # could not spend -- typically because the cheapest remaining unit cost
             # more than what was left -- is still there next month.
             self.policy_money_mcmv = defaultdict(float)
             self.policy_money_melhorias = defaultdict(float)
+        if sim.PARAMS.get('MCMV_COMMISSION', False):
+            if sim.PARAMS.get('MCMV_ALLOCATION', 'municipal') != 'metro' or len(sim.PARAMS['PROCESSING_ACPS']) != 1:
+                raise ValueError("MCMV_COMMISSION needs MCMV_ALLOCATION 'metro' and one ACP")
+            kappa = sim.PARAMS['REAIS_PER_MONEY_UNIT']
+            ceiling = pd.read_csv('input/mcmv_ceiling.csv', sep=';')
+            ceiling = ceiling[ceiling.ACPs == sim.PARAMS['PROCESSING_ACPS'][0]]
+            # FAR price per unit in money by year of signature
+            self.ceiling = dict(zip(ceiling.year, ceiling.ceiling / kappa))
+            factor = pd.read_csv('input/sinapi_ipca.csv', sep=';')
+            code = {uf: str(c) for c, uf in UF.items()}
+            # Sinapi over IPCA by year, {2-digit state code: factor}
+            self.works_factor = defaultdict(dict)
+            for r in factor.itertuples():
+                self.works_factor[r.year][code[r.uf]] = r.factor
+            # Contract prices of units signed and not yet handed over
+            self.committed = 0.0
 
     @staticmethod
     def blank_mcmv_diag():
@@ -180,7 +200,8 @@ class Funds:
                 or self.sim.PARAMS.get('CARBON_TAX_RECYCLING')
         )
 
-    def update_policy_families(self, quantile):
+    def update_policy_families(self, quantile, pooled=False):
+        """Eligible families by 6-digit municipality code, or all under the METRO key when `pooled`"""
         today = self.sim.clock.days
 
         families = list(self.sim.families.values())
@@ -215,7 +236,7 @@ class Funds:
         temp_policy = defaultdict(dict)
 
         for region in self.sim.regions.values():
-            mun = region.id[:6]
+            mun = METRO if pooled else region.id[:6]
             for key, fams in region.registry.items():
                 if key > window_start:
                     for f in fams:
@@ -234,7 +255,7 @@ class Funds:
         for mun in self.policy_families:
             filtered = [
                 f for f in self.policy_families[mun]
-                if f.id in valid_families and f.house.region_id[:6] == mun
+                if f.id in valid_families and (pooled or f.house.region_id[:6] == mun)
             ]
 
             if self.sim.PARAMS['TOTAL_TARGETING_POLICY']:
@@ -258,14 +279,22 @@ class Funds:
 
         if self.sim.PARAMS['POLICY_MCMV']:
             # MCMV FAIXA 1
-            topped = self.top_up(
-                self.policy_money_mcmv, self.mcmv.monthly_allocation(self.sim.clock.year),
-                self.mcmv_diag, self.blank_mcmv_diag)
+            allocation = self.mcmv.monthly_allocation(self.sim.clock.year)
+            pooled = self.sim.PARAMS.get('MCMV_ALLOCATION', 'municipal') == 'metro'
+            contributions = allocation
+            if pooled:
+                allocation = {METRO: sum(contributions.values())}
+            topped = self.top_up(self.policy_money_mcmv, allocation, self.mcmv_diag, self.blank_mcmv_diag)
             self.allocated_money += topped
             self.sim.ledger['ogu'] += topped
             quantile = self.sim.PARAMS['INCOME_MODALIDADES']['faixa1']
-            self.update_policy_families(quantile)
-            self.buy_houses_give_to_families(self.policy_money_mcmv, self.mcmv_diag, 'mcmv')
+            self.update_policy_families(quantile, pooled)
+            if self.sim.PARAMS.get('MCMV_COMMISSION', False):
+                self.commission_units(self.policy_money_mcmv, self.mcmv_diag[METRO])
+            else:
+                self.buy_houses_give_to_families(self.policy_money_mcmv, self.mcmv_diag, 'mcmv', pooled)
+            if pooled:
+                self.mcmv_diag = self.spread_pool_diag(self.mcmv_diag[METRO], contributions)
             # RURAL
             # quantile = self.sim.PARAMS['INCOME_MODALIDADES']['rural']
             # self.update_policy_families(quantile)
@@ -437,12 +466,23 @@ class Funds:
                 # Reset fund because it has been totally expended.
                 self.policy_money[mun] = 0
 
-    def buy_houses_give_to_families(self, policy_money, diagnostics=None, programme='buy'):
+    def buy_houses_give_to_families(self, policy_money, diagnostics=None, programme='buy', pooled=False):
+        """Each pot buys the cheapest new units for sale under its key, the 6-digit municipality code or METRO when
+        `pooled`, and gives each to the poorest remaining eligible family under the same key. When `pooled`, the
+        month's counts by municipality (eligible families by residence, units for sale and bought by location) go to
+        self.pool_counts."""
         houses_by_mun = defaultdict(list)
         for firm in self.sim.firms.values():
             if firm.sector == 'Construction' and not firm.pool:
                 for h in firm.houses_for_sale:
-                    houses_by_mun[h.region_id[:6]].append(h)
+                    houses_by_mun[METRO if pooled else h.region_id[:6]].append(h)
+        if pooled:
+            self.pool_counts = defaultdict(lambda: {'eligible': 0, 'units_available': 0, 'units_bought': 0})
+            for f in self.policy_families[METRO]:
+                if not f.owned_houses:
+                    self.pool_counts[f.house.region_id[:6]]['eligible'] += 1
+            for h in houses_by_mun[METRO]:
+                self.pool_counts[h.region_id[:6]]['units_available'] += 1
         # Families are sorted in self.policy_families. Buy and give as much as money allows
         for mun in policy_money.keys():
             # The POLICY_COEFFICIENT 'buy' policy shares this loop but is a different
@@ -484,6 +524,8 @@ class Funds:
                         break
                     self._buy_house_for_family(mun, house, policy_money, programme)
                     diag['units_bought'] += 1
+                    if pooled:
+                        self.pool_counts[house.region_id[:6]]['units_bought'] += 1
                 diag['stop_{}'.format(stop)] = 1
 
             diag['money_residual'] = policy_money[mun]
@@ -491,25 +533,97 @@ class Funds:
         # Clean up list for next month
         self.temporary_houses = defaultdict(list)
 
-    def _buy_house_for_family(self, mun, house, policy_money, programme):
+    def commission_units(self, policy_money, diag):
+        """MCMV_COMMISSION: the METRO pot hands each finished commissioned unit to the poorest remaining eligible
+        renter and pays its contract price, then offers contracts at this year's FAR price while its uncommitted money
+        covers one. Construction firms, in random order, take at most one each. `money_residual` is the uncommitted
+        money. Counts by municipality go to self.pool_counts, as in buy_houses_give_to_families"""
+        self.pool_counts = defaultdict(lambda: {'eligible': 0, 'units_available': 0, 'units_bought': 0})
+        families = [f for f in self.policy_families[METRO] if not f.owned_houses]
+        self.policy_families[METRO] = families
+        for f in families:
+            self.pool_counts[f.house.region_id[:6]]['eligible'] += 1
+        builders = [f for f in self.sim.firms.values()
+                    if f.sector == 'Construction' and not f.own_account and not f.pool]
+        ready = [(firm, unit) for firm in builders for unit in (firm.commissioned or [])]
+        for _, (house, _) in ready:
+            self.pool_counts[house.region_id[:6]]['units_available'] += 1
+        diag['eligible'] = len(families)
+        diag['units_available'] = len(ready)
+
+        if not families:
+            diag['stop_no_eligible'] = 1
+        elif not ready:
+            diag['stop_no_units'] = 1
+        else:
+            stop = 'units_exhausted'
+            for firm, unit in ready:
+                if not self.policy_families[METRO]:
+                    stop = 'families_exhausted'
+                    break
+                house, price = unit
+                firm.commissioned.remove(unit)
+                self.sim.houses[house.id] = house
+                self.committed -= price
+                self._buy_house_for_family(METRO, house, policy_money, 'mcmv', price=price)
+                diag['units_bought'] += 1
+                self.pool_counts[house.region_id[:6]]['units_bought'] += 1
+            diag['stop_{}'.format(stop)] = 1
+
+        year = self.sim.clock.year
+        ceiling = self.ceiling[min(year, max(self.ceiling))]
+        factor = self.works_factor[min(year, max(self.works_factor))]
+        regions = list(self.sim.regions.values())
+        self.sim.seed.shuffle(builders)
+        for firm in builders:
+            if policy_money[METRO] - self.committed < ceiling:
+                break
+            if firm.take_contract(regions, self.sim.PARAMS, self.sim, self.sim.seed_np, ceiling, factor):
+                self.committed += ceiling
+        diag['money_residual'] = policy_money[METRO] - self.committed
+
+    def spread_pool_diag(self, pool, contributions):
+        """Municipality-month MCMV diagnostics of a METRO pot: counts from self.pool_counts, money fields in
+        proportion to each municipality's share of the month's top-up, and the pot's stop reason in every record"""
+        muns = set(contributions) | set(self.pool_counts)
+        total = sum(contributions.values())
+        diagnostics = {}
+        for mun in muns:
+            diag = self.blank_mcmv_diag()
+            diag.update(self.pool_counts.get(mun, {}))
+            share = contributions.get(mun, 0.0) / total if total else 1 / len(muns)
+            for field in ('money_topup', 'money_start', 'money_residual'):
+                diag[field] = pool[field] * share
+            for field, value in pool.items():
+                if field.startswith('stop_'):
+                    diag[field] = value
+            diagnostics[mun] = diag
+        return diagnostics
+
+    def _buy_house_for_family(self, mun, house, policy_money, programme, price=None):
         """Municipality buys `house` from its construction firm and hands it to the
-        poorest remaining eligible family in `mun`, labelled with `programme`."""
+        poorest remaining eligible family in `mun`, labelled with `programme`. `price`: a commissioned unit's
+        contract price; the unit is not on the firm's sale list. Otherwise the house's price."""
+        commissioned = price is not None
+        if not commissioned:
+            price = house.price
         # Getting poorest family first, given permanent income
         family = self.policy_families[mun].pop(0)
         # Transaction taxes help reduce the price of the bulk buying by the municipality
-        taxes = house.price * self.sim.PARAMS['TAX_ESTATE_TRANSACTION']
+        taxes = price * self.sim.PARAMS['TAX_ESTATE_TRANSACTION']
         self.sim.regions[house.region_id].collect_taxes(taxes, 'transaction')
         # Register subsidies
-        self.money_applied_policy += house.price
+        self.money_applied_policy += price
         self.families_subsided += 1
         # Pay construction company
-        self.sim.firms[house.owner_id].update_balance(house.price - taxes,
+        self.sim.firms[house.owner_id].update_balance(price - taxes,
                                                       self.sim.PARAMS['CONSTRUCTION_ACC_CASH_FLOW'],
                                                       self.sim.clock.days)
         # Deduce from municipality fund
-        policy_money[mun] -= house.price
+        policy_money[mun] -= price
         # Transfer ownership
-        self.sim.firms[house.owner_id].houses_for_sale.remove(house)
+        if not commissioned:
+            self.sim.firms[house.owner_id].houses_for_sale.remove(house)
         # Finish notarial procedures
         house.owner_id = family.id
         house.family_owner = True

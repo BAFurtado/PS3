@@ -189,9 +189,21 @@ POLICIES = "no_policy"
 
 # POLICY_MCMV indicates whether MCMV is active
 POLICY_MCMV = True
+# MCMV Faixa 1 allocation. 'municipal': each municipality's pot buys new units for sale in the municipality for its
+# own poorest renters. 'metro': the municipalities' top-ups go into one ACP pot that buys the cheapest new units for
+# sale anywhere in the ACP for the ACP's poorest renters.
+MCMV_ALLOCATION = 'municipal'
+# MCMV_COMMISSION (needs MCMV_ALLOCATION 'metro'): instead of buying units for sale, the metro pot commissions
+# quality-1 units from construction firms at the ACP's FAR price per unit of the year (input/mcmv_ceiling.csv), one
+# contract per firm a month while its uncommitted money covers one, and hands each finished unit to the ACP's poorest
+# renter. The works cost of a commissioned unit is scaled by the state Sinapi over IPCA of the year
+# (input/sinapi_ipca.csv).
+MCMV_COMMISSION = False
 OGU_INVESTMENT = {'otimista': .25,
                   'tendencial': .09,
                   'pessimista': .04}
+# None, or (last year, share): the OGU_INVESTMENT share applies from 2026 to the last year, this share after it
+OGU_AFTER_DOSE = None
 # FUNDS AVAILABILITY can be 'otimista', 'tendencial' or 'pessimista' [positive, tendencial or negative perspectives].
 # NOTICE: It interferes on both OGU investment and FGTS AND SBPE investments
 FUNDS_AVAILABILITY = 'tendencial'
@@ -290,6 +302,11 @@ BUILD_VACANCY_SENSITIVITY = 9.77
 # available houses exceed active buyers and vacancy begins to accumulate.
 PERCENTAGE_ENTERING_ESTATE_MARKET = 0.005
 NEIGHBORHOOD_EFFECT = 0.2
+# 'legacy': a house stays on the sales list after a family moves in, a house sold stays in the month's submarket list
+# and can be sold again the same month, and a buyer moves only between houses it owns, so a tenant that buys keeps
+# renting. 'occupy': only vacant houses are for sale, a house is sold at most once a month, and a tenant that buys moves
+# into the house.
+HOUSING_PURCHASE = 'occupy'
 
 # RENTAL #######################
 # Reais (2010) per model money unit (κ). Converts Census income into each family's initial permanent income, which
