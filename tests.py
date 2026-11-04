@@ -2373,6 +2373,37 @@ _oa.producing = _oa_mode
 for _p in _oa.pools.values():
     _p.output, _p.room = 0.0, float('inf')
 
+# ── MCMV_ALLOCATION 'metro' ──────────────────────────────────────────────────
+print("\n── MCMV metro pot ───────────────────────────────────────────────────")
+from world.funds import METRO  # noqa: E402
+
+_f = sim.funds
+_for_sale = sorted((h for fm in sim.firms.values() if fm.sector == 'Construction' and not fm.pool
+                    for h in fm.houses_for_sale), key=lambda h: h.price)
+_f.update_policy_families(sim.PARAMS['INCOME_MODALIDADES']['faixa1'], pooled=True)
+_renters = [fam for fam in _f.policy_families[METRO] if not fam.owned_houses]
+_k = min(len(_renters), len(_for_sale))
+_pot = defaultdict(float, {METRO: sum(h.price for h in _for_sale) + 1.0})
+_start = _pot[METRO]
+_cheapest = {h.id for h in _for_sale[:_k]}
+_prices = sum(h.price for h in _for_sale[:_k])
+_diag = {METRO: _f.blank_mcmv_diag()}
+_f.buy_houses_give_to_families(_pot, _diag, 'mcmv', pooled=True)
+_bought = [h for h in _for_sale if h.family_owner and h.owner_id in sim.families]
+check("MCMV metro pot buys the cheapest units for sale anywhere in the ACP, one per eligible renter",
+      _diag[METRO]['units_bought'] == _k and {h.id for h in _bought} == _cheapest
+      and abs(_start - _pot[METRO] - _prices) < 1e-6 * max(_start, 1),
+      f"bought {_diag[METRO]['units_bought']}, expected {_k}, muns {len({h.region_id[:6] for h in _bought})}")
+_contrib = {m: 1.0 + i for i, m in enumerate(sorted({r[:6] for r in sim.regions}))}
+_diag[METRO]['money_topup'] = sum(_contrib.values())
+_spread = _f.spread_pool_diag(_diag[METRO], _contrib)
+check("MCMV metro diagnostics by municipality add up to the pot",
+      sum(d['units_bought'] for d in _spread.values()) == _diag[METRO]['units_bought']
+      and abs(sum(d['money_topup'] for d in _spread.values()) - sum(_contrib.values())) < 1e-9
+      and abs(sum(d['money_residual'] for d in _spread.values()) - _diag[METRO]['money_residual']) < 1e-6,
+      f"{len(_spread)} municipalities")
+_f.policy_families = defaultdict(list)
+
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")
 print(f"Results: {PASS} PASS  |  {FAIL} FAIL  |  {PASS + FAIL} total")

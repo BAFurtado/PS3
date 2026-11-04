@@ -189,6 +189,10 @@ POLICIES = "no_policy"
 
 # POLICY_MCMV indicates whether MCMV is active
 POLICY_MCMV = True
+# MCMV Faixa 1 allocation. 'municipal': each municipality's pot buys new units for sale in the municipality for its
+# own poorest renters. 'metro': the municipalities' top-ups go into one ACP pot that buys the cheapest new units for
+# sale anywhere in the ACP for the ACP's poorest renters.
+MCMV_ALLOCATION = 'municipal'
 OGU_INVESTMENT = {'otimista': .25,
                   'tendencial': .09,
                   'pessimista': .04}
