@@ -87,6 +87,10 @@ class Firm:
     inno_inv = 0.0
     # PUBLIC_TRANSIT_COST, the fare per commute unit, of which employers pay vale-transporte (set by Simulation)
     vale_transporte = None
+    # TRANSPORT_MONEY 'fare': a transit commuter's monthly fare bill (set by Simulation); None otherwise
+    fare_bill = None
+    # The salary (before the worker's contributions) as a share of the gross wage (SALARY_SHARE; set by Simulation)
+    salary_share = 1.0
     # Share of capital advanced as revenue in a month without sales (FIRM_CAPITAL_MONTHS sets it to 1/months)
     cold_start_share = 0.001
     # Consecutive months insolvent / idle (FIRM_EXIT_MONTHS); set when the firm exits
@@ -716,7 +720,17 @@ class Firm:
                     # Deduce LABOR TAXES from employees' salaries as a percentual of each salary
                     gross = total_salary_paid * employee.wage_weight(alpha) / total_weight
                     wage = gross * (1 - tax_labor)
-                    if not employee.has_car:
+                    if Firm.fare_bill is not None:
+                        # TRANSPORT_MONEY 'fare': the firm pays the bill above VT_WAGE_SHARE of the salary into its
+                        # region's transport treasure, and the employee owes the rest (Agent.grab_money)
+                        if employee.has_car:
+                            employee.fare_due = 0.0
+                        else:
+                            subsidy = max(0.0, Firm.fare_bill - VT_WAGE_SHARE * Firm.salary_share * gross)
+                            employee.fare_due = Firm.fare_bill - subsidy
+                            regions[self.region_id].collect_taxes(subsidy, 'transport')
+                            self.total_balance -= subsidy
+                    elif not employee.has_car:
                         # The employer's part of the fare the employee pays in Agent.pay_transport; not wage
                         units = employee.distance if employee.commute_cost_units is None \
                             else employee.commute_cost_units

@@ -315,6 +315,12 @@ class Simulation:
         self.investment_rate = float(pd.read_csv('input/investment_rate_2015.csv', sep=';').investment_rate.iloc[0])
         ConstructionFirm.planned = self.PARAMS.get('CONSTRUCTION_PLAN', 'pipeline') == 'sales'
         Firm.vale_transporte = self.PARAMS['PUBLIC_TRANSIT_COST']
+        # TRANSPORT_MONEY 'fare': the monthly fare bill (set_fare_bill), None otherwise
+        self.fare_mode = self.PARAMS.get('TRANSPORT_MONEY', 'distance') == 'fare'
+        Firm.fare_bill = 0.0 if self.fare_mode else None
+        # The salary (before the worker's contributions) as a share of the gross wage, and as a multiple of the wage paid
+        Firm.salary_share = self.PARAMS.get('SALARY_SHARE', 1.0)
+        self.salary_factor = Firm.salary_share / (1 - self.PARAMS['TAX_LABOR']) if 'SALARY_SHARE' in self.PARAMS else 1.0
         if self.PARAMS.get('POSTING_EDUCATION', 'off') == 'census':
             self.posting_education = posting_education(self.mun_to_regions)
         self.own_account = OwnAccountPools(self)
@@ -428,7 +434,18 @@ class Simulation:
     def daily(self):
         pass
 
+    def set_fare_bill(self):
+        """TRANSPORT_MONEY 'fare': the monthly fare bill is FARE_INCOME_SHARE times the mean of last month's salaries
+        of agents in a job with a positive wage, 0 before any wage is paid. A firm employee's salary is its wage paid
+        times salary_factor, an own-account worker's its pay."""
+        wages = [a.last_wage * (1.0 if self.firms[a.firm_id].pool else self.salary_factor)
+                 for a in self.agents.values()
+                 if a.firm_id is not None and a.firm_id in self.firms and a.last_wage is not None and a.last_wage > 0]
+        Firm.fare_bill = self.PARAMS['FARE_INCOME_SHARE'] * float(np.mean(wages)) if wages else 0.0
+
     def monthly(self):
+        if self.fare_mode:
+            self.set_fare_bill()
         if self.transport.matrix is not None:
             self.transport.update(self.clock.days)
             # Keep commutes current with the network in force and with house moves

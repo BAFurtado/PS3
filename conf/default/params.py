@@ -467,6 +467,17 @@ WAGE_TO_CAR_OWNERSHIP_QUANTILES = [
 # Employers pay vale-transporte (Lei 7.418/1985): a public transport commuter's fare above 6 % of the gross wage.
 PRIVATE_TRANSIT_COST = .25
 PUBLIC_TRANSIT_COST = .05
+# Commuting money. 'distance': an employed agent pays its commute units times PRIVATE_TRANSIT_COST (car) or
+# PUBLIC_TRANSIT_COST (transit). 'fare': a car owner pays nothing, and a transit commuter's monthly fare bill is
+# FARE_INCOME_SHARE times the previous month's mean salary of employed agents. A firm pays the part of its employee's
+# bill above 6 % of the salary, and the employee pays the rest out of the family's Transport budget. The salary is the
+# gross wage times SALARY_SHARE (TAX_RATES 'data'), the gross wage otherwise. Each region's fares
+# buy from every Transport seller with stock, pro rata to the value of its stock. The hiring score penalises commute
+# time (or distance) alike for car owners and transit commuters.
+TRANSPORT_MONEY = 'distance'
+# The monthly bill of 50 transit fares as a share of the mean salary of the employed (TRANSPORT_MONEY 'fare'). 0.06 is
+# ENMU's Rede Base for the RIDE-DF and 0.033 its Cenário Otimizado.
+FARE_INCOME_SHARE = 0.06
 # Price of imported inputs (step 2b). 'exogenous': 1, the initial goods price held in real terms, plus freight, so local
 # price rises do not feed back into import prices. 'local' (old model): the local seller's price plus freight.
 IMPORT_PRICE = 'local'

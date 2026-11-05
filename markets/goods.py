@@ -169,6 +169,9 @@ class RegionalMarket:
         if not transport_firms:
             return
         params = self.sim.PARAMS
+        if getattr(self.sim, "fare_mode", False):
+            self.fare_clearing(transport_firms)
+            return
         size_market = int(params['SIZE_MARKET'])
         for region in self.sim.regions.values():
             money = region.treasure['transport']
@@ -181,6 +184,27 @@ class RegionalMarket:
             firm = min(market, key=lambda f: f.inventory[0].price)
             self.monthly_fares += money
             change = firm.sale(money, self.sim.regions, params['TAX_CONSUMPTION'], region.id, self.if_origin)
+            region.treasure['transport'] = change
+            self.monthly_hh_consumption['Transport'] += money - change
+
+    def fare_clearing(self, transport_firms):
+        """TRANSPORT_MONEY 'fare': each region's transport treasure buys from every Transport seller with stock, each
+        receiving the money in proportion to the value of its stock (quantity times price). What finds no stock waits
+        for next month."""
+        tax_consumption = self.sim.PARAMS['TAX_CONSUMPTION']
+        for region in self.sim.regions.values():
+            money = region.treasure['transport']
+            if money <= 0:
+                continue
+            stocked = [(f, f.inventory[0].quantity * f.inventory[0].price) for f in transport_firms
+                       if f.inventory[0].quantity > 0]
+            value = sum(v for _, v in stocked)
+            if value <= 0:
+                continue
+            change = 0.0
+            for firm, v in stocked:
+                change += firm.sale(money * v / value, self.sim.regions, tax_consumption, region.id, self.if_origin)
+            self.monthly_fares += money
             region.treasure['transport'] = change
             self.monthly_hh_consumption['Transport'] += money - change
 

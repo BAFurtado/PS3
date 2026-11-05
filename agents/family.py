@@ -6,6 +6,14 @@ from collections import defaultdict, deque
 from .firm import import_price as firm_import_price
 
 
+def fare_budget(money_to_spend, fares, transport_share):
+    """TRANSPORT_MONEY 'fare': a family that paid fares and spends money_to_spend on goods spends
+    max(0, transport_share x (money_to_spend + fares) - fares) on Transport, and the rest on the other sectors in
+    proportion to their shares. Returns the Transport money and the factor on the other sectors' shares."""
+    transport_money = max(0.0, transport_share * (money_to_spend + fares) - fares)
+    return transport_money, (money_to_spend - transport_money) / (1 - transport_share)
+
+
 class Family:
     """
     Family class. Nothing but a bundle of Agents together.
@@ -258,6 +266,10 @@ class Family:
 
         return housing_need - opportunity_cost - liquidity_penalty
 
+    def fares_paid(self):
+        """The fares the members paid out of this month's money (TRANSPORT_MONEY 'fare'), 0 otherwise"""
+        return sum(m.fare_paid for m in self.members.values())
+
     def decision_on_consumption(self, central, year, month, params, regions):
         """ Family consumes its permanent income, based on members' wages, real estate assets, and savings.
         A. Separate expenses for renting, banking loans, goods' consumption, and investments in that order.
@@ -294,6 +306,12 @@ class Family:
             target = max(0.0, target + params['WEALTH_ADJUSTMENT'] * gap)
             needed = target + rent + loan
 
+        # TRANSPORT_MONEY 'fare': the members' fares paid are part of the consumption target
+        fares = self.fares_paid() if params.get('TRANSPORT_MONEY', 'distance') == 'fare' else 0.0
+        if fares > 0:
+            target = max(0.0, target - fares)
+            needed = target + rent + loan
+
         # Wages and the savings kept at home first; bank deposits only if they fall short
         money += self.savings
         self.savings = 0
@@ -327,6 +345,11 @@ class Family:
         import_price = firm_import_price(params)
 
         household_demand = regional_market.final_demand['HouseholdConsumption']
+        # TRANSPORT_MONEY 'fare': the fares paid come out of the Transport share first, and any excess out of the other
+        # sectors in proportion to their shares
+        fares = self.fares_paid() if params.get('TRANSPORT_MONEY', 'distance') == 'fare' else 0.0
+        if fares > 0:
+            transport_money, other_scale = fare_budget(money_to_spend, fares, household_demand.get('Transport', 0.0))
         total_consumption = defaultdict(float)
         savings = self.savings
         avg_utility = 0.0
@@ -339,7 +362,12 @@ class Family:
             if sector_share <= 0:
                 continue
 
-            money_this_sector = money_to_spend * sector_share
+            if fares <= 0:
+                money_this_sector = money_to_spend * sector_share
+            elif sector == 'Transport':
+                money_this_sector = transport_money
+            else:
+                money_this_sector = other_scale * sector_share
             if money_this_sector <= 0:
                 continue
             regional_market.monthly_hh_intended[sector] += money_this_sector

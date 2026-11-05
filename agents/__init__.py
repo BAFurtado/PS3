@@ -127,9 +127,19 @@ class Agent:
         regions[self.family.house.region_id].collect_taxes(cost_transport, 'transport')
         return money - cost_transport
 
+    # TRANSPORT_MONEY 'fare': the fare owed for the last wage paid, and the fare paid out of this month's money
+    fare_due = 0.0
+    fare_paid = 0.0
+
     def grab_money(self, params, regions):
         money = self.money
         self.money = 0
+        if params.get('TRANSPORT_MONEY', 'distance') == 'fare':
+            # The fare owed goes to the home region's transport treasure
+            self.fare_paid, self.fare_due = self.fare_due, 0.0
+            if self.fare_paid > 0:
+                regions[self.family.house.region_id].collect_taxes(self.fare_paid, 'transport')
+            return money - self.fare_paid
         if self.is_employed:
             money = self.pay_transport(money, params, regions)
         return money

@@ -147,9 +147,12 @@ class LaborMarket:
         # Normalização
         q_norm = (quals - qual_min) / (qual_max - qual_min + 1e-6)
 
-        # Transit cost
-        has_car = np.array([c.has_car for c in candidates])
-        transit_cost = np.where(has_car, private_cost, public_cost)
+        # Transit cost; TRANSPORT_MONEY 'fare': the same for car owners and transit commuters
+        if getattr(self.sim, "fare_mode", False):
+            transit_cost = 1.0
+        else:
+            has_car = np.array([c.has_car for c in candidates])
+            transit_cost = np.where(has_car, private_cost, public_cost)
 
         # Distâncias ou tempos de deslocamento
         if self.sim.transport.matrix is not None:

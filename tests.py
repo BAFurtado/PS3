@@ -1940,6 +1940,93 @@ for _a, _car, _units, _m in _vt_keep:
 check("Vale-transporte: transit commuter paid the fare above 6 % of the gross wage, car owner nothing, firm pays it",
       _vt_ok_pay and _vt_sub_a > 0, f"pay {_vt_ok_pay} sub {_vt_sub_a:.3g}")
 
+# TRANSPORT_MONEY 'fare': the firm pays the fare bill above 6 % of the salary into its region's transport treasure,
+# the transit employee owes the rest, a car owner owes nothing
+_fm_cars = {e: e.has_car for e in _vt_firm.employees.values()}
+for _e in _vt_firm.employees.values():
+    _e.has_car = _e is not _vt_a
+_fm_fare = 1e6
+_fm_old = _VTFirm.fare_bill
+_VTFirm.fare_bill = _fm_fare
+_fm_bal = _vt_firm.total_balance = 1e9
+_fm_money = {a: a.money for a in (_vt_a, _vt_b)}
+_fm_treasure = sim.regions[_vt_firm.region_id].treasure['transport']
+_vt_firm.make_payment(sim.regions, 0.1, sim.PARAMS['PRODUCTIVITY_EXPONENT'], sim.PARAMS['TAX_LABOR'], 0.0)
+_fm_salary_a = _vt_a.wage_paid / (1 - _vt_tax) * _VTFirm.salary_share
+_fm_sub = _fm_fare - _vt_share * _fm_salary_a
+_fm_ok = (abs(_vt_a.fare_due - _vt_share * _fm_salary_a) < 1e-6 and _vt_b.fare_due == 0.0
+          and abs(_vt_a.money - _fm_money[_vt_a] - _vt_a.wage_paid) < 1e-6
+          and abs(sim.regions[_vt_firm.region_id].treasure['transport'] - _fm_treasure - _fm_sub) < 1e-3
+          and abs(_fm_bal - _vt_firm.total_balance - _vt_firm.wages_paid - _fm_sub) < 1e-3)
+sim.regions[_vt_firm.region_id].treasure['transport'] = _fm_treasure
+_VTFirm.fare_bill = _fm_old
+for _e, _car in _fm_cars.items():
+    _e.has_car = _car
+for _a, _car, _units, _m in _vt_keep:
+    _a.has_car, _a.commute_cost_units, _a.money = _car, _units, _m
+check("TRANSPORT_MONEY 'fare': firm pays the bill above 6 % of the salary, transit employee owes the rest, car owner 0",
+      _fm_ok and _VTFirm.salary_share < 1, f"due {_vt_a.fare_due:.4g} vs {_vt_share * _fm_salary_a:.4g}, car {_vt_b.fare_due}")
+
+# TRANSPORT_MONEY 'fare': the fare owed is paid into the home region's transport treasure out of the agent's money
+_fg_a = _vt_a
+_fg_region = sim.regions[_fg_a.family.house.region_id]
+_fg_keep = (_fg_a.money, _fg_a.fare_due, _fg_a.fare_paid, _fg_region.treasure['transport'])
+_fg_a.money, _fg_a.fare_due = 10.0, 7.0
+_fg_got = _fg_a.grab_money(dict(sim.PARAMS, TRANSPORT_MONEY='fare'), sim.regions)
+_fg_ok = (abs(_fg_got - 3.0) < 1e-12 and _fg_a.fare_paid == 7.0 and _fg_a.fare_due == 0.0
+          and abs(_fg_region.treasure['transport'] - _fg_keep[3] - 7.0) < 1e-9)
+_fg_a.money, _fg_a.fare_due, _fg_a.fare_paid, _fg_region.treasure['transport'] = _fg_keep
+check("TRANSPORT_MONEY 'fare': the fare owed goes from the agent's money to its home region's transport treasure",
+      _fg_ok, f"got {_fg_got}")
+
+# TRANSPORT_MONEY 'fare': fares come out of the family's Transport share first, then the other sectors pro rata
+from agents.family import fare_budget as _fb
+_fb_s, _fb_share = 100.0, 0.04
+_fb_t1, _fb_k1 = _fb(_fb_s, 2.0, _fb_share)
+_fb_t2, _fb_k2 = _fb(_fb_s, 10.0, _fb_share)
+_fb_ok = (abs(_fb_t1 - (_fb_share * 102.0 - 2.0)) < 1e-12 and abs(_fb_k1 - 102.0) < 1e-9
+          and _fb_t2 == 0.0 and abs(_fb_k2 * (1 - _fb_share) - _fb_s) < 1e-9
+          and abs(_fb_t1 + _fb_k1 * (1 - _fb_share) - _fb_s) < 1e-9)
+check("TRANSPORT_MONEY 'fare': fares come out of the Transport share first, any excess out of the others pro rata",
+      _fb_ok, f"small ({_fb_t1:.4g}, {_fb_k1:.4g}), large ({_fb_t2:.4g}, {_fb_k2:.4g})")
+
+# TRANSPORT_MONEY 'fare': a region's fares buy from every Transport seller with stock, pro rata to the value of its stock
+_fc_firms = [f for f in sim.firms.values() if f.sector == 'Transport'][:2]
+if len(_fc_firms) == 2:
+    _fc_rm = sim.regional_market
+    _fc_region = next(iter(sim.regions.values()))
+    _fc_keep = [(f, f.inventory[0].quantity, f.inventory[0].price, f.total_balance, f.revenue, f.unmet_quantity,
+                 f.amount_sold) for f in _fc_firms]
+    _fc_treasures = {r: dict(r.treasure) for r in sim.regions.values()}
+    _fc_stats = (_fc_rm.monthly_fares, _fc_rm.monthly_hh_consumption)
+    _fc_rm.monthly_hh_consumption = defaultdict(float)
+    for r in sim.regions.values():
+        r.treasure['transport'] = 0.0
+    (_fc_firms[0].inventory[0].quantity, _fc_firms[0].inventory[0].price,
+     _fc_firms[1].inventory[0].quantity, _fc_firms[1].inventory[0].price) = 100.0, 2.0, 50.0, 1.0
+    for f in _fc_firms:
+        f.revenue = 0.0
+    _fc_region.treasure['transport'] = 125.0
+    _fc_rm.fare_clearing(_fc_firms)
+    _fc_split = (_fc_firms[0].revenue / _fc_firms[1].revenue, _fc_region.treasure['transport'])
+    _fc_region.treasure['transport'] = 400.0
+    _fc_rm.fare_clearing(_fc_firms)
+    _fc_left = _fc_region.treasure['transport']
+    _fc_out = [f.inventory[0].quantity for f in _fc_firms]
+    for f, q, p, b, rv, u, s_ in _fc_keep:
+        f.inventory[0].quantity, f.inventory[0].price, f.total_balance, f.revenue = q, p, b, rv
+        f.unmet_quantity, f.amount_sold = u, s_
+    for r, t in _fc_treasures.items():
+        r.treasure.clear()
+        r.treasure.update(t)
+    _fc_rm.monthly_fares, _fc_rm.monthly_hh_consumption = _fc_stats
+    check("TRANSPORT_MONEY 'fare': fares split pro rata to stock value; money above all stock waits for next month",
+          abs(_fc_split[0] - 4.0) < 1e-9 and abs(_fc_split[1]) < 1e-9 and _fc_out == [0.0, 0.0]
+          and abs(_fc_left - 275.0) < 1e-9, f"split {_fc_split}, left {_fc_left}, stock {_fc_out}")
+else:
+    check("TRANSPORT_MONEY 'fare': fares split pro rata to stock value (needs two Transport sellers)", False,
+          f"{len(_fc_firms)} Transport sellers")
+
 # POSTING_EDUCATION 'census': a vacancy is filled only from applicants of its drawn level
 from world.own_account import level as _pe_level, posting_education as _pe_mix
 _pe_lm = sim.labor_market
