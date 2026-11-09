@@ -64,3 +64,6 @@ Thumbs.db
 # calibrated/README.md is deliberately NOT ignored.
 calibrated/*.zip
 input/bndes/semob/
+# SEEG emissions data for the validation scripts, kept outside git (258 MB workbook and its per-ACP extract).
+analysis/validation/real_world_data/emission_data_municipality.xlsx
+analysis/calibration/data/seeg_acp_emissions.csv

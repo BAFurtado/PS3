@@ -1,5 +1,5 @@
 """
-Emissions policy: every scenario x capital x seed in one resumable queue, 2010-2039.
+Emissions policy: every scenario x capital x seed in one resumable queue, 2010-2029 (END = 2030-01-01).
 
 Scenarios (each differs from NO_POLICY only after the eco policy starts, STARTING_DAY + ECO_POLICY_DAYS, 2014-12):
     NO_POLICY                 control: every policy flag off for the whole run (DiD / event-study counterfactual)
@@ -54,6 +54,7 @@ for _n in ('params', 'run'):
 
 SEED = 1000
 RUNS = 10
+END = datetime.date(2030, 1, 1)
 OUTPUT = 'output/emissions'
 
 _OFF = {'TAX_EMISSION': 0, 'ECO_INVESTMENT_SUBSIDIES': 0, 'TARGETED_SUBSIDIES': False, 'CARBON_TAX_RECYCLING': False}
@@ -189,6 +190,7 @@ def build_jobs(root, items, params=None):
             shutil.rmtree(path)
         p = copy.deepcopy(conf.PARAMS)
         p.update(copy.deepcopy(SCENARIOS[s]))
+        p['TOTAL_DAYS'] = (END - p['STARTING_DAY']).days
         p.update(params or {})
         p['PROCESSING_ACPS'] = [city]
         p['SEED'] = SEED + i
