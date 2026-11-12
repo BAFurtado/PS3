@@ -833,6 +833,8 @@ class ConstructionFirm(Firm):
     house_sales = 0.0
     house_materials = 0.0
     last_house_materials = 0.0
+    # MCMV_COMMISSION: completed commissioned units not yet handed over, as (house, contract price)
+    commissioned = None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -945,14 +947,21 @@ class ConstructionFirm(Firm):
 
         # Building in any profitable region
         region = sim.seed.choice(profitable_regions)
+        self.start_project(region, building_size, building_quality,
+                           values.build_cost(region.id, building_size, building_quality, self.productivity), params)
+
+    def start_project(self, region, size, quality, works, params, contract=None):
+        """Registers a project of `size` and `quality` in `region` whose works cost `works` in money, buys its
+        license and land. `contract`: the price a programme pays on completion, for a commissioned unit"""
         idx = max(self.building) + 1 if self.building else 0
         self.building[idx]["region"] = region.id
-        self.building[idx]["size"] = building_size
-        self.building[idx]["quality"] = building_quality
+        self.building[idx]["size"] = size
+        self.building[idx]["quality"] = quality
         # Product.quantity increases as construction moves forward and is deducted at once: the building's money
         # cost in construction output at its current price
-        self.building[idx]["cost"] = values.build_cost(region.id, building_size, building_quality,
-                                                       self.productivity) / self.prices
+        self.building[idx]["cost"] = works / self.prices
+        if contract is not None:
+            self.building[idx]["contract"] = contract
 
         # Provide temporary cashflow revenue numbers before sales start to trickle in.
         # Additional value per month. Expectations of monthly payments before first sell
@@ -963,7 +972,7 @@ class ConstructionFirm(Firm):
         # Buy license
         region.licenses -= 1
         # Land at LOT_COST of the house's value
-        cost_of_land = building_quality * region.index * building_size * House.scale(region.id) * params["LOT_COST"]
+        cost_of_land = quality * region.index * size * House.scale(region.id) * params["LOT_COST"]
         self.total_balance -= cost_of_land
         region.collect_taxes(cost_of_land, "transaction")
         if params.get('FIRM_CAPITAL_MONTHS', 0) > 0:
@@ -977,6 +986,30 @@ class ConstructionFirm(Firm):
             for _ in range(months):
                 date += relativedelta.relativedelta(months=+1)
                 self.land_schedule[date] += cost_of_land / months
+
+    def take_contract(self, regions, params, sim, seed_np, ceiling, works_factor):
+        """MCMV_COMMISSION: the firm signs a contract to build one quality-1 unit for `ceiling` in a licensed region,
+        drawn at random among those where ceiling - works - land is positive and it can pay the land from free cash.
+        The works cost is scaled by `works_factor` {2-digit state code: factor}. Returns whether it signed"""
+        size = seed_np.lognormal(*self._SIZE_PARAMS[1])
+        if not self.productivity:
+            self.productivity = seed_np.randint(100 - int(params['CONSTRUCTION_FIRM_MARKUP_MULTIPLIER'] *
+                                                params["MARKUP"] * 100), 101) / 100
+        free_cash = self.free_cash() - params.get('FIRM_CAPITAL_MONTHS', 0) * self.capacity_value(
+            params['PRODUCTIVITY_EXPONENT'], params['PRODUCTIVITY_MAGNITUDE_DIVISOR'])
+        profitable = []
+        for r in regions:
+            if r.licenses <= 0 or self.total_balance <= r.license_price:
+                continue
+            land = r.index * size * House.scale(r.id) * params["LOT_COST"]
+            works = sim.house_values.build_cost(r.id, size, 1, self.productivity) * works_factor[r.id[:2]]
+            if ceiling - works - land > 0 and free_cash >= land:
+                profitable.append((r, works))
+        if not profitable:
+            return False
+        region, works = sim.seed.choice(profitable)
+        self.start_project(region, size, 1, works, params, contract=ceiling)
+        return True
 
     def labor_signals(self, params):
         """
@@ -1051,6 +1084,12 @@ class ConstructionFirm(Firm):
 
         # Register accomplishments within firms' house inventory
         self.houses_built.append(h)
+        if "contract" in building_info:
+            # Commissioned: held for the programme, off the market, until Funds hands it over
+            if self.commissioned is None:
+                self.commissioned = []
+            self.commissioned.append((h, building_info["contract"]))
+            return None
         self.houses_for_sale.append(h)
 
         return h

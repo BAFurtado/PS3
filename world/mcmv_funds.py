@@ -29,6 +29,9 @@ class MCMV:
             # conf.PARAMS at its defaults.
             params = self.sim.PARAMS
             value = params['OGU_INVESTMENT'][params['FUNDS_AVAILABILITY']]
+            after = params.get('OGU_AFTER_DOSE')
+            if after is not None and year > after[0]:
+                value = after[1]
         else:
             value = 0
 
