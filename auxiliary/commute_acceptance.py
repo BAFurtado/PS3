@@ -13,6 +13,15 @@ the observed bands.
 
     python auxiliary/commute_acceptance.py [weights] [ACP ...]
 writes input/commute_acceptance_2010.csv: acp;weights;t50;t_scale;band;observed;offered;fitted
+
+By mode, Census 2022: one P(t) for private-vehicle commuters (car, motorcycle, taxi, motorcycle taxi) fitted to their
+bands against the offered car minutes, one for transit commuters (bus, BRT, van, rail) against the offered transit
+minutes. Observed: Sidra table 10330 (input/commute_mode_2022.csv, auxiliary/commute_mode_2022.py), employed persons
+aged 10+ working outside home, bands up to 30 min, 31-60, 61-120, over 120, walking and cycling left out. Offered: as
+above, weights E_r x c_r x J_s for private and E_r x (1 - c_r) x J_s for transit.
+
+    python auxiliary/commute_acceptance.py 2022 [weights] [ACP ...]
+writes input/commute_acceptance_2022.csv: acp;weights;mode;t50;t_scale;band;observed;offered;fitted
 """
 import os
 import sys
@@ -23,6 +32,13 @@ from scipy.optimize import minimize
 
 DATA = '/home/furtado/MyModels/censo2010/data/amostra'
 OUT = 'input/commute_acceptance_2010.csv'
+OUT_2022 = 'input/commute_acceptance_2022.csv'
+MODE_2022 = 'input/commute_mode_2022.csv'
+MODE_GROUP = {'car': 'private', 'motorcycle': 'private', 'taxi': 'private', 'motorcycle_taxi': 'private',
+              'bus': 'transit', 'brt': 'transit', 'van': 'transit', 'rail': 'transit'}
+BAND_2022 = {'Até cinco minutos': 0, 'De seis minutos até quinze minutos': 0, 'Mais de quinze minutos até meia hora': 0,
+             'Mais de meia hora até uma hora': 1, 'Mais de uma hora até duas horas': 2,
+             'Mais de duas horas até quatro horas': 3, 'Mais de quatro horas': 3}
 BANDS = [0, 30, 60, 120, np.inf]
 LABELS = ['0-30', '31-60', '61-120', '120+']
 CENSUS_BAND = {'1': 0, '2': 0, '3': 1, '4': 2, '5': 3}
@@ -71,6 +87,15 @@ def acceptance(t, t50, scale):
 
 
 def offered(acp, weights, people):
+    by_mode, matched = offered_by_mode(acp, weights, people)
+    times = np.concatenate([by_mode['private'][0], by_mode['transit'][0]])
+    wt = np.concatenate([by_mode['private'][1], by_mode['transit'][1]])
+    return times, wt, matched
+
+
+def offered_by_mode(acp, weights, people):
+    """{'private': (car minutes, weights), 'transit': (transit minutes, weights)}, positive weights only, and the share
+    of the ACP's regions with census commuters"""
     m = pd.read_parquet('input/transport/travel_times_%s__%s.parquet' % (acp.replace(' ', '_'), weights))
     m = m.pivot_table(index=['ap_orig', 'ap_dest'], columns='state', values='minutes').reset_index()
     kappa = pd.read_csv('input/car_congestion_2022.csv', sep=';')
@@ -83,10 +108,12 @@ def offered(acp, weights, people):
     m['c'] = m.ap_orig.map(by_area.c).fillna(0.0)
     m['J'] = m.ap_dest.map(jobs).fillna(0.0)
     w = m.E * m.J
-    times = np.concatenate([m.car.to_numpy(), m.base.to_numpy()])
-    wt = np.concatenate([(w * m.c).to_numpy(), (w * (1 - m.c)).to_numpy()])
-    keep = wt > 0
-    return times[keep], wt[keep], float(m.E.groupby(m.ap_orig).first().gt(0).mean())
+    out = {}
+    for mode, times, wt in (('private', m.car.to_numpy(), (w * m.c).to_numpy()),
+                            ('transit', m.base.to_numpy(), (w * (1 - m.c)).to_numpy())):
+        keep = wt > 0
+        out[mode] = (times[keep], wt[keep])
+    return out, float(m.E.groupby(m.ap_orig).first().gt(0).mean())
 
 
 def bands(times, wt):
@@ -132,5 +159,51 @@ def main(weights='trips', *acps):
     print('wrote', OUT)
 
 
+def observed_2022(acp):
+    """Census 2022 bands of the ACP's motorised commuters, by mode group"""
+    t = pd.read_csv(MODE_2022, sep=';')
+    t = t[(t.acp == acp) & t['mode'].isin(MODE_GROUP)]
+    # Cells Sidra leaves empty hold no persons
+    t = t.assign(group=t['mode'].map(MODE_GROUP), b=t.band.map(BAND_2022), persons=t.persons.fillna(0.0))
+    out = {}
+    for mode, g in t.groupby('group'):
+        s = np.bincount(g.b, weights=g.persons, minlength=4)
+        out[mode] = s / s.sum()
+    return out
+
+
+def main_2022(weights='trips', *acps):
+    acps = list(acps) or ACPS
+    t = pd.read_csv('input/ACPs_MUN_CODES.csv', sep=';')
+    t = t[t.ACPs.isin(acps)]
+    people = census(dict(zip(t.cod_mun.astype(str), t.ACPs)))
+    out = []
+    for acp in acps:
+        by_mode, matched = offered_by_mode(acp, weights, people[people.acp == acp])
+        obs = observed_2022(acp)
+        for mode in ('private', 'transit'):
+            times, wt = by_mode[mode]
+            t50, scale, kl = fit(times, wt, obs[mode])
+            off = bands(times, wt)
+            fitted = bands(times, wt * acceptance(times, t50, scale))
+            print('%-17s %s %-7s areas matched %.2f | T50 %.1f T_SCALE %.1f KL %.5f | observed %s offered %s'
+                  ' fitted %s' % (acp, weights, mode, matched, t50, scale, kl, np.round(obs[mode], 3),
+                                  np.round(off, 3), np.round(fitted, 3)), flush=True)
+            for b, label in enumerate(LABELS):
+                out.append(dict(acp=acp, weights=weights, mode=mode, t50=round(t50, 2), t_scale=round(scale, 2),
+                                band=label, observed=round(obs[mode][b], 4), offered=round(off[b], 4),
+                                fitted=round(fitted[b], 4)))
+    new = pd.DataFrame(out)
+    if os.path.exists(OUT_2022):
+        old = pd.read_csv(OUT_2022, sep=';')
+        old = old[~(old.weights.eq(weights) & old.acp.isin(acps))]
+        new = pd.concat([old, new], ignore_index=True)
+    new.to_csv(OUT_2022, sep=';', index=False)
+    print('wrote', OUT_2022)
+
+
 if __name__ == '__main__':
-    main(*sys.argv[1:])
+    if sys.argv[1:2] == ['2022']:
+        main_2022(*sys.argv[2:])
+    else:
+        main(*sys.argv[1:])

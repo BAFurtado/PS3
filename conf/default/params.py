@@ -264,8 +264,9 @@ TRANSPORT_WEIGHTS = None
 TRANSPORT_FUTURE = 'nec'
 # 'census': a job candidate accepts an offer with probability P(t) / P(0), logistic in its one-way commute minutes, T50
 # and T_SCALE fitted per ACP to the Census 2010 home-to-work bands (input/commute_acceptance_2010.csv,
-# auxiliary/commute_acceptance.py, world/transport.CommuteAcceptance). Needs TRANSPORT_WEIGHTS. 'off': every offer is
-# accepted.
+# auxiliary/commute_acceptance.py, world/transport.CommuteAcceptance). 'census2022': T50 and T_SCALE per ACP and mode,
+# fitted to the Census 2022 bands of private-vehicle and of transit commuters (input/commute_acceptance_2022.csv).
+# Both need TRANSPORT_WEIGHTS. 'off': every offer is accepted.
 COMMUTE_ACCEPTANCE = 'off'
 # 'census': car minutes of the ENMU zone matrices (state 'car', free flow) times the ACP's congestion factor, which
 # makes the car-to-transit time ratio that of the Census 2022 commutes (input/car_congestion_2022.csv,

@@ -1970,6 +1970,12 @@ _ca_p = [_ca.probability(t, '2211001000000') for t in (0, 30, 60, 120)]
 check("COMMUTE_ACCEPTANCE 'census': P(0) = 1 and P falls with commute minutes",
       _ca_p[0] == 1.0 and all(a > b for a, b in zip(_ca_p, _ca_p[1:])) and _ca.probability(500, '9999999') == 1.0,
       f"P at 0/30/60/120 min {[round(p, 3) for p in _ca_p]}")
+_ca22 = _CA(['TERESINA'], 'trips', 'census2022')
+_ca22_p = {car: [_ca22.probability(t, '2211001000000', car) for t in (0, 30, 60)] for car in (False, True)}
+check("COMMUTE_ACCEPTANCE 'census2022': P(0) = 1, falling in minutes, one curve per mode",
+      all(p[0] == 1.0 and p[0] > p[1] > p[2] for p in _ca22_p.values()) and _ca22_p[False] != _ca22_p[True]
+      and _ca.probability(30, '2211001000000', True) == _ca_p[1],
+      f"transit {[round(p, 3) for p in _ca22_p[False]]}, private {[round(p, 3) for p in _ca22_p[True]]}")
 
 # Vale-transporte: the employer pays a transit commuter the fare above 6 % of the gross wage, a car owner nothing
 from agents.firm import Firm as _VTFirm, VT_WAGE_SHARE as _vt_share

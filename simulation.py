@@ -325,12 +325,15 @@ class Simulation:
         self.car_ownership = None
         if self.PARAMS.get('CAR_OWNERSHIP', 'census') == 'census':
             self.car_ownership = CarOwnership(self.geo.processing_acps, self._seed)
-        # COMMUTE_ACCEPTANCE 'census': candidates accept offers with a probability falling in commute minutes
+        # COMMUTE_ACCEPTANCE 'census' / 'census2022': candidates accept offers with a probability falling in commute
+        # minutes
         self.commute_acceptance = None
-        if self.PARAMS.get('COMMUTE_ACCEPTANCE', 'off') == 'census':
+        acceptance = self.PARAMS.get('COMMUTE_ACCEPTANCE', 'off')
+        if acceptance != 'off':
             if self.transport.matrix is None or not self.PARAMS.get('TRANSPORT_WEIGHTS'):
-                raise ValueError("COMMUTE_ACCEPTANCE 'census' needs TRANSPORT_WEIGHTS and its travel-time matrix")
-            self.commute_acceptance = CommuteAcceptance(self.geo.processing_acps, self.PARAMS['TRANSPORT_WEIGHTS'])
+                raise ValueError("COMMUTE_ACCEPTANCE %r needs TRANSPORT_WEIGHTS and its travel-time matrix" % acceptance)
+            self.commute_acceptance = CommuteAcceptance(self.geo.processing_acps, self.PARAMS['TRANSPORT_WEIGHTS'],
+                                                        acceptance)
         # LOCATION_CHOICE 'logit': families trade housing for commuting time (world/location.py)
         self.location_choice = None
         if self.PARAMS.get('LOCATION_CHOICE', 'off') == 'logit':

@@ -235,22 +235,31 @@ class TransportNetwork:
         return True
 
 
-ACCEPTANCE = 'input/commute_acceptance_2010.csv'
+ACCEPTANCE = {'census': 'input/commute_acceptance_2010.csv', 'census2022': 'input/commute_acceptance_2022.csv'}
 
 
 class CommuteAcceptance:
-    """COMMUTE_ACCEPTANCE 'census': a candidate accepts an offer with probability P(t) / P(0),
+    """COMMUTE_ACCEPTANCE 'census' or 'census2022': a candidate accepts an offer with probability P(t) / P(0),
     P(t) = 1 / (1 + exp((t - T50) / T_SCALE)), t its one-way minutes to the firm (car minutes for car owners). T50 and
-    T_SCALE per ACP from input/commute_acceptance_2010.csv (auxiliary/commute_acceptance.py), the row of the run's
-    TRANSPORT_WEIGHTS. The Census bands fix the shape of P, and P(0) = 1 fixes its level."""
+    T_SCALE per ACP from the source's table (auxiliary/commute_acceptance.py), the row of the run's
+    TRANSPORT_WEIGHTS: one curve per ACP fitted to the Census 2010 bands ('census'), or one per ACP and mode fitted to
+    the Census 2022 bands of private-vehicle and of transit commuters ('census2022'). The Census bands fix the shape
+    of P, and P(0) = 1 fixes its level."""
 
-    def __init__(self, acps, weights):
-        table = pd.read_csv(ACCEPTANCE, sep=';')
-        table = table[(table.weights == weights) & table.acp.isin(acps)].drop_duplicates('acp').set_index('acp')
-        missing = set(acps) - set(table.index)
+    def __init__(self, acps, weights, source='census'):
+        path = ACCEPTANCE[source]
+        table = pd.read_csv(path, sep=';')
+        table = table[(table.weights == weights) & table.acp.isin(acps)]
+        missing = set(acps) - set(table.acp)
         if missing:
-            raise ValueError('%s has no %r rows for %s' % (ACCEPTANCE, weights, sorted(missing)))
-        self.params = {acp: (float(r.t50), float(r.t_scale)) for acp, r in table.iterrows()}
+            raise ValueError('%s has no %r rows for %s' % (path, weights, sorted(missing)))
+        if 'mode' in table:
+            table = table.drop_duplicates(['acp', 'mode'])
+            self.params = {(r.acp, r.mode == 'private'): (float(r.t50), float(r.t_scale)) for r in table.itertuples()}
+        else:
+            table = table.drop_duplicates('acp')
+            self.params = {(r.acp, car): (float(r.t50), float(r.t_scale))
+                           for r in table.itertuples() for car in (False, True)}
         muns = pd.read_csv('input/ACPs_MUN_CODES.csv', sep=';')
         muns = muns[muns.ACPs.isin(acps)]
         self.acp_by_mun = dict(zip(muns.cod_mun.astype(str), muns.ACPs))
@@ -259,9 +268,9 @@ class CommuteAcceptance:
     def logistic(t, t50, scale):
         return 1.0 / (1.0 + np.exp(np.clip((t - t50) / scale, -50.0, 50.0)))
 
-    def probability(self, minutes, region_id):
+    def probability(self, minutes, region_id, car=False):
         acp = self.acp_by_mun.get(str(region_id)[:7])
         if acp is None:
             return 1.0
-        t50, scale = self.params[acp]
+        t50, scale = self.params[(acp, bool(car))]
         return float(min(1.0, self.logistic(minutes, t50, scale) / self.logistic(0.0, t50, scale)))

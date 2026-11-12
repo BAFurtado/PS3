@@ -261,10 +261,10 @@ class LaborMarket:
         for firm, candidate, score in offers:
             if firm not in done_firms and candidate not in done_cands:
                 if acceptance is not None:
-                    # COMMUTE_ACCEPTANCE 'census': a rejected offer passes to the firm's next candidate
+                    # COMMUTE_ACCEPTANCE: a rejected offer passes to the firm's next candidate
                     home = candidate.family.house.region_id
                     minutes = self.sim.transport.minutes_between(home, firm.region_id, candidate.has_car)
-                    if self.seed_np.rand() >= acceptance.probability(minutes, home):
+                    if self.seed_np.rand() >= acceptance.probability(minutes, home, candidate.has_car):
                         continue
                 self.apply_assign(candidate, firm)
                 done_firms.add(firm)
