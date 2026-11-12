@@ -6,7 +6,8 @@ usual home-to-work time (V0662), weighted. Bands: up to 30 min, 31-60, 61-120, o
 6-30 are merged, as the model has no time below a region's own time).
 Offered: every pair of PS3 regions (r, s) with weight E_r x J_s, E_r the census commuters living in r, J_s the firms in
 s (input/firms_by_APs2010_t0_full.csv). A share c_r of E_r, the commuters of r living in a household with a car
-(V0222), travels in car minutes, the rest in transit base minutes (input/transport/travel_times_<ACP>__<weights>).
+or a motorcycle (V0222, V0221), travels in car minutes times the ACP's congestion factor
+(input/car_congestion_2022.csv), the rest in transit base minutes (input/transport/travel_times_<ACP>__<weights>).
 Fit: T50 and T_SCALE minimise the Kullback-Leibler divergence of the offered times weighted by P(t), binned, from
 the observed bands.
 
@@ -26,7 +27,7 @@ BANDS = [0, 30, 60, 120, np.inf]
 LABELS = ['0-30', '31-60', '61-120', '120+']
 CENSUS_BAND = {'1': 0, '2': 0, '3': 1, '4': 2, '5': 3}
 ACPS = ['BRASILIA', 'FORTALEZA', 'BAIXADA SANTISTA', 'GOIANIA', 'MANAUS', 'TERESINA']
-HOUSE = {'mun': (1, 7), 'ctrl': (21, 28), 'car': (103, 103)}
+HOUSE = {'mun': (1, 7), 'ctrl': (21, 28), 'moto': (102, 102), 'car': (103, 103)}
 PERSON = {'mun': (1, 7), 'area': (8, 20), 'ctrl': (21, 28), 'w': (29, 44), 'age': (62, 64), 'place': (328, 328),
           'daily': (350, 350), 'time': (351, 351)}
 
@@ -50,7 +51,7 @@ def census(mun_acp):
                 for line in h:
                     if line[0:7] in mun_acp:
                         r = cut(line, HOUSE)
-                        car[(r['mun'], r['ctrl'])] = r['car'] == '1'
+                        car[(r['mun'], r['ctrl'])] = r['car'] == '1' or r['moto'] == '1'
             with open(os.path.join(folder, f.replace('Domicilios', 'Pessoas')), encoding='latin-1') as p:
                 for line in p:
                     if line[0:7] not in mun_acp:
@@ -72,6 +73,8 @@ def acceptance(t, t50, scale):
 def offered(acp, weights, people):
     m = pd.read_parquet('input/transport/travel_times_%s__%s.parquet' % (acp.replace(' ', '_'), weights))
     m = m.pivot_table(index=['ap_orig', 'ap_dest'], columns='state', values='minutes').reset_index()
+    kappa = pd.read_csv('input/car_congestion_2022.csv', sep=';')
+    m['car'] = m.car * float(kappa[(kappa.acp == acp) & (kappa.weights == weights)].kappa.iloc[-1])
     firms = pd.read_csv('input/firms_by_APs2010_t0_full.csv', sep=';')
     jobs = dict(zip(firms.AP.astype(str), firms.num_firms))
     by_area = people.groupby('area').apply(lambda g: pd.Series({'E': g.w.sum(), 'c': np.average(g.car, weights=g.w)}),

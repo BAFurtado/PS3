@@ -1,10 +1,11 @@
 """Car ownership by ACP and work-income decile, Census 2010 sample microdata.
 
-A person aged 16-70 owns a car when their household answers yes to question 2.22, "automóvel para uso particular"
-(V0222 in the household file). Persons with work income in their main job (V6513 > 0) fall into the weighted
+A person aged 16-70 has a car when their household answers yes to question 2.22, "automóvel para uso particular"
+(V0222 in the household file), and a private vehicle when it answers yes to 2.22 or to 2.21, "motocicleta para uso
+particular" (V0221). Persons with work income in their main job (V6513 > 0) fall into the weighted
 deciles of that income within their ACP (group 1-10). Persons without work income form group 0.
 
-Writes input/car_ownership_2010.csv: acp;group;p_car;n (n = sample persons).
+Writes input/car_ownership_2010.csv: acp;group;p_car;p_private;n (n = sample persons).
 Usage: python auxiliary/car_ownership.py [census sample directory]
 """
 import os
@@ -17,7 +18,7 @@ import pandas as pd
 DATA = '/home/furtado/MyModels/censo2010/data/amostra'
 OUT = 'input/car_ownership_2010.csv'
 # (start, end) 1-based inclusive, from dic_CENSO_domicilios_2010 and dic_CENSO_pessoas_2010
-HOUSE = {'mun': (1, 7), 'ctrl': (21, 28), 'car': (103, 103)}
+HOUSE = {'mun': (1, 7), 'ctrl': (21, 28), 'moto': (102, 102), 'car': (103, 103)}
 PERSON = {'mun': (1, 7), 'ctrl': (21, 28), 'w': (29, 44), 'age': (62, 64), 'inc': (219, 224)}
 
 
@@ -43,7 +44,7 @@ def read(data, mun_acp):
             for line in f:
                 if line[0:7] in mun_acp:
                     r = cut(line, HOUSE)
-                    car[(r['mun'], r['ctrl'])] = r['car'] == '1'
+                    car[(r['mun'], r['ctrl'])] = (r['car'] == '1', r['car'] == '1' or r['moto'] == '1')
         if not car:
             continue
         with open(person_file, encoding='latin-1') as f:
@@ -55,9 +56,9 @@ def read(data, mun_acp):
                 if key not in car:
                     continue
                 rows.append((mun_acp[r['mun']], float(r['w']) / 1e13, int(r['age']),
-                             float(r['inc']) if r['inc'].strip() else 0.0, car[key]))
+                             float(r['inc']) if r['inc'].strip() else 0.0, *car[key]))
         print(os.path.basename(person_file), len(rows), flush=True)
-    return pd.DataFrame(rows, columns=['acp', 'w', 'age', 'inc', 'car'])
+    return pd.DataFrame(rows, columns=['acp', 'w', 'age', 'inc', 'car', 'private'])
 
 
 def deciles(d):
@@ -83,6 +84,7 @@ def main(data=DATA):
             out['acp'].append(name)
             out['group'].append(int(k))
             out['p_car'].append(round(float(np.average(h.car, weights=h.w)), 4))
+            out['p_private'].append(round(float(np.average(h.private, weights=h.w)), 4))
             out['n'].append(len(h))
     pd.DataFrame(out).to_csv(OUT, sep=';', index=False)
     print('wrote', OUT)

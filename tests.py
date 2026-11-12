@@ -1936,6 +1936,33 @@ check("CAR_OWNERSHIP 'census': groups 0 / 2 / 10, the agent's draw is fixed and 
 _co_a.firm_id, _co_a.last_wage, _co_a.has_car = _co_keep
 del _co_a.car_draw
 
+# VACANCY_SCOPE 'region': empirical-Bayes shrinkage toward the municipality
+from world.location import regional_vacancy as _rv, LocationChoice as _LC
+_rv_h = ([_cd_ns(region_id='1100015001001', is_occupied=i >= 10) for i in range(100)]
+         + [_cd_ns(region_id='1100015001002', is_occupied=i >= 30) for i in range(100)]
+         + [_cd_ns(region_id='1100023001001', is_occupied=i >= 5) for i in range(50)])
+_rv_v = _rv(_rv_h)
+_rv_k = .16 / (.01 - 2 * .16 / 200)
+check("VACANCY_SCOPE 'region': regions shrink toward their municipality by the estimated k, a lone region keeps its own",
+      abs(_rv_v['1100015001001'] - (10 + _rv_k * .2) / (100 + _rv_k)) < 1e-12 and .1 < _rv_v['1100015001001'] < .2
+      and abs(_rv_v['1100015001002'] - (30 + _rv_k * .2) / (100 + _rv_k)) < 1e-12
+      and _rv_v['1100023001001'] == .1, f"{_rv_v}")
+
+# LOCATION_CHOICE 'logit': the time cost grows with minutes; with a tiny scale the family takes the highest utility
+_lc_t = {('A', 'J'): 10.0, ('B', 'J'): 90.0}
+_lc_sim = _cd_ns(PARAMS={'VOT_WAGE_SHARE': .5, 'LOCATION_CHOICE_SCALE': 1e-9}, rent_ratio=.005, salary_factor=1.0,
+                 firms={'f': _cd_ns(region_id='J', pool=False)}, regions={'A': 0, 'B': 0, 'J': 0},
+                 participation=_cd_ns(is_active=lambda a: True), seed_np=np.random.RandomState(0),
+                 transport=_cd_ns(minutes_between=lambda o, d, car=False: _lc_t.get((o, d), 0.0)))
+_lc = _LC(_lc_sim)
+_lc_worker = _cd_ns(firm_id='f', last_wage=2200.0, has_car=False, is_minor=False, is_retired=False)
+_lc_fam = _cd_ns(members={'w': _lc_worker})
+_lc_near, _lc_far = _cd_ns(price=10000.0, region_id='A'), _cd_ns(price=11000.0, region_id='B')
+_lc_cost = _lc.family_cost(_lc_fam, 'B') - _lc.family_cost(_lc_fam, 'A')
+check("LOCATION_CHOICE 'logit': 80 more minutes cost 0.5 x salary/220/60 x 50 trips each, and outweigh 5 of service",
+      abs(_lc_cost - 80 * .5 * 2200 / 220 / 60 * 50) < 1e-9 and _lc.choose(_lc_fam, [_lc_far, _lc_near]) is _lc_near,
+      f"cost difference {_lc_cost:.2f}")
+
 # COMMUTE_ACCEPTANCE 'census': P(0) = 1, falling in minutes, 1 outside the table's ACPs
 from world.transport import CommuteAcceptance as _CA
 _ca = _CA(['TERESINA'], 'trips')

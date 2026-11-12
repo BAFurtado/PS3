@@ -229,6 +229,9 @@ SBPE_INCOME_QUANTILE = 0.85
 # can sweep it without touching the dict.
 MELHORIAS_INCOME_QUANTILE = 0.38
 TOTAL_TARGETING_POLICY = False
+# Without TOTAL_TARGETING_POLICY, the order in which eligible families receive units. 'random': a seeded lottery each
+# month. 'region': region-id order, so families of the lowest AP codes come first (the tag ps3-model-2026.3 rule).
+MCMV_FAMILY_ORDER = 'random'
 POLICY_MELHORIAS = False
 # Share of the works' market price the state pays for a melhorias upgrade. The works
 # are the .5 -> 1 quality delta, worth `size * .5 * region.index` under
@@ -264,6 +267,23 @@ TRANSPORT_FUTURE = 'nec'
 # auxiliary/commute_acceptance.py, world/transport.CommuteAcceptance). Needs TRANSPORT_WEIGHTS. 'off': every offer is
 # accepted.
 COMMUTE_ACCEPTANCE = 'off'
+# 'census': car minutes of the ENMU zone matrices (state 'car', free flow) times the ACP's congestion factor, which
+# makes the car-to-transit time ratio that of the Census 2022 commutes (input/car_congestion_2022.csv,
+# auxiliary/car_congestion.py). 'off': free flow.
+CAR_CONGESTION = 'census'
+# 'logit': buyers and renters choose among the houses they can pay for by housing-service value minus the family's
+# commuting time cost plus a Gumbel draw, settled renters move only to a house of higher value, and the time cost as a
+# share of income adds to the need to enter the housing market (world/location.py). Needs a travel-time matrix.
+# 'off': buyers take the most expensive house they can pay for, renters a random one in budget.
+LOCATION_CHOICE = 'off'
+# Scale of the Gumbel draw as a share of the mean monthly housing-service value of the family's sample
+LOCATION_CHOICE_SCALE = 1.0
+# Value of commuting time as a share of the hourly salary: Small (2012) p. 5, USDOT (2016) p. 11. Sensitivity 0.74:
+# World Bank (2023, Wardman et al.) p. 26, Tab. 4.4, LMIC urban in-vehicle time
+VOT_WAGE_SHARE = 0.5
+# 'region': house prices respond to their region's vacancy, shrunk toward the municipality's by empirical Bayes
+# (world/location.regional_vacancy). 'acp': the vacancy of all houses in the run.
+VACANCY_SCOPE = 'acp'
 # LOANS ##############################################################################
 # Maximum age of borrower at the end of the contract
 MAX_LOAN_AGE = 70

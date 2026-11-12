@@ -85,8 +85,13 @@ class RentalMarket:
         # Make the move
         old_r_id = family.region_id
         if family.house:
+            location = getattr(sim, 'location_choice', None)
+            if location is not None and location.ready:
+                # LOCATION_CHOICE 'logit': settled families move only to a house of higher utility
+                if location.utility(family, family.house) >= location.utility(family, house):
+                    return
             # Families who are already settled, will move into rental only if better quality (that is, price)
-            if family.house.price > house.price:
+            elif family.house.price > house.price:
                 return
             # Don't move if rent would exceed the affordability threshold (comprometimento de renda)
             if price > family.get_permanent_income() * sim.PARAMS['MAX_RENT_TO_INCOME_RATIO']:
@@ -120,7 +125,12 @@ class RentalMarket:
                 my_market = sim.seed.sample(self.unoccupied,
                                             min(len(self.unoccupied), int(sim.PARAMS['SIZE_MARKET']) * 3))
                 in_budget = [h for h in my_market if h.price * base_proportion < family.get_permanent_income()]
-                if in_budget:
+                location = getattr(sim, 'location_choice', None)
+                if in_budget and location is not None and location.ready:
+                    # LOCATION_CHOICE 'logit'
+                    house = location.choose(family, in_budget)
+                    price = house.price * base_proportion
+                elif in_budget:
                     house = sim.seed.choice(in_budget)
                     price = house.price * base_proportion
                 else:

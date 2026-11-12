@@ -30,6 +30,7 @@ from world.house_values import HouseValues
 from markets.goods import RegionalMarket, External
 from markets.labor import car_wage_deciles, labour_flows
 from world.cars import CarOwnership
+from world.location import LocationChoice
 
 
 def resolve_seed(params):
@@ -330,6 +331,12 @@ class Simulation:
             if self.transport.matrix is None or not self.PARAMS.get('TRANSPORT_WEIGHTS'):
                 raise ValueError("COMMUTE_ACCEPTANCE 'census' needs TRANSPORT_WEIGHTS and its travel-time matrix")
             self.commute_acceptance = CommuteAcceptance(self.geo.processing_acps, self.PARAMS['TRANSPORT_WEIGHTS'])
+        # LOCATION_CHOICE 'logit': families trade housing for commuting time (world/location.py)
+        self.location_choice = None
+        if self.PARAMS.get('LOCATION_CHOICE', 'off') == 'logit':
+            if self.transport.matrix is None:
+                raise ValueError("LOCATION_CHOICE 'logit' needs a travel-time matrix")
+            self.location_choice = LocationChoice(self)
         # The salary (before the worker's contributions) as a share of the gross wage, and as a multiple of the wage paid
         Firm.salary_share = self.PARAMS.get('SALARY_SHARE', 1.0)
         self.salary_factor = Firm.salary_share / (1 - self.PARAMS['TAX_LABOR']) if 'SALARY_SHARE' in self.PARAMS else 1.0
@@ -468,6 +475,8 @@ class Simulation:
                     firm = self.firms.get(agent.firm_id)
                     if firm is not None:
                         agent.set_commute(firm, self.transport)
+        if self.location_choice is not None:
+            self.location_choice.prepare()
         # Set interest rates
         interests = self.interest[
             self.interest.index.date == self.clock.days][['interest', 'mortgage', ]].iloc[0]

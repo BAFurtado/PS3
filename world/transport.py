@@ -23,6 +23,7 @@ import pandas as pd
 
 STANDARD_DIR = 'input/transport'
 STANDARD_COLUMNS = ['acp', 'ap_orig', 'ap_dest', 'state', 'minutes']
+CONGESTION = 'input/car_congestion_2022.csv'
 
 # Partner files in their original layout: ACP -> (path, {column: state})
 PARTNER_FILES = {
@@ -121,6 +122,15 @@ class TransportNetwork:
             wide = read_acp_matrix(acp, weights)
             if wide is not None:
                 matrices[acp] = wide
+        if params.get('CAR_CONGESTION', 'census') == 'census' and weights:
+            # Free-flow car minutes times the ACP's congestion factor (auxiliary/car_congestion.py)
+            kappa = pd.read_csv(CONGESTION, sep=';')
+            kappa = kappa[kappa.weights == weights].drop_duplicates('acp', keep='last').set_index('acp').kappa
+            for acp, wide in matrices.items():
+                if 'car' in wide.columns:
+                    if acp not in kappa.index:
+                        raise ValueError('%s has no %r factor for %s' % (CONGESTION, weights, acp))
+                    wide['car'] = wide['car'] * float(kappa[acp])
         self.matrix = None
         if not matrices:
             return

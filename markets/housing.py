@@ -8,6 +8,7 @@ import numpy as np
 from numpy import median
 from copy import deepcopy
 from .rentmarket import RentalMarket, collect_rent
+from world.location import regional_vacancy
 
 
 class HousingMarket:
@@ -40,6 +41,10 @@ class HousingMarket:
             vacancy = sim.stats.vacancy_rate
         except AttributeError:
             vacancy = 0
+        # VACANCY_SCOPE 'region': each house's price responds to its region's vacancy, shrunk toward its municipality's
+        regional = None
+        if sim.PARAMS.get('VACANCY_SCOPE', 'acp') == 'region':
+            regional = regional_vacancy(sim.houses.values())
 
         occupy = sim.PARAMS.get('HOUSING_PURCHASE', 'occupy') == 'occupy'
         for house in sim.houses.values():
@@ -49,7 +54,7 @@ class HousingMarket:
                                sim.PARAMS['MAX_OFFER_DISCOUNT'],
                                neighborhood_wealth,
                                sim.PARAMS['NEIGHBORHOOD_EFFECT'],
-                               vacancy=vacancy,
+                               vacancy=vacancy if regional is None else regional[house.region_id],
                                offer_size=sim.PARAMS['OFFER_SIZE_ON_PRICE'],
                                vacancy_ref=sim.PARAMS['VACANCY_PRICE_REFERENCE'],
                                max_disc=sim.PARAMS['MAX_OFFER_DISCOUNT'],
@@ -242,74 +247,96 @@ class HousingMarket:
             max_loan_to_value = params['MAX_LOAN_TO_VALUE']
 
         occupy = params.get('HOUSING_PURCHASE', 'occupy') == 'occupy'
+        terms = (savings, savings_with_mortgage, capped_top_value, capped_low_value, capped_price_factor,
+                 max_loan_to_value, occupy)
+        location = getattr(sim, 'location_choice', None)
+        if location is not None and location.ready:
+            # LOCATION_CHOICE 'logit': the family picks among the houses it can pay for; a failed purchase drops
+            # the house and the family picks again
+            options = [h for h in my_market if not (occupy and h.is_occupied)
+                       and (savings > h.price or savings_with_mortgage > h.price
+                            or savings / h.price > capped_low_value)]
+            while options:
+                house = location.choose(family, options)
+                if self.buy(family, house, for_sale, sim, vacancy, terms):
+                    return
+                options.remove(house)
+            return
         for house in my_market:
             # A house can be occupied since the list was drawn up this month
             if occupy and house.is_occupied:
                 continue
-            cash = 0
-            # house.price already incorporates the vacancy adjustment via update_price()
-            p = house.price
+            if self.buy(family, house, for_sale, sim, vacancy, terms):
+                return
 
-            # If savings is enough, then price is established as the average of the two
-            if savings > p:
-                # Restrict OFFERs to a maximum of 30% threshold
-                if savings / p > capped_top_value:
-                    price = p * capped_price_factor
-                else:
-                    price = (savings + p) / 2
+    def buy(self, family, house, for_sale, sim, vacancy, terms):
+        """The family tries to buy `house`. True when bought."""
+        (savings, savings_with_mortgage, capped_top_value, capped_low_value, capped_price_factor,
+         max_loan_to_value, occupy) = terms
+        cash = 0
+        # house.price already incorporates the vacancy adjustment via update_price()
+        p = house.price
 
-            # If not, check whether loan can help
-            elif savings_with_mortgage > p:
-                if savings_with_mortgage / p > capped_top_value:
-                    price = p * capped_price_factor
-                else:
-                    price = (savings_with_mortgage + p) / 2
-
-                # Get loan to make up the difference. The bank is asked only when a
-                # loan is actually needed: a request for zero is not the same thing
-                # as no request, and would come back as a refusal.
-                loan_amount = max(0, price - savings)
-                if loan_amount > 0:
-                    # Check macroprudencial policy. If loan to value is above set value,
-                    # no loan, leave the market.
-                    if (loan_amount / price) > max_loan_to_value:
-                        continue
-
-                    # Attempt to actually get the loan from the bank
-                    success, amount = sim.central.request_loan(
-                        family, house, loan_amount, sim.clock.year, sim.clock.months
-                    )
-                    if not success:
-                        continue
-
-                    cash += amount
-
-            elif savings / p > capped_low_value:
-                if sim.seed_np.rand() < vacancy:
-                    price = savings
-                else:
-                    continue
+        # If savings is enough, then price is established as the average of the two
+        if savings > p:
+            # Restrict OFFERs to a maximum of 30% threshold
+            if savings / p > capped_top_value:
+                price = p * capped_price_factor
             else:
-                continue
+                price = (savings + p) / 2
 
-            # Withdraw the money of buying family from the bank and from savings
-            cash += family.grab_savings(sim.central, sim.clock.year, sim.clock.months)
-            change = cash - price
+        # If not, check whether loan can help
+        elif savings_with_mortgage > p:
+            if savings_with_mortgage / p > capped_top_value:
+                price = p * capped_price_factor
+            else:
+                price = (savings_with_mortgage + p) / 2
 
-            # Register the transaction, collect taxes and consider moving
-            self.notarial_procedures(family, house, price, change, sim)
+            # Get loan to make up the difference. The bank is asked only when a
+            # loan is actually needed: a request for zero is not the same thing
+            # as no request, and would come back as a refusal.
+            loan_amount = max(0, price - savings)
+            if loan_amount > 0:
+                # Check macroprudencial policy. If loan to value is above set value,
+                # no loan, leave the market.
+                if (loan_amount / price) > max_loan_to_value:
+                    return False
 
-            # if the procedures have come this far, it means loan or price have being agreed upon.
-            # Drop the sold house. The rest of the market stays in the set: a house that
-            # leaves and is re-added has its on_market counter reset, which suppresses the
-            # time-on-market price decay in House.update_price.
-            self.for_sale.discard(house)
-            if occupy:
-                # Later buyers this month draw from the same submarket list
-                for_sale.remove(house)
+                # Attempt to actually get the loan from the bank
+                success, amount = sim.central.request_loan(
+                    family, house, loan_amount, sim.clock.year, sim.clock.months
+                )
+                if not success:
+                    return False
 
-            # Having bought a house, then it can move on to the next family
-            return
+                cash += amount
+
+        elif savings / p > capped_low_value:
+            if sim.seed_np.rand() < vacancy:
+                price = savings
+            else:
+                return False
+        else:
+            return False
+
+        # Withdraw the money of buying family from the bank and from savings
+        cash += family.grab_savings(sim.central, sim.clock.year, sim.clock.months)
+        change = cash - price
+
+        # Register the transaction, collect taxes and consider moving
+        self.notarial_procedures(family, house, price, change, sim)
+
+        # if the procedures have come this far, it means loan or price have being agreed upon.
+        # Drop the sold house. The rest of the market stays in the set: a house that
+        # leaves and is re-added has its on_market counter reset, which suppresses the
+        # time-on-market price decay in House.update_price.
+        self.for_sale.discard(house)
+        if occupy:
+            # Later buyers this month draw from the same submarket list
+            for_sale.remove(house)
+
+        # Having bought a house, then it can move on to the next family
+        return True
 
     def notarial_procedures(self, family, house, price, change, sim):
         # Withdraw money from buying family and distribute back the difference

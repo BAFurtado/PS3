@@ -260,6 +260,9 @@ class Funds:
 
             if self.sim.PARAMS['TOTAL_TARGETING_POLICY']:
                 filtered.sort(key=lambda f: f.permanent_income)
+            elif self.sim.PARAMS.get('MCMV_FAMILY_ORDER', 'random') == 'random':
+                # A lottery among the eligible families; 'region' keeps them in region-id order
+                self.sim.seed.shuffle(filtered)
 
             self.policy_families[mun] = filtered
 
@@ -607,7 +610,7 @@ class Funds:
         commissioned = price is not None
         if not commissioned:
             price = house.price
-        # Getting poorest family first, given permanent income
+        # The first family of the list: the poorest with TOTAL_TARGETING_POLICY, else by MCMV_FAMILY_ORDER
         family = self.policy_families[mun].pop(0)
         # Transaction taxes help reduce the price of the bulk buying by the municipality
         taxes = price * self.sim.PARAMS['TAX_ESTATE_TRANSACTION']

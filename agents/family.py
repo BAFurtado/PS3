@@ -250,6 +250,10 @@ class Family:
         self.crowding_ratio = self.num_members / max(self.house.size, 0.5)
         crowding_bonus = min(1.0, max(0.0, self.crowding_ratio - 1.0) / 2.0)
         housing_need = renting_need + crowding_bonus
+        location = getattr(sim, 'location_choice', None)
+        if location is not None and location.ready:
+            # LOCATION_CHOICE 'logit': the time cost of the family's commutes as a share of its income, at most 1
+            housing_need += location.commute_need(self)
 
         # B. Opportunity cost: bank rate vs rental yield (SELIC-sensitive disincentive)
         EPS = 1e-6

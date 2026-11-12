@@ -1,7 +1,7 @@
-"""CAR_OWNERSHIP 'census': car ownership by ACP and work-income decile, Census 2010 (input/car_ownership_2010.csv,
-auxiliary/car_ownership.py).
+"""CAR_OWNERSHIP 'census': private vehicle (car or motorcycle) by ACP and work-income decile, Census 2010
+(input/car_ownership_2010.csv, column p_private, auxiliary/car_ownership.py). has_car means a private vehicle.
 
-Every agent aged 16-70 owns a car when its own uniform draw, fixed for the run, is below the probability of its group:
+Every agent aged 16-70 has one when its own uniform draw, fixed for the run, is below the probability of its group:
 group 1-10 is the decile of its last wage among the paid workers, group 0 an agent without a job or a wage. Car
 status changes only when the agent changes group.
 """
@@ -20,7 +20,8 @@ class CarOwnership:
         missing = set(acps) - set(table.acp)
         if missing:
             raise ValueError('%s has no rows for %s' % (CARS, sorted(missing)))
-        self.p = {acp: g.sort_values('group').p_car.to_numpy() for acp, g in table.groupby('acp')}
+        column = 'p_private' if 'p_private' in table.columns else 'p_car'
+        self.p = {acp: g.sort_values('group')[column].to_numpy() for acp, g in table.groupby('acp')}
         muns = pd.read_csv('input/ACPs_MUN_CODES.csv', sep=';')
         muns = muns[muns.ACPs.isin(acps)]
         self.acp_by_mun = dict(zip(muns.cod_mun.astype(str), muns.ACPs))
