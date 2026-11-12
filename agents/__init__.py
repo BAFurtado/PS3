@@ -167,7 +167,7 @@ class Agent:
             self.distance = 0
             self.commute_cost_units = 0
         elif transport is not None and transport.matrix is not None:
-            self.distance = transport.minutes_between(self.family.house.region_id, firm.region_id)
+            self.distance = transport.minutes_between(self.family.house.region_id, firm.region_id, self.has_car)
             self.commute_cost_units = self.distance * transport.cost_factor
         else:
             self.distance = self.distance_to_firm(firm)

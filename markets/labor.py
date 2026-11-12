@@ -83,7 +83,10 @@ class LaborMarket:
         relevance_unemployment = params['RELEVANCE_UNEMPLOYMENT_SALARIES']
 
         self.seed_np.shuffle(self.candidates)
-        if wage_deciles is not None:
+        if getattr(self.sim, 'car_ownership', None) is not None:
+            # CAR_OWNERSHIP 'census': car status is set monthly for all agents (world/cars.py)
+            pass
+        elif wage_deciles is not None:
             for c in self.candidates:
                 if c.last_wage:
                     for i, d in enumerate(wage_deciles):
@@ -156,11 +159,17 @@ class LaborMarket:
 
         # Distâncias ou tempos de deslocamento
         if self.sim.transport.matrix is not None:
-            commute_time = self.sim.transport.commute_time
-            commutes = np.array([
-                commute_time.get((c.family.house.region_id, firm.region_id), dist_max)
-                for c in candidates
-            ])
+            transport = self.sim.transport
+            if transport.car_time is None:
+                commute_time = transport.commute_time
+                commutes = np.array([
+                    commute_time.get((c.family.house.region_id, firm.region_id), dist_max)
+                    for c in candidates
+                ])
+            else:
+                # Car owners commute in car minutes (state 'car')
+                commutes = np.array([transport.minutes_between(c.family.house.region_id, firm.region_id, c.has_car)
+                                     for c in candidates])
         else:
             commutes = np.array([
                 c.family.house.distance_to_firm(firm)
@@ -248,8 +257,15 @@ class LaborMarket:
 
         # Then, the criteria is used to order all candidates
         offers = sorted(offers, key=lambda o: o[2], reverse=True)
+        acceptance = getattr(self.sim, 'commute_acceptance', None)
         for firm, candidate, score in offers:
             if firm not in done_firms and candidate not in done_cands:
+                if acceptance is not None:
+                    # COMMUTE_ACCEPTANCE 'census': a rejected offer passes to the firm's next candidate
+                    home = candidate.family.house.region_id
+                    minutes = self.sim.transport.minutes_between(home, firm.region_id, candidate.has_car)
+                    if self.seed_np.rand() >= acceptance.probability(minutes, home):
+                        continue
                 self.apply_assign(candidate, firm)
                 done_firms.add(firm)
                 done_cands.add(candidate)

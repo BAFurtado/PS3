@@ -1913,6 +1913,37 @@ _cd_emp = _cd(_cd_s)
 check("Car-ownership deciles are taken over paid workers only",
       _cd_emp[0] > 5 and _cd_emp[-1] == 50, f"employed {_cd_emp[:3]}")
 
+# CAR_OWNERSHIP 'census': group 0 without a wage, 1-10 by wage decile; the draw is fixed per agent
+from world.cars import CarOwnership as _CO
+_co = _CO(sim.geo.processing_acps, 7)
+_co_acp = sim.geo.processing_acps[0]
+_co_dec = np.arange(10, 101, 10)
+_co_a = next(a for a in sim.agents.values() if 16 <= a.age <= 70 and a.family is not None and a.family.house is not None)
+_co_keep = (_co_a.firm_id, _co_a.last_wage, _co_a.has_car)
+_co_a.firm_id, _co_a.last_wage = None, 0
+_co_g0 = _co.group(_co_a, _co_dec)
+_co_a.firm_id, _co_a.last_wage = 1, 95
+_co_g10 = _co.group(_co_a, _co_dec)
+_co_a.last_wage = 10
+_co_g2 = _co.group(_co_a, _co_dec)
+_co.update([_co_a], _co_dec)
+_co_car = _co_a.has_car
+_co.update([_co_a], _co_dec)
+check("CAR_OWNERSHIP 'census': groups 0 / 2 / 10, the agent's draw is fixed and sets has_car from its ACP row",
+      (_co_g0, _co_g2, _co_g10) == (0, 2, 10) and _co_a.has_car == _co_car
+      and _co_car == (_co_a.car_draw < _co.p[_co_acp][2]) and len(_co.p[_co_acp]) == 11,
+      f"groups {(_co_g0, _co_g2, _co_g10)}, draw {_co_a.car_draw:.3f}, p {_co.p[_co_acp][2]:.3f}")
+_co_a.firm_id, _co_a.last_wage, _co_a.has_car = _co_keep
+del _co_a.car_draw
+
+# COMMUTE_ACCEPTANCE 'census': P(0) = 1, falling in minutes, 1 outside the table's ACPs
+from world.transport import CommuteAcceptance as _CA
+_ca = _CA(['TERESINA'], 'trips')
+_ca_p = [_ca.probability(t, '2211001000000') for t in (0, 30, 60, 120)]
+check("COMMUTE_ACCEPTANCE 'census': P(0) = 1 and P falls with commute minutes",
+      _ca_p[0] == 1.0 and all(a > b for a, b in zip(_ca_p, _ca_p[1:])) and _ca.probability(500, '9999999') == 1.0,
+      f"P at 0/30/60/120 min {[round(p, 3) for p in _ca_p]}")
+
 # Vale-transporte: the employer pays a transit commuter the fare above 6 % of the gross wage, a car owner nothing
 from agents.firm import Firm as _VTFirm, VT_WAGE_SHARE as _vt_share
 _vt_firm = next(f for f in sim.firms.values() if f.sector not in ('Government', 'Construction') and not f.own_account

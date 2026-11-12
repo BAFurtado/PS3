@@ -22,13 +22,14 @@ from analysis.money import money_stock_total
 from world.geography import Geography, STATES_CODES, state_string
 from agents import Agent, House
 from agents.firm import Firm, ConstructionFirm, plans_sales, import_parity, import_price
-from world.transport import TransportNetwork
+from world.transport import TransportNetwork, CommuteAcceptance
 from world.participation import Participation
 from world.social_transfers import SocialTransfers
 from world.own_account import OwnAccountPools, posting_education
 from world.house_values import HouseValues
 from markets.goods import RegionalMarket, External
 from markets.labor import car_wage_deciles, labour_flows
+from world.cars import CarOwnership
 
 
 def resolve_seed(params):
@@ -318,6 +319,17 @@ class Simulation:
         # TRANSPORT_MONEY 'fare': the monthly fare bill (set_fare_bill), None otherwise
         self.fare_mode = self.PARAMS.get('TRANSPORT_MONEY', 'distance') == 'fare'
         Firm.fare_bill = 0.0 if self.fare_mode else None
+        # CAR_OWNERSHIP 'census': car status by ACP and wage decile, Census 2010 (world/cars.py); 'deciles' draws it
+        # from WAGE_TO_CAR_OWNERSHIP_QUANTILES for job candidates with a wage
+        self.car_ownership = None
+        if self.PARAMS.get('CAR_OWNERSHIP', 'census') == 'census':
+            self.car_ownership = CarOwnership(self.geo.processing_acps, self._seed)
+        # COMMUTE_ACCEPTANCE 'census': candidates accept offers with a probability falling in commute minutes
+        self.commute_acceptance = None
+        if self.PARAMS.get('COMMUTE_ACCEPTANCE', 'off') == 'census':
+            if self.transport.matrix is None or not self.PARAMS.get('TRANSPORT_WEIGHTS'):
+                raise ValueError("COMMUTE_ACCEPTANCE 'census' needs TRANSPORT_WEIGHTS and its travel-time matrix")
+            self.commute_acceptance = CommuteAcceptance(self.geo.processing_acps, self.PARAMS['TRANSPORT_WEIGHTS'])
         # The salary (before the worker's contributions) as a share of the gross wage, and as a multiple of the wage paid
         Firm.salary_share = self.PARAMS.get('SALARY_SHARE', 1.0)
         self.salary_factor = Firm.salary_share / (1 - self.PARAMS['TAX_LABOR']) if 'SALARY_SHARE' in self.PARAMS else 1.0
@@ -357,6 +369,8 @@ class Simulation:
             if unmatched and actual == before:
                 break
         self.labor_market.reset()
+        if self.car_ownership is not None:
+            self.car_ownership.update(self.agents.values(), None)
         divisor = set_productivity_level(self)
         self.logger.logger.info(f'PRODUCTIVITY_MAGNITUDE_DIVISOR {divisor:.4f}')
         size_initial_capital(self)
@@ -679,6 +693,8 @@ class Simulation:
         sample_size = math.floor(len(agent_values) * 0.5)
         wage_deciles = car_wage_deciles(self.seed.sample(agent_values, sample_size))
         del agent_values
+        if self.car_ownership is not None:
+            self.car_ownership.update(self.agents.values(), wage_deciles)
         self.labor_market.assign_post(current_unemployment, wage_deciles, self.PARAMS)
         self.own_account.monthly(current_unemployment)
 

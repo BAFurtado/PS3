@@ -18,6 +18,7 @@ PARAMS['TRANSPORT_TIME'] else 'base', for the whole run.
 import datetime
 import os
 
+import numpy as np
 import pandas as pd
 
 STANDARD_DIR = 'input/transport'
@@ -30,13 +31,19 @@ PARTNER_FILES = {
 }
 
 
-def standard_path(acp):
+def standard_path(acp, weights=None):
+    """With `weights` (TRANSPORT_WEIGHTS), the ENMU zone matrices converted with that weighting
+    (tools/transport/partner_matrix.py)"""
+    if weights:
+        return os.path.join(STANDARD_DIR, 'travel_times_%s__%s.parquet' % (acp.replace(' ', '_'), weights))
     return os.path.join(STANDARD_DIR, 'travel_times_%s.parquet' % acp.replace(' ', '_'))
 
 
-def read_acp_matrix(acp):
+def read_acp_matrix(acp, weights=None):
     """Wide matrix for one ACP, indexed by (ap_orig, ap_dest), one column per state. None if absent."""
-    path = standard_path(acp)
+    path = standard_path(acp, weights)
+    if weights and not os.path.exists(path):
+        return None
     if os.path.exists(path):
         long = pd.read_parquet(path)
         missing = set(STANDARD_COLUMNS) - set(long.columns)
@@ -107,8 +114,11 @@ class TransportNetwork:
     def __init__(self, params, acps, logger=None):
         self.logger = logger
         matrices = {}
+        weights = params.get('TRANSPORT_WEIGHTS')
+        # The state that TRANSPORT_TIME switches to and a TRANSPORT_SCHEDULE phi blends toward
+        self.future = params.get('TRANSPORT_FUTURE', 'nec')
         for acp in acps:
-            wide = read_acp_matrix(acp)
+            wide = read_acp_matrix(acp, weights)
             if wide is not None:
                 matrices[acp] = wide
         self.matrix = None
@@ -125,6 +135,11 @@ class TransportNetwork:
         problems = check_matrix(self.matrix)
         if problems:
             raise ValueError('Travel-time matrix for %s: %s' % (self.acps, '; '.join(problems)))
+        # State 'car': car minutes for car owners, the same in every network state
+        self.car_time = None
+        if 'car' in self.matrix.columns:
+            self.car_time = self.matrix['car'].to_dict()
+            self.max_car_time = float(self.matrix['car'].max())
         self.schedule = self._read_schedule(params)
         self.spec = None
         self.commute_time = None
@@ -156,7 +171,9 @@ class TransportNetwork:
         self.cost_factor = dist_sum / min_sum
         self._log('info', 'Transit cost factor: %.6g distance units per minute' % self.cost_factor)
 
-    def minutes_between(self, orig, dest):
+    def minutes_between(self, orig, dest, car=False):
+        if car and self.car_time is not None:
+            return self.car_time.get((orig, dest), self.max_car_time)
         return self.commute_time.get((orig, dest), self.max_time)
 
     def _log(self, level, msg):
@@ -168,7 +185,7 @@ class TransportNetwork:
     def _read_schedule(self, params):
         schedule = params.get('TRANSPORT_SCHEDULE')
         if schedule is None:
-            state = 'nec' if params['TRANSPORT_TIME'] else 'base'
+            state = self.future if params['TRANSPORT_TIME'] else 'base'
             return [(datetime.date.min, state)]
         schedule = sorted((_to_date(when), spec) for when, spec in schedule)
         for _, spec in schedule:
@@ -178,8 +195,8 @@ class TransportNetwork:
                                      % (spec, list(self.matrix.columns)))
             elif not 0 <= spec <= 1:
                 raise ValueError('TRANSPORT_SCHEDULE phi %r outside [0, 1]' % spec)
-            elif 'nec' not in self.matrix.columns:
-                raise ValueError("TRANSPORT_SCHEDULE phi needs a 'nec' state")
+            elif self.future not in self.matrix.columns:
+                raise ValueError('TRANSPORT_SCHEDULE phi needs a %r state' % self.future)
         return schedule
 
     def spec_at(self, date):
@@ -193,7 +210,7 @@ class TransportNetwork:
     def minutes(self, spec):
         if isinstance(spec, str):
             return self.matrix[spec]
-        return (1 - spec) * self.matrix['base'] + spec * self.matrix['nec']
+        return (1 - spec) * self.matrix['base'] + spec * self.matrix[self.future]
 
     def update(self, date):
         """Set commute times for `date`. Returns True when the network changed."""
@@ -206,3 +223,35 @@ class TransportNetwork:
         self.spec = spec
         self._log('info', 'Transport network on %s: %s' % (date, spec))
         return True
+
+
+ACCEPTANCE = 'input/commute_acceptance_2010.csv'
+
+
+class CommuteAcceptance:
+    """COMMUTE_ACCEPTANCE 'census': a candidate accepts an offer with probability P(t) / P(0),
+    P(t) = 1 / (1 + exp((t - T50) / T_SCALE)), t its one-way minutes to the firm (car minutes for car owners). T50 and
+    T_SCALE per ACP from input/commute_acceptance_2010.csv (auxiliary/commute_acceptance.py), the row of the run's
+    TRANSPORT_WEIGHTS. The Census bands fix the shape of P, and P(0) = 1 fixes its level."""
+
+    def __init__(self, acps, weights):
+        table = pd.read_csv(ACCEPTANCE, sep=';')
+        table = table[(table.weights == weights) & table.acp.isin(acps)].drop_duplicates('acp').set_index('acp')
+        missing = set(acps) - set(table.index)
+        if missing:
+            raise ValueError('%s has no %r rows for %s' % (ACCEPTANCE, weights, sorted(missing)))
+        self.params = {acp: (float(r.t50), float(r.t_scale)) for acp, r in table.iterrows()}
+        muns = pd.read_csv('input/ACPs_MUN_CODES.csv', sep=';')
+        muns = muns[muns.ACPs.isin(acps)]
+        self.acp_by_mun = dict(zip(muns.cod_mun.astype(str), muns.ACPs))
+
+    @staticmethod
+    def logistic(t, t50, scale):
+        return 1.0 / (1.0 + np.exp(np.clip((t - t50) / scale, -50.0, 50.0)))
+
+    def probability(self, minutes, region_id):
+        acp = self.acp_by_mun.get(str(region_id)[:7])
+        if acp is None:
+            return 1.0
+        t50, scale = self.params[acp]
+        return float(min(1.0, self.logistic(minutes, t50, scale) / self.logistic(0.0, t50, scale)))

@@ -1009,7 +1009,7 @@ class Output:
         data = {
             'month': [], 'region_id': [], 'gender': [], 'x': [], 'y': [],
             'id': [], 'age': [], 'qualification': [], 'firm_id': [],
-            'family_id': [], 'money': [], 'distance': []
+            'family_id': [], 'money': [], 'distance': [], 'has_car': []
         }
         for agent in sim.agents.values():
             data['month'].append(day)
@@ -1025,6 +1025,7 @@ class Output:
             data['family_id'].append(agent.family.id)
             data['money'].append(agent.money)
             data['distance'].append(agent.distance)
+            data['has_car'].append(bool(agent.has_car))
         self._write_parquet('agents', self.agents_path, data)
 
     def save_grave_data(self, sim):

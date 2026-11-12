@@ -252,6 +252,18 @@ TRANSPORT_TIME = False
 # None: static network for the whole run, chosen by TRANSPORT_TIME.
 # E.g. 14-year phase-in from 2026: transport.linear_phase_in(2026, 14)
 TRANSPORT_SCHEDULE = None
+# None: input/transport/travel_times_<ACP>.parquet or the partner file. 'trips' or 'area': the ENMU zone matrices (2054,
+# morning peak) converted to PS3 regions with that weighting, states base, padrao, otimizado and car
+# (tools/transport/partner_matrix.py, private files).
+TRANSPORT_WEIGHTS = None
+# The state TRANSPORT_TIME switches to and a TRANSPORT_SCHEDULE phi blends toward: 'nec' in the DF partner file,
+# 'padrao' or 'otimizado' in the ENMU zone matrices.
+TRANSPORT_FUTURE = 'nec'
+# 'census': a job candidate accepts an offer with probability P(t) / P(0), logistic in its one-way commute minutes, T50
+# and T_SCALE fitted per ACP to the Census 2010 home-to-work bands (input/commute_acceptance_2010.csv,
+# auxiliary/commute_acceptance.py, world/transport.CommuteAcceptance). Needs TRANSPORT_WEIGHTS. 'off': every offer is
+# accepted.
+COMMUTE_ACCEPTANCE = 'off'
 # LOANS ##############################################################################
 # Maximum age of borrower at the end of the contract
 MAX_LOAN_AGE = 70
@@ -461,6 +473,10 @@ PENSIONS = 'census'
 CB_QUALIFICATION = 0.0
 CB_COMMUTING = .2
 
+# 'census': every agent aged 16-70 owns a car with the Census 2010 probability of its ACP and wage decile, or of the
+# agents without a wage (input/car_ownership_2010.csv, world/cars.py). 'deciles': job candidates with a wage draw from
+# WAGE_TO_CAR_OWNERSHIP_QUANTILES at each search, the others own none.
+CAR_OWNERSHIP = 'census'
 # Car ownership by wage decile of the paid workers in a half sample of agents
 WAGE_TO_CAR_OWNERSHIP_QUANTILES = [
     0.1174,
