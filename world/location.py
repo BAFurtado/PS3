@@ -1,7 +1,12 @@
 """LOCATION_CHOICE 'logit': families choose a house among the affordable houses of their sample by
-U(h) = S(h) - TC(family, region(h)) + e, e ~ Gumbel(0, LOCATION_CHOICE_SCALE x the sample's mean S).
+U(h) = S(h) - TC(family, region(h)) + e, e ~ Gumbel(0, LOCATION_CHOICE_SCALE x the sample's mean price x rent ratio).
+LOCATION_CHOICE_SCALE 0: no draw, the house of highest S - TC.
 
-S(h): the monthly housing-service value, house price times the rent ratio (model money).
+S(h): the monthly housing-service value (model money).
+    LOCATION_VALUE 'price': house price times the rent ratio.
+    LOCATION_VALUE 'intrinsic': (V(h) - (price - V(h))) times the rent ratio. V(h) is the price before the
+    time-on-market and vacancy terms (size x quality x the region's index, with the neighbourhood effect). The
+    difference between the price and V(h) counts as a cost.
 TC(family, r): the monthly time cost of the family's commutes from region r, summed over members aged 16-70:
     a member in a job: its minutes from r to its firm's region (car minutes with a private vehicle);
     an active member without a job (any adult of a family without a house yet): the job-weighted mean of its minutes
@@ -25,6 +30,7 @@ class LocationChoice:
         self.sim = sim
         self.vot = sim.PARAMS['VOT_WAGE_SHARE']
         self.scale = sim.PARAMS['LOCATION_CHOICE_SCALE']
+        self.intrinsic = sim.PARAMS.get('LOCATION_VALUE', 'price') == 'intrinsic'
         self.ready = False
         self.mean_salary = 0.0
         self.mean_minutes = {}
@@ -74,11 +80,16 @@ class LocationChoice:
                 cost += self.mean_minutes.get((region_id, a.has_car), 0.0) * self.minute_value(self.mean_salary)
         return cost
 
+    def service(self, house):
+        if self.intrinsic:
+            return (2.0 * getattr(house, 'intrinsic', house.price) - house.price) * self.sim.rent_ratio
+        return house.price * self.sim.rent_ratio
+
     def utility(self, family, house):
-        return house.price * self.sim.rent_ratio - self.family_cost(family, house.region_id)
+        return self.service(house) - self.family_cost(family, house.region_id)
 
     def choose(self, family, houses):
-        """The house of `houses` with the highest utility plus a Gumbel draw"""
+        """The house of `houses` with the highest utility, plus a Gumbel draw when LOCATION_CHOICE_SCALE > 0"""
         if len(houses) == 1:
             return houses[0]
         costs = {}
@@ -86,9 +97,10 @@ class LocationChoice:
         for i, h in enumerate(houses):
             if h.region_id not in costs:
                 costs[h.region_id] = self.family_cost(family, h.region_id)
-            u[i] = h.price * self.sim.rent_ratio - costs[h.region_id]
-        mean_service = float(np.mean([h.price for h in houses])) * self.sim.rent_ratio
-        u += self.sim.seed_np.gumbel(0.0, max(self.scale * mean_service, 1e-12), len(houses))
+            u[i] = self.service(h) - costs[h.region_id]
+        if self.scale > 0:
+            mean_service = float(np.mean([h.price for h in houses])) * self.sim.rent_ratio
+            u += self.sim.seed_np.gumbel(0.0, self.scale * mean_service, len(houses))
         return houses[int(np.argmax(u))]
 
     def commute_need(self, family):

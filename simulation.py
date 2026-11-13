@@ -320,11 +320,12 @@ class Simulation:
         # TRANSPORT_MONEY 'fare': the monthly fare bill (set_fare_bill), None otherwise
         self.fare_mode = self.PARAMS.get('TRANSPORT_MONEY', 'distance') == 'fare'
         Firm.fare_bill = 0.0 if self.fare_mode else None
-        # CAR_OWNERSHIP 'census': car status by ACP and wage decile, Census 2010 (world/cars.py); 'deciles' draws it
-        # from WAGE_TO_CAR_OWNERSHIP_QUANTILES for job candidates with a wage
+        # CAR_OWNERSHIP 'census': car status by ACP and wage decile, Census 2010 (world/cars.py); 'census2022': that
+        # table at the Census 2022 private-vehicle share of commuters; 'deciles' draws it from
+        # WAGE_TO_CAR_OWNERSHIP_QUANTILES for job candidates with a wage
         self.car_ownership = None
-        if self.PARAMS.get('CAR_OWNERSHIP', 'census') == 'census':
-            self.car_ownership = CarOwnership(self.geo.processing_acps, self._seed)
+        if self.PARAMS.get('CAR_OWNERSHIP', 'census') in ('census', 'census2022'):
+            self.car_ownership = CarOwnership(self.geo.processing_acps, self._seed, self.PARAMS['CAR_OWNERSHIP'])
         # COMMUTE_ACCEPTANCE 'census' / 'census2022': candidates accept offers with a probability falling in commute
         # minutes
         self.commute_acceptance = None

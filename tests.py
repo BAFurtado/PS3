@@ -643,7 +643,8 @@ check(
 # A run must be reproducible from its seed. Three things break that: drawing from an
 # unseeded global RNG, generating ids outside the seeded stream, and multithreaded
 # BLAS reductions, whose summation order varies between processes.
-_RNG_PAT = re.compile(r"\bnp\.random\.(?!RandomState)|\bnumpy\.random\.(?!RandomState)"
+_RNG_PAT = re.compile(r"\bnp\.random\.(?!RandomState|default_rng\((?!\)))"
+                      r"|\bnumpy\.random\.(?!RandomState|default_rng\((?!\)))"
                       r"|(?<![.\w])random\.(random|randint|choice|sample|shuffle|uniform|gauss|normalvariate)"
                       r"|\buuid\.uuid[0-9]")
 _rng_offenders = []
@@ -1962,6 +1963,39 @@ _lc_cost = _lc.family_cost(_lc_fam, 'B') - _lc.family_cost(_lc_fam, 'A')
 check("LOCATION_CHOICE 'logit': 80 more minutes cost 0.5 x salary/220/60 x 50 trips each, and outweigh 5 of service",
       abs(_lc_cost - 80 * .5 * 2200 / 220 / 60 * 50) < 1e-9 and _lc.choose(_lc_fam, [_lc_far, _lc_near]) is _lc_near,
       f"cost difference {_lc_cost:.2f}")
+
+# LOCATION_CHOICE_SCALE 0: the highest utility, no random draw
+_lc_sim.PARAMS['LOCATION_CHOICE_SCALE'] = 0.0
+_lc_state = _lc_sim.seed_np.get_state()[1].copy()
+_lc0 = _LC(_lc_sim)
+check("LOCATION_CHOICE_SCALE 0: the family takes the highest utility and the random stream is untouched",
+      _lc0.choose(_lc_fam, [_lc_far, _lc_near]) is _lc_near and (_lc_sim.seed_np.get_state()[1] == _lc_state).all(),
+      "choice or random stream changed")
+
+# LOCATION_VALUE 'intrinsic': the difference between the price and the value before market terms counts as a cost
+_lc_sim.PARAMS['LOCATION_VALUE'] = 'intrinsic'
+_lci = _LC(_lc_sim)
+_lci_par = _cd_ns(price=10000.0, intrinsic=10000.0, region_id='A')
+_lci_premium = _cd_ns(price=11000.0, intrinsic=10000.0, region_id='A')
+_lci_discount = _cd_ns(price=9000.0, intrinsic=10000.0, region_id='A')
+_lci_bigger = _cd_ns(price=11000.0, intrinsic=11000.0, region_id='A')
+check("LOCATION_VALUE 'intrinsic': a discount beats par, par beats a premium, a larger value beats par",
+      _lci.choose(_lc_fam, [_lci_premium, _lci_par]) is _lci_par
+      and _lci.choose(_lc_fam, [_lci_par, _lci_discount]) is _lci_discount
+      and _lci.choose(_lc_fam, [_lci_par, _lci_bigger]) is _lci_bigger
+      and abs(_lci.service(_lci_premium) - 9000.0 * .005) < 1e-12
+      and _lc0.choose(_lc_fam, [_lci_par, _lci_premium]) is _lci_premium,
+      f"service par {_lci.service(_lci_par):.2f}, premium {_lci.service(_lci_premium):.2f}")
+del _lc_sim.PARAMS['LOCATION_VALUE']
+
+# CAR_OWNERSHIP 'census2022': the ten deciles average the Census 2022 private-vehicle share of commuters
+_pu = pd.read_csv('input/private_use_2022.csv', sep=';')
+_pu_gap = (_pu[_pu.group > 0].groupby('acp').p_private.mean() - _pu.groupby('acp').share_2022.first()).abs().max()
+_co22 = _CO(['TERESINA'], 7, 'census2022')
+check("CAR_OWNERSHIP 'census2022': decile mean equals the 2022 share, probabilities rise with the 2010 ones",
+      _pu_gap < 1e-3 and len(_co22.p['TERESINA']) == 11
+      and all((g.sort_values('p_2010').p_private.diff().dropna() >= 0).all() for _, g in _pu.groupby('acp')),
+      f"largest gap {_pu_gap:.5f}")
 
 # COMMUTE_ACCEPTANCE 'census': P(0) = 1, falling in minutes, 1 outside the table's ACPs
 from world.transport import CommuteAcceptance as _CA

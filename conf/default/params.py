@@ -277,8 +277,11 @@ CAR_CONGESTION = 'census'
 # share of income adds to the need to enter the housing market (world/location.py). Needs a travel-time matrix.
 # 'off': buyers take the most expensive house they can pay for, renters a random one in budget.
 LOCATION_CHOICE = 'off'
-# Scale of the Gumbel draw as a share of the mean monthly housing-service value of the family's sample
-LOCATION_CHOICE_SCALE = 1.0
+# Scale of the Gumbel draw as a share of the mean monthly price x rent ratio of the family's sample. 0: no draw
+LOCATION_CHOICE_SCALE = 0.0
+# Housing-service value in the location choice. 'price': the house price. 'intrinsic': the price before the
+# time-on-market and vacancy terms, minus the difference between the price and that value (world/location.py)
+LOCATION_VALUE = 'price'
 # Value of commuting time as a share of the hourly salary: Small (2012) p. 5, USDOT (2016) p. 11. Sensitivity 0.74:
 # World Bank (2023, Wardman et al.) p. 26, Tab. 4.4, LMIC urban in-vehicle time
 VOT_WAGE_SHARE = 0.5
@@ -495,8 +498,10 @@ CB_QUALIFICATION = 0.0
 CB_COMMUTING = .2
 
 # 'census': every agent aged 16-70 owns a car with the Census 2010 probability of its ACP and wage decile, or of the
-# agents without a wage (input/car_ownership_2010.csv, world/cars.py). 'deciles': job candidates with a wage draw from
-# WAGE_TO_CAR_OWNERSHIP_QUANTILES at each search, the others own none.
+# agents without a wage (input/car_ownership_2010.csv, world/cars.py). 'census2022': the same rule on that table with
+# each ACP's odds scaled so that the mean over the ten deciles is the private-vehicle share of the Census 2022
+# motorised commuters (input/private_use_2022.csv, auxiliary/private_use_2022.py). 'deciles': job candidates with a
+# wage draw from WAGE_TO_CAR_OWNERSHIP_QUANTILES at each search, the others own none.
 CAR_OWNERSHIP = 'census'
 # Car ownership by wage decile of the paid workers in a half sample of agents
 WAGE_TO_CAR_OWNERSHIP_QUANTILES = [

@@ -4,22 +4,26 @@
 Every agent aged 16-70 has one when its own uniform draw, fixed for the run, is below the probability of its group:
 group 1-10 is the decile of its last wage among the paid workers, group 0 an agent without a job or a wage. Car
 status changes only when the agent changes group.
+
+CAR_OWNERSHIP 'census2022': the same rule on input/private_use_2022.csv (auxiliary/private_use_2022.py), the 2010
+table with each ACP's odds scaled to the private-vehicle share of the Census 2022 motorised commuters.
 """
 from zlib import crc32
 
 import numpy as np
 import pandas as pd
 
-CARS = 'input/car_ownership_2010.csv'
+CARS = {'census': 'input/car_ownership_2010.csv', 'census2022': 'input/private_use_2022.csv'}
 
 
 class CarOwnership:
-    def __init__(self, acps, seed):
-        table = pd.read_csv(CARS, sep=';')
+    def __init__(self, acps, seed, source='census'):
+        path = CARS[source]
+        table = pd.read_csv(path, sep=';')
         table = table[table.acp.isin(acps)]
         missing = set(acps) - set(table.acp)
         if missing:
-            raise ValueError('%s has no rows for %s' % (CARS, sorted(missing)))
+            raise ValueError('%s has no rows for %s' % (path, sorted(missing)))
         column = 'p_private' if 'p_private' in table.columns else 'p_car'
         self.p = {acp: g.sort_values('group')[column].to_numpy() for acp, g in table.groupby('acp')}
         muns = pd.read_csv('input/ACPs_MUN_CODES.csv', sep=';')
