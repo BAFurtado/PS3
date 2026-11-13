@@ -9,7 +9,7 @@ City sets:
     local   the 25 areas without Sao Paulo and Rio de Janeiro
     big     Sao Paulo and Rio de Janeiro
     all     the 27 areas
-    A,B,..  a comma-separated list of ACPs
+    A,B,..  a comma-separated list of ACPs (the 27 areas or Baixada Santista)
 
 Modes (cwd = repository root):
     python runner_vacancy_ab.py teste CPUS                  Palmas, both scopes, seed 0, 2 years
@@ -38,6 +38,8 @@ WINDOW = (datetime.date(2011, 1, 1), datetime.date(2021, 12, 1))
 SCOPES = ['acp', 'region']
 RUNS = 3
 BIG = ['SAO PAULO', 'RIO DE JANEIRO']
+# ENMU area outside the 27, accepted in a comma-separated list
+EXTRA = ['BAIXADA SANTISTA']
 COMMON = {
     'TRANSPORT_WEIGHTS': None,
     'TRANSPORT_TIME': False,
@@ -67,7 +69,7 @@ def city_set(name):
     if name == 'all':
         return areas()
     cities = name.split(',')
-    unknown = set(cities) - set(areas())
+    unknown = set(cities) - set(areas()) - set(EXTRA)
     if unknown:
         sys.exit('Unknown ACPs: {}'.format(sorted(unknown)))
     return cities

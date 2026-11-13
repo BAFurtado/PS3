@@ -281,7 +281,7 @@ LOCATION_CHOICE = 'off'
 LOCATION_CHOICE_SCALE = 0.0
 # Housing-service value in the location choice. 'price': the house price. 'intrinsic': the price before the
 # time-on-market and vacancy terms, minus the difference between the price and that value (world/location.py)
-LOCATION_VALUE = 'price'
+LOCATION_VALUE = 'intrinsic'
 # Value of commuting time as a share of the hourly salary: Small (2012) p. 5, USDOT (2016) p. 11. Sensitivity 0.74:
 # World Bank (2023, Wardman et al.) p. 26, Tab. 4.4, LMIC urban in-vehicle time
 VOT_WAGE_SHARE = 0.5
