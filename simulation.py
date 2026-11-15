@@ -466,18 +466,29 @@ class Simulation:
         wages = [a.last_wage * (1.0 if self.firms[a.firm_id].pool else self.salary_factor)
                  for a in self.agents.values()
                  if a.firm_id is not None and a.firm_id in self.firms and a.last_wage is not None and a.last_wage > 0]
-        Firm.fare_bill = self.PARAMS['FARE_INCOME_SHARE'] * float(np.mean(wages)) if wages else 0.0
+        Firm.fare_bill = self.fare_share() * float(np.mean(wages)) if wages else 0.0
+
+    def fare_share(self):
+        """FARE_INCOME_SHARE, moved toward FARE_INCOME_SHARE_FUTURE by the share of the future network in force: 0 on
+        the base network, the phi of a TRANSPORT_SCHEDULE, 1 on a named future state"""
+        share = self.PARAMS['FARE_INCOME_SHARE']
+        future = self.PARAMS.get('FARE_INCOME_SHARE_FUTURE')
+        if future is None or self.transport.matrix is None:
+            return share
+        spec = self.transport.spec_at(self.clock.days)
+        phi = (0.0 if spec == 'base' else 1.0) if isinstance(spec, str) else spec
+        return share + phi * (future - share)
 
     def monthly(self):
         if self.fare_mode:
             self.set_fare_bill()
         if self.transport.matrix is not None:
             self.transport.update(self.clock.days)
-            # Keep commutes current with the network in force and with house moves
+            # Keep commutes current with the network in force and with house moves; own-account workers have none
             for agent in self.agents.values():
                 if agent.firm_id is not None and agent.family is not None:
                     firm = self.firms.get(agent.firm_id)
-                    if firm is not None:
+                    if firm is not None and not firm.pool:
                         agent.set_commute(firm, self.transport)
         if self.location_choice is not None:
             self.location_choice.prepare()
@@ -751,6 +762,7 @@ class Simulation:
 
         # Apply policies (when they are tested)
         self.funds.apply_policies()
+        self.funds.buy_public_works()
 
         # Pass monthly information to be stored in Statistics
         self.output.save_stats_report(self, bank_taxes)

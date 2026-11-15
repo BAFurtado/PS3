@@ -136,7 +136,7 @@ class OwnAccountPool(Firm):
             a.last_wage = pay
             a.wage_paid = pay
             if Firm.fare_bill is not None:
-                # TRANSPORT_MONEY 'fare': an own-account transit commuter owes the whole fare bill
+                # TRANSPORT_MONEY 'fare': an own-account worker without a private vehicle owes the whole fare bill
                 a.fare_due = 0.0 if a.has_car else Firm.fare_bill
         self.wages_paid = self.total_balance
         self.total_balance = 0.0

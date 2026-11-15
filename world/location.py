@@ -9,6 +9,7 @@ S(h): the monthly housing-service value (model money).
     difference between the price and V(h) counts as a cost.
 TC(family, r): the monthly time cost of the family's commutes from region r, summed over members aged 16-70:
     a member in a job: its minutes from r to its firm's region (car minutes with a private vehicle);
+    an own-account worker: 0;
     an active member without a job (any adult of a family without a house yet): the job-weighted mean of its minutes
     from r to all regions;
     others: 0.
@@ -73,6 +74,8 @@ class LocationChoice:
                 continue
             firm = sim.firms.get(a.firm_id) if a.firm_id is not None else None
             if firm is not None:
+                if firm.pool:
+                    continue
                 minutes = sim.transport.minutes_between(region_id, firm.region_id, a.has_car)
                 cost += minutes * self.minute_value(self.salary(a))
             elif a.region_id is None or sim.participation.is_active(a):

@@ -23,7 +23,7 @@ def plans_sales(firm):
 
 
 # Vale-transporte: the employee's part of the public transport fare is capped at this share of the basic wage, the
-# employer pays the rest (Lei 7.418/1985, art. 4; Decreto 95.247/1987, art. 9)
+# employer pays the rest (Lei 7.418/1985, art. 4; Decreto 10.854/2021, art. 114)
 VT_WAGE_SHARE = 0.06
 
 

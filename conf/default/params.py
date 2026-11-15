@@ -532,6 +532,13 @@ TRANSPORT_MONEY = 'distance'
 # The monthly bill of 50 transit fares as a share of the mean salary of the employed (TRANSPORT_MONEY 'fare'). 0.06 is
 # ENMU's Rede Base for the RIDE-DF and 0.033 its Cenário Otimizado.
 FARE_INCOME_SHARE = 0.06
+# None, or the FARE_INCOME_SHARE of the future network: the share moves from FARE_INCOME_SHARE to this value with the
+# share of the future network in force (0 on the base network, the phi of a TRANSPORT_SCHEDULE, 1 on a named state)
+FARE_INCOME_SHARE_FUTURE = None
+# None, or [first year, last year, share]: in each month of those years, share percent of the month's GDP of the run's
+# municipalities comes in from outside the ACP and buys production from the ACP's construction firms
+# (Funds.buy_public_works)
+PUBLIC_WORKS = None
 # Price of imported inputs (step 2b). 'exogenous': 1, the initial goods price held in real terms, plus freight, so local
 # price rises do not feed back into import prices. 'local' (old model): the local seller's price plus freight.
 IMPORT_PRICE = 'local'

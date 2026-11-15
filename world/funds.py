@@ -55,6 +55,9 @@ class Funds:
         self.gov_pay = {str(r.cod_mun): {'federal': r.federal, 'estadual': r.estadual} for r in pay.itertuples()}
         # GOV_EXTERNAL_FUNDING: money paid in from outside the ACP for federal and state public staff, cumulative
         self.external_public_funding = 0.0
+        # PUBLIC_WORKS: money received and not yet spent, and the works bought this month
+        self.public_works_money = 0.0
+        self.public_works_bought = 0.0
         # Taxes on products collected in the ACP this month
         self.product_taxes_month = 0.0
         self.perc_policy_money_spent = 0
@@ -339,6 +342,36 @@ class Funds:
         # Resetting lists for next month
         self.policy_families = defaultdict(list)
         self.temporary_houses = defaultdict(list)
+
+    def buy_public_works(self):
+        """PUBLIC_WORKS [first year, last year, share]: each month of those years, share percent of the month's GDP
+        of the run's municipalities (Statistics.funds_gdp) comes in from outside the ACP. The money buys production
+        from the construction firms, the one with the most idle production first, at the firm's price; the firm books
+        it as a house sale (ConstructionFirm.update_balance). Money without idle production to buy stays for the
+        following months."""
+        self.public_works_bought = 0.0
+        spec = self.sim.PARAMS.get('PUBLIC_WORKS')
+        if not spec:
+            return
+        first, last, share = spec
+        year = self.sim.clock.year
+        if first <= year <= last:
+            inflow = sum(share / 100 * self.sim.stats.funds_gdp(mun, year)
+                         for mun in {int(str(m)[:6]) for m in self.sim.geo.mun_codes})
+            self.public_works_money += inflow
+            self.sim.ledger['ogu'] += inflow
+        builders = [f for f in self.sim.firms.values() if f.sector == 'Construction' and not f.own_account]
+        for firm in sorted(builders, key=lambda f: -f.total_quantity):
+            if self.public_works_money <= 1e-9:
+                break
+            if firm.total_quantity <= 0 or firm.prices <= 0:
+                continue
+            quantity = min(firm.total_quantity, self.public_works_money / firm.prices)
+            amount = quantity * firm.prices
+            firm.total_quantity -= quantity
+            firm.update_balance(amount, self.sim.PARAMS['CONSTRUCTION_ACC_CASH_FLOW'], self.sim.clock.days)
+            self.public_works_money -= amount
+            self.public_works_bought += amount
 
     def apply_house_upgrade(self, policy_money, diagnostics):
         """Melhorias: the municipality contracts a local construction firm to take an

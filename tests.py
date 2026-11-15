@@ -2077,6 +2077,74 @@ _fg_a.money, _fg_a.fare_due, _fg_a.fare_paid, _fg_region.treasure['transport'] =
 check("TRANSPORT_MONEY 'fare': the fare owed goes from the agent's money to its home region's transport treasure",
       _fg_ok, f"got {_fg_got}")
 
+# TRANSPORT_MONEY 'fare': an own-account worker without a private vehicle owes the whole fare bill, with one nothing
+from world.own_account import OwnAccountPool as _OAPool
+
+
+class _OpMember:
+    def __init__(self, has_car, weight):
+        self.has_car, self.weight, self.money = has_car, weight, 0.0
+
+    def wage_weight(self, alpha):
+        return self.weight
+
+
+_op_m = [_OpMember(_c, _w) for _c, _w in ((False, 1.0), (False, 30.0), (True, 9.0))]
+_op = SimpleNamespace(sim=SimpleNamespace(regional_market=None), sector_price=lambda: 1.0, revenue=0.0,
+                      employees=dict(enumerate(_op_m)), total_balance=400.0, region_id='r', wages_paid=0.0)
+_op_old = _VTFirm.fare_bill
+_VTFirm.fare_bill = 3.0
+_OAPool.make_payment(_op, {}, 0.1, 0.5, 0.0, 0.0)
+_VTFirm.fare_bill = _op_old
+check("TRANSPORT_MONEY 'fare': own-account worker without a private vehicle owes the whole bill, with one nothing",
+      [m.fare_due for m in _op_m] == [3.0, 3.0, 0.0] and abs(sum(m.wage_paid for m in _op_m) - 400.0) < 1e-9
+      and abs(_op_m[0].wage_paid - 10.0) < 1e-9 and _op.total_balance == 0.0,
+      f"dues {[m.fare_due for m in _op_m]}, pay {[round(m.wage_paid, 2) for m in _op_m]}")
+
+# PUBLIC_WORKS: the month's share of GDP comes in, buys idle production at the firm's price, the rest stays
+from world.funds import Funds as _PWFunds
+_pw_calls = []
+_pw_a = SimpleNamespace(sector='Construction', own_account=False, total_quantity=10.0, prices=2.0,
+                        update_balance=lambda amount, months, date: _pw_calls.append(('a', amount, months)))
+_pw_b = SimpleNamespace(sector='Construction', own_account=False, total_quantity=4.0, prices=5.0,
+                        update_balance=lambda amount, months, date: _pw_calls.append(('b', amount, months)))
+_pw_c = SimpleNamespace(sector='Trade', own_account=False, total_quantity=99.0, prices=1.0)
+_pw_sim = SimpleNamespace(PARAMS={'PUBLIC_WORKS': [2024, 2025, 2.0], 'CONSTRUCTION_ACC_CASH_FLOW': 12},
+                          clock=SimpleNamespace(year=2024, days=None), ledger=defaultdict(float),
+                          stats=SimpleNamespace(funds_gdp=lambda mun, year: 1000.0),
+                          geo=SimpleNamespace(mun_codes=['1100015', '1100023']),
+                          firms={1: _pw_a, 2: _pw_b, 3: _pw_c})
+_pw = SimpleNamespace(sim=_pw_sim, public_works_money=0.0, public_works_bought=0.0)
+_PWFunds.buy_public_works(_pw)
+_pw_ok = (abs(_pw_sim.ledger['ogu'] - 40.0) < 1e-9 and _pw_calls == [('a', 20.0, 12), ('b', 20.0, 12)]
+          and _pw_a.total_quantity == 0.0 and _pw_b.total_quantity == 0.0 and abs(_pw.public_works_money) < 1e-9
+          and abs(_pw.public_works_bought - 40.0) < 1e-9)
+_pw_sim.clock.year = 2026
+_pw_a.total_quantity = 3.0
+_pw.public_works_money = 10.0
+_PWFunds.buy_public_works(_pw)
+check("PUBLIC_WORKS: the share of GDP comes in within the years, buys idle construction production, the rest stays",
+      _pw_ok and abs(_pw_sim.ledger['ogu'] - 40.0) < 1e-9 and abs(_pw.public_works_money - 4.0) < 1e-9
+      and _pw_c.total_quantity == 99.0, f"calls {_pw_calls}, left {_pw.public_works_money}")
+
+# FARE_INCOME_SHARE_FUTURE: the fare share moves with the share of the future network in force
+from simulation import Simulation as _FSSim
+_fs = SimpleNamespace(PARAMS={'FARE_INCOME_SHARE': .06, 'FARE_INCOME_SHARE_FUTURE': .03}, clock=SimpleNamespace(days=0),
+                      transport=SimpleNamespace(matrix=1, spec_at=lambda d: _fs_spec))
+_fs_got = []
+for _fs_spec in ('base', .5, 'otimizado'):
+    _fs_got.append(_FSSim.fare_share(_fs))
+_fs.PARAMS['FARE_INCOME_SHARE_FUTURE'] = None
+check("FARE_INCOME_SHARE_FUTURE: 0.06 on the base network, halfway at phi 0.5, the future share on the future state",
+      np.allclose(_fs_got, [.06, .045, .03]) and _FSSim.fare_share(_fs) == .06, f"{_fs_got}")
+
+# LOCATION_CHOICE 'logit': an own-account worker adds no time cost
+_lc_sim.firms['p'] = _cd_ns(region_id='J', pool=True)
+_oc_fam = _cd_ns(members={'w': _cd_ns(firm_id='p', last_wage=2200.0, has_car=False, is_minor=False, is_retired=False)})
+check("LOCATION_CHOICE 'logit': an own-account worker adds no time cost in any region",
+      _lc.family_cost(_oc_fam, 'A') == 0.0 and _lc.family_cost(_oc_fam, 'B') == 0.0,
+      f"{_lc.family_cost(_oc_fam, 'B')}")
+
 # TRANSPORT_MONEY 'fare': fares come out of the family's Transport share first, then the other sectors pro rata
 from agents.family import fare_budget as _fb
 _fb_s, _fb_share = 100.0, 0.04
