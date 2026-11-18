@@ -10,6 +10,8 @@ City sets:
     26   the 26 capitals without Sao Paulo, d09 / d13 / d25; stats, regional, and firms, agents and families parquet
          every January
     sp   Sao Paulo, d09 / d25; stats, regional, and firms and families parquet every January (no agents parquet)
+    df   Brasilia, d09 / d13 / d25, seeds as 26, same files as 26, into output/mcmv2026_df; refuses to start while a
+         Brasilia travel-time file is present, so commuting uses distance as in the other areas
 
 Modes (cwd = repository root):
     python runner_mcmv2026.py teste CPUS [cities=sp]  26: every scenario in Palmas, 1 seed, 2 years, then the check;
@@ -17,7 +19,7 @@ Modes (cwd = repository root):
                                                       the saved files
     python runner_mcmv2026.py lote CPUS [OPTIONS]     the batch; rerun the same command to resume (finished runs
                                                       skipped)
-        cities=26|sp            city set (default 26)
+        cities=26|sp|df         city set (default 26)
         part=K/N                26: the K-th of N contiguous slices of the queue; sp: the K-th of N contiguous
                                 slices of the seeds, so d09 and d25 of a seed run on the same server (N = 3 gives
                                 seeds 0-2, 3-5, 6-9). Default 1/1
@@ -74,8 +76,8 @@ def options(args):
         if not sep or key not in opts:
             sys.exit('Unknown option {!r}. Options: {}'.format(a, ', '.join(k + '=' for k in opts)))
         opts[key] = v
-    if opts['cities'] not in ('26', 'sp'):
-        sys.exit('cities must be 26 or sp')
+    if opts['cities'] not in ('26', 'sp', 'df'):
+        sys.exit('cities must be 26, sp or df')
     k, n = (int(x) for x in opts['part'].split('/'))
     if not 1 <= k <= n:
         sys.exit('part must be K/N with 1 <= K <= N')
@@ -115,6 +117,22 @@ if __name__ == '__main__':
             R.conferir(root, datetime.date(2012, 1, 1))
     elif mode == 'lote':
         cities, k, n = options(sys.argv[3:])
+        if cities == 'df':
+            from world.transport import read_acp_matrix
+            if read_acp_matrix('BRASILIA') is not None:
+                sys.exit('A Brasilia travel-time file is present (input/bndes or input/transport): remove it first')
+            root = OUTPUT + '_df'
+            items = queue(scenarios, ['BRASILIA'], list(range(R.RUNS)))
+            items = items[(k - 1) * len(items) // n:k * len(items) // n]
+            manifest_dir = os.path.join(root, 'queue_{}of{}'.format(k, n))
+            os.makedirs(manifest_dir, exist_ok=True)
+            handler = logging.FileHandler(os.path.join(manifest_dir, 'runner.log'), encoding='utf-8')
+            handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(name)s: %(message)s'))
+            logging.getLogger().addHandler(handler)
+            logger.info('cities df, part %d/%d, %d runs', k, n, len(items))
+            R.run(root, items, int(sys.argv[2]), manifest_dir, COMMON)
+            R.conferir(root)
+            sys.exit(0)
         if cities == 'sp':
             # Contiguous slices of the seeds, sizes differing by at most one
             seeds = list(range(R.RUNS))[(k - 1) * R.RUNS // n:k * R.RUNS // n]
