@@ -213,6 +213,13 @@ class HousingMarket:
         # Proceed to Sales market ###########################################################
         vacancy = sim.stats.vacancy_rate
 
+        # HOUSING_BIDDING 'filatova': buyers of a submarket bid against each other in rounds
+        if sim.PARAMS.get('HOUSING_BIDDING', 'off') == 'filatova':
+            for quality_key in purchasing:
+                if purchasing[quality_key] and houses_to_sell_by_quality[quality_key]:
+                    self.bidding(purchasing[quality_key], houses_to_sell_by_quality[quality_key], sim, vacancy)
+            return
+
         # For each family
         for quality_key in purchasing:
             for family in purchasing[quality_key]:
@@ -221,34 +228,13 @@ class HousingMarket:
                 self.negotiating(family, houses_to_sell_by_quality[quality_key], sim, vacancy)
 
     def negotiating(self, family, for_sale, sim, vacancy):
-        savings = family.savings + family.bank_savings
-        savings_with_mortgage = family.savings_with_loan
         my_market = sim.seed.sample(for_sale, min(len(for_sale), int(sim.PARAMS['SIZE_MARKET']) * 3))
         my_market.sort(key=lambda h: h.price, reverse=True)
         # If family has enough funds, or successfully gets a loan, it buys the first house of the stack.
         # Only houses that are within savings or savings plus loan compose each family individual market
         # Otherwise, it tries another one.
-        # Cache parameters locally (avoid repeated dict lookups)
-        params = sim.PARAMS
-        capped_top_value = params['CAPPED_TOP_VALUE']
-        capped_low_value = params['CAPPED_LOW_VALUE']
-        # Offer ceiling. The bargained price averages the buyer's means with the
-        # asking price; when the buyer's means are capped at CAPPED_TOP_VALUE times
-        # the ask, that average is (CAPPED_TOP_VALUE + 1) / 2 times the ask. The
-        # rule is therefore continuous at the cap: at savings/p == 1.3 both
-        # branches give 1.15p.
-        capped_price_factor = (capped_top_value + 1) / 2
-        loan_rate = getattr(family, 'loan_rate', None)
-        if loan_rate == 'fgts':
-            max_loan_to_value = params['MAX_LOAN_TO_VALUE_FGTS']
-        elif loan_rate == 'sbpe':
-            max_loan_to_value = params['MAX_LOAN_TO_VALUE_SBPE']
-        else:
-            max_loan_to_value = params['MAX_LOAN_TO_VALUE']
-
-        occupy = params.get('HOUSING_PURCHASE', 'occupy') == 'occupy'
-        terms = (savings, savings_with_mortgage, capped_top_value, capped_low_value, capped_price_factor,
-                 max_loan_to_value, occupy)
+        terms = self.terms(family, sim)
+        savings, savings_with_mortgage, capped_low_value, occupy = terms[0], terms[1], terms[3], terms[6]
         location = getattr(sim, 'location_choice', None)
         if location is not None and location.ready:
             # LOCATION_CHOICE 'logit': the family picks among the houses it can pay for; a failed purchase drops
@@ -268,6 +254,101 @@ class HousingMarket:
                 continue
             if self.buy(family, house, for_sale, sim, vacancy, terms):
                 return
+
+    @staticmethod
+    def tightness(buyers, sellers):
+        """Filatova et al. (2009, eq. 6): (NB - NS) / (NB + NS), at least zero"""
+        return max(0.0, (buyers - sellers) / (buyers + sellers)) if buyers + sellers else 0.0
+
+    @staticmethod
+    def bid(house, terms):
+        """The family's bid for `house`: its means (savings, else savings plus the loan) capped at terms[2] times
+        the ask, or its savings when they reach only CAPPED_LOW_VALUE of the ask. None when it cannot bid.
+        buy() prices a bid at or above the ask at (ask + bid) / 2"""
+        savings, savings_with_mortgage, capped_top_value, capped_low_value = terms[:4]
+        p = house.price
+        if savings > p:
+            return min(savings, capped_top_value * p)
+        if savings_with_mortgage > p:
+            return min(savings_with_mortgage, capped_top_value * p)
+        if savings / p > capped_low_value:
+            return savings
+        return None
+
+    def bidding(self, families, for_sale, sim, vacancy):
+        """HOUSING_BIDDING 'filatova' (Filatova et al. 2009, p.7): in each round every family still looking bids on
+        its preferred house among those it can bid on (the dearest, or its LOCATION_CHOICE pick), and each house goes
+        to its highest bid: the bidders try buy() from the highest bid down (ties in random order) until one buys.
+        A family that does not buy drops that house and bids again next round. Rounds end when no family has a
+        house left to bid on. Bids are capped at the ask x (1 + ε), ε = tightness(buyers, houses) of the submarket at
+        the start of the month (eq. 6), in place of CAPPED_TOP_VALUE: a buyer pays from the ask, when houses
+        outnumber buyers, to 1.5 x the ask"""
+        cap = 1 + self.tightness(len(families), len(for_sale))
+        location = getattr(sim, 'location_choice', None)
+        if location is not None and not location.ready:
+            location = None
+        markets = {}
+        for family in families:
+            my_market = sim.seed.sample(for_sale, min(len(for_sale), int(sim.PARAMS['SIZE_MARKET']) * 3))
+            my_market.sort(key=lambda h: h.price, reverse=True)
+            t = self.terms(family, sim)
+            markets[id(family)] = (t[:2] + (cap, t[3], (cap + 1) / 2) + t[5:], my_market)
+        sold = set()
+        active = list(families)
+        while active:
+            bids, houses = defaultdict(list), {}
+            for family in active:
+                terms, my_market = markets[id(family)]
+                occupy = terms[6]
+                options = [h for h in my_market if h.id not in sold and not (occupy and h.is_occupied)
+                           and self.bid(h, terms) is not None]
+                if not options:
+                    continue
+                house = location.choose(family, options) if location is not None else options[0]
+                houses[house.id] = house
+                bids[house.id].append((self.bid(house, terms), sim.seed.random(), id(family), family))
+            if not bids:
+                return
+            bought = set()
+            for house_id in sorted(bids):
+                house = houses[house_id]
+                for *_, family in sorted(bids[house_id], key=lambda b: (-b[0], b[1])):
+                    if self.buy(family, house, for_sale, sim, vacancy, markets[id(family)][0]):
+                        sold.add(house_id)
+                        bought.add(id(family))
+                        break
+                    markets[id(family)][1].remove(house)
+                for *_, family in bids[house_id]:
+                    if id(family) not in bought and house in markets[id(family)][1]:
+                        markets[id(family)][1].remove(house)
+            active = [f for f in active if id(f) not in bought]
+
+    @staticmethod
+    def terms(family, sim):
+        """The family's means and the market rules buy() applies to it"""
+        savings = family.savings + family.bank_savings
+        savings_with_mortgage = family.savings_with_loan
+        # Cache parameters locally (avoid repeated dict lookups)
+        params = sim.PARAMS
+        capped_top_value = params['CAPPED_TOP_VALUE']
+        capped_low_value = params['CAPPED_LOW_VALUE']
+        # Offer ceiling. The bargained price averages the buyer's means with the
+        # asking price; when the buyer's means are capped at CAPPED_TOP_VALUE times
+        # the ask, that average is (CAPPED_TOP_VALUE + 1) / 2 times the ask. The
+        # rule is therefore continuous at the cap: at savings/p == 1.3 both
+        # branches give 1.15p.
+        capped_price_factor = (capped_top_value + 1) / 2
+        loan_rate = getattr(family, 'loan_rate', None)
+        if loan_rate == 'fgts':
+            max_loan_to_value = params['MAX_LOAN_TO_VALUE_FGTS']
+        elif loan_rate == 'sbpe':
+            max_loan_to_value = params['MAX_LOAN_TO_VALUE_SBPE']
+        else:
+            max_loan_to_value = params['MAX_LOAN_TO_VALUE']
+
+        occupy = params.get('HOUSING_PURCHASE', 'occupy') == 'occupy'
+        return (savings, savings_with_mortgage, capped_top_value, capped_low_value, capped_price_factor,
+                max_loan_to_value, occupy)
 
     def buy(self, family, house, for_sale, sim, vacancy, terms):
         """The family tries to buy `house`. True when bought."""
@@ -341,7 +422,7 @@ class HousingMarket:
     def notarial_procedures(self, family, house, price, change, sim):
         # Withdraw money from buying family and distribute back the difference
         family.update_balance(change)
-        sim.house_sales.append((price, house.price, not house.family_owner))
+        sim.house_sales.append((price, house.price, not house.family_owner, house.region_id))
         # Collect taxes on transaction
         taxes = price * sim.PARAMS['TAX_ESTATE_TRANSACTION']
         sim.regions[house.region_id].collect_taxes(taxes, 'transaction')

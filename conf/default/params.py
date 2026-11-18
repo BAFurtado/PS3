@@ -343,6 +343,11 @@ NEIGHBORHOOD_EFFECT = 0.2
 # renting. 'occupy': only vacant houses are for sale, a house is sold at most once a month, and a tenant that buys moves
 # into the house.
 HOUSING_PURCHASE = 'occupy'
+# 'off': buyers go through their submarket one at a time and each buys the first house it can pay for. 'filatova'
+# (Filatova et al. 2009): in rounds, each buyer bids on its preferred house and each house goes to its highest bid,
+# priced as now at (ask + bid) / 2; bids are capped at the ask x (1 + ε), ε = (buyers - houses) / (buyers + houses) of
+# the submarket, at least zero, in place of CAPPED_TOP_VALUE (markets/housing.py)
+HOUSING_BIDDING = 'off'
 
 # RENTAL #######################
 # Reais (2010) per model money unit (κ). Converts Census income into each family's initial permanent income, which

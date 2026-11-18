@@ -30,7 +30,11 @@ import sys
 import runner_vacancy_ab as V
 
 OUTPUT = 'output/rent_ap'
+# The switch compared and its two values; BASE holds the other settings of both sides (runner_bidding_ab.py reuses
+# this module with its own)
+KEY = 'RENT_LEVEL'
 LEVELS = ['census', 'census_ap']
+BASE = {'VACANCY_SCOPE': 'region'}
 ENMU = ['BRASILIA', 'FORTALEZA', 'BAIXADA SANTISTA', 'GOIANIA', 'MANAUS', 'TERESINA']
 V.COMMON['VACANCY_SCOPE'] = 'region'
 logger = logging.getLogger('main')
@@ -45,8 +49,8 @@ def build_jobs(root, items, total_days=None):
     jobs = V.build_jobs(root, items, total_days)
     for job in jobs:
         level = job['path'].split(os.sep)[-3]
-        job['params']['RENT_LEVEL'] = level
-        job['params']['VACANCY_SCOPE'] = 'region'
+        job['params'].update(BASE)
+        job['params'][KEY] = level
     return jobs
 
 
@@ -70,8 +74,29 @@ def area_fit(path, month):
     return fit, share
 
 
-def comparar(root=OUTPUT):
+def sales_premium(path, window=None):
+    """Price paid over listed price of the sales in sales.csv (window as V.WINDOW), all and in the top fifth of
+    areas by Census rent; NaN without the file"""
+    import pandas as pd
+    f = os.path.join(path, 'sales.csv')
+    if not os.path.exists(f):
+        return float('nan'), float('nan')
+    s = pd.read_csv(f, sep=';', header=None, names=['month', 'region_id', 'paid', 'listed', 'new'],
+                    dtype={'region_id': str})
+    s['month'] = pd.to_datetime(s.month).dt.date
+    w = window or V.WINDOW
+    s = s[(s.month >= w[0]) & (s.month <= w[1])]
+    if s.empty:
+        return float('nan'), float('nan')
+    census = pd.read_csv('input/rent_AP_2010.csv', sep=';', dtype={'AREAP': str}).set_index('AREAP').mean_rent
+    c = census.reindex(s.region_id.unique())
+    top = s[s.region_id.isin(set(c[c >= c.quantile(.8)].index))]
+    return float(s.paid.sum() / s.listed.sum()), float(top.paid.sum() / top.listed.sum()) if len(top) else float('nan')
+
+
+def comparar(root=None):
     import numpy as np
+    root = root or OUTPUT
     import pandas as pd
     rows = []
     for done in sorted(glob.glob(os.path.join(root, LEVELS[0], '*', '*', 'DONE'))):
@@ -88,13 +113,16 @@ def comparar(root=OUTPUT):
             r['%s_max_unemployment' % level] = s.unemployment.max()
             r['%s_fit_2011' % level], _ = area_fit(path, datetime.date(2011, 1, 1))
             r['%s_fit_2021' % level], r['%s_new_top' % level] = area_fit(path, datetime.date(2021, 1, 1))
+            r['%s_premium' % level], r['%s_premium_top' % level] = sales_premium(path)
+            r['%s_sales' % level] = w.house_sales.mean() if 'house_sales' in w else float('nan')
         rows.append(r)
     if not rows:
         print('No finished pairs in', root)
         return
     t = pd.DataFrame(rows)
     a, b = LEVELS
-    cols = V.INDICATORS + ['max_unemployment', 'fit_2011', 'fit_2021', 'new_top']
+    extra = ['fit_2011', 'fit_2021', 'new_top', 'premium', 'premium_top', 'sales']
+    cols = V.INDICATORS + ['max_unemployment'] + extra
     for c in cols:
         t['d_' + c] = 100 * (t[b + '_' + c] / t[a + '_' + c] - 1) if c in V.RELATIVE else t[b + '_' + c] - t[a + '_' + c]
     pd.set_option('display.width', 250)
@@ -105,7 +133,7 @@ def comparar(root=OUTPUT):
     delta = g[['d_' + c for c in cols]].mean()
     sd = g[['d_' + c for c in cols]].std()
     width = level.quantile(.9) - level.quantile(.1)
-    width[[a + '_' + c for c in V.RELATIVE + ['fit_2011', 'fit_2021', 'new_top']]] = np.nan
+    width[[a + '_' + c for c in V.RELATIVE + extra]] = np.nan
     summary = pd.DataFrame({a + '_p10': level.quantile(.1).values, a + '_p90': level.quantile(.9).values,
                             'width': width.values, 'delta_mean': delta.mean().values,
                             'delta_min': delta.min().values, 'delta_max': delta.max().values,
@@ -117,7 +145,7 @@ def comparar(root=OUTPUT):
     print('(deltas of', ', '.join(V.RELATIVE), 'in percent):')
     print(summary.round(4).to_string())
     print('\nPer area, levels under both and delta (mean over seeds):')
-    both = pd.concat([g[[a + '_' + c, b + '_' + c]].mean() for c in ['fit_2011', 'fit_2021', 'new_top']], axis=1)
+    both = pd.concat([g[[a + '_' + c, b + '_' + c]].mean() for c in extra], axis=1)
     print(both.round(3).to_string())
     print(delta.round(4).to_string())
     exploded = t[(t[a + '_max_unemployment'] > .3) | (t[b + '_max_unemployment'] > .3)]
@@ -140,7 +168,7 @@ def options(args):
     return opts['cities'], int(opts['runs']), k, n
 
 
-if __name__ == '__main__':
+def main():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
     if V.R.LOCAL_CONF:
         print('Ignoring local overrides:', ', '.join(V.R.LOCAL_CONF))
@@ -165,3 +193,7 @@ if __name__ == '__main__':
         V.run(OUTPUT, jobs, int(sys.argv[2]), os.path.join(OUTPUT, 'queue_{}_{}of{}'.format(name, k, n)))
     else:
         sys.exit(__doc__)
+
+
+if __name__ == '__main__':
+    main()

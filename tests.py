@@ -2412,6 +2412,46 @@ check("Rent level 'census_ap': ACP mean rent kept, factors proportional to Censu
       and max(_ra_ratio) / min(_ra_ratio) - 1 < 1e-9,
       f"{len(_ra)} of {len(sim.regions)} areas, model {np.mean(_ra_rents):.4f} vs Census {_rl_target:.4f}")
 
+# HOUSING_BIDDING 'filatova': bids, highest bid wins, a failed buy passes the house on, losers bid again
+from markets.housing import HousingMarket as _HB
+import random as _hb_random
+_hb_terms = lambda s, m: (s, m, 1.3, .7, 1.15, .8, True)
+check("HousingMarket.bid: means capped at 1.3 x ask, savings when they reach only 0.7 of it, None below",
+      _HB.bid(_cd_ns(price=100.0), _hb_terms(200.0, 200.0)) == 130.0
+      and _HB.bid(_cd_ns(price=100.0), _hb_terms(50.0, 110.0)) == 110.0
+      and _HB.bid(_cd_ns(price=100.0), _hb_terms(80.0, 80.0)) == 80.0
+      and _HB.bid(_cd_ns(price=100.0), _hb_terms(60.0, 60.0)) is None)
+
+
+class _HBStub(_HB):
+    """buy() succeeds unless the family is in `refuse`; records (family, house) in order"""
+    def __init__(self, refuse=()):
+        super().__init__()
+        self.refuse, self.calls = set(refuse), []
+
+    def buy(self, family, house, for_sale, sim, vacancy, terms):
+        self.calls.append((family.name, house.id, round(self.bid(house, terms), 6)))
+        return family.name not in self.refuse
+
+    @staticmethod
+    def terms(family, sim):
+        return _hb_terms(family.means, family.means)
+
+
+_hb_h = [_cd_ns(id=i, price=p, is_occupied=False) for i, p in ((1, 100.0), (2, 90.0))]
+_hb_f = [_cd_ns(name='poor', means=105.0), _cd_ns(name='rich', means=125.0), _cd_ns(name='mid', means=95.0)]
+_hb_sim = _cd_ns(PARAMS={'SIZE_MARKET': 5}, seed=_hb_random.Random(0))
+_hb = _HBStub()
+_hb.bidding(_hb_f, list(_hb_h), _hb_sim, 0.1)
+_hb2 = _HBStub(refuse={'rich'})
+_hb2.bidding(_hb_f, list(_hb_h), _cd_ns(PARAMS={'SIZE_MARKET': 5}, seed=_hb_random.Random(0)), 0.1)
+check("HOUSING_BIDDING 'filatova': tightness (NB - NS) / (NB + NS) at least zero; 3 buyers for 2 houses cap bids at "
+      "1.2 x ask; the highest bid gets the house, the loser bids next round; a refused buy passes the house on",
+      abs(_HB.tightness(3, 2) - .2) < 1e-12 and _HB.tightness(2, 5) == 0.0
+      and _hb.calls == [('rich', 1, 120.0), ('poor', 2, 105.0)]
+      and _hb2.calls == [('rich', 1, 120.0), ('poor', 1, 105.0), ('rich', 2, 108.0), ('mid', 2, 95.0)],
+      f"{_hb.calls} / {_hb2.calls}")
+
 # House.land_cost: without land_base, LOT_COST of the value; with it, value - (1 - lot) x value at the ACP factor,
 # at least zero, so value - land is the same in every region above the floor
 _lc_saved = dict(_hv_House.area_scale), dict(_hv_House.land_base)

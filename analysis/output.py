@@ -13,7 +13,7 @@ from analysis.money import LEDGER_CHANNELS, money_stock
 from markets.goods import household_refused_coverable
 
 # Files written as CSV (small, used by averaging pipeline)
-_CSV_FILES = {'stats', 'regional', 'time', 'head', 'neighbourhood'}
+_CSV_FILES = {'stats', 'regional', 'time', 'head', 'neighbourhood', 'sales'}
 # Files written as Parquet (large per-agent/family/firm data)
 _PARQUET_FILES = {'firms', 'banks', 'houses', 'agents', 'families', 'grave', 'construction'}
 
@@ -551,7 +551,7 @@ class Output:
     def __init__(self, sim, output_path):
         all_files = ['stats', 'regional', 'time', 'firms', 'banks',
                      'houses', 'agents', 'families', 'grave', 'construction',
-                     'head', 'neighbourhood']
+                     'head', 'neighbourhood', 'sales']
 
         self.sim = sim
         self.times = []
@@ -775,6 +775,11 @@ class Output:
         stats_row["house_sales_list"] = sum(s[1] for s in sales)
         stats_row["house_sales_new"] = len(new)
         stats_row["house_sales_new_paid"] = sum(s[0] for s in new)
+        if 'sales' in conf.RUN['SAVE_DATA'] and sales:
+            # One row per sale this month: region, price paid, listed price, new house
+            with open(self.sales_path, 'a') as fp:
+                for paid, listed, is_new, region_id in sales:
+                    fp.write('%s;%s;%.6f;%.6f;%d\n' % (sim.clock.days, region_id, paid, listed, is_new))
         sim.house_sales = []
         from agents.firm import UNPLANNED_SECTORS
         planned =[f for f in sim.firms.values() if f.sector not in UNPLANNED_SECTORS]
@@ -931,6 +936,9 @@ class Output:
                           neighbourhood_commute.get(region.id, 0),
                           neighbourhood_gini.get(region.id, 0),
                           region.index))
+
+    def save_sales_data(self, sim):
+        """Sales are written every month with the stats (save_stats_report)"""
 
     def save_data(self, sim):
         # firms data is necessary for plots,
