@@ -13,8 +13,8 @@ Otimizado / Padrao, moving with the network. Every run of money, padrao and otim
 area and seed before START-01. The matrices use trips weights. Teresina also runs the four scenarios with area weights
 (base_area, money_area, padrao_area, otimizado_area).
 Settings of every run: CAR_OWNERSHIP census2022, LOCATION_CHOICE logit, VACANCY_SCOPE region, TRANSPORT_MONEY fare,
-the other settings at the code defaults. Seeds SEED + i (i = 0-9, the seeds of runner_mcmv2026). Saved: stats,
-regional, and the agents, families, houses and firms parquet every January.
+RENT_LEVEL census_ap, the other settings at the code defaults. Seeds SEED + i (i = 0-9, the seeds of
+runner_mcmv2026). Saved: stats, regional, and the agents, families, houses and firms parquet every January.
 
 Modes (cwd = repository root):
     python runner_enmu.py teste CPUS             Teresina, the eight scenarios, seed 0, 2 years, investment and
@@ -56,6 +56,7 @@ COMMON = {
     'LOCATION_CHOICE': 'logit',
     'VACANCY_SCOPE': 'region',
     'TRANSPORT_MONEY': 'fare',
+    'RENT_LEVEL': 'census_ap',
 }
 R.conf.RUN['SAVE_DATA'] = ['agents', 'family', 'house', 'firms']
 logger = logging.getLogger('main')
