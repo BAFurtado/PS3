@@ -15,11 +15,23 @@ class House:
     price_scale = 1.0
     # RENT_LEVEL 'census': the ACP's factor per region id, on top of price_scale
     area_scale = {}
+    # RENT_LEVEL 'census_ap': the ACP's factor per region id, against which land takes the region's premium
+    land_base = {}
 
     @staticmethod
     def scale(region_id):
         """Price per unit of size x quality x region index in the region"""
         return House.price_scale * House.area_scale.get(region_id, 1.0)
+
+    @staticmethod
+    def land_cost(region_id, units, lot):
+        """Land for `units` of size x quality x index: `lot` of the house's value. With land_base (RENT_LEVEL
+        'census_ap') the land also takes the region's value above the ACP level, value - (1 - lot) x the value at
+        the ACP factor, at least zero, so the builder's margin does not grow with the region's factor"""
+        if not House.land_base:
+            return units * House.scale(region_id) * lot
+        base = House.price_scale * House.land_base.get(region_id, House.area_scale.get(region_id, 1.0))
+        return max(0.0, units * (House.scale(region_id) - (1 - lot) * base))
 
     def __init__(self, _id, address, size, price, region_id, quality,
                  rural=False, family_id=None, owner_id=None,

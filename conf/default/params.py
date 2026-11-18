@@ -354,6 +354,9 @@ INITIAL_RENTAL_SHARE = 0.40
 INITIAL_RENTAL_PRICE = 0.002
 # Level of rents and house prices. 'legacy': INITIAL_RENTAL_PRICE. 'census': in each ACP, scaled so that the mean rent
 # of the houses rented at the start equals the Census 2010 mean rent of its renting households (input/rent_AP_2010.csv)
+# 'census_ap': the same ACP level, divided among its areas (APs) in proportion to each area's Census mean rent,
+# shrunk toward its municipality's, over its expected quality x index (world/house_values.py). Land then takes the
+# area's value above the ACP level (House.land_cost)
 RENT_LEVEL = 'census'
 # House values: rents keep the level of INITIAL_RENTAL_PRICE x size x quality x region index; prices are rent x 12 /
 # RENTAL_YIELD, the FipeZAP 2010 national gross rental yield; builders' cost is size x the Sinapi 2010 cost per m² of

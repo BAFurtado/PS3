@@ -5,7 +5,8 @@ Permanent private households renting (V0201 = 3) with a positive rent (V2011, R$
 households: all permanent private households with a weight. Areas: V0011 (área de ponderação, the model's AREAP);
 municipalities with one area use the municipality code followed by zeros, as in the other AREAP inputs.
 
-Rows: AREAP;households;renters;mean_rent;median_rent
+Rows: AREAP;households;renters;mean_rent;median_rent;sampled;sd_rent. sampled is the number of renting households in
+the sample (unweighted), sd_rent the weighted standard deviation of their rent.
 
 Usage: python auxiliary/rent_ap.py
 """
@@ -34,6 +35,11 @@ def wmedian(x, w):
     return x[o][np.searchsorted(c, c[-1] / 2)]
 
 
+def wsd(x, w):
+    m = np.average(x, weights=w)
+    return np.sqrt(np.average((x - m) ** 2, weights=w))
+
+
 def main():
     rows = []
     for uf in DIRS:
@@ -47,7 +53,9 @@ def main():
                 r = g[(g.tenure == '3') & (g.rent > 0)]
                 rows.append({'AREAP': ap, 'households': g.w.sum(), 'renters': r.w.sum(),
                              'mean_rent': np.average(r.rent, weights=r.w) if len(r) else np.nan,
-                             'median_rent': wmedian(r.rent.values, r.w.values) if len(r) else np.nan})
+                             'median_rent': wmedian(r.rent.values, r.w.values) if len(r) else np.nan,
+                             'sampled': len(r),
+                             'sd_rent': wsd(r.rent.values, r.w.values) if len(r) > 1 else np.nan})
             print(f, len(rows))
     pd.DataFrame(rows).to_csv('input/rent_AP_2010.csv', sep=';', index=False, float_format='%.6g')
 

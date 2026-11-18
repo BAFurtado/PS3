@@ -275,8 +275,13 @@ class Simulation:
         for house in self.houses.values():
             house.price *= House.price_scale
         House.area_scale = {}
-        if self.PARAMS.get('RENT_LEVEL', 'legacy') == 'census':
-            House.area_scale = self.house_values.census_rent_scale(self.houses.values(), self.regions)
+        House.land_base = {}
+        rent_level = self.PARAMS.get('RENT_LEVEL', 'legacy')
+        if rent_level in ('census', 'census_ap'):
+            if rent_level == 'census_ap':
+                House.land_base = self.house_values.census_rent_scale(self.houses.values(), self.regions, 'acp')
+            House.area_scale = self.house_values.census_rent_scale(self.houses.values(), self.regions,
+                                                                   'ap' if rent_level == 'census_ap' else 'acp')
             for house in self.houses.values():
                 factor = House.area_scale.get(house.region_id, 1.0)
                 house.price *= factor

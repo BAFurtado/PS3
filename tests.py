@@ -2385,6 +2385,47 @@ check("Rent level 'census': mean rent of rented houses equals the Census mean re
       len(set(_rl.values())) == 1 and _rl_rents and abs(np.mean(_rl_rents) / _rl_target - 1) < 1e-9 and _rl_ok_scale,
       f"factor {set(_rl.values())}, model {np.mean(_rl_rents) if _rl_rents else 0:.4f} vs Census {_rl_target:.4f}")
 
+# census_ap_rent: areas shrink toward their municipality by k = s2 / tau2, a lone area keeps its own mean, an area
+# without sampled renters takes the municipal mean
+from world.house_values import census_ap_rent as _car
+_car_c = pd.DataFrame({'sampled': [100, 100, 0, 50], 'mean_rent': [200.0, 400.0, np.nan, 300.0],
+                       'sd_rent': [100.0, 100.0, np.nan, 90.0]},
+                      index=[1100015001001, 1100015001002, 1100015001003, 1100023001001])
+_car_v = _car(_car_c, ['1100015001001', '1100015001002', '1100015001003', '1100023001001'])
+_car_k = 100.0 ** 2 / (100.0 ** 2 - 2 * 100.0 ** 2 / 200)
+check("census_ap_rent: areas shrink toward the municipal mean by the estimated k, a lone area keeps its own",
+      abs(_car_v['1100015001001'] - (100 * 200 + _car_k * 300) / (100 + _car_k)) < 1e-9
+      and abs(_car_v['1100015001002'] - (100 * 400 + _car_k * 300) / (100 + _car_k)) < 1e-9
+      and _car_v['1100015001003'] == 300.0 and _car_v['1100023001001'] == 300.0, f"{_car_v}")
+
+# RENT_LEVEL 'census_ap': same ACP mean rent, each area's factor proportional to its shrunk Census rent over its
+# expected quality x index
+_ra = _hv.census_rent_scale(sim.houses.values(), sim.regions, 'ap')
+_ra_rents = [float(h.rent_data[0]) * _ra[h.region_id] for h in sim.houses.values()
+             if h.rent_data is not None and h.family_id is not None]
+_ra_rent = _car(_rl_census, list(sim.regions))
+_ra_sh = pd.read_csv('input/dpp_2010_quali.csv', dtype={'areap': str}).set_index('areap')
+_ra_q = _ra_sh[['DPP0', 'DPP1', 'DPP2', 'DPP3', 'DPP4', 'DPP5']] @ np.array([.5, 1, 2, 3, 4, 5])
+_ra_ratio = [_ra[r] * _ra_q[r] * sim.regions[r].index / _ra_rent[r] for r in _ra]
+check("Rent level 'census_ap': ACP mean rent kept, factors proportional to Census rent / (quality x index)",
+      len(_ra) == len(sim.regions) and len(set(_ra.values())) > 1 and abs(np.mean(_ra_rents) / _rl_target - 1) < 1e-9
+      and max(_ra_ratio) / min(_ra_ratio) - 1 < 1e-9,
+      f"{len(_ra)} of {len(sim.regions)} areas, model {np.mean(_ra_rents):.4f} vs Census {_rl_target:.4f}")
+
+# House.land_cost: without land_base, LOT_COST of the value; with it, value - (1 - lot) x value at the ACP factor,
+# at least zero, so value - land is the same in every region above the floor
+_lc_saved = dict(_hv_House.area_scale), dict(_hv_House.land_base)
+_hv_House.area_scale, _hv_House.land_base = {'A': 1.0, 'B': 1.5, 'C': .5}, {}
+_lc_legacy = abs(_hv_House.land_cost('B', 10.0, .15) - 10.0 * _hv_House.price_scale * 1.5 * .15) < 1e-9
+_hv_House.land_base = {'A': 1.0, 'B': 1.0, 'C': 1.0}
+_lc_margin = [10.0 * _hv_House.scale(r) - _hv_House.land_cost(r, 10.0, .15) for r in 'AB']
+check("House.land_cost: legacy share without land_base; with it the margin is the same above the ACP level, "
+      "and land is never negative",
+      _lc_legacy and abs(_lc_margin[0] - _lc_margin[1]) < 1e-6 * abs(_lc_margin[0])
+      and abs(_hv_House.land_cost('A', 10.0, .15) - 10.0 * _hv_House.price_scale * .15) < 1e-9
+      and _hv_House.land_cost('C', 10.0, .15) == 0.0, f"margins {_lc_margin}")
+_hv_House.area_scale, _hv_House.land_base = _lc_saved
+
 # Marriage: the population counters follow every agent who moves to another household
 def _mp_gap():
     actual = defaultdict(int)

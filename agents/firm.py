@@ -930,8 +930,8 @@ class ConstructionFirm(Firm):
         values = sim.house_values
         for r in regions:
             expected_price = building_quality * r.index * building_size * vacancy_factor * House.scale(r.id)
-            # Land at LOT_COST of the house's value, building at its money cost
-            land = building_quality * r.index * building_size * House.scale(r.id) * params["LOT_COST"]
+            # Land at LOT_COST of the house's value (House.land_cost), building at its money cost
+            land = House.land_cost(r.id, building_quality * r.index * building_size, params["LOT_COST"])
             works = values.build_cost(r.id, building_size, building_quality, self.productivity)
             profit = expected_price - works - land
 
@@ -971,8 +971,8 @@ class ConstructionFirm(Firm):
 
         # Buy license
         region.licenses -= 1
-        # Land at LOT_COST of the house's value
-        cost_of_land = quality * region.index * size * House.scale(region.id) * params["LOT_COST"]
+        # Land at LOT_COST of the house's value (House.land_cost)
+        cost_of_land = House.land_cost(region.id, quality * region.index * size, params["LOT_COST"])
         self.total_balance -= cost_of_land
         region.collect_taxes(cost_of_land, "transaction")
         if params.get('FIRM_CAPITAL_MONTHS', 0) > 0:
@@ -1001,7 +1001,7 @@ class ConstructionFirm(Firm):
         for r in regions:
             if r.licenses <= 0 or self.total_balance <= r.license_price:
                 continue
-            land = r.index * size * House.scale(r.id) * params["LOT_COST"]
+            land = House.land_cost(r.id, r.index * size, params["LOT_COST"])
             works = sim.house_values.build_cost(r.id, size, 1, self.productivity) * works_factor[r.id[:2]]
             if ceiling - works - land > 0 and free_cash >= land:
                 profitable.append((r, works))

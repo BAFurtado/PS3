@@ -110,12 +110,18 @@ def project_floor(sim):
     other capital scales."""
     if not hasattr(sim, '_project_floor'):
         costs = [h.size * h.quality for h in sim.houses.values()]
-        licence = max(r.license_price * House.scale(r.id) for r in sim.regions.values())
-        cost = licence * float(np.median(costs)) if costs else 0.0
         values = sim.house_values
         works = [values.build_cost(h.region_id, h.size, h.quality, values.mean_productivity)
                  for h in sim.houses.values()]
-        sim._project_floor = cost * sim.PARAMS['LOT_COST'] + float(np.median(works))
+        if House.land_base:
+            median = float(np.median(costs)) if costs else 0.0
+            land = max(House.land_cost(r.id, r.license_price * median, sim.PARAMS['LOT_COST'])
+                       for r in sim.regions.values())
+        else:
+            licence = max(r.license_price * House.scale(r.id) for r in sim.regions.values())
+            cost = licence * float(np.median(costs)) if costs else 0.0
+            land = cost * sim.PARAMS['LOT_COST']
+        sim._project_floor = land + float(np.median(works))
     return sim._project_floor
 
 
