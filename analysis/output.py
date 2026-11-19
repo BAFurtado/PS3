@@ -551,7 +551,7 @@ class Output:
     def __init__(self, sim, output_path):
         all_files = ['stats', 'regional', 'time', 'firms', 'banks',
                      'houses', 'agents', 'families', 'grave', 'construction',
-                     'head', 'neighbourhood', 'sales']
+                     'head', 'neighbourhood', 'sales', 'job_moves']
 
         self.sim = sim
         self.times = []
@@ -781,6 +781,12 @@ class Output:
                 for paid, listed, is_new, region_id in sales:
                     fp.write('%s;%s;%.6f;%.6f;%d\n' % (sim.clock.days, region_id, paid, listed, is_new))
         sim.house_sales = []
+        if sim.job_moves:
+            # ON_THE_JOB_SEARCH: one row per education level, employees, employed job seekers, job-to-job moves
+            with open(self.job_moves_path, 'a') as fp:
+                for row in sim.job_moves:
+                    fp.write('%s;%d;%d;%d;%d\n' % ((sim.clock.days,) + row))
+            sim.job_moves = []
         from agents.firm import UNPLANNED_SECTORS
         planned =[f for f in sim.firms.values() if f.sector not in UNPLANNED_SECTORS]
         capacity = sum(f.last_capacity for f in planned)
@@ -1017,7 +1023,7 @@ class Output:
         data = {
             'month': [], 'region_id': [], 'gender': [], 'x': [], 'y': [],
             'id': [], 'age': [], 'qualification': [], 'firm_id': [],
-            'family_id': [], 'money': [], 'distance': [], 'has_car': []
+            'family_id': [], 'money': [], 'distance': [], 'has_car': [], 'last_wage': []
         }
         for agent in sim.agents.values():
             data['month'].append(day)
@@ -1034,6 +1040,8 @@ class Output:
             data['money'].append(agent.money)
             data['distance'].append(agent.distance)
             data['has_car'].append(bool(agent.has_car))
+            # The last wage received, kept after a separation
+            data['last_wage'].append(float(agent.last_wage or 0.0))
         self._write_parquet('agents', self.agents_path, data)
 
     def save_grave_data(self, sim):

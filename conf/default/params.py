@@ -62,6 +62,16 @@ NATURAL_SEPARATION_RATE = 0.010
 # education level, and layoffs drawn with weights equal to the level's separation rate
 # (input/labour_flows_level_2010.csv)
 LABOUR_FLOWS = 'data'
+# On-the-job search. 'off': only job seekers without a job meet the month's posts. 'pme': each employee aged 17-69 of a
+# firm (own-account workers apart) meets them too, with the PME 2010 share of employees of the employee's Census
+# education level who took a step to get another job in the last 30 days (input/labour_flows_level_2010.csv, flow
+# search), and moves when the offer beats the current job (markets/labor.py LaborMarket.job_value).
+ON_THE_JOB_SEARCH = 'off'
+# A builder's offer, the wage job seekers compare (markets/labor.py), also the value of a builder job in on-the-job
+# search. 'month': this month's pay per worker (Firm.wage_base). 'trailing': the builder's mean pay per worker over its
+# last CONSTRUCTION_ACC_CASH_FLOW months with staff, months without pay included, this month's while it has none.
+# Pay itself is unchanged.
+CONSTRUCTION_OFFER = 'month'
 # Firms that pay no wages for this many consecutive months fire one worker per adjustment (0 = off).
 # Tolerates short revenue droughts from erratic, small-sample demand; sheds staff only when they persist.
 FIRE_UNPAID_MONTHS = 3
@@ -506,6 +516,9 @@ PENSIONS = 'census'
 # GAMMA is 1 - alpha - beta
 CB_QUALIFICATION = 0.0
 CB_COMMUTING = .2
+# The qualification term of the hiring score. 'minmax': the log of years of study rescaled to 0-1 across the month's
+# candidates, floored at 0.001. 'log': the log of years of study (1 to 15), no rescaling.
+QUALIFICATION_SCORE = 'minmax'
 
 # 'census': every agent aged 16-70 owns a car with the Census 2010 probability of its ACP and wage decile, or of the
 # agents without a wage (input/car_ownership_2010.csv, world/cars.py). 'census2022': the same rule on that table with

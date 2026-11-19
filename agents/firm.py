@@ -1,6 +1,6 @@
 import copy
 import datetime
-from collections import defaultdict
+from collections import defaultdict, deque
 from unicodedata import category
 
 import math
@@ -846,6 +846,10 @@ class ConstructionFirm(Firm):
     last_house_materials = 0.0
     # MCMV_COMMISSION: completed commissioned units not yet handed over, as (house, contract price)
     commissioned = None
+    # CONSTRUCTION_OFFER 'trailing' (set by Simulation): months of pay the offer averages, 0 = this month's pay; the pay
+    # per worker of the last offer_months months with staff
+    offer_months = 0
+    pay_history = None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1159,7 +1163,18 @@ class ConstructionFirm(Firm):
         if house_revenue == 0 and self.monthly_planned_revenue:
             house_revenue = min(self.monthly_planned_revenue[-1], max(self.free_cash(), 0))
         self.revenue += house_revenue
+        if self.offer_months and self.employees:
+            if self.pay_history is None or self.pay_history.maxlen != self.offer_months:
+                self.pay_history = deque(self.pay_history or (), maxlen=self.offer_months)
+            # The pay per worker Firm.make_payment pays this month, zero when wage_base is not positive
+            self.pay_history.append(max(self.wage_base(args[1], args[4]), 0.0))
         super().make_payment(*args, **kwargs)
+
+    def offer_wage(self, unemployment, relevance_unemployment):
+        # CONSTRUCTION_OFFER 'trailing': the mean pay per worker over the last offer_months months with staff
+        if self.offer_months and self.pay_history:
+            return sum(self.pay_history) / len(self.pay_history)
+        return super().offer_wage(unemployment, relevance_unemployment)
 
     @property
     def n_houses_sold(self):

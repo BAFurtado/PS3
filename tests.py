@@ -1597,6 +1597,33 @@ check("CONSTRUCTION_PLAN 'sales': builder demand = goods sold + last month's hou
       _pipe == (530.0, 0.0, False) and _plan == (37.0, 25.0, True) and _rolled == (12.0, 0.0, 0.0),
       f"pipeline {_pipe}, sales {_plan}, rolled {_rolled}")
 
+# CONSTRUCTION_OFFER: 'month' offers this month's pay per worker; 'trailing' the mean pay per worker over the last
+# offer_months months with staff, a month without pay counted as zero, this month's pay while there is no history
+from agents.firm import Firm as _co_Firm  # noqa: E402
+_co_saved = (ConstructionFirm.offer_months, _bld.pay_history, _bld.revenue, _bld.input_cost, _bld.employees,
+             _co_Firm.make_payment)
+_co_default = ConstructionFirm.offer_months == 0
+_co_month = _bld.offer_wage(0.05, 0.0) == _bld.wage_base(0.05, 0.0)
+ConstructionFirm.offer_months = 3
+_bld.pay_history = None
+_co_empty = _bld.offer_wage(0.05, 0.0) == _bld.wage_base(0.05, 0.0)
+_co_Firm.make_payment = lambda self, *a, **k: None
+_bld.employees = dict(_bld.employees) or {'placeholder': None}
+_co_pays = []
+for _co_rev, _co_inp in ((1000.0, 0.0), (1000.0, 1e12), (2000.0, 0.0), (3000.0, 0.0)):
+    _bld.revenue, _bld.input_cost = _co_rev, _co_inp
+    _bld.make_payment(sim.regions, 0.05, sim.PARAMS['PRODUCTIVITY_EXPONENT'], sim.PARAMS['TAX_LABOR'], 0.0)
+    _co_pays.append(max(_bld.wage_base(0.05, 0.0), 0.0))
+_co_hist = list(_bld.pay_history)
+_co_offer = _bld.offer_wage(0.05, 0.0)
+(ConstructionFirm.offer_months, _bld.pay_history, _bld.revenue, _bld.input_cost, _bld.employees,
+ _co_Firm.make_payment) = _co_saved
+check("CONSTRUCTION_OFFER: 'month' (default) offers this month's pay; 'trailing' the mean of the last 3 months' pay, "
+      "an unpaid month as zero, this month's pay with no history",
+      _co_default and _co_month and _co_empty and _co_pays[1] == 0.0 and _co_hist == _co_pays[-3:]
+      and np.isclose(_co_offer, np.mean(_co_pays[-3:])) and _co_offer > 0,
+      f"pays {_co_pays}, history {_co_hist}, offer {_co_offer}")
+
 # Social transfers: per municipality round(b x A) RGPS to the oldest, BPC to those without RGPS (65+ first), Bolsa
 # Família to the poorest families; what members receive equals the ledger inflow, and it enters permanent income
 from world.social_transfers import SocialTransfers
@@ -2674,6 +2701,54 @@ for _lf_gen in (np.random.RandomState(0), _lf_random.Random(0)):
     _lf_ok = _lf_ok and sorted(_lf_dummy.employees) == ['a', 'c']
 _lf_Firm.layoff_weight = _lf_saved
 check("LABOUR_FLOWS 'education': a layoff draws the employee by Firm.layoff_weight", _lf_ok)
+# QUALIFICATION_SCORE: the qualification term of the hiring score, candidates equal in all else
+from markets.labor import LaborMarket as _qs_LM
+_qs_house = _lf_ns(distance_to_firm=lambda f: 5.0)
+_qs_cands = [_lf_ns(qualification=q, has_car=False, family=_lf_ns(house=_qs_house)) for q in (1, 2, 8, 15)]
+_qs = {}
+for _qs_mode in ('log', 'minmax'):
+    _qs_self = _lf_ns(sim=_lf_ns(PARAMS={'QUALIFICATION_SCORE': _qs_mode}, fare_mode=True,
+                                 transport=_lf_ns(matrix=None)))
+    _qs[_qs_mode] = _qs_LM.compute_scores_cobb_douglas_vectorized(_qs_self, _qs_cands, None, 1000.0, 1, 15, 60,
+                                                                   500.0, 2000.0, 0.3, 0.2, 1.0, 1.0)
+check("QUALIFICATION_SCORE 'log': score gaps are alpha * log of the years-of-study ratio",
+      np.allclose(_qs['log'] - _qs['log'][0], 0.3 * np.log([1, 2, 8, 15])), f"{_qs['log']}")
+check("QUALIFICATION_SCORE 'minmax': the least educated candidate takes the floor, alpha * log(0.001)",
+      np.isclose(_qs['minmax'][1] - _qs['minmax'][0], 0.3 * (np.log(1 / (14 + 1e-6)) - np.log(1e-3))),
+      f"{_qs['minmax']}")
+# ON_THE_JOB_SEARCH 'pme': PME job-to-job rates, the job value and one employed seeker in the matching
+from markets.labor import job_search as _oj_rates, VALUE_OF_TIME as _oj_vot
+_oj_r, _oj_j = _oj_rates(), _oj_rates('j2j')
+check("ON_THE_JOB_SEARCH 'pme': search rates for levels 1-4, probabilities, above the job-to-job rates (PME 2010)",
+      sorted(_oj_r) == sorted(_oj_j) == [1, 2, 3, 4] and all(_oj_j[k] < _oj_r[k] < 0.1 for k in _oj_r),
+      f"search {_oj_r}, j2j {_oj_j}")
+_oj_tr = _lf_ns(matrix=True, cost_factor=1.0, minutes_between=lambda o, d, car: {'near': 20.0, 'far': 80.0}[d])
+_oj_self = _lf_ns(sim=_lf_ns(transport=_oj_tr, fare_mode=True, PARAMS={}))
+_oj_ag = _lf_ns(family=_lf_ns(house=_lf_ns(region_id='h')), has_car=False)
+_oj_v = [_qs_LM.job_value(_oj_self, _oj_ag, _lf_ns(region_id=d), 1000.0) for d in ('near', 'far')]
+check("ON_THE_JOB_SEARCH: under 'fare' the job value is the wage less the commute time at half the wage rate",
+      np.allclose(_oj_v, [1000.0 * (1 - _oj_vot * 44 / 220 * m / 60) for m in (20.0, 80.0)]), f"{_oj_v}")
+_oj_lm = sim.labor_market
+_oj_firms = [f for f in sim.firms.values() if not (f.own_account or f.pool) and f.sector != 'Government']
+_oj_a = next(a for f in _oj_firms for a in f.employees.values() if a.family is not None and 16 < a.age < 70)
+_oj_old = sim.firms[_oj_a.firm_id]
+_oj_new = next(f for f in _oj_firms if f.id != _oj_old.id)
+_oj_pending, _oj_lm.on_the_job, _oj_lm.candidates = _oj_old.pending_replacements, {_oj_a}, [_oj_a]
+_oj_lm.current_wage = {}
+_oj_lm.matching_firm_offers([(_oj_new, 1e-9)], sim.PARAMS)
+_oj_stay = _oj_a.firm_id == _oj_old.id and _oj_a.id in _oj_old.employees
+_oj_lm.current_wage = {}
+_oj_lm.matching_firm_offers([(_oj_new, 1e12)], sim.PARAMS)
+_oj_moved = (_oj_a.firm_id == _oj_new.id and _oj_a.id not in _oj_old.employees and _oj_a.id in _oj_new.employees
+             and _oj_old.pending_replacements == _oj_pending + 1 and sum(_oj_lm.moves.values()) == 1)
+del _oj_new.employees[_oj_a.id]
+_oj_old.add_employee(_oj_a)
+_oj_a.set_commute(_oj_old, sim.transport)
+_oj_old.pending_replacements = _oj_pending
+_oj_lm.moves.clear()
+_oj_lm.reset()
+check("ON_THE_JOB_SEARCH: an employee keeps a job worth more and moves to a better one, the old post refilled",
+      _oj_stay and _oj_moved, f"stay {_oj_stay}, moved {_oj_moved}")
 # OWN_ACCOUNT_POOL 'census': each pool's output and the revenue it can take
 _oa = sim.own_account
 _oa_mode = _oa.producing

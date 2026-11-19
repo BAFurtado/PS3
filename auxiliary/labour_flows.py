@@ -19,6 +19,11 @@ Rows: region;flow;rate;persons, region the V035 code or 'all'; flows (month t ->
   e_n     employed -> not in the labour force, over the employed
   u_n     unemployed -> not in the labour force, over the unemployed
   u       unemployment rate, first months
+  j2j     employee in both months in a job held up to 30 days at t+1 (V427 = 1), over employees: job-to-job moves, a
+          lower bound (a move more than 30 days before the second interview is missed)
+  search  employee who took a step to get another job in the last 30 days, over employees, first month: V441 = 1
+          (a step while in the job in the 365-day reference period) and the step in the reference week (V458 = 1) or
+          in the 23 days before it (V459 = 1)
 persons: weighted persons of the origin state (sum over the 11 month pairs).
 
 input/labour_flows_level_2010.csv, for LABOUR_FLOWS 'education': the same flows by the person's Census education level
@@ -28,6 +33,10 @@ postgraduate course (V307 6 or 9 and V311 1).
 Lower unemployment of the more educated comes from lower separation rates, with job finding no faster: Mincer (1991),
 Education and Unemployment, NBER WP 3838; Cairo and Cajner (2018), Human Capital and Unemployment Dynamics, Economic
 Journal.
+Employees' search (search) by level, for ON_THE_JOB_SEARCH 'pme', and job-to-job moves (j2j) to compare with: on-the-job
+search with wage posting, Burdett and Mortensen (1998), Wage Differentials, Employer Size, and Unemployment,
+International Economic Review; employed job seekers with a higher reservation wage than the unemployed, Petrongolo
+and Pissarides (2001), Looking into the Black Box: A Survey of the Matching Function, Journal of Economic Literature.
 
 Usage: python auxiliary/labour_flows.py
 """
@@ -38,7 +47,8 @@ import pandas as pd
 PME = os.path.expanduser('~/MyModels/pme2010/raw')
 COLS = {'region': (0, 2), 'control': (2, 10), 'series': (10, 15), 'interview': (24, 25), 'order': (101, 103),
         'sex': (103, 104), 'birth_year': (108, 112), 'age': (112, 116), 'weight': (131, 138), 'vd1': (416, 417),
-        'vd15': (430, 431), 'vdae1': (480, 481), 'v307': (155, 157), 'v311': (160, 161)}
+        'vd15': (430, 431), 'vdae1': (480, 481), 'v307': (155, 157), 'v311': (160, 161),
+        'v427': (280, 281), 'v441': (347, 348), 'v458': (384, 385), 'v459': (385, 386)}
 KEY = ['region', 'control', 'series', 'order', 'sex', 'birth_year']
 
 
@@ -71,7 +81,9 @@ def pairs():
         a = a[(a.age >= 17) & (a.age <= 69)]
         p = a.merge(b, on=KEY, suffixes=('', '_1'))
         p = p[p.interview_1 == p.interview + 1]
-        out.append(p[['region', 'level', 'weight', 'state', 'state_1']].rename(columns={'state': 's0', 'state_1': 's1'}))
+        p = p.assign(search=(p.v441 == '1') & ((p.v458 == '1') | (p.v459 == '1')))
+        out.append(p[['region', 'level', 'weight', 'state', 'state_1', 'v427_1', 'search']].rename(
+            columns={'state': 's0', 'state_1': 's1'}))
     return pd.concat(out)
 
 
@@ -85,6 +97,10 @@ def rates(p):
     rows = [('e_u', e.get('U', 0.0) / n_e, n_e), ('ee_u', w.loc['EE'].get('U', 0.0) / n_ee, n_ee),
             ('u_e', u_e / n_u, n_u), ('u_ee', u.get('EE', 0.0) / n_u, n_u), ('u_oa', u.get('OA', 0.0) / n_u, n_u),
             ('e_n', e.get('N', 0.0) / n_e, n_e), ('u_n', u.get('N', 0.0) / n_u, n_u), ('u', n_u / (n_u + n_e), n_u + n_e)]
+    stay = p[(p.s0 == 'EE') & (p.s1 == 'EE')]
+    rows.append(('j2j', stay.weight[pd.to_numeric(stay.v427_1, errors='coerce') == 1].sum() / n_ee, n_ee))
+    ee = p[p.s0 == 'EE']
+    rows.append(('search', ee.weight[ee.search].sum() / n_ee, n_ee))
     return pd.DataFrame(rows, columns=['flow', 'rate', 'persons'])
 
 

@@ -7,6 +7,12 @@ import pandas as pd
 
 FLOWS = 'input/labour_flows_2010.csv'
 FLOWS_LEVEL = 'input/labour_flows_level_2010.csv'
+# ON_THE_JOB_SEARCH: commute time valued at half the gross wage rate (Small 2012, Valuation of travel time, Economics
+# of Transportation, p.5), two trips on 22 working days a month, the wage rate the monthly wage over 220 hours (the
+# CLT monthly divisor)
+VALUE_OF_TIME = 0.5
+TRIPS_PER_MONTH = 44
+HOURS_PER_MONTH = 220
 
 
 def labour_flows(by_level=False):
@@ -19,6 +25,14 @@ def labour_flows(by_level=False):
     t = pd.read_csv(FLOWS, sep=';')
     t = t[t.region == 'all'].set_index('flow').rate
     return float(t['ee_u']), float(t['u_e'])
+
+
+def job_search(flow='search'):
+    """ON_THE_JOB_SEARCH 'pme': {Census education level: monthly rate of employees}, PME 2010
+    (input/labour_flows_level_2010.csv, auxiliary/labour_flows.py): 'search', employees who took a step to get another
+    job in the last 30 days, or 'j2j', job-to-job moves"""
+    t = pd.read_csv(FLOWS_LEVEL, sep=';').set_index(['flow', 'level']).rate
+    return {int(k): float(v) for k, v in t[flow].items()}
 
 
 
@@ -48,6 +62,11 @@ class LaborMarket:
         self.available_postings = list()
         self.candidates = list()
         self.max_dist = None
+        # ON_THE_JOB_SEARCH: the month's employed job seekers and the job-to-job moves by education level
+        self.on_the_job = set()
+        self.moves = defaultdict(int)
+        self.wage_args = (0.0, 0.0)
+        self.current_wage = {}
 
     def compute_max_distance(self):
         centroids = [r.addresses.centroid for r in self.sim.regions.values()]
@@ -81,6 +100,7 @@ class LaborMarket:
     def reset(self):
         self.available_postings = list()
         self.candidates = list()
+        self.on_the_job = set()
 
     def assign_post(self, unemployment, wage_deciles, params):
         """Rank positions by revenue. Make a match as workers considers mobility choices """
@@ -88,6 +108,8 @@ class LaborMarket:
         relevance_unemployment = params['RELEVANCE_UNEMPLOYMENT_SALARIES']
 
         self.seed_np.shuffle(self.candidates)
+        self.wage_args = (unemployment, relevance_unemployment)
+        self.current_wage = {}
         if getattr(self.sim, 'car_ownership', None) is not None:
             # CAR_OWNERSHIP 'census': car status is set monthly for all agents (world/cars.py)
             pass
@@ -117,6 +139,7 @@ class LaborMarket:
             # duplicates and agents whose status changed in between (e.g. died) into the matching.
             self.available_postings = []
             self.candidates = []
+            self.on_the_job = set()
             return
 
         # Choosing by qualification
@@ -132,6 +155,7 @@ class LaborMarket:
 
         self.available_postings = []
         self.candidates = []
+        self.on_the_job = set()
 
     def compute_scores_cobb_douglas_vectorized(self,
                                                candidates, firm, wage,
@@ -146,6 +170,12 @@ class LaborMarket:
         dist_max: tempo (ou distância) atribuído a pares sem tempo de deslocamento
         *_min, *_max: limites inferiores e superiores para normalização
         alpha, beta: parâmetros Cobb-Douglas
+
+        QUALIFICATION_SCORE 'log': the qualification term is alpha * log(years of study), the same for a candidate at
+        every firm, so the greedy match over all offers pairs the higher-wage firms with the more educated candidates
+        (positive assortative matching of worker and firm types: Abowd, Kramarz & Margolis 1999; Card, Heining & Kline
+        2013; in Brazil, Alvarez, Benguria, Engbom & Moser 2018; with search frictions, Shimer & Smith 2000). alpha is
+        set from the Census 2010 education mix of employees by sector (runner_qualification_grid.py).
         """
 
         gamma = 1.0 - alpha - beta
@@ -196,8 +226,13 @@ class LaborMarket:
         t_norm = np.clip(t_norm, 1e-3, 1.0)
         w_norm = np.clip(w_norm, 1e-3, 1.0)
 
+        if self.sim.PARAMS['QUALIFICATION_SCORE'] == 'log':
+            q_term = np.log(np.maximum(quals, 1.0))
+        else:
+            q_term = np.log(q_norm)
+
         # Cálculo vetorizado do log-score Cobb-Douglas
-        scores = alpha * np.log(q_norm) + beta * np.log(t_norm) + gamma * np.log(w_norm)
+        scores = alpha * q_term + beta * np.log(t_norm) + gamma * np.log(w_norm)
 
         return scores
 
@@ -265,12 +300,19 @@ class LaborMarket:
         acceptance = getattr(self.sim, 'commute_acceptance', None)
         for firm, candidate, score in offers:
             if firm not in done_firms and candidate not in done_cands:
+                employed = candidate in self.on_the_job
+                if employed and (candidate.firm_id is None or candidate.firm_id == firm.id
+                                 or not self.better_job(candidate, firm, wage)):
+                    # ON_THE_JOB_SEARCH: an employee laid off since the search, or offered no better job, passes
+                    continue
                 if acceptance is not None:
                     # COMMUTE_ACCEPTANCE: a rejected offer passes to the firm's next candidate
                     home = candidate.family.house.region_id
                     minutes = self.sim.transport.minutes_between(home, firm.region_id, candidate.has_car)
                     if self.seed_np.rand() >= acceptance.probability(minutes, home, candidate.has_car):
                         continue
+                if employed:
+                    self.leave_for(candidate)
                 self.apply_assign(candidate, firm)
                 done_firms.add(firm)
                 done_cands.add(candidate)
@@ -281,6 +323,46 @@ class LaborMarket:
             cand_still_looking = [c for c in self.candidates if c not in done_cands]
             return cand_still_looking
         return None
+
+    def job_value(self, agent, firm, wage):
+        """ON_THE_JOB_SEARCH: the wage less the money cost of the commute and its time, valued at VALUE_OF_TIME of
+        the wage rate over TRIPS_PER_MONTH one-way trips. Under TRANSPORT_MONEY 'fare' the fare bill is the same at
+        every job and only the time counts. Workers value commute against wage in job search: Manning and Petrongolo
+        (2017), How local are labor markets?, American Economic Review; Le Barbanchon, Rathelot and Roulet (2021),
+        Gender differences in job search: trading off commute against wage, Quarterly Journal of Economics."""
+        transport = self.sim.transport
+        if transport.matrix is not None:
+            minutes = transport.minutes_between(agent.family.house.region_id, firm.region_id, agent.has_car)
+            units = minutes * transport.cost_factor
+            time = VALUE_OF_TIME * wage / HOURS_PER_MONTH * TRIPS_PER_MONTH * minutes / 60
+        else:
+            units, time = agent.family.house.distance_to_firm(firm), 0.0
+        if getattr(self.sim, 'fare_mode', False):
+            money = 0.0
+        else:
+            params = self.sim.PARAMS
+            money = units * (params['PRIVATE_TRANSIT_COST'] if agent.has_car else params['PUBLIC_TRANSIT_COST'])
+        return wage - money - time
+
+    def better_job(self, agent, firm, wage):
+        """The offer of `firm` at `wage` is worth more than the agent's current job at its firm's offered wage
+        (on-the-job search with posted wages: Burdett and Mortensen 1998, Wage differentials, employer size, and
+        unemployment, International Economic Review)"""
+        current = self.sim.firms.get(agent.firm_id)
+        if current is None:
+            return True
+        if current.id not in self.current_wage:
+            self.current_wage[current.id] = current.offer_wage(*self.wage_args)
+        return self.job_value(agent, firm, wage) > self.job_value(agent, current, self.current_wage[current.id])
+
+    def leave_for(self, agent):
+        """ON_THE_JOB_SEARCH: the agent quits its firm, which refills the post (REPLACE_SEPARATIONS)"""
+        from world.own_account import level
+        current = self.sim.firms.get(agent.firm_id)
+        if current is not None and agent.id in current.employees:
+            del current.employees[agent.id]
+            current.pending_replacements += 1
+        self.moves[level(agent)] += 1
 
     def apply_assign(self, chosen, firm):
         chosen.set_commute(firm, self.sim.transport)

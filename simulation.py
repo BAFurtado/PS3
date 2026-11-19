@@ -28,7 +28,7 @@ from world.social_transfers import SocialTransfers
 from world.own_account import OwnAccountPools, posting_education
 from world.house_values import HouseValues
 from markets.goods import RegionalMarket, External
-from markets.labor import car_wage_deciles, labour_flows
+from markets.labor import car_wage_deciles, job_search, labour_flows
 from world.cars import CarOwnership
 from world.location import LocationChoice
 
@@ -324,11 +324,18 @@ class Simulation:
             Firm.layoff_weight = staticmethod(lambda agent: separation[level(agent)])
         else:
             Firm.layoff_weight = None
+        # ON_THE_JOB_SEARCH 'pme': {level: monthly search rate of employees}; job_moves: this month's rows of
+        # job_moves.csv
+        self.search_rate = job_search() if self.PARAMS.get('ON_THE_JOB_SEARCH', 'off') == 'pme' else None
+        self.job_moves = []
         self.stats.participation = self.participation
         self.social_transfers = SocialTransfers(self.mun_to_regions, self.PARAMS['REAIS_PER_MONEY_UNIT'],
                                                self.PARAMS.get('PENSIONS', 'rgps'))
         self.investment_rate = float(pd.read_csv('input/investment_rate_2015.csv', sep=';').investment_rate.iloc[0])
         ConstructionFirm.planned = self.PARAMS.get('CONSTRUCTION_PLAN', 'pipeline') == 'sales'
+        # CONSTRUCTION_OFFER 'trailing': months of pay a builder's offer averages, 0 for this month's pay
+        ConstructionFirm.offer_months = (int(self.PARAMS['CONSTRUCTION_ACC_CASH_FLOW'])
+                                         if self.PARAMS.get('CONSTRUCTION_OFFER', 'month') == 'trailing' else 0)
         Firm.vale_transporte = self.PARAMS['PUBLIC_TRANSIT_COST']
         # TRANSPORT_MONEY 'fare': the monthly fare bill (set_fare_bill), None otherwise
         self.fare_mode = self.PARAMS.get('TRANSPORT_MONEY', 'distance') == 'fare'
@@ -471,6 +478,27 @@ class Simulation:
 
     def daily(self):
         pass
+
+    def search_on_the_job(self):
+        """ON_THE_JOB_SEARCH 'pme': each employee aged 17-69 of a firm (own-account workers apart) joins the month's
+        job seekers with the PME 2010 search rate of its education level; returns the employees and the seekers by
+        level"""
+        from world.own_account import level
+        eligible = [a for a in self.agents.values() if a.firm_id is not None and 16 < a.age < 70
+                    and a.family is not None and a.firm_id in self.firms
+                    and not (self.firms[a.firm_id].own_account or self.firms[a.firm_id].pool)]
+        draws = self.seed_np.random(len(eligible))
+        employees, seekers = defaultdict(int), defaultdict(int)
+        searchers = []
+        for a, r in zip(eligible, draws):
+            k = level(a)
+            employees[k] += 1
+            if r < self.search_rate[k]:
+                seekers[k] += 1
+                searchers.append(a)
+        self.labor_market.on_the_job = set(searchers)
+        self.labor_market.candidates += searchers
+        return employees, seekers
 
     def set_fare_bill(self):
         """TRANSPORT_MONEY 'fare': the monthly fare bill is FARE_INCOME_SHARE times the mean of last month's salaries
@@ -715,6 +743,8 @@ class Simulation:
             else:
                 self.labor_market.candidates = [c for c, r in zip(candidates, draws) if r < self.job_finding]
         self.labor_market.candidates = self.own_account.pin(self.labor_market.candidates)
+        if self.search_rate is not None:
+            searched = self.search_on_the_job()
 
         # FIRMS
         # Government labor first (initialization is for all firms, government specific is monthly)
@@ -737,6 +767,10 @@ class Simulation:
         if self.car_ownership is not None:
             self.car_ownership.update(self.agents.values(), wage_deciles)
         self.labor_market.assign_post(current_unemployment, wage_deciles, self.PARAMS)
+        if self.search_rate is not None:
+            moves = self.labor_market.moves
+            self.job_moves = [(k, searched[0][k], searched[1][k], moves[k]) for k in sorted(self.search_rate)]
+            moves.clear()
         self.own_account.monthly(current_unemployment)
 
         # Natural job separation: workers quit/reach contract end at an exogenous monthly rate.

@@ -10,7 +10,7 @@ network. The infrastructure capex is not spent in the model (PUBLIC_WORKS off). 
 equals the base run of the same area and seed before START-01. The matrices use trips weights. Teresina also runs the
 three scenarios with area weights (base_area, padrao_area, otimizado_area).
 Settings of every run: CAR_OWNERSHIP census2022, LOCATION_CHOICE logit, VACANCY_SCOPE region, TRANSPORT_MONEY fare,
-RENT_LEVEL census_ap, HOUSING_BIDDING filatova, the other settings at the code defaults. Seeds SEED + i (i = 0-9,
+RENT_LEVEL census_ap, HOUSING_BIDDING filatova, LABOUR_FLOWS education, the other settings at the code defaults. Seeds SEED + i (i = 0-9,
 the seeds of runner_mcmv2026). Saved: stats, regional, and the agents, families, houses and firms parquet every
 January.
 
@@ -56,6 +56,7 @@ COMMON = {
     'TRANSPORT_MONEY': 'fare',
     'RENT_LEVEL': 'census_ap',
     'HOUSING_BIDDING': 'filatova',
+    'LABOUR_FLOWS': 'education',
 }
 R.conf.RUN['SAVE_DATA'] = ['agents', 'family', 'house', 'firms']
 logger = logging.getLogger('main')
