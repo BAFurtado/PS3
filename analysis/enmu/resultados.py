@@ -1,23 +1,19 @@
 """
 Paired effects of the ENMU batch (runner_enmu.py): every scenario against its reference, seed by seed, in each area.
 
-    python analysis/enmu/resultados.py [ROOT]          ROOT default output/enmu2026
+    python analysis/enmu/resultados.py [ROOT]          ROOT default output/enmu2026_rede
 
 Effects (same area, same seed):
-    investimento   money - base           the investment, network unchanged
-    rede_padrao    padrao - money         the Padrao network, investment in both
-    rede_otimizado otimizado - money      the Otimizado network and fare, investment in both
-    total_padrao   padrao - base
-    total_otimiz   otimizado - base
+    rede_padrao    padrao - base          the Padrao network
+    rede_otimizado otimizado - base       the Otimizado network and fare
 With the _area scenarios (Teresina) the same effects with area weights, suffix _area.
-Windows: 2024-2030 (works and network first half), 2031-2037 (second half), 2038-2039 (after the works).
+Windows: 2024-2030 (network phase-in, first half), 2031-2037 (second half), 2038-2039 (network complete).
 Monthly stats.csv rows are averaged over the window; the parquet files hold January snapshots, averaged over the
 Januaries of the window. Levels in percent of the reference, rates in percentage points, counts as differences.
 Each cell is the mean over seeds of the paired difference and its t (mean / (sd / sqrt(n))); |t| 2.26 is the 5 %
 two-sided value at 10 seeds.
 
-Output in ROOT/analise/: efeitos.csv (long), efeitos_<CITY>.txt (tables), ledger.csv (money - base by channel at the
-end of the works), ap_precos.csv and ap_spearman.csv (house price change by AP against the minutes its employed
+Output in ROOT/analise/: efeitos.csv (long), efeitos_<CITY>.txt (tables), ap_precos.csv and ap_spearman.csv (house price change by AP against the minutes its employed
 residents save).
 """
 import glob
@@ -29,16 +25,12 @@ import pandas as pd
 
 sys.path.insert(0, os.getcwd())
 from analysis.output import OUTPUT_DATA_SPEC  # noqa: E402
-from analysis.money import LEDGER_CHANNELS  # noqa: E402
 
-ROOT = sys.argv[1] if len(sys.argv) > 1 else 'output/enmu2026'
+ROOT = sys.argv[1] if len(sys.argv) > 1 else 'output/enmu2026_rede'
 OUT = os.path.join(ROOT, 'analise')
 STATS_COLUMNS = OUTPUT_DATA_SPEC['stats']['columns']
 WINDOWS = {'2024-30': (2024, 2030), '2031-37': (2031, 2037), '2038-39': (2038, 2039)}
-EFFECTS = {'investimento': ('money', 'base'), 'rede_padrao': ('padrao', 'money'),
-           'rede_otimizado': ('otimizado', 'money'), 'total_padrao': ('padrao', 'base'),
-           'total_otimiz': ('otimizado', 'base')}
-LEDGER_MONTH = '2037-12-01'
+EFFECTS = {'rede_padrao': ('padrao', 'base'), 'rede_otimizado': ('otimizado', 'base')}
 AP_YEARS = (2038, 2039)
 
 # Metric: (source, kind). kind 'pct' = percent of the reference, 'pt' = rate difference x 100, 'diff' = difference
@@ -197,37 +189,15 @@ def main():
         with open(os.path.join(OUT, 'efeitos_{}.txt'.format(city.replace(' ', '_'))), 'w') as f:
             f.write(text)
 
-    # Ledger: money - base by channel, cumulative at the end of the works
-    led = []
-    channels = ['money_' + c for c in LEDGER_CHANNELS] + ['money_households', 'money_firms', 'money_public',
-                                                          'money_bank', 'money_total']
-    for (s, city, i), st in stats.items():
-        if s not in ('money', 'money_area'):
-            continue
-        b = stats.get(('base' + s[len('money'):], city, i))
-        if b is None:
-            continue
-        ra, rb = st[st.month == LEDGER_MONTH], b[b.month == LEDGER_MONTH]
-        if ra.empty or rb.empty:
-            continue
-        for ch in channels:
-            led.append((s, city, i, ch, ra[ch].iloc[0] - rb[ch].iloc[0]))
-    if led:
-        led = (pd.DataFrame(led, columns=['scenario', 'city', 'seed', 'channel', 'delta'])
-               .groupby(['scenario', 'city', 'channel']).delta.agg(['mean', 'std']).reset_index())
-        led.to_csv(os.path.join(OUT, 'ledger.csv'), sep=';', index=False)
-        print('== Ledger, money - base at {} (cumulative, model money)'.format(LEDGER_MONTH))
-        print(led.pivot_table(index='channel', columns=['scenario', 'city'], values='mean').round(0).to_string())
-
     # House price by AP against the minutes its employed residents save, network effects, seeds averaged
     aps, sp = [], []
     for (s, city, i), d in sorted(r.items()):
         for suffix in ('', '_area'):
             for fut in ('padrao', 'otimizado'):
-                if s != fut + suffix or ('money' + suffix, city, i) not in r:
+                if s != fut + suffix or ('base' + suffix, city, i) not in r:
                     continue
                 x = ap_prices(d, AP_YEARS)
-                y = ap_prices(r[('money' + suffix, city, i)], AP_YEARS)
+                y = ap_prices(r[('base' + suffix, city, i)], AP_YEARS)
                 j = x.join(y, lsuffix='_fut', rsuffix='_ref', how='inner')
                 j['price_pct'] = 100 * (j.price_fut / j.price_ref - 1)
                 j['minutes_diff'] = j.minutes_fut - j.minutes_ref

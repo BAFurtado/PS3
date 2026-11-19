@@ -1,34 +1,31 @@
 """
 ENMU networks in six areas, 2010-2040: Brasilia, Fortaleza, Goiania, Manaus, Baixada Santista and Teresina. Every run
 starts on the Rede Base of the ENMU zone matrices (2054, morning peak, tools/transport/partner_matrix.py). Scenarios:
-    base        Rede Base for the whole run, no investment (the reference)
-    money       Rede Base for the whole run, with the investment
-    padrao      the investment, and the Rede Futura, Cenario Padrao, phased in with it
-    otimizado   the investment, and the Rede Futura, Cenario Otimizado, phased in with it, with the Otimizado fare
-The investment (PUBLIC_WORKS): the area's ENMU infrastructure capex in equal shares of GDP over YEARS years from
-START, as a percent of its 2023 GDP (input/enmu_investment.csv, auxiliary/enmu_investment.py), money from outside
-the area buying production from its construction firms. The network moves from Base to the future state in YEARS
-equal yearly steps from START-01. The Otimizado fare: FARE_INCOME_SHARE times the area's ENMU fare ratio
-Otimizado / Padrao, moving with the network. Every run of money, padrao and otimizado equals the base run of the same
-area and seed before START-01. The matrices use trips weights. Teresina also runs the four scenarios with area weights
-(base_area, money_area, padrao_area, otimizado_area).
+    base        Rede Base for the whole run (the reference)
+    padrao      the Rede Futura, Cenario Padrao, phased in from START
+    otimizado   the Rede Futura, Cenario Otimizado, phased in from START, with the Otimizado fare
+The network moves from Base to the future state in YEARS equal yearly steps from START-01. The Otimizado fare:
+FARE_INCOME_SHARE times the area's ENMU fare ratio Otimizado / Padrao (input/enmu_investment.csv), moving with the
+network. The infrastructure capex is not spent in the model (PUBLIC_WORKS off). Every run of padrao and otimizado
+equals the base run of the same area and seed before START-01. The matrices use trips weights. Teresina also runs the
+three scenarios with area weights (base_area, padrao_area, otimizado_area).
 Settings of every run: CAR_OWNERSHIP census2022, LOCATION_CHOICE logit, VACANCY_SCOPE region, TRANSPORT_MONEY fare,
 RENT_LEVEL census_ap, HOUSING_BIDDING filatova, the other settings at the code defaults. Seeds SEED + i (i = 0-9,
 the seeds of runner_mcmv2026). Saved: stats, regional, and the agents, families, houses and firms parquet every
 January.
 
 Modes (cwd = repository root):
-    python runner_enmu.py teste CPUS             Teresina, the eight scenarios, seed 0, 2 years, investment and
-                                                 networks from 2011-01, then the check
+    python runner_enmu.py teste CPUS             Teresina, the six scenarios, seed 0, 2 years, networks from
+                                                 2011-01, then the check
     python runner_enmu.py lote CPUS [OPTIONS]    the batch; rerun the same command to resume (finished runs skipped)
         cities=A,B     a comma-separated list of the six areas (default all)
         part=K/N       the K-th of N contiguous slices of the queue (default 1/1)
         seeds=N        the first N seeds only (default 10)
         area=0         without the area-weights scenarios of Teresina
-        acceptance=X   COMMUTE_ACCEPTANCE X in every run, output in output/enmu2026_X
+        acceptance=X   COMMUTE_ACCEPTANCE X in every run, output in output/enmu2026_rede_X
     python runner_enmu.py conferir [acceptance=X]   finished runs, identity with the reference before START-01
 
-Output: output/enmu2026/<scenario>/<CITY>/<i>/; queue manifest and log in output/enmu2026/queue_<K>of<N>/.
+Output: output/enmu2026_rede/<scenario>/<CITY>/<i>/; queue manifest and log in output/enmu2026_rede/queue_<K>of<N>/.
 Needs the private matrices input/transport/travel_times_<ACP>__<weights>.parquet. Local conf/params.py and
 conf/run.py are ignored.
 """
@@ -44,7 +41,7 @@ import pandas as pd
 import runner_funding2026 as R
 from world.transport import linear_phase_in
 
-OUTPUT = 'output/enmu2026'
+OUTPUT = 'output/enmu2026_rede'
 START = 2024
 YEARS = 14
 # Largest first within each seed
@@ -70,7 +67,7 @@ def add_scenarios():
     R.REFERENCE.clear()
     names = {}
     for weights, suffix in (('trips', ''), ('area', '_area')):
-        names[weights] = [s + suffix for s in ['base', 'money'] + FUTURES]
+        names[weights] = [s + suffix for s in ['base'] + FUTURES]
         for s in names[weights]:
             R.SCENARIOS[s] = {'TRANSPORT_WEIGHTS': weights, 'TRANSPORT_SCHEDULE': None}
             R.REFERENCE[s] = 'base' + suffix
@@ -78,15 +75,12 @@ def add_scenarios():
 
 
 def city_params(scenario, city, start=START):
-    """The investment, network and fare settings of a scenario in a city"""
+    """The network and fare settings of a scenario in a city"""
     name = scenario.replace('_area', '')
     if name == 'base':
         return {}
     row = pd.read_csv('input/enmu_investment.csv', sep=';').set_index('acp').loc[city]
-    p = {'PUBLIC_WORKS': [start, start + YEARS - 1, 100 * row.infra_capex / YEARS / row.gdp_2023]}
-    if name in FUTURES:
-        p['TRANSPORT_FUTURE'] = name
-        p['TRANSPORT_SCHEDULE'] = linear_phase_in(start, YEARS)
+    p = {'TRANSPORT_FUTURE': name, 'TRANSPORT_SCHEDULE': linear_phase_in(start, YEARS)}
     if name == 'otimizado':
         p['FARE_INCOME_SHARE_FUTURE'] = R.conf.PARAMS['FARE_INCOME_SHARE'] * row.fare_otimizado / row.fare_padrao
     return p
