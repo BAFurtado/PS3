@@ -6,11 +6,16 @@ import numpy as np
 import pandas as pd
 
 FLOWS = 'input/labour_flows_2010.csv'
+FLOWS_LEVEL = 'input/labour_flows_level_2010.csv'
 
 
-def labour_flows():
+def labour_flows(by_level=False):
     """LABOUR_FLOWS 'data': the monthly employee -> unemployed and unemployed -> employed rates of the six PME
-    metropolitan regions, 2010 (input/labour_flows_2010.csv, auxiliary/labour_flows.py)"""
+    metropolitan regions, 2010 (input/labour_flows_2010.csv, auxiliary/labour_flows.py). by_level (LABOUR_FLOWS
+    'education'): {Census education level: rate} of each (input/labour_flows_level_2010.csv)"""
+    if by_level:
+        t = pd.read_csv(FLOWS_LEVEL, sep=';').set_index(['flow', 'level']).rate
+        return ({int(k): float(v) for k, v in t['ee_u'].items()}, {int(k): float(v) for k, v in t['u_e'].items()})
     t = pd.read_csv(FLOWS, sep=';')
     t = t[t.region == 'all'].set_index('flow').rate
     return float(t['ee_u']), float(t['u_e'])

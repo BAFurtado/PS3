@@ -2654,6 +2654,26 @@ from world.own_account import level as _lf_level, LEVELS as _lf_levels
 _lf_sep, _lf_find = labour_flows()
 check("LABOUR_FLOWS 'data': monthly separation and job-finding rates are probabilities, finding above separation",
       0 < _lf_sep < _lf_find < 1, f"separation {_lf_sep:.4f}, job finding {_lf_find:.4f}")
+_lf_sep_l, _lf_find_l = labour_flows(by_level=True)
+check("LABOUR_FLOWS 'education': both rates for levels 1-4, probabilities, finding above separation in each level",
+      sorted(_lf_sep_l) == sorted(_lf_find_l) == [1, 2, 3, 4]
+      and all(0 < _lf_sep_l[k] < _lf_find_l[k] < 1 for k in _lf_sep_l), f"{_lf_sep_l} {_lf_find_l}")
+check("LABOUR_FLOWS 'education': graduates separate least (PME 2010)", min(_lf_sep_l, key=_lf_sep_l.get) == 4,
+      f"{_lf_sep_l}")
+# Layoffs under LABOUR_FLOWS 'education' follow Firm.layoff_weight, with either generator the labour market passes
+import random as _lf_random
+from types import SimpleNamespace as _lf_ns
+from agents.firm import Firm as _lf_Firm
+_lf_saved = _lf_Firm.layoff_weight
+_lf_Firm.layoff_weight = staticmethod(lambda a: 1.0 if a.id == 'b' else 0.0)
+_lf_ok = True
+for _lf_gen in (np.random.RandomState(0), _lf_random.Random(0)):
+    _lf_staff = {k: _lf_ns(id=k, firm_id=1, set_commute=lambda *x: None) for k in 'abc'}
+    _lf_dummy = _lf_ns(employees=_lf_staff)
+    _lf_Firm.fire(_lf_dummy, _lf_gen)
+    _lf_ok = _lf_ok and sorted(_lf_dummy.employees) == ['a', 'c']
+_lf_Firm.layoff_weight = _lf_saved
+check("LABOUR_FLOWS 'education': a layoff draws the employee by Firm.layoff_weight", _lf_ok)
 # OWN_ACCOUNT_POOL 'census': each pool's output and the revenue it can take
 _oa = sim.own_account
 _oa_mode = _oa.producing

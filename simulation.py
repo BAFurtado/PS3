@@ -311,11 +311,19 @@ class Simulation:
         for mun_code, regions in self.mun_to_regions.items():
             self.mun_to_regions[mun_code] = sorted(regions)
         self.participation = Participation(self.mun_to_regions, self._seed)
-        # Monthly separation and job-finding rates (LABOUR_FLOWS)
-        if self.PARAMS.get('LABOUR_FLOWS', 'legacy') == 'data':
-            self.separation_rate, self.job_finding = labour_flows()
+        # Monthly separation and job-finding rates (LABOUR_FLOWS); 'education': {level: rate}, and layoffs pick an
+        # employee with probability proportional to the separation rate of the employee's level
+        flows = self.PARAMS.get('LABOUR_FLOWS', 'legacy')
+        if flows in ('data', 'education'):
+            self.separation_rate, self.job_finding = labour_flows(by_level=flows == 'education')
         else:
             self.separation_rate, self.job_finding = self.PARAMS.get('NATURAL_SEPARATION_RATE', 0.0), None
+        if flows == 'education':
+            from world.own_account import level
+            separation = self.separation_rate
+            Firm.layoff_weight = staticmethod(lambda agent: separation[level(agent)])
+        else:
+            Firm.layoff_weight = None
         self.stats.participation = self.participation
         self.social_transfers = SocialTransfers(self.mun_to_regions, self.PARAMS['REAIS_PER_MONEY_UNIT'],
                                                self.PARAMS.get('PENSIONS', 'rgps'))
@@ -700,8 +708,12 @@ class Simulation:
         # LABOUR_FLOWS 'data': a job seeker meets the month's posts with the observed job-finding rate
         if self.job_finding is not None:
             candidates = self.labor_market.candidates
-            self.labor_market.candidates = [c for c, r in zip(candidates, self.seed_np.random(len(candidates)))
-                                            if r < self.job_finding]
+            draws = self.seed_np.random(len(candidates))
+            if isinstance(self.job_finding, dict):
+                from world.own_account import level
+                self.labor_market.candidates = [c for c, r in zip(candidates, draws) if r < self.job_finding[level(c)]]
+            else:
+                self.labor_market.candidates = [c for c, r in zip(candidates, draws) if r < self.job_finding]
         self.labor_market.candidates = self.own_account.pin(self.labor_market.candidates)
 
         # FIRMS
@@ -731,10 +743,15 @@ class Simulation:
         # Runs after matching so separated workers miss this month's pool and must wait
         # until next month — creating a minimum one-month unemployment spell per separation.
         sep_rate = self.separation_rate
-        if sep_rate > 0:
+        if sep_rate:
             eligible = [a for a in self.agents.values() if a.firm_id is not None and 16 < a.age < 70
                         and not self.firms[a.firm_id].own_account]
-            to_separate = [a for a, s in zip(eligible, self.seed_np.random(len(eligible)) < sep_rate) if s]
+            draws = self.seed_np.random(len(eligible))
+            if isinstance(sep_rate, dict):
+                from world.own_account import level
+                to_separate = [a for a, r in zip(eligible, draws) if r < sep_rate[level(a)]]
+            else:
+                to_separate = [a for a, s in zip(eligible, draws < sep_rate) if s]
             for agent in to_separate:
                 firm = self.firms.get(agent.firm_id)
                 if firm is not None and agent.id in firm.employees:

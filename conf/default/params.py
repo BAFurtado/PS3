@@ -58,7 +58,9 @@ LABOR_MARKET = 0.41
 NATURAL_SEPARATION_RATE = 0.010
 # Worker flows: 'legacy' separations at NATURAL_SEPARATION_RATE and every job seeker in the month's matching; 'data'
 # separations at the monthly employee -> unemployed rate and each job seeker in the matching with the monthly
-# unemployed -> employed rate (PME 2010, input/labour_flows_2010.csv)
+# unemployed -> employed rate (PME 2010, input/labour_flows_2010.csv); 'education' both rates of the worker's Census
+# education level, and layoffs drawn with weights equal to the level's separation rate
+# (input/labour_flows_level_2010.csv)
 LABOUR_FLOWS = 'data'
 # Firms that pay no wages for this many consecutive months fire one worker per adjustment (0 = off).
 # Tolerates short revenue droughts from erratic, small-sample demand; sheds staff only when they persist.

@@ -35,6 +35,8 @@ OUTPUT = 'output/rent_ap'
 KEY = 'RENT_LEVEL'
 LEVELS = ['census', 'census_ap']
 BASE = {'VACANCY_SCOPE': 'region'}
+# More indicators per run: (name, function of the run's path returning a number)
+METRICS = []
 ENMU = ['BRASILIA', 'FORTALEZA', 'BAIXADA SANTISTA', 'GOIANIA', 'MANAUS', 'TERESINA']
 V.COMMON['VACANCY_SCOPE'] = 'region'
 logger = logging.getLogger('main')
@@ -94,18 +96,20 @@ def sales_premium(path, window=None):
     return float(s.paid.sum() / s.listed.sum()), float(top.paid.sum() / top.listed.sum()) if len(top) else float('nan')
 
 
-def comparar(root=None):
+def comparar(root=None, pair=None):
+    """Paired comparison of LEVELS[0] with `pair` (default LEVELS[1])"""
     import numpy as np
     root = root or OUTPUT
     import pandas as pd
+    a, b = LEVELS[0], pair or LEVELS[1]
     rows = []
-    for done in sorted(glob.glob(os.path.join(root, LEVELS[0], '*', '*', 'DONE'))):
+    for done in sorted(glob.glob(os.path.join(root, a, '*', '*', 'DONE'))):
         city, i = done.split(os.sep)[-3:-1]
-        other = V.run_path(root, LEVELS[1], city, i)
+        other = V.run_path(root, b, city, i)
         if not os.path.exists(os.path.join(other, 'DONE')):
             continue
         r = {'city': city, 'seed': int(i)}
-        for level, path in ((LEVELS[0], os.path.dirname(done)), (LEVELS[1], other)):
+        for level, path in ((a, os.path.dirname(done)), (b, other)):
             s = V.stats(path)
             w = s[(s.month >= V.WINDOW[0]) & (s.month <= V.WINDOW[1])]
             for c in V.INDICATORS:
@@ -115,13 +119,14 @@ def comparar(root=None):
             r['%s_fit_2021' % level], r['%s_new_top' % level] = area_fit(path, datetime.date(2021, 1, 1))
             r['%s_premium' % level], r['%s_premium_top' % level] = sales_premium(path)
             r['%s_sales' % level] = w.house_sales.mean() if 'house_sales' in w else float('nan')
+            for name, fn in METRICS:
+                r['%s_%s' % (level, name)] = fn(path)
         rows.append(r)
     if not rows:
         print('No finished pairs in', root)
         return
     t = pd.DataFrame(rows)
-    a, b = LEVELS
-    extra = ['fit_2011', 'fit_2021', 'new_top', 'premium', 'premium_top', 'sales']
+    extra = ['fit_2011', 'fit_2021', 'new_top', 'premium', 'premium_top', 'sales'] + [n for n, _ in METRICS]
     cols = V.INDICATORS + ['max_unemployment'] + extra
     for c in cols:
         t['d_' + c] = 100 * (t[b + '_' + c] / t[a + '_' + c] - 1) if c in V.RELATIVE else t[b + '_' + c] - t[a + '_' + c]
@@ -151,8 +156,9 @@ def comparar(root=None):
     exploded = t[(t[a + '_max_unemployment'] > .3) | (t[b + '_max_unemployment'] > .3)]
     print('\nRuns with unemployment above 0.30 in some month:', 'none' if exploded.empty else
           exploded[['city', 'seed', a + '_max_unemployment', b + '_max_unemployment']].to_string(index=False))
-    t.to_csv(os.path.join(root, 'comparar.csv'), sep=';', index=False)
-    print('\nwrote', os.path.join(root, 'comparar.csv'))
+    name = 'comparar.csv' if b == LEVELS[1] else 'comparar_%s.csv' % b
+    t.to_csv(os.path.join(root, name), sep=';', index=False)
+    print('\nwrote', os.path.join(root, name))
 
 
 def options(args):
@@ -174,7 +180,8 @@ def main():
         print('Ignoring local overrides:', ', '.join(V.R.LOCAL_CONF))
     mode = sys.argv[1] if len(sys.argv) > 1 else ''
     if mode == 'comparar':
-        comparar()
+        for b in LEVELS[1:]:
+            comparar(pair=b)
     elif mode == 'teste' and len(sys.argv) == 3:
         root = OUTPUT + '_teste'
         V.run(root, build_jobs(root, queue(['PALMAS'], [0]), total_days=730), int(sys.argv[2]),

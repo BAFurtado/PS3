@@ -21,6 +21,14 @@ Rows: region;flow;rate;persons, region the V035 code or 'all'; flows (month t ->
   u       unemployment rate, first months
 persons: weighted persons of the origin state (sum over the 11 month pairs).
 
+input/labour_flows_level_2010.csv, for LABOUR_FLOWS 'education': the same flows by the person's Census education level
+in the first month, rows level;flow;rate;persons. Levels as world/own_account.level: 1 under 8 years of study (VDAE1
+1-3), 2 8-10 years (VDAE1 4), 3 11 years or more without a completed degree (VDAE1 5), 4 a completed graduation or
+postgraduate course (V307 6 or 9 and V311 1).
+Lower unemployment of the more educated comes from lower separation rates, with job finding no faster: Mincer (1991),
+Education and Unemployment, NBER WP 3838; Cairo and Cajner (2018), Human Capital and Unemployment Dynamics, Economic
+Journal.
+
 Usage: python auxiliary/labour_flows.py
 """
 import os
@@ -30,7 +38,7 @@ import pandas as pd
 PME = os.path.expanduser('~/MyModels/pme2010/raw')
 COLS = {'region': (0, 2), 'control': (2, 10), 'series': (10, 15), 'interview': (24, 25), 'order': (101, 103),
         'sex': (103, 104), 'birth_year': (108, 112), 'age': (112, 116), 'weight': (131, 138), 'vd1': (416, 417),
-        'vd15': (430, 431)}
+        'vd15': (430, 431), 'vdae1': (480, 481), 'v307': (155, 157), 'v311': (160, 161)}
 KEY = ['region', 'control', 'series', 'order', 'sex', 'birth_year']
 
 
@@ -41,12 +49,18 @@ def month(m):
         df[c] = pd.to_numeric(df[c], errors='coerce')
     df['weight'] = pd.to_numeric(df.weight, errors='coerce') / 10
     df['state'] = state(df)
+    df['level'] = level(df)
     return df.drop_duplicates(KEY, keep=False)
 
 
 def state(df):
     s = df.vd1.map({1: 'E', 2: 'U', 3: 'N'})
     return s.where(~((df.vd1 == 1) & (df.vd15 == 1)), 'EE').where(~((df.vd1 == 1) & (df.vd15 == 2)), 'OA')
+
+
+def level(df):
+    years = pd.to_numeric(df.vdae1, errors='coerce').map({1: 1, 2: 1, 3: 1, 4: 2, 5: 3})
+    return years.where(~(df.v307.isin(['06', '09']) & (df.v311 == '1')), 4)
 
 
 def pairs():
@@ -57,7 +71,7 @@ def pairs():
         a = a[(a.age >= 17) & (a.age <= 69)]
         p = a.merge(b, on=KEY, suffixes=('', '_1'))
         p = p[p.interview_1 == p.interview + 1]
-        out.append(p[['region', 'weight', 'state', 'state_1']].rename(columns={'state': 's0', 'state_1': 's1'}))
+        out.append(p[['region', 'level', 'weight', 'state', 'state_1']].rename(columns={'state': 's0', 'state_1': 's1'}))
     return pd.concat(out)
 
 
@@ -83,6 +97,11 @@ def main():
     df.persons = df.persons.round(0)
     df.to_csv('input/labour_flows_2010.csv', sep=';', index=False, float_format='%.6f')
     print(df.pivot(index='region', columns='flow', values='rate').round(4).to_string())
+    out = [rates(g).assign(level=int(k)) for k, g in p.groupby('level')]
+    df = pd.concat(out)[['level', 'flow', 'rate', 'persons']]
+    df.persons = df.persons.round(0)
+    df.to_csv('input/labour_flows_level_2010.csv', sep=';', index=False, float_format='%.6f')
+    print(df.pivot(index='level', columns='flow', values='rate').round(4).to_string())
 
 
 if __name__ == '__main__':

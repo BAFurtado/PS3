@@ -91,6 +91,8 @@ class Firm:
     fare_bill = None
     # The salary (before the worker's contributions) as a share of the gross wage (SALARY_SHARE; set by Simulation)
     salary_share = 1.0
+    # LABOUR_FLOWS 'education': an employee's weight in the draw of who is laid off (set by Simulation); None: uniform
+    layoff_weight = None
     # Share of capital advanced as revenue in a month without sales (FIRM_CAPITAL_MONTHS sets it to 1/months)
     cold_start_share = 0.001
     # Consecutive months insolvent / idle (FIRM_EXIT_MONTHS); set when the firm exits
@@ -774,7 +776,16 @@ class Firm:
 
     def fire(self, seed):
         if self.employees:
-            employee = seed.choice(list(self.employees.values()))
+            staff = list(self.employees.values())
+            if Firm.layoff_weight is None:
+                employee = seed.choice(staff)
+            else:
+                # LABOUR_FLOWS 'education': probability proportional to Firm.layoff_weight(employee)
+                w = np.array([Firm.layoff_weight(e) for e in staff], dtype=float)
+                if hasattr(seed, 'choices'):
+                    employee = seed.choices(staff, weights=w)[0]
+                else:
+                    employee = staff[seed.choice(len(staff), p=w / w.sum())]
             self.employees[employee.id].firm_id = None
             self.employees[employee.id].set_commute(None)
             del self.employees[employee.id]
