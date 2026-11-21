@@ -10,7 +10,7 @@ This release accompanies the paper *More Social Housing, More and Smaller Famili
 
 ### Model documentation
 
-The Supplementary Information of the paper describes the model with the ODD protocol, gives every parameter with its value and source, and reports the validation tables and the sensitivity analysis.
+The Supplementary Information of the paper (`docs/ps3_model_si.pdf`) describes the model with the ODD protocol, gives every parameter with its value and source, and reports the validation tables and the sensitivity analysis.
 
 ### Installation
 
