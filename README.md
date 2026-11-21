@@ -140,7 +140,7 @@ PS3 simulates alternative scenarios, institutional changes and policy combinatio
 - **The bank** manages mortgage loans, deposits and interest rates (FGTS and SBPE funding lines).
 
 ### Markets
-- The **labour market** matches workers to jobs by distance and qualification, sets wages, and hires and fires.
+- The **labour market** matches workers to jobs by distance, sets wages, and hires and fires.
 - The **goods and services market** covers consumption, intermediate production and regional input-output flows with suppliers outside the area.
 - The **housing sale market** forms prices in submarkets segmented by income quartile.
 - The **rental market** sets rents and handles payment and default.
