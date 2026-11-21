@@ -231,7 +231,7 @@ class Family:
         if available < target_price * sim.PARAMS['MIN_DOWN_PAYMENT_FRACTION']:
             return False
 
-        # 5. Employment gate: too unstable to commit to a mortgage
+        # 5. Employment gate: at least 30 % of members aged 17 to 69 employed
         if self.prob_employed() < 0.3:
             return False
 
@@ -300,8 +300,7 @@ class Family:
         if money < needed and central.wallet[self]:
             money += self.grab_savings(central, year, month)
         # Rent and the loan instalment come first, and stay in savings: collect_rent and collect_loan_payments take
-        # them from there. They used to be subtracted here as well, so they were paid twice (#35), and a family with
-        # no bank deposits that fell short consumed nothing (#36)
+        # them from there
         consumption = min(target, max(0, money - rent - loan))
         self.savings = money - consumption
         return consumption

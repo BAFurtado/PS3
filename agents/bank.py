@@ -368,8 +368,7 @@ class Central:
                     continue
                 loan.age += 1
                 if family.savings < sum(loan.payment[:loan.age]):
-                    # grab_savings returns the savings kept at home too, so they are replaced, not added to (#42: the
-                    # augmented assignment read them before grab_savings zeroed them and counted them twice)
+                    # grab_savings returns the savings kept at home too, so they are replaced, not added to
                     family.savings = family.grab_savings(self, sim.clock.year, sim.clock.months)
                 # Savings below zero are a debt and pay nothing
                 payment = max(0, min(family.savings, sum(loan.payment[:loan.age])))

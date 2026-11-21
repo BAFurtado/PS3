@@ -1,11 +1,11 @@
-"""R2 §2 gate bounds (G2, G3) and reference levels for the 25-capital screen, same sources as gate_bounds.py.
+"""Gate bounds (G2, G3) and reference levels for the 25-capital screen, same sources as gate_bounds.py.
 
 usage (repo root): python analysis/mcmv2026/validation/gate_bounds25.py  -> analysis/mcmv2026/validation/gate_bounds25.csv + printout
 
 G2 and G3 as in gate_bounds.py. PNAD Contínua (Sidra 4099) for the metro where the survey has one, else the capital
 (Teresina, Porto Velho, Rio Branco, Boa Vista, Palmas, Campo Grande); Brasília = DF.
 Also: real GDP growth 2012-19 %/yr (Sidra 5938 var 37 summed over the ACP, deflated by the national GDP deflator
-2012-19, 1.522, R2 §3.5.19); population growth 2010-22 %/yr (input/census_population_2010_2022.csv); state Gini of
+2012-19, 1.522); population growth 2010-22 %/yr (input/census_population_2010_2022.csv); state Gini of
 household income per capita, mean 2012-19 (PNAD Contínua, Sidra 7435; a different concept from the model's family
 permanent income, reference only).
 """

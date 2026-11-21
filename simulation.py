@@ -319,7 +319,7 @@ class Simulation:
             self.posting_education = posting_education(self.mun_to_regions)
         self.own_account = OwnAccountPools(self)
         self.regional_market.pools = self.own_account
-        # The pool's share of value added is no longer firms'
+        # The pool's share of value added is not firms'
         Firm.wage_shares = self.own_account.firm_wage_shares(
             pd.read_csv('input/firm_income_2015.csv', sep=';').set_index('sector').wage_share.to_dict())
 

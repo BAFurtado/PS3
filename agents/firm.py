@@ -67,8 +67,8 @@ class Firm:
     # (input/product_tax_2010.csv); None: TAX_CONSUMPTION on every sale
     product_tax = None
     product_tax_sales = None
-    # Consecutive staffed months with no wages paid (see FIRE_UNPAID_MONTHS). Class-level default so
-    # firms restored from population pickles made before the counter existed start at 0.
+    # Consecutive staffed months with no wages paid (see FIRE_UNPAID_MONTHS). Class-level default, so
+    # firms restored from population pickles start at 0.
     months_unpaid = 0
     # Workers lost to natural separation or death since the firm's last labour adjustment (REPLACE_SEPARATIONS).
     pending_replacements = 0
@@ -257,13 +257,11 @@ class Firm:
         tax_cost = self.emission_taxes_paid
         input_cost = self.input_cost
 
-        # TODO: Implement other emission costs
+        # Other emission costs are zero
         reputation_cost, intrinsic_cost = 0,0
         total_cost = tax_cost+reputation_cost+intrinsic_cost+input_cost
 
-        # The next step assumes linearity in costs
-        # TODO: Define wether costs are linear or not: we can make any function over total_emission and have
-        # expected_cost_reduction = cost(last_emissions)-cost((1-delta)*last_emissions)
+        # Costs are linear in emissions
         expected_cost_reduction = (1-params['ENVIRONMENTAL_EFFICIENCY_STEP']) * total_cost
         # Skip if within grace period
         is_policy_active = today > params['STARTING_DAY'] + datetime.timedelta(params['ECO_POLICY_DAYS'])
@@ -360,11 +358,11 @@ class Firm:
         )
 
         # One price per sector for budgeting and purchase alike. A sector with no stocked local firm is bought at the
-        # average price; it used to be skipped here but bought below, creating the money that paid for it
+        # average price
         prices = [chosen_firms[sector][0].inventory[0].price if chosen_firms[sector]
                   else regional_market.sim.avg_prices for sector in sectors]
         # IMPORT_PRICE 'exogenous': imports cost 1, the initial goods price held in real terms, plus freight, whatever
-        # local prices do. 'local' (old model): the price of the local seller the firm would have bought from
+        # local prices do. 'local': the price of the local seller the firm would have bought from
         exogenous = params.get('IMPORT_PRICE', 'local') == 'exogenous'
         ext_prices = [1.0] * len(prices) if exogenous else prices
 
@@ -431,7 +429,7 @@ class Firm:
                 money_external += import_cost
             else:
                 # Not enough left for the freight: what local sellers did not sell, plus the rest of the balance,
-                # buys externally (it used to be dropped, destroying the unsold local money)
+                # buys externally
                 money_external += change + self.total_balance
                 self.total_balance = 0.0
 
@@ -533,7 +531,7 @@ class Firm:
             # another local firm after a refusal, so the refused quantity is not served elsewhere in the ACP
             demand = self.goods_sold() + self.unmet_quantity if demand_signal_unmet else self.goods_sold()
             # PRICE_DEMAND_RESPONSE: share of this month's demand refused for lack of stock. Construction's
-            # amount_sold mixes house sales in money with quantities, so it keeps the old rule
+            # amount_sold mixes house sales in money with quantities, so Construction is left out
             refused_share = 0.0
             if price_demand_response > 0 and self.unmet_quantity > 0 and self.sector != 'Construction':
                 refused_share = self.unmet_quantity / (self.amount_sold + self.unmet_quantity)
@@ -563,7 +561,7 @@ class Firm:
                     if p.price > avg_prices and not refused_share:
                         p.price *= 1 - delta_price * price_ruggedness
                 # Refused demand raises the price by θ × refused share, beyond PRICE_MARKUP_CAP (which bounds only the
-                # inventory rule): the rationing that labour-bound supply cannot provide
+                # inventory rule)
                 if refused_share:
                     p.price *= 1 + price_demand_response * refused_share
         self.prices = sum(p.price for p in self.inventory.values()) / len(
@@ -605,8 +603,7 @@ class Firm:
     def sale(self, amount, regions, tax_consumption, consumer_region_id, if_origin, external=False,
              buyer='household'):
         """Sell max amount of products for a given amount of money.
-        Each firm always carries exactly one product (inventory key 0), so the original
-        loop over inventory is replaced with a direct access.
+        Each firm always carries exactly one product (inventory key 0), read directly.
         buyer ('household', 'government', 'input'; 'external' when external) only labels the diagnostic record.
         """
         if external:

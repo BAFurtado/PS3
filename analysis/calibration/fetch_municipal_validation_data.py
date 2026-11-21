@@ -1,6 +1,6 @@
 """
 Fetch real-world empirical data for Belo Horizonte to use as calibration
-targets (replaces the hardcoded placeholder OBSERVED dict in sample.py).
+targets.
 
 Sources (all via IBGE SIDRA API, apisidra.ibge.gov.br):
   - Inflation (IPCA, monthly): BH metro region, N7=3101. Spliced across three

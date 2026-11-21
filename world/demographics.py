@@ -66,7 +66,7 @@ def birth(sim, mother=None):
         target = None
         qualification = int(sim.seed.gammavariate(3, 3))
         qualification = [qualification if qualification < 21 else 20][0]
-    # Newborns hold no money: the family carries the child (they used to get 20-40 created from nothing)
+    # Newborns hold no money: the family carries the child
     money = 0
     month = sim.seed.randrange(1, 13, 1)
     gender = sim.seed.choice(['male', 'female'])
@@ -109,7 +109,7 @@ def die(sim, agent):
             h.owner_id = None
             agent.family.owned_houses.remove(h)
 
-        # The wallet too: it holds the wage paid after the last consumption (it used to be lost with the agent, #39)
+        # The wallet too: it holds the wage paid after the last consumption
         savings = agent.family.grab_savings(sim.central, sim.clock.year, sim.clock.months) + agent.money
         agent.money = 0
         # Inheritance and debt are drawn from this list, so its order must be stable.
@@ -154,14 +154,14 @@ def die(sim, agent):
         else:
             # Assign randomly
             sim.generator.randomly_assign_houses(inheritance, sim.families.values())
-            # A vacant estate goes to the municipality (Código Civil art. 1.822); it used to be lost (#39)
+            # A vacant estate goes to the municipality (Código Civil art. 1.822)
             sim.regions[old_region_id].collect_taxes(savings, 'transaction')
 
             # Delete debt
             if _id in sim.central.loans:
                 del sim.central.loans[_id]
     else:
-        # The wallet stays with the family (it used to be lost with the agent, #39)
+        # The wallet stays with the family
         agent.family.savings += agent.money
         agent.money = 0
         agent.family.remove_agent(agent)

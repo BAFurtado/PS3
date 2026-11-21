@@ -1,4 +1,4 @@
-"""R2 §2 gate bounds for the step-test ACPs, from published data.
+"""Gate bounds for the test ACPs, from published data.
 
 usage (repo root): python analysis/mcmv2026/validation/gate_bounds.py  -> analysis/mcmv2026/validation/gate_bounds.csv + printout
 

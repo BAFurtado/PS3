@@ -62,9 +62,6 @@ class RegionalMarket:
     input-output matrix, creation of externalities and market balancing.
     """
 
-    # TODO: *** How to handle transport firms? Include a factor of distance by agent/household (some included external)
-    # TODO *** Include FBCF in the consumption market. INCLUDE AN K (kind of technology) DECAYS WITH TIME
-
     def __init__(self, sim):
         self.sim = sim
         self.technical_matrix, self.ext_local_matrix, self.loc_ext_matrix, self.ext_ext_matrix = read_technical_matrix(
@@ -164,8 +161,7 @@ class RegionalMarket:
     def transport_fares(self, transport_firms):
         """Commuting costs (Agent.pay_transport) and the employer transport tax (TAX_TRANSPORT) are collected per
         region in treasure['transport'] and paid here as household purchases from Transport firms, the cheapest of a
-        sample, like other household consumption. What finds no stock waits for next month. They used to be wiped at
-        month end with the other treasure, destroying the money (#38)."""
+        sample, like other household consumption. What finds no stock waits for next month."""
         if not transport_firms:
             return
         params = self.sim.PARAMS

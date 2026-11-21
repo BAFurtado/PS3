@@ -299,9 +299,9 @@ class Generator:
         return community
 
     def set_initial_income(self, families, region_id, income):
-        """Initial permanent income from the 2010 Census (#30): the area's mean income per resident aged 10+ (V009,
-        zero incomes included) times the family's members aged 10+, in model money. It used to be 1 for every family,
-        so the first rental market ignored income. From the first monthly update it is wages plus returns on wealth."""
+        """Initial permanent income from the 2010 Census: the area's mean income per resident aged 10+ (V009,
+        zero incomes included) times the family's members aged 10+, in model money. From the first monthly update it is
+        wages plus returns on wealth."""
         per_person = income["area"].get(region_id)
         if per_person is None or np.isnan(per_person):
             per_person = income["mun"].get(region_id[:7], income["acp"])
@@ -521,8 +521,7 @@ class Generator:
     def sector_deck(self, n):
         """Sectors of the ACP's n initial firms, shuffled. Counts follow the RAIS shares at ACP level
         (largest-remainder rounding), with at least one firm in every sector present in RAIS, so that no sector
-        of the input-output matrix is left without firms. Rounding per region (math.ceil) used to give every
-        sector at least one firm in every region, inflating thin sectors (Mining ~84x in Belém)."""
+        of the input-output matrix is left without firms."""
         p = self.sector_shares()
         p = p[p > 0]
         if n <= 0:

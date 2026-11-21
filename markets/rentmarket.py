@@ -31,7 +31,7 @@ def collect_rent(houses, sim):
                     payment += difference
                 elif tenant.savings > 0:
                     # Take whatever savings are available. Savings below zero are a debt (commuting costs above the
-                    # wage) and stay; zeroing them used to write the debt off, creating money
+                    # wage) and stay
                     payment += tenant.savings
                     tenant.savings = 0
 

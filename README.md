@@ -4,9 +4,117 @@
 
 **An open agent-based platform for ex ante simulation of public policies in Brazilian urban areas.**
 
-PS3 is a computational simulation platform designed to support prospective analysis of public policies. It models heterogeneous agents — families, firms, local governments, and a financial institution — interacting across multiple markets (labor, goods and services, housing, rental, and mortgage credit) within spatially detailed Brazilian urban concentration areas (ACPs/CONURBs).
+This release accompanies the paper *More Social Housing, More and Smaller Families: PolicySpace3, an Agent-Based Model of Brazilian Metropolitan Economies* (Furtado, Rocha Lima and Vasconcelos). The first section below explains how to reproduce the paper's runs, figures and tables. The sections after it describe the platform.
 
-Rather than estimating relationships observed in the past, PS3 enables exploration of alternative scenarios, institutional changes, and policy combinations whose outcomes are not yet known. The platform combines census microdata, administrative records, and official statistics to represent the evolution of complex urban systems over time.
+## Reproducing the paper
+
+### Model documentation
+
+The Supplementary Information of the paper describes the model with the ODD protocol, gives every parameter with its value and source, and reports the validation tables and the sensitivity analysis.
+
+### Installation
+
+Python 3.12. Clone the repository and create the environment with conda:
+
+```bash
+git clone https://github.com/BAFurtado/PS3.git
+cd PS3
+conda create -n ps3 -c conda-forge python=3.12 \
+  geopandas shapely pandas numpy scipy matplotlib statsmodels scikit-learn \
+  joblib click pyarrow requests tqdm python-dateutil salib
+pip install numpy_financial
+```
+
+Or with pip: `pip install -r requirements.txt`.
+
+Run every command below from the repository root. The input data are in `input/`. The first run of an urban concentration area builds its initial population from the 2010 Census and stores it in `StoragedAgents/`, and later runs reuse it. Plotting scripts need `MPLBACKEND=Agg` on a machine without a display.
+
+### Tests
+
+```bash
+python tests.py
+```
+
+### The policy runs
+
+`runner_mcmv2026.py` runs the two MCMV budgets of the paper: the reference, `d09`, with 0.09 % of GDP a year from 2026, and the intervention, `d25`, with 0.25 % in 2026–2030 and 0.09 % from 2031. It also runs `d13`, with 0.13 % in 2026–2030, which the paper does not report. Each urban concentration area runs ten seeds, 2010–2034. The runner sets every scenario parameter and ignores a local `conf/params.py` or `conf/run.py`.
+
+```bash
+python runner_mcmv2026.py teste 3                  # Palmas, 2 years, every dose, then the identity check
+python runner_mcmv2026.py lote 8                   # the 26 capitals other than São Paulo, 8 runs at a time
+python runner_mcmv2026.py lote 8 cities=sp         # São Paulo, d09 and d25 (no agents parquet)
+python runner_mcmv2026.py lote 8 part=1/2          # the first of two slices of the queue, one per server
+python runner_mcmv2026.py conferir                 # finished runs, and d13 and d25 equal to d09 before 2026
+```
+
+Rerun the same `lote` command to resume: finished runs are skipped. Output goes to `output/mcmv2026/<scenario>/<CITY>/<seed>/`.
+
+A run of a mid-sized urban concentration area to 2034 takes about 20 to 30 minutes on one core. A São Paulo run takes 6 to 12 hours and about 2.5 GB of RAM.
+
+Full targeting (Goiânia, the poorest eligible households first) runs with
+
+```bash
+python analysis/mcmv2026/queue_test.py 8 0 9      # seeds 0 to 9, into output/queue_test
+python analysis/mcmv2026/queue_compare.py 9
+```
+
+### Calibration and sensitivity analysis
+
+```bash
+python -m analysis.calibration.sample run-sample --samples 32 --cpus 8     # history matching, one wave
+python -m analysis.calibration.sample score <calibration output folder>
+
+python runner_morris.py lote 8           # Morris screen, Goiânia and Aracaju (design in analysis/morris)
+python analysis/morris/analyse.py        # Supplementary Information, Table B.3
+python runner_morris_ends.py lote 8      # each influential parameter at the ends of its range
+python analysis/morris/ends.py           # Supplementary Information, Table B.4 (reads output/mcmv2026)
+```
+
+### Analysis, figures and tables
+
+After the runs, from the repository root, in this order:
+
+```bash
+python analysis/mcmv2026/effects.py output/mcmv2026 6
+python analysis/mcmv2026/paths.py
+python analysis/mcmv2026/screen.py
+python analysis/mcmv2026/price_composition.py
+python analysis/mcmv2026/hetero_extract.py output/mcmv2026 6
+python analysis/mcmv2026/hetero_analysis.py
+python analysis/mcmv2026/yearly_extract.py output/mcmv2026 6
+python analysis/mcmv2026/city_traits.py
+python analysis/mcmv2026/households_census.py
+python analysis/mcmv2026/households_census_mun.py
+python analysis/mcmv2026/excess_burden.py
+python analysis/mcmv2026/shortfall.py
+python analysis/mcmv2026/validation/screen25.py output/mcmv2026/d09 output/mcmv2026/_analysis/screen25_27
+python analysis/mcmv2026/fig_validation.py
+python analysis/mcmv2026/figures.py
+```
+
+The scripts write to `output/mcmv2026/_analysis/`. Each script's docstring names its inputs and outputs.
+
+| Paper | Script |
+|---|---|
+| Figure 2, budget | `figures.py` (`fig_budget`) |
+| Figure 3 and Table B.1, validation | `validation/screen25.py`, `fig_validation.py` |
+| Figures 4 to 6, effects over time, by place and income, by metropolitan area | `figures.py` (`fig_paths`, `fig_whom`, `fig_cities`) |
+| Effects, ledger and prices in Section 6 | `effects.py`, `paths.py`, `screen.py`, `price_composition.py`, `hetero_analysis.py`, `yearly_extract.py`, `excess_burden.py`, `city_traits.py` |
+| Population and households against the Census, Table B.2 | `shortfall.py`, `households_census.py`, `households_census_mun.py` |
+
+`households_census.py` and `households_census_mun.py` read two IBGE Sidra tables saved as `output/mcmv2026/_analysis/sidra/c2010.json` (https://apisidra.ibge.gov.br/values/t/156/n6/all/v/2048,134/p/2010) and `c2022.json` (https://apisidra.ibge.gov.br/values/t/4712/n6/all/v/381,382/p/2022).
+
+### Licence
+
+MIT, see `LICENSE`.
+
+---
+
+## About the platform
+
+PS3 is a computational simulation platform for the prospective analysis of public policies. It models heterogeneous agents (families, firms, local governments and a financial institution) that interact in labour, goods and services, housing, rental and mortgage credit markets within spatially detailed Brazilian urban concentration areas (ACPs/CONURBs).
+
+PS3 simulates alternative scenarios, institutional changes and policy combinations whose outcomes are not yet known. The platform combines census microdata, administrative records and official statistics to represent the evolution of urban systems over time.
 
 ---
 
@@ -18,62 +126,34 @@ Rather than estimating relationships observed in the past, PS3 enables explorati
 | National Housing Plan (PlanHab) scenarios | Ongoing / institutional reports |
 | Urban mobility (commute times) | Ongoing |
 | Housing markets and endogenous public policies (PolicySpace2) | Furtado (2022a, 2022b) |
-| Platform documentation (v1 — PolicySpace) | Furtado (2018a, 2018b) |
-| Metropolitan governance and fiscal redistribution | Alves Furtado & Eberhardt (2016); Furtado, Eberhardt & Messa (2017) |
+| Platform documentation (v1, PolicySpace) | Furtado (2018a, 2018b) |
+| Metropolitan governance and fiscal redistribution | Alves Furtado & Eberhardt (2016), Furtado, Eberhardt & Messa (2017) |
 
 ---
 
 ## Architecture
 
 ### Agents
-- **Families**: supply labor, consume goods and services, accumulate wealth, demand housing, and make residential relocation decisions
-- **Firms**: produce goods and services across **12 economic sectors** (Agriculture, Mining, Manufacturing, Utilities, Construction, Trade, Transport, Business, Financial, Real Estate, Other Services, Government); hire workers and set prices using input-output technical coefficients
-- **Local governments**: collect taxes (consumption, labor, property) and implement public policies (housing subsidies, MCMV, FGTS, SBPE, PlanHab)
-- **Bank**: manages mortgage loans, deposits, and interest rates (FGTS and SBPE funding lines)
+- **Families** supply labour, consume goods and services, accumulate wealth, demand housing and decide whether and where to move.
+- **Firms** produce goods and services in **12 economic sectors** (Agriculture, Mining, Manufacturing, Utilities, Construction, Trade, Transport, Business, Financial, Real Estate, Other Services, Government) with input-output technical coefficients, hire workers and set prices.
+- **Local governments** collect taxes (consumption, labour, property) and run public policies (housing subsidies, MCMV, FGTS, SBPE, PlanHab).
+- **The bank** manages mortgage loans, deposits and interest rates (FGTS and SBPE funding lines).
 
 ### Markets
-- **Labor market**: job matching by distance and qualification, wage determination, hiring/firing
-- **Goods and services market**: consumption, intermediate production, regional input-output flows with external suppliers
-- **Housing sale market**: price formation with submarkets segmented by income quartile
-- **Rental market**: rental pricing, payment, and default
-- **Mortgage credit market**: loan applications, approvals, repayments, and interest rates
+- The **labour market** matches workers to jobs by distance and qualification, sets wages, and hires and fires.
+- The **goods and services market** covers consumption, intermediate production and regional input-output flows with suppliers outside the area.
+- The **housing sale market** forms prices in submarkets segmented by income quartile.
+- The **rental market** sets rents and handles payment and default.
+- The **mortgage credit market** handles loan applications, approvals, repayments and interest rates.
 
 ### Spatial structure
-Simulations run for Brazilian urban concentration areas (ACPs/CONURBs). The basic spatial unit is the **IBGE weighting area (área de ponderação / AP)**, with municipal boundaries used as fallback where AP shapes are unavailable. Regionalized input-output matrices capture inter-sectoral production relationships, including inputs acquired from suppliers outside the simulated area.
+Simulations run for Brazilian urban concentration areas (ACPs/CONURBs). The basic spatial unit is the **IBGE weighting area (área de ponderação, AP)**, and municipal boundaries replace it where AP shapes are unavailable. Regionalised input-output matrices represent the flows between sectors, including inputs bought from suppliers outside the simulated area.
 
 ### Demographic dynamics
-Population evolves endogenously through births, deaths (age- and state-specific mortality tables), aging, immigration, marriage, and household formation and dissolution. Government employment follows exogenous projections by year.
+Population evolves endogenously through births, deaths (age- and state-specific mortality tables), ageing, immigration, marriage, and household formation and dissolution. Government employment follows exogenous projections by year.
 
 ### Output
-Each simulation produces time-series indicators saved as CSV files, covering unemployment, inequality (Gini index), housing vacancy and prices, fiscal revenues, consumption, credit, and environmental emissions. Results are automatically plotted with confidence intervals across multiple runs.
-
-An **interactive dashboard** for exploring simulation results is available at: [link — coming soon]. To use it, point the dashboard to a `final_stats.csv` produced by any completed run.
-
----
-
-## Installation
-
-Requires **Python 3.12**. We recommend `conda` to create an environment with all spatial and scientific dependencies at once:
-
-```bash
-conda create -n ps3 -c conda-forge \
-  fiona geopandas shapely gdal pandas numba descartes scipy seaborn \
-  pyproj matplotlib six cycler statsmodels joblib scikit-learn \
-  flask flask-wtf psutil pyarrow
-```
-
-Then add the financial mathematics library:
-
-```bash
-pip install numpy_financial
-```
-
-Clone the repository:
-
-```bash
-git clone https://github.com/BAFurtado/PS3.git
-cd PS3
-```
+Each simulation saves time series of indicators as CSV files, covering unemployment, inequality (Gini index), housing vacancy and prices, fiscal revenues, consumption, credit and emissions. The model plots the results with confidence intervals across runs.
 
 ---
 
@@ -88,25 +168,30 @@ python main.py run
 ```bash
 python main.py -c 2 -n 10 run
 ```
-`-n`: number of runs | `-c`: CPU cores (`-1` for all available). Multiple runs produce averages and confidence intervals.
+`-n` sets the number of runs and `-c` the number of CPU cores (`-1` for all). Several runs give averages and confidence intervals.
 
 ### Sensitivity analysis
 ```bash
-# Continuous parameter range (name:min:max:steps)
-python main.py -n 2 sensitivity ALPHA:0:1:7
+# A continuous range, NAME:MIN:MAX:STEPS
+python main.py -n 2 sensitivity MARKUP:.05:.15:7
 
-# Boolean parameter (runs True and False)
-python main.py -n 2 sensitivity SOME_BOOLEAN_PARAM
+# A boolean parameter, True and False
+python main.py -n 2 sensitivity POLICY_MELHORIAS
 
-# Two parameters with specific value combinations
+# Two parameters, one at a time
 python main.py -n 2 sensitivity MARKUP:.05:.15:7 PRODUCTIVITY_EXPONENT:.4:.6:3
+
+# Every combination of the listed values of two parameters, NAME1+NAME2*VALUES1*VALUES2
+python main.py -n 2 sensitivity "MARKUP+PRODUCTIVITY_EXPONENT*.05+.1+.15*.4+.6"
 ```
 
 ### PlanHab housing policy scenarios
 ```bash
 python main.py sensitivity PLANHAB-capitais
-python main.py sensitivity PLANHAB-BELO-HORIZONTE-SAO-PAULO
+python main.py sensitivity "PLANHAB-BELO HORIZONTE-SAO PAULO"
 ```
+
+Each area runs with and without the Melhorias policy at three housing interest-rate scenarios (`baixa`, `media`, `alta`). `capitais` runs the capitals other than São Paulo and Rio de Janeiro (25 areas). Area names keep their spaces, and a hyphen separates them.
 
 ### Run across all urban areas (ACPs)
 ```bash
@@ -123,26 +208,21 @@ python main.py resume /path/to/output
 python main.py make-plots /path/to/output
 ```
 
-### Run tests
-```bash
-python tests.py
-```
-
 ---
 
 ## Configuration
 
-Override defaults without modifying core files by creating:
+Override defaults without changing the default files by creating:
 
-- `conf/params.py` — simulation parameters (e.g., `PRICE_MARKUP_CAP`, `LABOR_MARKET`)
-- `conf/run.py` — run options (e.g., `OUTPUT_PATH`, `SAVE_DATA_PERIDIOCITY`, `AVERAGE_TYPE`)
+- `conf/params.py` for simulation parameters (for example `PRICE_MARKUP_CAP`, `LABOR_MARKET`)
+- `conf/run.py` for run options (for example `OUTPUT_PATH`, `SAVE_DATA_PERIDIOCITY`, `AVERAGE_TYPE`)
 
-All defaults are documented in `conf/default/params.py` and `conf/default/run.py`.
+`conf/default/params.py` and `conf/default/run.py` document every default.
 
-You can also pass JSON overrides directly on the command line:
+The command line also takes overrides, `-p` with a JSON file of parameters and `-r` with a JSON string of run options.
 
 ```bash
-python main.py -p custom_params.json -r custom_config.json run
+python main.py -p custom_params.json -r '{"OUTPUT_PATH": "output_test"}' run
 ```
 
 ---
@@ -156,7 +236,7 @@ python main.py -p custom_params.json -r custom_config.json run
 
 **Earlier contributions**
 - Isaque Daniel Rocha Eberhardt
-- Francis Tseng — [frnsys.com](http://frnsys.com)
+- Francis Tseng ([frnsys.com](http://frnsys.com))
 
 ---
 
@@ -180,8 +260,8 @@ Alves Furtado, B.; Eberhardt, I. D. R. A simple agent-based spatial model of the
 
 ## Funding
 
-Developed by Bernardo Alves Furtado, funded primarily by the Institute of Applied Economic Research — Ipea ([www.ipea.gov.br](https://www.ipea.gov.br)). Partial support from CEPAL-Brasília and the International Policy Centre (IPC-IG). Bernardo Alves Furtado acknowledges a CNPq productivity grant (2014–2023).
+Developed by Bernardo Alves Furtado, funded primarily by the Institute of Applied Economic Research (Ipea, [www.ipea.gov.br](https://www.ipea.gov.br)). Partial support from CEPAL-Brasília and the International Policy Centre (IPC-IG). Bernardo Alves Furtado acknowledges a CNPq productivity grant (2014–2023).
 
 ## License
 
-GNU General Public License v3.0
+MIT, see `LICENSE`.

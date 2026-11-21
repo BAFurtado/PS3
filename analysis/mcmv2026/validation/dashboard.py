@@ -1,8 +1,8 @@
-"""B-plan closure dashboard over PS3 run directories (B_PLAN.md §1, §5 B0).
+"""Dashboard of checks and money flows over PS3 run directories.
 
 usage:
   python dashboard.py <repo> <run_dir> [<run_dir> ...]     checks + flow table, one column per run
-  python dashboard.py <repo> --multipliers                  export multiplier per ACP (for B1's smoke city)
+  python dashboard.py <repo> --multipliers                  export multiplier per ACP
 
 <repo> is the PS3 checkout whose analysis/output.py resolves the stats.csv layout (legacy layouts included).
 Checks use the last 36 months; "trend" is the slope per year of log(ratio) over years 2 to the end.
@@ -112,13 +112,13 @@ def decomposition(df):
             for start, label in ((12, "y2-10"), (60, "y6-10")) for k, v in parts.items()}
 
 
-# Density paper Table 2 (submitted), ranges as published; definitions from analysis/validation/housing_validation.py.
+# Housing level ranges, definitions from analysis/validation/housing_validation.py.
 HOUSING_TABLE2 = {"housing_stock_gdp": (1.5, 2.5), "price_wage": (60, 150), "price_income": (6, 12),
                   "vacancy": (0.08, 0.13), "consumption_gdp": (0.55, 0.65), "housing_production_per_1000": (2, 4),
                   "housing_stock_permanent_income": (5, 8)}
 # Validation targets: Table 2, except price / income, price / wage and stock / permanent income, which are the range over
 # the 25 capitals of the Census 2010 values on the model's definitions, prices = Census mean rent / FipeZAP 2010 yield
-# (r2/census_housing.py -> r2/census_housing_2010.csv)
+# (Census 2010)
 HOUSING_TARGETS = {**HOUSING_TABLE2, "price_wage": (81, 119), "price_income": (3.7, 6.3),
                    "housing_stock_permanent_income": (3.1, 4.7)}
 

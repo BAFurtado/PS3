@@ -117,7 +117,6 @@ class Agent:
     commute_cost_units = None
 
     def pay_transport(self, money, params, regions):
-        # TODO. Check how much money is being collected as well as proportion of distance/wages
         units = self.distance if self.commute_cost_units is None else self.commute_cost_units
         if self.has_car:
             cost_transport = units * params['PRIVATE_TRANSIT_COST']

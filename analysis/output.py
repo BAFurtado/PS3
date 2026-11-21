@@ -108,10 +108,7 @@ OUTPUT_DATA_SPEC = {
                     'rent_burden_decis_10',
                     'affordability_median',
                     # Share of renters whose permanent income is <= 0. Their rent
-                    # burden is undefined and lands in the top decile, so this is
-                    # what makes rent_burden_decis_10 readable. affordability_median
-                    # keeps its original definition for comparability with the
-                    # submitted density paper.
+                    # burden is undefined and lands in the top decile.
                     'pct_renters_zero_income',
                     'perc_fgts_used',
                     'perc_sbpe_used',
@@ -349,123 +346,123 @@ MATCHING_COLUMNS = ('unmet_household_coverable', 'unmet_household_coverable_end'
 
 
 def _legacy_stats_columns_no_house_sales():
-    """`stats` layout of 803c602 (2026-10-22): no house_sales columns."""
+    """`stats` layout: no house_sales columns."""
     return [c for c in OUTPUT_DATA_SPEC['stats']['columns'] if c not in HOUSE_SALES_COLUMNS]
 
 
 def _legacy_stats_columns_no_beneficiary():
-    """`stats` layout of ps3-model-2026 (b1f809b): no families_count or beneficiary columns."""
+    """`stats` layout: no families_count or beneficiary columns."""
     return [c for c in _legacy_stats_columns_no_house_sales() if c not in BENEFICIARY_STATS_COLUMNS]
 
 
 def _legacy_stats_columns_no_rent_received():
-    """`stats` layout of a6eabbb (2026-10-08): no families_rent_received."""
+    """`stats` layout: no families_rent_received."""
     return [c for c in _legacy_stats_columns_no_beneficiary() if c != 'families_rent_received']
 
 
 def _legacy_stats_columns_no_census_basis():
-    """`stats` layout of f2d2598 (2026-10-08): no families_total_wages, wage_census_factor, taxes_products."""
+    """`stats` layout: no families_total_wages, wage_census_factor, taxes_products."""
     return [c for c in _legacy_stats_columns_no_rent_received()
             if c not in ('families_total_wages', 'wage_census_factor', 'taxes_products')]
 
 
 def _legacy_stats_columns_no_worker_wage():
-    """`stats` layout of 34e0ae5 (2026-10-06): no workers_median_wage."""
+    """`stats` layout: no workers_median_wage."""
     return [c for c in _legacy_stats_columns_no_census_basis() if c != 'workers_median_wage']
 
 
 def _legacy_stats_columns_no_own_account():
-    """`stats` layout of 5044d09 (2026-10-02): no own_account_workers, own_account_earnings."""
+    """`stats` layout: no own_account_workers, own_account_earnings."""
     return [c for c in _legacy_stats_columns_no_worker_wage() if c not in ('own_account_workers', 'own_account_earnings')]
 
 
 def _legacy_stats_columns_no_investment():
-    """`stats` layout with families_total_income (2026-10-02): no money_profits_out, no firms_investment."""
+    """`stats` layout with families_total_income: no money_profits_out, no firms_investment."""
     return [c for c in _legacy_stats_columns_no_own_account() if c not in ('money_profits_out', 'firms_investment')]
 
 
 def _legacy_stats_columns_no_income():
-    """`stats` layout of 9795a66 (2026-10-01): no families_total_income."""
+    """`stats` layout: no families_total_income."""
     return [c for c in _legacy_stats_columns_no_investment() if c != 'families_total_income']
 
 
 def _legacy_stats_columns_no_social_transfers():
-    """`stats` layout of 7b66b6b (2026-10-01): no money_social_transfers."""
+    """`stats` layout: no money_social_transfers."""
     return [c for c in _legacy_stats_columns_no_income() if c != 'money_social_transfers']
 
 
 def _legacy_stats_columns_no_utilisation():
-    """`stats` layout of 5e52587 (2026-09-30): no firms_utilisation."""
+    """`stats` layout: no firms_utilisation."""
     return [c for c in _legacy_stats_columns_no_social_transfers() if c != 'firms_utilisation']
 
 
 def _legacy_stats_columns_no_profit_share():
-    """`stats` layout of df8dab4 (2026-09-30): no firms_profit_share_paid."""
+    """`stats` layout: no firms_profit_share_paid."""
     return [c for c in _legacy_stats_columns_no_utilisation() if c != 'firms_profit_share_paid']
 
 
 def _legacy_stats_columns_no_total_income():
-    """`stats` layout of 08e0835 (2026-09-30): no families_total_permanent_income."""
+    """`stats` layout: no families_total_permanent_income."""
     return [c for c in _legacy_stats_columns_no_profit_share() if c != 'families_total_permanent_income']
 
 
 def _legacy_stats_columns_no_bank_profit():
-    """`stats` layout of 0ddb69e (2026-09-30): no money_bank_profit_out."""
+    """`stats` layout: no money_bank_profit_out."""
     return [c for c in _legacy_stats_columns_no_total_income() if c != 'money_bank_profit_out']
 
 
 def _legacy_stats_columns_no_fgts_repaid():
-    """`stats` layout of 4a1f843 (2026-09-30): no money_fgts_sbpe_repaid."""
+    """`stats` layout: no money_fgts_sbpe_repaid."""
     return [c for c in _legacy_stats_columns_no_bank_profit() if c != 'money_fgts_sbpe_repaid']
 
 
 def _legacy_stats_columns_no_group_prices():
-    """`stats` layout of 9144723 (2026-09-30): no price_tradable / price_nontradable."""
+    """`stats` layout: no price_tradable / price_nontradable."""
     return [c for c in _legacy_stats_columns_no_fgts_repaid() if c not in ('price_tradable', 'price_nontradable')]
 
 
 def _legacy_stats_columns_no_household_imports():
-    """`stats` layout of 0ff157f (2026-09-30): household_unserved but no household_imports."""
+    """`stats` layout: household_unserved but no household_imports."""
     return [c for c in _legacy_stats_columns_no_group_prices() if c != 'household_imports']
 
 
 def _legacy_stats_columns_no_unserved():
-    """`stats` layout of 9ec883b (2026-09-30): matching diagnostic but no household_unserved."""
+    """`stats` layout: matching diagnostic but no household_unserved."""
     return [c for c in _legacy_stats_columns_no_household_imports() if c != 'household_unserved']
 
 
 def _legacy_stats_columns_no_matching():
-    """`stats` layout of d74a535 (2026-09-30): demand by buyer type but no matching diagnostic."""
+    """`stats` layout: demand by buyer type but no matching diagnostic."""
     return [c for c in _legacy_stats_columns_no_unserved() if c not in MATCHING_COLUMNS]
 
 
 def _legacy_stats_columns_no_demand_by_buyer():
-    """`stats` layout of 1830dcd (2026-09-30): firms_unmet_share but no demand by buyer type."""
+    """`stats` layout: firms_unmet_share but no demand by buyer type."""
     return [c for c in _legacy_stats_columns_no_matching() if c not in DEMAND_BY_BUYER_COLUMNS]
 
 
 def _legacy_stats_columns_no_unmet():
-    """`stats` layout before 2026-09-30: no firms_unmet_share."""
+    """`stats` layout: no firms_unmet_share."""
     return [c for c in _legacy_stats_columns_no_demand_by_buyer() if c != 'firms_unmet_share']
 
 
 def _legacy_stats_columns_no_money():
-    """`stats` layout before 2026-09-29 (evening): no money stock and ledger columns."""
+    """`stats` layout: no money stock and ledger columns."""
     return [c for c in _legacy_stats_columns_no_unmet() if c not in MONEY_COLUMNS]
 
 
 def _legacy_stats_columns_no_external_account():
-    """`stats` layout before 2026-09-29: no external account columns."""
+    """`stats` layout: no external account columns."""
     return [c for c in _legacy_stats_columns_no_money() if c not in EXTERNAL_ACCOUNT_COLUMNS]
 
 
 def _legacy_stats_columns_no_firm_demography():
-    """`stats` layout before 2026-09-28: no firm demography columns."""
+    """`stats` layout: no firm demography columns."""
     return [c for c in _legacy_stats_columns_no_external_account() if c not in FIRM_DEMOGRAPHY_COLUMNS]
 
 
 def _legacy_stats_columns():
-    """`stats` layout used by batches before 2026-08-01: no
+    """`stats` layout: no
     denied_zero_capped_amount, no pct_renters_zero_income, and the decile block
     carries affordability_decis_* rather than rent_burden_decis_*."""
     dropped = {'denied_zero_capped_amount', 'denied_no_loan_needed', 'workers_median_wage', 'families_total_wages',
@@ -477,23 +474,22 @@ def _legacy_stats_columns():
 
 
 def _legacy_regional_columns_no_beneficiary():
-    """`regional` layout of ps3-model-2026 (b1f809b): no families_count, families_total_permanent_income or
+    """`regional` layout: no families_count, families_total_permanent_income or
     beneficiary columns."""
     return [c for c in OUTPUT_DATA_SPEC['regional']['columns'] if c not in BENEFICIARY_REGIONAL_COLUMNS]
 
 
 def _legacy_regional_columns_no_qli_drivers():
-    """`regional` layout before the QLI drivers were emitted: no qli_gdp_pc and no
-    qli_spend_pc, i.e. every run made before the fiscal leg of QLI existed (40 fields).
+    """`regional` layout: no qli_gdp_pc and no qli_spend_pc (40 fields).
 
-    Every older layout below is a subset of this one, since they all predate it.
+    Every layout below is a subset of this one.
     """
     return [c for c in _legacy_regional_columns_no_beneficiary()
             if c not in ('qli_gdp_pc', 'qli_spend_pc')]
 
 
 def _legacy_regional_columns():
-    """`regional` layout before the MCMV allocation diagnostics were added (18)."""
+    """`regional` layout without the MCMV allocation diagnostics (18 fields)."""
     return [c for c in _legacy_regional_columns_no_qli_drivers()
             if not c.startswith(('mcmv_', 'melhorias_'))]
 
@@ -805,7 +801,7 @@ class Output:
             agents_by_mun[mun_id].append(agent)
 
         for family in sim.families.values():
-            # TODO: sometimes family.region_id is None?
+            # Families without a region are skipped
             if family.region_id:
                 mun_id = family.region_id[:7]
                 families_by_mun[mun_id].append(family)

@@ -1,14 +1,14 @@
-"""25-capital validation screen of the frozen model (tag ps3-model-2026): floor to 2040, 2017-19 levels, held-out data.
+"""Validation screen: floor to the end of the run, 2017-19 levels, held-out data.
 usage (repo root): python analysis/mcmv2026/validation/screen25.py <runs root> [out dir, default <runs root>]
 Runs: every stats.csv under the root (server layout PROCESSING_ACPS=<ACP>/<i>/ with conf.json, or local
 <ACP>_s<seed>_<arm>/), avg/ folders skipped. Writes screen25_runs.csv, screen25_cities.csv, screen25_table2.csv.
-- Floor (R2 §6 layer 1): levels.explodes over the first 10 y and over the whole run, first year with u >= 30 %.
+- Floor: levels.explodes over the first 10 y and over the whole run, first year with u >= 30 %.
 - Levels 2017-19 (first 120 months, last 36): bands of analysis/calibration/data/level_targets.csv; unemployment per
-  city [min(Census 2010, PNAD-C min 2012-19), PNAD-C max 2012-19] from r2/gate_bounds25.csv; implausibility as in the
+  city [min(Census 2010, PNAD-C min 2012-19), PNAD-C max 2012-19] from gate_bounds25.csv; implausibility as in the
   calibration (seed sd, discrepancy 0.10).
 - Held out: GDP per resident year 1 and 2017-19 deflated over IBGE 2010 (apu_va25.csv, +-20 %); real GDP 2012-19
   vs IBGE (+-1.5 pp/yr); family PI Gini 2017-19 against the state PNAD-C Gini 2012-19 (reported, different concept).
-- Table 2 (density paper format): pooled median, p10, p90 over runs, 2011-2024."""
+- Table 2: pooled median, p10, p90 over runs, 2011-2024."""
 import glob, json, os, sys
 import numpy as np
 import pandas as pd

@@ -23,30 +23,27 @@ INTEREST_HOUSING = 'real'
 MARKUP = 0.1
 # Frequency firms change prices. Probability < than parameter
 STICKY_PRICES = 0.817
-# Price ruggedness a positive value (below 1) that multiplies the magnitude of price reduction
-# Reflects a reluctance of businesses to lower prices. Amount estimated for reduction multiplied by parameter
+# Multiplies the size of a price reduction, between 0 and 1
 PRICE_RUGGEDNESS = 0.1
-# Maximum premium above market average before the inventory-driven price rise is capped.
-# Decouples the inventory signal from the relative-price gate: firms respond to low inventory
-# freely up to avg_prices * (1 + PRICE_MARKUP_CAP), then stop. Set to 0 for old joint-condition.
+# Largest premium over the reference price (PRICE_ANCHOR) to which a firm with low inventory raises its price:
+# up to reference x (1 + PRICE_MARKUP_CAP). 0: up to the reference.
 PRICE_MARKUP_CAP = 0.0875
 # Reference price of the inventory rule above. 'national': P_imp, the price of the same good in the rest of Brazil.
-# 'average' (old model): the average price of the firm's group (tradable or not).
+# 'average': the average price of the firm's group (tradable or not).
 PRICE_ANCHOR = 'national'
-# Safety-stock buffer: fraction of monthly sales firms want to hold above productive capacity.
-# Higher values keep more firms in "low inventory" mode → more hiring signals, less deflation risk.
+# Stock target: fraction of monthly sales firms hold as stock (CONSTRUCTION_PLAN gives the rule).
 INVENTORY_TARGET_RATIO = 0.2
-# Demand signal for production and hiring (step 2b). True: sales plus the quantity refused for lack of stock, so demand a
-# firm could not serve (household, input or external) asks for more output. False (old model): sales only.
+# Demand signal for production and hiring. True: sales plus the quantity refused for lack of stock, so demand a
+# firm could not serve (household, input or external) asks for more output. False: sales only.
 DEMAND_SIGNAL_UNMET = False
-# Price response to refused demand, θ (step 2b/3). A firm that refused buyers for lack of stock this month raises its
+# Price response to refused demand, θ. A firm that refused buyers for lack of stock this month raises its
 # price, when it revises it (STICKY_PRICES), by θ × refused / (sold + refused), beyond PRICE_MARKUP_CAP, and does not
-# lower it that month. Goods firms only (not Construction). 0 (old model): refusals do not move prices.
+# lower it that month. Goods firms only (not Construction). 0: refusals do not move prices.
 PRICE_DEMAND_RESPONSE = 0.1
 # Number of firms consulted before consumption
 SIZE_MARKET = 5
 # A household refused (or served only in part) for lack of stock by the firm it picked tries the other stocked firms of
-# the same sample, in the order of its strategy (price or distance), until the money is spent. False (old model): the
+# the same sample, in the order of its strategy (price or distance), until the money is spent. False: the
 # rest goes back to savings. Refused quantity stays recorded at each firm that refused it (its demand signal).
 HOUSEHOLD_RETRY = False
 # Number of firms to buy from in the INTERMEDIATE market
@@ -61,7 +58,6 @@ NATURAL_SEPARATION_RATE = 0.010
 # unemployed -> employed rate (PME 2010, input/labour_flows_2010.csv)
 LABOUR_FLOWS = 'data'
 # Firms that pay no wages for this many consecutive months fire one worker per adjustment (0 = off).
-# Tolerates short revenue droughts from erratic, small-sample demand; sheds staff only when they persist.
 FIRE_UNPAID_MONTHS = 3
 # Firm capital, in months of a firm's monthly cost (its staff's output at current price; Construction at least one
 # median project: land plus the building cost it advances as wages before the first sale). Initial firms are sized
@@ -72,13 +68,12 @@ FIRE_UNPAID_MONTHS = 3
 # the ACP (money_profits_out); entrants' capital comes from those owners (money_firm_entry).
 FIRM_CAPITAL_MONTHS = 3
 # With FIRM_CAPITAL_MONTHS > 0: a construction firm's capital in months of its cost, and at least one median project
-# (land plus the wages it advances before the first sale). Builders have no production credit and a 2-3 year project
-# cycle, so they hold more than other firms. Their land purchases are recovered from revenue before wages over
+# (land plus the wages it advances before the first sale). Builders' land purchases are recovered from revenue before wages over
 # CONSTRUCTION_ACC_CASH_FLOW months, which rebuilds the buffer; the land gate itself keeps FIRM_CAPITAL_MONTHS.
 CONSTRUCTION_CAPITAL_MONTHS = 12
 # A firm exits after this many consecutive months insolvent (balance <= 0) or idle (no staff and no sales); its staff
 # become unemployed, its remaining capital goes to its sector's firms, and it moves to sim.firm_grave. Government never
-# exits; Construction only with no house for sale or under construction. 0 = original, no exit.
+# exits; Construction only with no house for sale or under construction. 0: no exit.
 FIRM_EXIT_MONTHS = 6
 # Builders' output. Other private firms top their stock up to last month's sold plus refused quantity times
 # (1 + INVENTORY_TARGET_RATIO), and to at least INVENTORY_TARGET_RATIO x capacity, within capacity, and shed the
@@ -96,15 +91,14 @@ SECTOR_SHARES = 'ibge12'
 # Firms refill workers lost to natural separation or death (one post each) unless shrinking. False = off.
 REPLACE_SEPARATIONS = True
 # Growing firms post the vacancies their production plan needs (gap between sales plus stock target and current
-# output, over output per worker), capped at doubling headcount in a month. False = original one post a month.
+# output, over output per worker), capped at doubling headcount in a month. False: one post a month.
 PLANNED_GROWTH_POSTS = True
-# Revised public sector. (1) Government headcount is set only by gov_hire_fire (RAIS target), not by the profit and
-# insolvency firing, which emptied Government within a few years. (2) Balanced budget, per municipality
+# Public sector. (1) Government headcount is set only by gov_hire_fire (RAIS target), not by the profit and
+# insolvency firing of private firms. (2) Balanced budget, per municipality
 # (Funds.settle_government_budget): public revenue pays the public payroll, then government purchases (input-output
 # ratio to payroll), then policy money, and the rest is spent as public investment (input-output FBCF shares), also
-# recorded as the regions' applied public money for the QLI fiscal leg. False = original, which multiplied the
-# equally-divided share by the number of municipalities, never paid the FPM and local shares, destroyed the regions'
-# share, and let Government firms spend their start-up capital as demand.
+# recorded as the regions' applied public money for the QLI fiscal leg. False: Government firms also hire and fire on
+# profit and insolvency, and municipal budgets are not balanced.
 GOV_REVISED = True
 # Public wage rule (GOV_REVISED). A municipality's public jobs are split by level of government (input/gov_levels.csv,
 # Ipea Atlas do Estado Brasileiro 2021; auxiliary/gov_levels.py). Federal and state staff are paid the observed
@@ -143,9 +137,7 @@ GOV_PAY_BASE_MONTHS = 12
 # The taxes pooled 'equally' (labour and firm taxes net of the FPM share, the state share of consumption tax, tax on
 # bank interest, the import tax that returns) are federal and state revenue. True: they leave the ACP through the
 # external account (money_public_taxes_out), so the net public transfer is GOV_EXTERNAL_FUNDING minus these. False: they
-# stay and fund the municipalities' budgets, while GOV_EXTERNAL_FUNDING still pays in (money grows ~25 %/yr in PALMAS).
-# Off until the model has the federal spending that comes back (pensions, Bolsa Família, SUS): with only the payroll
-# transfer, BH and Goiânia pay out ~10x what returns and unemployment reaches 35 % (step test 2026-09-29).
+# stay and fund the municipalities' budgets, while GOV_EXTERNAL_FUNDING still pays in.
 PUBLIC_TAXES_OUT = False
 # Education of a vacancy. 'off': none. 'census': each vacancy draws its level from the Census 2010 employees of its
 # sector in the run's municipalities and is filled from applicants of that level; it stays open if none applies.
@@ -219,22 +211,16 @@ INCOME_MODALIDADES = {'faixa1': .38,
                       'fgts': .65,
                       'sbpe': .85
                       }
-# Scalar aliases — income quantile ceilings for subsidised credit channels.
-# Families with permanent_income BELOW this quantile of the current income distribution
-# qualify for that channel. Mirrors INCOME_MODALIDADES['fgts'/'sbpe'] but exposed as
-# individual scalars so OAT sensitivity can sweep them without touching the dict.
+# Income quantiles below which a household entering the market borrows from FGTS and from SBPE
 FGTS_INCOME_QUANTILE = 0.70
 SBPE_INCOME_QUANTILE = 0.85
-# Mirrors INCOME_MODALIDADES['melhorias'] but exposed as a scalar so OAT sensitivity
-# can sweep it without touching the dict.
+# Income quantile of the melhorias programme
 MELHORIAS_INCOME_QUANTILE = 0.38
 TOTAL_TARGETING_POLICY = False
 POLICY_MELHORIAS = False
 # Share of the works' market price the state pays for a melhorias upgrade. The works
 # are the .5 -> 1 quality delta, worth `size * .5 * region.index` under
-# House.update_price, which is the house's own pre-upgrade price. At 1 the builder
-# earns the same revenue per unit of construction capacity as it would by putting that
-# capacity into a new house and selling it, so the contract is capacity-neutral.
+# House.update_price, which is the house's own pre-upgrade price.
 UPGRADE_COST = 1
 POLICY_DAYS = 360
 # Days until environmental policies start
@@ -244,8 +230,7 @@ POLICY_QUANTILE = 0.2
 # Change of policy for collecting consumption tax at:
 # firms' municipalities origin (True) or destiny (consumers' municipality)
 TAX_ON_ORIGIN = True
-# BNDES test with (True) and without (False) TRANSPORT investments.
-# Variation in time_travel implemented in labor market decisions -- BNDES test
+# Network state when TRANSPORT_SCHEDULE is None: True 'nec', False 'base' (world/transport.py)
 TRANSPORT_TIME = False
 # Opening schedule of the network (world/transport.py): list of [date, spec], date 'YYYY-MM-DD' or a year,
 # spec a matrix state ('base', 'nec', ...) or phi in [0, 1] blending base into nec. Base before the first date.
@@ -255,15 +240,13 @@ TRANSPORT_SCHEDULE = None
 # LOANS ##############################################################################
 # Maximum age of borrower at the end of the contract
 MAX_LOAN_AGE = 70
-# Used to calculate monthly payment for the families, thus limiting maximum loan by number of months and age
-# Because permanent income includes wealth, it should be just a small percentage,
-# otherwise compromises monthly consumption.
+# Largest monthly instalment over permanent income, which with the term limits the loan
 LOAN_PAYMENT_TO_PERMANENT_INCOME = 0.35
 # Refers to the maximum loan monthly payment to total wealth
 # MAX_LOAN_PAYMENT_TO_WEALTH=.4
 # Refers to the maximum rate of the loan on the value of the estate
 MAX_LOAN_TO_VALUE = 0.8
-# Subsidised credit channels allow higher LTV — FGTS/MCMV effectively 0-5% down payment
+# Loan-to-value caps of the FGTS and SBPE lines
 MAX_LOAN_TO_VALUE_FGTS = 0.95
 MAX_LOAN_TO_VALUE_SBPE = 0.90
 # This parameter refers to the total amount of resources available at the bank.
@@ -280,7 +263,7 @@ CAPPED_LOW_VALUE = 0.7
 # Symmetric around the reference: tight markets (vacancy < reference) generate a premium;
 # slack markets (vacancy > reference) generate a discount.
 OFFER_SIZE_ON_PRICE = 5
-# Vacancy rate at which prices sit at base level — the market equilibrium point.
+# Vacancy rate at which the vacancy factor of prices is 1
 VACANCY_PRICE_REFERENCE = 0.08
 # TOO LONG ON THE MARKET:
 # value=(1 - MAX_OFFER_DISCOUNT) * e ** (ON_MARKET_DECAY_FACTOR * MONTHS ON MARKET) + MAX_OFFER_DISCOUNT
@@ -294,12 +277,7 @@ MAX_OFFER_PREMIUM = 1.3
 # Used in exponential suppression: P(skip) = 1 - exp(-vacancy * sensitivity).
 # At equilibrium vacancy (8%) → ~54% skip; at 15% → ~77% skip; at 25% → ~91% skip.
 BUILD_VACANCY_SENSITIVITY = 9.77
-# Percentage of households pursuing new location (on average families move about once every 20 years)
-# Brazilian households move on average every 15-20 years → 0.4-0.5% per month.
-# At 2.5% the buyer pool (~470/month in BH) far exceeds monthly housing supply (~14),
-# so the wealthiest buyers absorb all supply regardless of need-based scoring.
-# At 0.5% the pool (~94/month) is closer to supply, allowing some months where
-# available houses exceed active buyers and vacancy begins to accumulate.
+# Largest monthly share of households entering the housing market
 PERCENTAGE_ENTERING_ESTATE_MARKET = 0.005
 NEIGHBORHOOD_EFFECT = 0.2
 # 'legacy': a house stays on the sales list after a family moves in, a house sold stays in the month's submarket list
@@ -310,8 +288,7 @@ HOUSING_PURCHASE = 'occupy'
 
 # RENTAL #######################
 # Reais (2010) per model money unit (κ). Converts Census income into each family's initial permanent income, which
-# drives the first rental market at generation (#30). Step 1 of the units plan measured κ ≈ 880-1,100 from household
-# income in Goiânia (≈ 1,100 from rents, 1,300-1,500 from wages)
+# drives the first rental market at generation.
 REAIS_PER_MONEY_UNIT = 1000
 INITIAL_RENTAL_SHARE = 0.40
 # Monthly rent per unit of size x quality x region index, in model money: the level of rents (world/house_values.py)
@@ -326,43 +303,27 @@ RENT_LEVEL = 'census'
 # (world/house_values.py)
 RENTAL_YIELD = 0.0664
 # Maximum fraction of permanent income a household will commit to rent when choosing to move.
-# 0.3 matches the Brazilian "comprometimento de renda" standard used in PlanHab/MCMV eligibility.
-# Applies only to already-housed families in maybe_move; homeless families are unaffected.
+# Applies only to housed families in maybe_move; families without a dwelling always move in.
 MAX_RENT_TO_INCOME_RATIO = 0.3
 
 # HOUSING PURCHASE DECISION #######################
 # Minimum fraction of target house price that must be held in savings + bank deposits
-# before a family enters the housing market. Enforces equity accumulation before buying
-# (consistent with MAX_LOAN_TO_VALUE = 0.80, which already requires 20% equity at negotiation).
+# before a family enters the housing market.
 MIN_DOWN_PAYMENT_FRACTION = 0.20
-# Months of current wages kept as a liquid emergency buffer before depositing surplus
-# in the bank. Anchored to wages (not permanent income) so the buffer tracks actual
-# cash needs rather than compounding with house appreciation or interest returns.
-# 3 months matches standard financial-planning guidance for employed households.
+# Months of current wages kept as cash before the surplus is deposited in the bank
 SAVINGS_BUFFER_MONTHS = 2
 # Scales the opportunity-cost term in decision_enter_house_market.
 # opportunity_cost = max(0, bank_rate - RENTAL_YIELD / 12) × HOUSING_FINANCIAL_WEIGHT
 HOUSING_FINANCIAL_WEIGHT = 60
-# Minimum months of permanent income that must remain liquid after the down payment.
-# Discourages families from locking all savings into a house and being cash-poor.
-# At 6 months: a family spending 100% of available savings on a down payment scores
-# a full liquidity_penalty of 1.0, reducing their entry score significantly.
+# Months of permanent income that should remain liquid after the down payment (liquidity term of the entry score)
 LIQUIDITY_BUFFER_MONTHS = 6
 
 # CONSTRUCTION #################################################################################
-# LICENSES ARE URBANIZED LOTS AVAILABLE FOR CONSTRUCTION PER NEIGHBORHOOD PER MONTH.
-# Expected number of NEW licenses created monthly by region (neighborhood). Set to 0 for no licenses.
-# Reduced from 3 → 1: at 3/region the pool accumulated so fast that licenses never
-# constrained which regions could be built in; at 1/region repeatedly chosen profitable
-# regions can run short, providing a secondary throttle alongside BUILD_VACANCY_SENSITIVITY.
+# Licences are building plots. Expected new plots per weighting area and month (Poisson). 0: none.
 EXPECTED_LICENSES_PER_REGION = 1.5
-# Minimum total licenses issued city-wide per month, regardless of number of regions.
-# Small cities (few neighborhoods) have proportionally more free urban land and should not
-# be starved by low per-region rates. Effective rate = max(EXPECTED_LICENSES_PER_REGION, floor/n_regions).
-# At 6: an 8-region city gets max(0.65, 0.75)=0.75/region; a 76-region city is unchanged at 0.65.
-# Set to 0 to disable (pure per-region Poisson with no floor).
+# Smallest expected new plots per ACP and month: each weighting area's mean is
+# max(EXPECTED_LICENSES_PER_REGION, LICENSE_MIN_CITY_MONTHLY / number of weighting areas). 0: no floor.
 LICENSE_MIN_CITY_MONTHLY = 10
-# PERCENT_CONSTRUCTION_FIRMS = 0.07 This has been deprecated with the introduction of sectors
 # Months that construction firm will divide its income into monthly revenue installments.
 # Although prices are accounted for at once.
 CONSTRUCTION_ACC_CASH_FLOW = 12
@@ -425,11 +386,10 @@ TAX_TRANSPORT = 0
 
 # EMISSIONS POLICIES ######################################################
 # Taxes on emission are given by tax * total_emissions. Roughly R$ * tonCO2. .1 is about R$10
-# Brazil taxes no emissions: 0 in the baseline; policy arms set it (runner_emissions.py)
+# 0: no tax on emissions
 TAX_EMISSION = 0
 # Subsidies in (0,1) is the amount of investment paid by the gov(subsidies * total_invested)
-# 0 is none, 1 is full. With TAX_EMISSION = 0 a subsidy is paid unfunded (Firm.decision_on_eco_efficiency),
-# so the baseline keeps both off
+# 0 is none, 1 is full. With TAX_EMISSION = 0 a subsidy has no funding source (Firm.decision_on_eco_efficiency).
 ECO_INVESTMENT_SUBSIDIES = 0
 TARGETED_SUBSIDIES = False
 TARGETED_SECTORS = ['Agriculture', 'Transport', 'Utilities']
@@ -479,8 +439,8 @@ WAGE_TO_CAR_OWNERSHIP_QUANTILES = [
 # Employers pay vale-transporte (Lei 7.418/1985): a public transport commuter's fare above 6 % of the gross wage.
 PRIVATE_TRANSIT_COST = .25
 PUBLIC_TRANSIT_COST = .05
-# Price of imported inputs (step 2b). 'exogenous': 1, the initial goods price held in real terms, plus freight, so local
-# price rises do not feed back into import prices. 'local' (old model): the local seller's price plus freight.
+# Price of imported inputs. 'exogenous': 1, the initial goods price held in real terms, plus freight, so local
+# price rises do not feed back into import prices. 'local': the local seller's price plus freight.
 IMPORT_PRICE = 'local'
 # Sectors whose goods are traded with the rest of Brazil at P_imp = 1, the national input coefficients and final-demand
 # shares buying transport margins from Transport. They price against the tradable average, their ceiling the lower of
@@ -519,35 +479,20 @@ TRADE_POTENTIAL = {'Agriculture': 0.5, 'Mining': 0.5, 'Manufacturing': 0.5, 'Uti
 PERCENTAGE_ACTUAL_POP = 0.01
 
 # QLI / IDHM DEVELOPMENT ######################################################################
-# Monthly growth rate scaling factor. Calibrated so a municipality at the reference
-# development level (QLI_GDP_NORM) grows ≈ +0.0007/month = +0.008/year, consistent
-# with Brazilian IDHM improvement of ~0.006–0.010/year in 2010–2020.
-# The logistic ceiling naturally slows growth as QLI approaches QLI_MAX.
+# Monthly growth of the quality-of-life index at the reference value added per resident (QLI_GDP_NORM).
+# Growth slows as the index approaches QLI_MAX.
 QLI_GROWTH_RATE = 0.002
 # Theoretical ceiling for the QLI/IDHM index (HDI max = 1.0).
 QLI_MAX = 1.0
-# Reference GDP per capita (model units) representing a typical Brazilian state capital
-# at mid-calibration (≈ 2015). Sets the scale so that economic_driver ≈ 1.0 for an
-# average city. Richer cities (higher GDP/pop) develop faster; poorer ones slower.
-# Estimated from wave calibration data: median GDP/pop across capitals ≈ 3.5.
+# Reference value added per resident, monthly, in model money: economic_driver is 1 there, higher above it and
+# lower below it.
 QLI_GDP_NORM = 3.5
 # Weight of the FISCAL leg of the QLI driver: the share of the monthly growth impulse
 # that comes from public spending per capita rather than from GDP per capita.
 #   driver = (1 - w) * sqrt(gdp_pc / QLI_GDP_NORM) + w * sqrt(spend_pc / QLI_SPEND_NORM)
-# At w = 0 the model behaves exactly as before this parameter existed, so the fiscal
-# channel is a designed arm, not a silent change of the baseline. It is what lets a
-# government move neighbourhood quality — and through region.index, house prices — by
-# collecting or transferring differently; FPM is redistributive, so spend per capita
-# varies across municipalities independently of GDP per capita.
+# 0: value added per resident only.
 QLI_TAX_WEIGHT = 0.0
-# Reference public spending per capita (model units, monthly), the fiscal counterpart of
-# QLI_GDP_NORM. Set so that fiscal_driver ≈ economic_driver for an average city, which is
-# what keeps the w = 1 baseline comparable with the w = 0 one:
-#   QLI_SPEND_NORM = mean(spend_pc / gdp_pc) * QLI_GDP_NORM
-# Measured at w = 0 over 2010-2040 on GOIANIA / MACAPA / CUIABA / ARACAJU: mean of the four
-# city means of spend_pc/gdp_pc is 0.3342, so 0.3342 x 3.5 = 1.170. Cities are weighted
-# equally rather than by municipality count, so Goiania's 15 municipalities do not set it
-# alone. See model_defects.md §QLI.
+# Reference public spending per resident, monthly, in model money, the fiscal counterpart of QLI_GDP_NORM
 QLI_SPEND_NORM = 1.170
 
 # Write exactly like the list below

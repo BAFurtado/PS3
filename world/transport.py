@@ -1,9 +1,9 @@
 """
 Travel-time matrices between áreas de ponderação (APs) and their schedule over time.
 
-Used by the labour market's commuting term (text_bndes / ENMU test). A matrix holds one column of
-minutes per network *state*: 'base', 'nec' (the full ENMU Rede Necessária) and, for matrices we build
-ourselves, any other named state (e.g. base plus a subset of projects).
+Used by the labour market's commuting term. A matrix holds one column of minutes per network *state*:
+'base', 'nec' (the full planned network) and, for matrices we build ourselves, any other named state (e.g. base
+plus a subset of projects).
 
 Standard file, one per ACP: input/transport/travel_times_<ACP>.parquet, long format with columns
 acp, ap_orig, ap_dest, state, minutes. Where no standard file exists, a partner file in its original
@@ -12,8 +12,8 @@ wide layout is read through PARTNER_FILES.
 The schedule (PARAMS['TRANSPORT_SCHEDULE']) is a list of [date, spec] pairs, sorted by date, where date
 is 'YYYY-MM-DD' or a year (int, meaning 1 January) and spec is either a state name or a number phi in
 [0, 1], which blends minutes = (1 - phi) * base + phi * nec. A spec holds from its date until the next one.
-Before the first date the network is 'base'. None keeps the old static switch: 'nec' when
-PARAMS['TRANSPORT_TIME'] else 'base', for the whole run.
+Before the first date the network is 'base'. None: one state for the whole run, 'nec' when
+PARAMS['TRANSPORT_TIME'] else 'base'.
 """
 import datetime
 import os

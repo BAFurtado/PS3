@@ -55,16 +55,32 @@ CLAUDE.md
 .DS_Store
 Thumbs.db
 
-# Private working notes, agent memory, PS4 planning, and the Overleaf checkouts for
-# text_density and text_planhab — all in a separate private git repo.
-# NEVER un-ignore this: the PS3 remote is public.
+# Private working notes and paper checkouts, kept in a separate private repository.
+# The PS3 remote is public: keep this ignored.
 /private/
 
-# Calibration archive: 1.7 GB Sobol run bundle, kept locally only.
-# calibrated/README.md is deliberately NOT ignored.
+# Calibration archive, kept locally. calibrated/README.md stays tracked.
 calibrated/*.zip
 input/bndes/semob/
 
-# ENMU / BNDES transport study (partner data and r5py tools): kept local, not part of the PS3 paper release
+# Transport study (partner data and r5py tools), kept local
 input/bndes/
 tools/transport/
+
+# Scripts and data of other studies, kept local
+/analysis/planhab/
+/analysis/validation/*
+!/analysis/validation/__init__.py
+!/analysis/validation/housing_validation.py
+/analysis/policy_charts.py
+/analysis/sensitivity_oat.py
+/papers/
+/web/
+/tools/
+/runner_emissions.py
+/runner_funding2026_checks.py
+/runner_oferta26.py
+/runner_planhab.py
+/runner_planhab_funds.py
+/Planhab_dashboard_v15.html
+/analysis/calibration/WAVE_B4.md

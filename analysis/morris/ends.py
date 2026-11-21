@@ -11,11 +11,10 @@ Effects, d25 against d09 at matched setting and seed, ratio of seed means:
 se: sd over seeds of the per-seed paired effect / sqrt(seeds).
 Code values: the mcmv2026 runs of the same city, seeds 0 to SEEDS - 1. 27-area reference: every mcmv2026 area, all
 seeds, same definitions (p10, median, p90, width = p90 - p10, areas with a negative effect).
-Criteria fixed 2026-11-12 before the runs:
+Criteria:
     1. dwellings and families stay positive;
     2. shift from the code values over the 27-area width, |shift| / width > 1 flagged;
-    3. pooled over settings, the share with a negative price effect, against the 27-area share;
-    4. a flag names a condition of the result, not a verdict on the model.
+    3. pooled over settings, the share with a negative price effect, against the 27-area share.
 Writes <ends root>/_analysis/{areas27.csv, ends_runs.csv, ends_effects.csv}."""
 import datetime
 import glob

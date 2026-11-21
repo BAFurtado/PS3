@@ -651,9 +651,7 @@ class Funds:
                     fpm_region[id] = self.fpm[state][(self.fpm[state].ano == float(year)) &
                                                      (self.fpm[state].cod == float(mun_code))].fpm.iloc[0]
 
-        # One value per municipality, and only municipalities with people, which are the ones paid below. It used to be
-        # sum(set(values)), which also merged municipalities in the same FPM band (equal values), so the shares summed
-        # to more than one and FPM money was created (#41)
+        # One value per municipality, and only municipalities with people, which are the ones paid below
         fpm_mun = {region_id[:7]: v for region_id, v in fpm_region.items()}
         total_fpm = sum(v for mun, v in fpm_mun.items() if pop_mun_t[mun] > 0)
         for id, region in regions.items():
@@ -908,9 +906,7 @@ class Funds:
         that is invested too.
         (3) and (4) are also recorded as the regions' applied public money, which the QLI fiscal leg reads.
         Nothing is created or lost except the external inflow, counted in external_public_funding. A municipality
-        without Government firms has its purchases and investment spent by the ACP's Government firms. The old path
-        gave each municipality's firms the whole 'equally' share (x number of municipalities), none of the FPM and
-        local shares (str/int key mismatch), and destroyed the regions' share."""
+        without Government firms has its purchases and investment spent by the ACP's Government firms."""
         params = self.sim.PARAMS
         gcp = self.gov_consumption_parameter
         goods_per_wage = (1 - gcp) / gcp

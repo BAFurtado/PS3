@@ -104,11 +104,11 @@ class Region:
         return flow
 
     def update_index(self, value):
-        """Kept for backward compatibility; no longer called by the main loop."""
+        """Not called by the main loop."""
         self.index += value
 
     def update_index_pop(self, proportion_pop, elasticity):
-        """Kept for backward compatibility; no longer called by the main loop."""
+        """Not called by the main loop."""
         self.index *= proportion_pop ** elasticity
 
     def __repr__(self):

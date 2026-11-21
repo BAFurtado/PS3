@@ -13,7 +13,7 @@ class FirmData:
     def __init__(self, year):
         # APs of 2000 and of 2010 are different geographies, each with its own files
         # If year == 2000, data refers to years 2002 and 2012
-        # If year == 2010, data refers to years 2010 and 2021 (input/ap_estabelecimentos_10_21.csv, commit 9fa3844)
+        # If year == 2010, data refers to years 2010 and 2021 (input/ap_estabelecimentos_10_21.csv)
         self.num_emp_t0 = self._load(f'input/firms_by_APs{year}_t0_full.csv')
         self.num_emp_t1 = self._load(f'input/firms_by_APs{year}_t1_full.csv')
 
@@ -57,7 +57,7 @@ def firm_growth(sim):
         # Round the value and use the remainder as probability
         growth = round(growth)+int(sim.seed_np.random()<growth-round(growth))
 
-        # Ignoring shrinkage for now
+        # Firm counts only grow
         if growth <= 0:
             continue
 

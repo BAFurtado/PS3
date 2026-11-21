@@ -309,9 +309,7 @@ def merge_households(sim, a, b):
         a.family.owned_houses.append(house)
         house.owner_id = a.family.id
 
-    # b.family changes as soon as b moves, so B's family is held here (#40: the loop below used to move
-    # only b's population, and B's savings and deposits were taken from A and given back to A, while B's
-    # were destroyed or orphaned in the bank)
+    # b.family changes as soon as b moves, so B's family is held here
     old_b = b.family
     old_region_id = old_b.region_id
     _id = old_b.id

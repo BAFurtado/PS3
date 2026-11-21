@@ -136,20 +136,20 @@ check(
 # ── 3. MECHANISM-SPECIFIC REGRESSION TESTS ───────────────────────────────────
 print("\n── Mechanism regression tests ───────────────────────────────────────")
 
-# Government transfer fix: gov firms must have received revenue during the run.
+# Government firms must have received revenue during the run.
 gov_firms = [f for f in sim.firms.values() if f.sector == "Government"]
 gov_with_revenue = sum(1 for f in gov_firms if f.revenue > 0)
 check(
-    "Government firms received revenue (transfer gate fixed)",
+    "Government firms received revenue",
     gov_with_revenue > 0,
     f"gov_firms={len(gov_firms)}, with_revenue={gov_with_revenue}",
 )
 
-# Brasília cold-start fix: construction firms must have positive total_quantity balance.
+# Construction firms must have a positive balance.
 construction_firms = [f for f in sim.firms.values() if f.sector == "Construction"]
 construction_solvent = sum(1 for f in construction_firms if f.total_balance > 0)
 check(
-    "Construction firms financially active (cold-start fix)",
+    "Construction firms financially active",
     construction_solvent > 0,
     f"construction_firms={len(construction_firms)}, solvent={construction_solvent}",
 )
@@ -246,8 +246,8 @@ check(
     f"capped={len(_capped)}, floor={_floor}",
 )
 
-# Government headcount is exogenous (RAIS target, gov_hire_fire). Its profit is always negative, so the profit and
-# insolvency rules of hire_fire used to fire its staff every month and empty it within a few years.
+# Government headcount is exogenous (RAIS target, gov_hire_fire): the profit and insolvency rules of hire_fire do not
+# fire its staff.
 _gov = next(f for f in sim.firms.values() if f.sector == "Government" and f.employees)
 _saved = (_gov.profit, _gov.increase_production, _gov.total_balance, dict(_gov.employees))
 _gov.profit, _gov.increase_production, _gov.total_balance = -1.0, False, -1.0
@@ -497,11 +497,10 @@ check(
     f"count {_st.firms_count.iloc[0]} -> {_st.firms_count.iloc[-1]}, live={len(sim.firms)}",
 )
 
-# Money is created or destroyed only through the ledger channels (analysis/money.py). Every leak found by the
-# 2026-09-29 money audit (#35-#42) showed up here as a drift of money_unexplained.
+# Money is created or destroyed only through the ledger channels (analysis/money.py).
 _unexplained = _st.money_unexplained.abs().max()
 check(
-    "The money stock changes only through the ledger channels (#35-#42)",
+    "The money stock changes only through the ledger channels",
     _unexplained < 1e-6 * _st.money_total.max(),
     f"max |unexplained| = {_unexplained:.3g}, stock up to {_st.money_total.max():.3g}",
 )
@@ -526,9 +525,7 @@ check("Coverable household refusals are between 0 and unmet_household",
       bool((_cov.values >= 0).all() and (_cov.values <= _st[['unmet_household']].values * (1 + 1e-9) + 1e-9).all()),
       f"last month coverable / refused {round(_st.unmet_household_coverable.iloc[-1] / max(_st.unmet_household.iloc[-1], 1e-12), 3)}")
 
-# FPM hands out exactly what was collected. It divided by the sum of the *distinct* municipal FPM values, so
-# municipalities in the same FPM band counted once: ARACAJU at 1 % (6 municipalities) got 4-5 % more than was
-# collected from 2011 (#41)
+# FPM hands out exactly what was collected, also to municipalities in the same FPM band
 if sim.PARAMS.get("GOV_REVISED", False) and sim.PARAMS["FPM_DISTRIBUTION"]:
     _saved_pending = sim.funds.pending_public_money
     sim.funds.pending_public_money = defaultdict(lambda: defaultdict(float))
@@ -538,10 +535,10 @@ if sim.PARAMS.get("GOV_REVISED", False) and sim.PARAMS["FPM_DISTRIBUTION"]:
     sim.funds.distribute_fpm(100.0, sim.regions, sim.reg_pops, _pop_mun, 2012)
     _paid = sum(d['fpm'] for d in sim.funds.pending_public_money.values())
     sim.funds.pending_public_money = _saved_pending
-    check("FPM distributes exactly the amount collected (#41)", abs(_paid - 100.0) < 1e-9, f"paid {_paid:.6f} of 100")
+    check("FPM distributes exactly the amount collected", abs(_paid - 100.0) < 1e-9, f"paid {_paid:.6f} of 100")
 
 # Rent comes out of savings once, and a family short of money with no bank deposits still consumes what is left after
-# rent (#35, #36)
+# rent
 _fam = next((f for f in sim.families.values() if f.is_renting and not f.rent_voucher and not f.have_loan
              and not sim.central.wallet.get(f) and f.members), None)
 if _fam is not None:
@@ -556,11 +553,10 @@ if _fam is not None:
     _fam.savings, _fam.permanent_income = _saved[0], _saved[1]
     for _k, _m in _fam.members.items():
         _m.money = _saved[2][_k]
-    check("Consumption leaves the rent in savings and spends the rest (#35, #36)",
+    check("Consumption leaves the rent in savings and spends the rest",
           abs(_c - _rent) < 1e-9 and abs(_kept - _rent) < 1e-9, f"rent {_rent:.4f}, consumed {_c:.4f}, kept {_kept:.4f}")
 
-# A firm that loses its last worker has no wage bill. The last month's value used to stay in wages_paid and keep
-# lowering its profit and firm tax.
+# A firm that loses its last worker has no wage bill.
 _emptied = next(f for f in sim.firms.values() if f.sector != "Government" and f.employees)
 _saved_staff, _saved_wp = dict(_emptied.employees), _emptied.wages_paid
 _emptied.wages_paid = 123.0
@@ -576,8 +572,7 @@ check(
     f"wages_paid={_stale}",
 )
 
-# Not exact: in a tight labour market Government refills a little slower than it loses staff. Without the fix
-# it tends to zero.
+# Not exact: in a tight labour market Government refills a little slower than it loses staff.
 check(
     "Government headcount does not collapse below its RAIS target",
     _gov_emp >= 0.75 * _gov_target,
@@ -587,9 +582,7 @@ check(
 # ── sweep-safety guard ───────────────────────────────────────────────────────
 # Sensitivity sweeps (main.py multiple_runs) override a per-run params dict that
 # becomes sim.PARAMS; conf.PARAMS keeps its defaults. So any model code reading
-# conf.PARAMS[...] silently ignores the swept value. This once voided an entire
-# FUNDS_AVAILABILITY batch, which ran as N identical replications of the default.
-# Read sim.PARAMS / self.params instead.
+# conf.PARAMS[...] ignores the swept value. Model code reads sim.PARAMS / self.params.
 import pathlib
 import re
 
@@ -615,11 +608,8 @@ check(
 )
 
 # ── matched-seed guard ───────────────────────────────────────────────────────
-# The exact-counterfactual design requires a treated run and its baseline to draw
-# the same random numbers, so that the only difference between them is the policy.
-# main.py hands one seed per replication to every configuration via PARAMS['SEED'];
-# if the simulation stops honouring it, every difference silently picks up
-# simulation noise and per-city effects lose power.
+# A treated run and its reference draw the same random numbers: main.py hands one seed per replication to every
+# configuration via PARAMS['SEED'], and the simulation uses it.
 from simulation import resolve_seed  # noqa: E402
 
 _p = dict(conf.PARAMS)
@@ -716,7 +706,7 @@ check(
     f"_next_id={_gen._next_id}",
 )
 
-# ── QLI fiscal leg (defect #5) ───────────────────────────────────────────────
+# ── QLI fiscal leg ───────────────────────────────────────────────
 print("\n── QLI fiscal leg ───────────────────────────────────────────────────")
 
 from collections import defaultdict  # noqa: E402
@@ -738,24 +728,23 @@ def _delta(index, gdp_pc, spend_pc, w):
 
 # The whole point of QLI_TAX_WEIGHT is that the fiscal leg is a *designed arm*: at
 # w = 0 the model must reproduce the GDP-only rule bit for bit whatever the spending
-# is, so every pre-existing calibration and every batch baseline stays comparable.
+# is.
 _base = _delta(0.7, 4.0, 0.0, 0.0)
 check(
     "at QLI_TAX_WEIGHT = 0 public spending cannot move QLI",
     _delta(0.7, 4.0, 99.0, 0.0) == _base and _delta(0.7, 4.0, 0.5, 0.0) == _base,
-    "w=0 must be exactly the pre-defect-#5 GDP-only rule",
+    "w=0 is exactly the GDP-only rule",
 )
 
 check(
     "the fiscal leg moves QLI once it is weighted in",
     _delta(0.7, 4.0, 2.0, 1.0) > _delta(0.7, 4.0, 0.2, 1.0),
     "two municipalities with equal GDP per capita must differ when spending differs; "
-    "this is the place-based instrument Paper A otherwise lacks",
+    "public spending moves QLI when w > 0",
 )
 
 # Calibration identity: at spend_pc/gdp_pc == QLI_SPEND_NORM/QLI_GDP_NORM the two
-# drivers coincide, so w does not shift the baseline. That is what makes the w = 1
-# arm comparable with w = 0 rather than a different model.
+# drivers coincide, so w does not shift the baseline.
 _ratio = _qli_params['QLI_SPEND_NORM'] / _qli_params['QLI_GDP_NORM']
 check(
     "at the calibrated spend/GDP ratio the two drivers coincide, so w is neutral",
@@ -805,7 +794,7 @@ check(
     "_run_jobs_parallel must cap per-job attempts, not just BrokenExecutor restarts",
 )
 
-# ── Trade with the rest of Brazil (#26, #27, #28) ────────────────────────────────────────────────────────────────
+# ── Trade with the rest of Brazil ────────────────────────────────────────────────────────────────
 print("\n── Trade with the rest of Brazil ────────────────────────────────────")
 import glob  # noqa: E402
 import random  # noqa: E402
@@ -813,8 +802,8 @@ import pandas as pd  # noqa: E402
 from types import SimpleNamespace  # noqa: E402
 from markets.goods import read_technical_matrix, RegionalMarket, External  # noqa: E402
 
-# Local + imported inputs of every buying sector sum to the national coefficient, in every ACP. A transposed file
-# (#26, Brasília) has these sums in its rows; NaN coefficients (#28, 8 small ACPs) break them.
+# Local + imported inputs of every buying sector sum to the national coefficient, in every ACP: no transposed file
+# and no NaN coefficients.
 _national = pd.read_csv('input/technical_matrix.csv').set_index('sector')
 _bad = []
 for _p in glob.glob('input/technical_matrices/*_matrix_io.json'):
@@ -1082,7 +1071,7 @@ check("Government imports its share of each purchase",
       and abs(_gov_tc['Trade'] - 6.0) < 1e-12 and abs(_gov_left - 2.0) < 1e-12,
       f"imports {_gov_ext.imports_month}, consumption {dict(_gov_tc)}, left {_gov_left}")
 
-# ── Firm capital and demography (#21, #24). Last: these remove firms from the shared run ─────────────────────────
+# ── Firm capital and demography. Last: these remove firms from the shared run ─────────────────────────
 print("\n── Firm capital, entry and exit ─────────────────────────────────────")
 from world.firms import fund_entrant, firm_exit  # noqa: E402
 
@@ -1174,7 +1163,7 @@ if sim.PARAMS["FIRM_EXIT_MONTHS"] > 0:
         f"written off {sim.firm_exit_writeoff - _writeoff:.4f}",
     )
 
-# ── Money creation and unit-free statistics (#31-#33) ────────────────────────
+# ── Money creation and unit-free statistics ────────────────────────
 print("\n── Money creation and unit-free statistics ──────────────────────────")
 from types import SimpleNamespace  # noqa: E402
 from markets.rentmarket import collect_rent  # noqa: E402
@@ -1182,7 +1171,7 @@ from world.demographics import birth  # noqa: E402
 
 _baby = birth(sim)
 sim.total_pop -= 1
-check("A newborn holds no money (#31)", _baby.money == 0, f"money {_baby.money}")
+check("A newborn holds no money", _baby.money == 0, f"money {_baby.money}")
 
 
 class _RentFamily:
@@ -1212,7 +1201,7 @@ _rent_ok = []
 for _cash in (0.1, 0.3):
     _kept, _paid, _before, _received = _pay_rent(_cash, 5.0)
     _rent_ok.append(abs(_paid - 0.4) < 1e-9 and abs(_kept + _paid - _before) < 1e-9 and abs(_received - 0.4) < 1e-9)
-check("Rent paid from bank deposits is paid in full, conserves money and is reported as received before tax (#32)",
+check("Rent paid from bank deposits is paid in full, conserves money and is reported as received before tax",
       all(_rent_ok), f"{_rent_ok}")
 
 _renters = [f for f in sim.families.values() if f.is_renting and f.get_permanent_income() > 0]
@@ -1221,7 +1210,7 @@ if len(_renters) > 20:
     _with = sim.stats.calculate_families_metrics(_renters)["rent_burden_decis"]
     _renters[0].permanent_income = _pi
     _without = sim.stats.calculate_families_metrics(_renters[1:])["rent_burden_decis"]
-    check("Zero-income renters are left out of the rent-burden deciles (#33)", np.allclose(_with, _without),
+    check("Zero-income renters are left out of the rent-burden deciles", np.allclose(_with, _without),
           f"{_with} vs {_without}")
 
 _f = next(f for f in sim.firms.values() if f.sector not in ("Government", "Construction") and f.employees)
@@ -1243,7 +1232,7 @@ for _on in (False, True):
 check("Refused demand asks for more workers only with DEMAND_SIGNAL_UNMET on",
       _signal[0][0] is False and _signal[1][0] is True and _signal[1][1] > 1, f"{_signal}")
 # PRICE_DEMAND_RESPONSE θ: refused demand raises the price by θ × refused share, above the markup cap, and blocks the
-# month's fall; θ = 0 keeps the old rule (an above-average, well-stocked firm lowers its price)
+# month's fall; at θ = 0 an above-average, well-stocked firm lowers its price
 _theta = []
 for _t in (0.0, 0.5):
     _prod.quantity, _prod.price, _f.amount_sold, _f.unmet_quantity = 1e12, 1.2, 1.0, 3.0

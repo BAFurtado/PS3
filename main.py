@@ -318,13 +318,7 @@ def sensitivity(ctx, params):
             p_vals = list(my_dict.values())
 
         elif "PLANHABFUNDS" in param:
-            # Re-test of MCMV funding-intensity (FUNDS_AVAILABILITY), last run
-            # before it was swapped for INTEREST_HOUSING in the PLANHAB
-            # scenario above -- re-run under the current model (post
-            # construction-dynamics fixes) since that swap coincided with the
-            # BVS=13/OSP=5 + capacity_short fix. POLICY_MCMV stays fixed True
-            # (only funding intensity varies), same structure as the test
-            # that originally found small variation.
+            # MCMV funding intensity (FUNDS_AVAILABILITY) varies, POLICY_MCMV True
             flag = True
             cities = param.split('-')[1:]
             capitais = [
@@ -366,9 +360,7 @@ def sensitivity(ctx, params):
                 ],
                 # Allocation order among the eligible: True sorts poorest-first
                 # (world/funds.py:update_policy_families), False leaves the
-                # registry order. Off in every batch so far, and it is the
-                # lever CMAP/CMAS (2021) points at, so it is swept here.
-                # 2 x 3 x 2 = 12 combinations per city.
+                # registry order. 2 x 3 x 2 = 12 combinations per city.
                 "TOTAL_TARGETING_POLICY": [True, False]
             }
 

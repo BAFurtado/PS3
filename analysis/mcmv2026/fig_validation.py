@@ -1,7 +1,6 @@
 """Validation figure for the model paper: each area's 2017-19 level against its observed band and the calibration's
 tolerance, in two panels: (a) levels the model places in or near the band in most areas, (b) levels it places below
-the band in most areas. Draft of 2026-11-10, candidate replacement for Table 1 of main.tex (the table would move to
-the SI).
+the band in most areas.
 usage (repo root, env ps3_2, MPLBACKEND=Agg): python analysis/mcmv2026/fig_validation.py [screen dir]
 Input: <screen dir>/screen25_cities.csv from analysis/mcmv2026/validation/screen25.py on output/mcmv2026/d09 (default
 output/mcmv2026/_analysis/screen25_27), bands from analysis/calibration/data/level_targets.csv and, for

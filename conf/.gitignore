@@ -6,3 +6,4 @@
 !default/
 !default/**/*.py
 !__init__.py
+/default/emissions_params.py
