@@ -13,8 +13,16 @@ Januaries of the window. Levels in percent of the reference, rates in percentage
 Each cell is the mean over seeds of the paired difference and its t (mean / (sd / sqrt(n))); |t| 2.26 is the 5 %
 two-sided value at 10 seeds.
 
-Output in ROOT/analise/: efeitos.csv (long), efeitos_<CITY>.txt (tables), ap_precos.csv and ap_spearman.csv (house price change by AP against the minutes its employed
-residents save).
+Commute minutes: minutes_no_car_network is the change the future matrix alone gives on the reference run's home-job
+pairs (phi of each January times future minus base minutes, transit commuters; car minutes are the same in every
+state), and minutes_no_car_resorting the rest of the effect (who works where and lives where). minutes_q1 to
+minutes_q5: mean minutes of the employed by quintile of their family's permanent income per member, quintiles drawn
+within each run and January. transport_* are the Transport sector's firms. families_savings, money_imports,
+money_profits_out and firms_total_profit trace where the fare money goes.
+Missing parquet files (runs saved with fewer files, runner_enmu.py save=) leave their metrics empty.
+
+Output in ROOT/analise/: efeitos.csv (long), efeitos_<CITY>.txt (tables), ap_precos.csv and ap_spearman.csv (house
+price change by AP against the minutes its employed residents save).
 """
 import glob
 import os
@@ -25,6 +33,8 @@ import pandas as pd
 
 sys.path.insert(0, os.getcwd())
 from analysis.output import OUTPUT_DATA_SPEC  # noqa: E402
+import world.transport as T  # noqa: E402
+from runner_enmu import START, YEARS  # noqa: E402
 
 ROOT = sys.argv[1] if len(sys.argv) > 1 else 'output/enmu2026_rede'
 OUT = os.path.join(ROOT, 'analise')
@@ -48,12 +58,26 @@ METRICS = {
     'house_vacancy': ('stats', 'pt'),
     'number_domiciles': ('stats', 'diff'),
     'house_sales_new': ('stats', 'diff'),
+    'families_savings': ('stats', 'pct'),
+    'money_imports': ('stats', 'pct'),
+    'money_profits_out': ('stats', 'pct'),
+    'firms_total_profit': ('stats', 'pct'),
+    'transport_revenue': ('sector', 'pct'),
+    'transport_employees': ('sector', 'pct'),
+    'transport_wages_paid': ('sector', 'pct'),
     'constr_employees': ('construction', 'pct'),
     'constr_wages_paid': ('construction', 'pct'),
     'constr_balance': ('construction', 'pct'),
     'minutes_no_car': ('agents', 'diff'),
     'minutes_car': ('agents', 'diff'),
     'minutes_all': ('agents', 'diff'),
+    'minutes_no_car_network': ('network', 'diff'),
+    'minutes_no_car_resorting': ('network', 'diff'),
+    'minutes_q1': ('agents', 'diff'),
+    'minutes_q2': ('agents', 'diff'),
+    'minutes_q3': ('agents', 'diff'),
+    'minutes_q4': ('agents', 'diff'),
+    'minutes_q5': ('agents', 'diff'),
     'car_share_employees': ('agents', 'pt'),
     'transit_employees_16_69': ('agents', 'pct'),
 }
@@ -74,38 +98,99 @@ def read_stats(d):
     return t
 
 
+def read_parquet(d, name, columns):
+    """The January snapshots of one file with a year column, or None when the run did not save it"""
+    path = os.path.join(d, name + '.parquet')
+    if not os.path.exists(path):
+        return None
+    t = pd.read_parquet(path, columns=columns)
+    t['year'] = pd.to_datetime(t.month).dt.year
+    return t
+
+
+def employed(d):
+    """Employed agents from 2024 with their family's permanent income per member and their firm's region"""
+    ag = read_parquet(d, 'agents', ['month', 'age', 'region_id', 'firm_id', 'family_id', 'distance', 'has_car'])
+    if ag is None:
+        return None, None
+    ag = ag[ag.year >= 2024]
+    fa = read_parquet(d, 'families', ['month', 'id', 'permanent_income', 'num_members'])
+    if fa is not None:
+        fa = fa.assign(income_pc=fa.permanent_income / fa.num_members)[['month', 'id', 'income_pc']]
+        ag = ag.merge(fa.rename(columns={'id': 'family_id'}), on=['month', 'family_id'], how='left')
+    firms = [t for t in (read_parquet(d, n, ['month', 'firm_id', 'region_id']) for n in ('firms', 'construction'))
+             if t is not None]
+    if firms:
+        f = pd.concat(firms).drop_duplicates(['month', 'firm_id']).rename(columns={'region_id': 'firm_region'})
+        ag = ag.merge(f[['month', 'firm_id', 'firm_region']], on=['month', 'firm_id'], how='left')
+    return ag, ag[ag.firm_id.notna()]
+
+
 def run_metrics(d):
     """{(metric, window): value} and the stats table of one run"""
     st = read_stats(d)
-    co = pd.read_parquet(os.path.join(d, 'construction.parquet'),
-                         columns=['month', 'number_employees', 'wages_paid', 'total_balance'])
-    co['year'] = pd.to_datetime(co.month).dt.year
-    co = co.groupby('year').agg(constr_employees=('number_employees', 'sum'),
-                                constr_wages_paid=('wages_paid', 'sum'), constr_balance=('total_balance', 'sum'))
-    ag = pd.read_parquet(os.path.join(d, 'agents.parquet'), columns=['month', 'age', 'firm_id', 'distance', 'has_car'])
-    ag['year'] = pd.to_datetime(ag.month).dt.year
-    ag = ag[ag.year >= 2024]
-    emp = ag[ag.firm_id.notna()]
-    working_age = ag[(ag.age >= 16) & (ag.age <= 69)].groupby('year').size()
-    a = pd.DataFrame({
-        'minutes_no_car': emp[~emp.has_car].groupby('year').distance.mean(),
-        'minutes_car': emp[emp.has_car].groupby('year').distance.mean(),
-        'minutes_all': emp.groupby('year').distance.mean(),
-        'car_share_employees': emp.groupby('year').has_car.mean(),
-        'transit_employees_16_69': emp[~emp.has_car & (emp.age >= 16) & (emp.age <= 69)].groupby('year').size()
-        / working_age,
-    })
+    frames = {}
+    co = read_parquet(d, 'construction', ['month', 'number_employees', 'wages_paid', 'total_balance'])
+    if co is not None:
+        frames['construction'] = co.groupby('year').agg(
+            constr_employees=('number_employees', 'sum'), constr_wages_paid=('wages_paid', 'sum'),
+            constr_balance=('total_balance', 'sum'))
+    fi = read_parquet(d, 'firms', ['month', 'sector', 'revenue', 'number_employees', 'wages_paid'])
+    if fi is not None:
+        frames['sector'] = fi[fi.sector == 'Transport'].groupby('year').agg(
+            transport_revenue=('revenue', 'sum'), transport_employees=('number_employees', 'sum'),
+            transport_wages_paid=('wages_paid', 'sum'))
+    ag, emp = employed(d)
+    if ag is not None:
+        working_age = ag[(ag.age >= 16) & (ag.age <= 69)].groupby('year').size()
+        a = pd.DataFrame({
+            'minutes_no_car': emp[~emp.has_car].groupby('year').distance.mean(),
+            'minutes_car': emp[emp.has_car].groupby('year').distance.mean(),
+            'minutes_all': emp.groupby('year').distance.mean(),
+            'car_share_employees': emp.groupby('year').has_car.mean(),
+            'transit_employees_16_69': emp[~emp.has_car & (emp.age >= 16) & (emp.age <= 69)].groupby('year').size()
+            / working_age,
+        })
+        if 'income_pc' in emp.columns:
+            q = emp.groupby('year').income_pc.transform(
+                lambda x: pd.qcut(x.rank(method='first'), 5, labels=False) + 1)
+            for k in range(1, 6):
+                a['minutes_q%d' % k] = emp[q == k].groupby('year').distance.mean()
+        frames['agents'] = a
     values = {}
     for w, (y0, y1) in WINDOWS.items():
         s = st[(st.year >= y0) & (st.year <= y1)]
         for m, (src, _) in METRICS.items():
             if src == 'stats':
                 values[(m, w)] = s[m].mean()
-            elif src == 'construction':
-                values[(m, w)] = co.loc[y0:y1, m].mean()
+            elif src in frames and m in frames[src].columns:
+                values[(m, w)] = frames[src].loc[y0:y1, m].mean()
             else:
-                values[(m, w)] = a.loc[y0:y1, m].mean()
+                values[(m, w)] = np.nan
     return values, st
+
+
+_matrices = {}
+
+
+def network_shift(d, city, weights, future):
+    """{window: mean change of transit commuters' minutes} that the future network gives on the home-job pairs of
+    the reference run d, January by January (phi of the phase-in times future minus base). Car commuters and
+    own-account pool members (minutes 0) count with no change."""
+    if (city, weights) not in _matrices:
+        _matrices[(city, weights)] = T.read_acp_matrix(city, weights)
+    wide = _matrices[(city, weights)]
+    _, emp = employed(d)
+    if emp is None or wide is None or 'firm_region' not in emp.columns:
+        return {w: np.nan for w in WINDOWS}
+    emp = emp[~emp.has_car]
+    pairs = list(zip(emp.region_id, emp.firm_region))
+    delta = (wide[future] - wide['base']).reindex(pairs).to_numpy()
+    schedule = T.linear_phase_in(START, YEARS)
+    phi = {y: max([p for when, p in schedule if when <= y], default=0.0) for y in emp.year.unique()}
+    shift = pd.Series(np.where(emp.distance.to_numpy() > 0, delta, 0.0) * emp.year.map(phi).to_numpy(),
+                      index=emp.index).groupby(emp.year).mean()
+    return {w: shift.loc[y0:y1].mean() for w, (y0, y1) in WINDOWS.items()}
 
 
 def paired(a, b, kind):
@@ -153,8 +238,15 @@ def main():
                 if s != a + suffix or (b + suffix, city, i) not in r:
                     continue
                 va, vb = cache[(s, city, i)], cache[(b + suffix, city, i)]
+                shift = network_shift(r[(b + suffix, city, i)], city, 'area' if suffix else 'trips', a)
                 for (m, w), x in va.items():
-                    rows.append((city, eff + suffix, m, w, i, paired(x, vb[(m, w)], METRICS[m][1])))
+                    if m == 'minutes_no_car_network':
+                        delta = shift[w]
+                    elif m == 'minutes_no_car_resorting':
+                        delta = va[('minutes_no_car', w)] - vb[('minutes_no_car', w)] - shift[w]
+                    else:
+                        delta = paired(x, vb[(m, w)], METRICS[m][1])
+                    rows.append((city, eff + suffix, m, w, i, delta))
     long = pd.DataFrame(rows, columns=['city', 'effect', 'metric', 'window', 'seed', 'delta'])
     summary = (long.groupby(['city', 'effect', 'metric', 'window']).delta
                .apply(lambda x: pd.Series(summarise(x), index=['mean', 'sd', 't', 'n'])).unstack().reset_index())
@@ -195,6 +287,8 @@ def main():
         for suffix in ('', '_area'):
             for fut in ('padrao', 'otimizado'):
                 if s != fut + suffix or ('base' + suffix, city, i) not in r:
+                    continue
+                if not all(os.path.exists(os.path.join(p, 'houses.parquet')) for p in (d, r[('base' + suffix, city, i)])):
                     continue
                 x = ap_prices(d, AP_YEARS)
                 y = ap_prices(r[('base' + suffix, city, i)], AP_YEARS)

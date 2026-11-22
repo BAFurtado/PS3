@@ -11,8 +11,8 @@ equals the base run of the same area and seed before START-01. The matrices use 
 three scenarios with area weights (base_area, padrao_area, otimizado_area).
 Settings of every run: CAR_OWNERSHIP census2022, LOCATION_CHOICE logit, VACANCY_SCOPE region, TRANSPORT_MONEY fare,
 RENT_LEVEL census_ap, HOUSING_BIDDING filatova, LABOUR_FLOWS education, the other settings at the code defaults. Seeds SEED + i (i = 0-9,
-the seeds of runner_mcmv2026). Saved: stats, regional, and the agents, families, houses and firms parquet every
-January.
+the seeds of runner_mcmv2026). Saved: stats, regional, and the parquet files of the save= option every January
+(default agents, families, houses and firms).
 
 Modes (cwd = repository root):
     python runner_enmu.py teste CPUS             Teresina, the six scenarios, seed 0, 2 years, networks from
@@ -23,6 +23,8 @@ Modes (cwd = repository root):
         seeds=N        the first N seeds only (default 10)
         area=0         without the area-weights scenarios of Teresina
         acceptance=X   COMMUTE_ACCEPTANCE X in every run, output in output/enmu2026_rede_X
+        save=A,B       the parquet files saved every January: agents, family, house, firms (firms also writes
+                       construction), or none (default agents,family,house,firms); stats and regional always
     python runner_enmu.py conferir [acceptance=X]   finished runs, identity with the reference before START-01
 
 Output: output/enmu2026_rede/<scenario>/<CITY>/<i>/; queue manifest and log in output/enmu2026_rede/queue_<K>of<N>/.
@@ -58,7 +60,22 @@ COMMON = {
     'HOUSING_BIDDING': 'filatova',
     'LABOUR_FLOWS': 'education',
 }
-R.conf.RUN['SAVE_DATA'] = ['agents', 'family', 'house', 'firms']
+SAVE_DEFAULT = ['agents', 'family', 'house', 'firms']
+SAVE_NAMES = {'agents', 'family', 'house', 'firms', 'sales', 'neighbourhood', 'grave', 'head', 'banks'}
+# The save= option reaches the workers through this variable, which spawned workers (Windows) inherit
+SAVE_ENV = 'ENMU_SAVE_DATA'
+
+
+def save_list(value):
+    """SAVE_DATA from a save= value: comma-separated names, or 'none'"""
+    names = [] if value == 'none' else [v for v in value.split(',') if v]
+    unknown = set(names) - SAVE_NAMES
+    if unknown:
+        sys.exit('Unknown save names {}. Names: {}, or none'.format(sorted(unknown), ', '.join(sorted(SAVE_NAMES))))
+    return names
+
+
+R.conf.RUN['SAVE_DATA'] = save_list(os.environ[SAVE_ENV]) if os.environ.get(SAVE_ENV) else list(SAVE_DEFAULT)
 logger = logging.getLogger('main')
 
 
@@ -105,7 +122,8 @@ def check_inputs(cities):
 
 
 def options(args):
-    opts = {'cities': ','.join(CITIES), 'part': '1/1', 'seeds': str(R.RUNS), 'area': '1', 'acceptance': 'off'}
+    opts = {'cities': ','.join(CITIES), 'part': '1/1', 'seeds': str(R.RUNS), 'area': '1', 'acceptance': 'off',
+            'save': ','.join(SAVE_DEFAULT)}
     for a in args:
         key, sep, v = a.partition('=')
         if not sep or key not in opts:
@@ -118,7 +136,8 @@ def options(args):
     k, n = (int(x) for x in opts['part'].split('/'))
     if not 1 <= k <= n:
         sys.exit('part must be K/N with 1 <= K <= N')
-    opts.update(cities=[c for c in CITIES if c in cities], k=k, n=n, seeds=int(opts['seeds']), area=opts['area'] != '0')
+    opts.update(cities=[c for c in CITIES if c in cities], k=k, n=n, seeds=int(opts['seeds']), area=opts['area'] != '0',
+                save=save_list(opts['save']))
     return opts
 
 
@@ -182,6 +201,8 @@ if __name__ == '__main__':
         differences(root, datetime.date(2011, 1, 1))
     elif mode == 'lote' and len(sys.argv) >= 3:
         o = options(sys.argv[3:])
+        os.environ[SAVE_ENV] = ','.join(o['save']) or 'none'
+        R.conf.RUN['SAVE_DATA'] = o['save']
         names = add_scenarios()
         check_inputs(o['cities'])
         root = root_of(o['acceptance'])
