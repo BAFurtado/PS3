@@ -202,15 +202,27 @@ class Firm:
         """
         return 1 - np.exp(np.clip(- eco_lambda * eco_investment, -700, 700))
 
-    def create_externalities(self, regions, tax_emission, emissions_param, emissions_base='output'):
+    def create_externalities(self, regions, tax_emission, emissions_param, emissions_base='real_output',
+                             price_index=1.0):
         """
         Based on empirical data, creates externalities according to money output produced by a given activity.
         Total emissions are multiplied by firm-level env efficiency.
-        emissions_base 'output' applies the sector intensity to revenue, 'value_added' to revenue less input cost.
+        emissions_base 'real_output' applies the sector intensity to revenue deflated by the accumulated inflation
+        (price_index, the price level over its first-month value), so price changes alone do not move emissions;
+        'sector_real_output' the same with the firm's own sector price index (passed as price_index);
+        'output' to nominal revenue; 'value_added' to nominal revenue less input cost.
         """
         # Environmental indicators (emissions, water, energy, waste) by municipality and sector
         if not self.no_emissions:
-            base = self.revenue if emissions_base == 'output' else self.revenue - self.input_cost
+            if emissions_base in ('real_output', 'sector_real_output'):
+                base = self.revenue / price_index
+            elif emissions_base == 'output':
+                base = self.revenue
+            elif emissions_base == 'value_added':
+                base = self.revenue - self.input_cost
+            else:
+                raise ValueError('EMISSIONS_BASE must be sector_real_output, real_output, output or value_added, not {!r}'.format(
+                    emissions_base))
             emissions_this_month = self.env_efficiency * self.emissions_base * base / emissions_param
             self.last_emissions = emissions_this_month
             self.env_indicators['emissions'] += emissions_this_month
@@ -255,11 +267,12 @@ class Firm:
         ## Calculate expected emission cost with adaptative expectations
         # Tax cost
         tax_cost = self.emission_taxes_paid
-        input_cost = self.input_cost
 
         # TODO: Implement other emission costs
+        # Innovation abates emissions only (short-run response to the tax: no input saving), so the expected
+        # reduction is on the emission cost alone
         reputation_cost, intrinsic_cost = 0,0
-        total_cost = tax_cost+reputation_cost+intrinsic_cost+input_cost
+        total_cost = tax_cost+reputation_cost+intrinsic_cost
 
         # The next step assumes linearity in costs
         # TODO: Define wether costs are linear or not: we can make any function over total_emission and have
@@ -278,10 +291,13 @@ class Firm:
                 subsidies = 0
 
 
-        # Profit maximization FOC yields optimal absolute investment I = R·ln(λ·ECR/((1−s)·R))/λ
-        if self.revenue > 0:
+        # Profit maximization FOC yields optimal absolute investment I = R·ln(λ·ECR/((1−μ)(1−s)·R))/λ, where the
+        # permanent cost reduction is discounted by μ, so it is worth 1/(1−μ) months of savings
+        discount = params['ECO_INVESTMENT_DISCOUNT']
+        if self.revenue > 0 and expected_cost_reduction > 0:
             eco_investment = (np.log(
-                                eco_lambda * expected_cost_reduction / ((1 - subsidies) * self.revenue)) *
+                                eco_lambda * expected_cost_reduction /
+                                ((1 - discount) * (1 - subsidies) * self.revenue)) *
                               (self.revenue / eco_lambda))
         else:
             eco_investment = 0
@@ -469,16 +485,15 @@ class Firm:
             technical_matrix = regional_market.technical_matrix
             external_technical_matrix = regional_market.ext_local_matrix
 
-            # Buy inputs fills up input_inventory
-            # Env efficiency reduces the amount of inputs needed, so the firms buys less
-            self.buy_inputs(self.env_efficiency * desired_quantity, regional_market, firms, seed,
+            # Buy inputs fills up input_inventory. Env efficiency abates emissions only: inputs needed are unchanged
+            self.buy_inputs(desired_quantity, regional_market, firms, seed,
                             technical_matrix, external_technical_matrix, prebuilt_sector_map)
 
             # Leontief production constraint using pre-computed numpy arrays
             sectors = regional_market._sector_order
             local_tc = regional_market._tech_np[self.sector]
             external_tc = regional_market._ext_local_np[self.sector]
-            input_quantities_needed = self.env_efficiency * desired_quantity * (local_tc + external_tc)
+            input_quantities_needed = desired_quantity * (local_tc + external_tc)
 
             inv_arr = np.array([self.input_inventory[s] for s in sectors])
             productive_constraint = np.where(

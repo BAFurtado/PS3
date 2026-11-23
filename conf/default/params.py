@@ -157,15 +157,26 @@ RELEVANCE_UNEMPLOYMENT_SALARIES = 1.5
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 20
 
-# Reduction size in case of eco innovation success: multiplies firm parameters
-ENVIRONMENTAL_EFFICIENCY_STEP = .99
-# Innovation process probability: 1 - exp(lambda * investment / wage_base)
-ECO_INVESTMENT_LAMBDA = 10
+# Reduction size in case of eco innovation success: multiplies firm env_efficiency, which scales emissions only
+# (short-run response to the emission tax: no input saving)
+# Calibrated 2026-11 (runner_emissions.py calibra, output/emissions_calibra4): STEP .995, LAMBDA 20, DISCOUNT .992
+# give about -9% emissions by 2029 at R$200/tCO2e, abating gradually (slow innovation)
+ENVIRONMENTAL_EFFICIENCY_STEP = .995
+# Innovation process probability: 1 - exp(-lambda * investment / revenue)
+ECO_INVESTMENT_LAMBDA = 20
+# mu in the eco-investment FOC, I/R = ln(lambda (1 - rho) C / (R (1 - mu) (1 - s))) / lambda, C the emission tax
+# paid: monthly discount factor on the expected cost reduction, which is permanent, so it is worth 1 / (1 - mu)
+# months of savings (.992: about 10 years). 0 counts only next month's saving
+ECO_INVESTMENT_DISCOUNT = .992
 # Adjustment factor for emissions within firms
 EMISSIONS_PARAM = 1000
 # Money base the sector emission intensities (tCO2e per R$ million of gross output) multiply.
-# 'output': the firm's monthly revenue. 'value_added': revenue less input cost.
-EMISSIONS_BASE = 'output'
+# 'real_output': the firm's monthly revenue deflated by the accumulated inflation (average firm price over its
+# first-month value), so emissions follow real output and price changes alone do not move them.
+# 'sector_real_output': the same, deflated by the firm's own sector price over its first-month value, so emissions
+# follow the sector's physical output even when its relative price moves (default from 2026-11-23).
+# 'output': nominal monthly revenue (before 2026-11). 'value_added': nominal revenue less input cost.
+EMISSIONS_BASE = 'sector_real_output'
 
 # GOVERNMENT ####################################################################
 # ALTERNATIVE OF DISTRIBUTION OF TAXES COLLECTED. REPLICATING THE NOTION OF A COMMON POOL OF RESOURCES ################
@@ -412,9 +423,13 @@ TAX_PROPERTY = 0.012
 TAX_TRANSPORT = 0
 
 # EMISSIONS POLICIES ######################################################
-# Taxes on emission are given by tax * total_emissions. Roughly R$ * tonCO2. .1 is about R$10
+# Taxes on emission are given by tax * total_emissions, emissions in tCO2e and money in model units of R$1,000:
+# 1 is about R$1,000/tCO2e, .2 about R$200/tCO2e
 # Brazil taxes no emissions: 0 in the baseline; policy arms set it (runner_emissions.py)
 TAX_EMISSION = 0
+# Sectors the emission tax does not apply to; their emissions are still counted. Agriculture: primary agricultural
+# production is outside the Brazilian ETS (SBCE, Lei 15.042/2024)
+TAX_EXEMPT_SECTORS = ['Agriculture']
 # Subsidies in (0,1) is the amount of investment paid by the gov(subsidies * total_invested)
 # 0 is none, 1 is full. With TAX_EMISSION = 0 a subsidy is paid unfunded (Firm.decision_on_eco_efficiency),
 # so the baseline keeps both off

@@ -69,6 +69,11 @@ class Simulation:
         self.generator = Generator(self)
         # Generate the external supplier
         self.avg_prices = 1
+        # Average firm price of the first month: the base of the accumulated inflation that deflates revenue into real
+        # output for the emissions (EMISSIONS_BASE 'real_output')
+        self.price_base = None
+        # Same, by sector (EMISSIONS_BASE 'sector_real_output'): each sector's average price in its first month
+        self.sector_price_base = {}
         # TAX_ROUTING 'data': no tax on imports returns to the ACP
         self.external = External(self, 0.0 if self.PARAMS.get('TAX_ROUTING', 'legacy') == 'data'
                                  else self.PARAMS["TAXES_STRUCTURE"]["consumption_equal"])
@@ -549,6 +554,7 @@ class Simulation:
         tax_firm = self.PARAMS["TAX_FIRM"]
         is_policy_active = self.clock.days > self.PARAMS['STARTING_DAY'] + datetime.timedelta(self.PARAMS['ECO_POLICY_DAYS'])
         tax_emission = self.PARAMS["TAX_EMISSION"] if is_policy_active else 0
+        tax_exempt = set(self.PARAMS.get('TAX_EXEMPT_SECTORS', []))
         relevance_unemployment = self.PARAMS["RELEVANCE_UNEMPLOYMENT_SALARIES"]
         sticky = self.PARAMS["STICKY_PRICES"]
         markup = self.PARAMS["MARKUP"]
@@ -561,6 +567,17 @@ class Simulation:
         tax_transport = self.PARAMS["TAX_TRANSPORT"]
         plan = inventory_target_ratio
         self.avg_prices, _ = self.stats.update_price(self.firms, mid_simulation_calculus=True)
+        # Accumulated inflation since the first month (the stats price level over its first value)
+        if not self.price_base and self.avg_prices:
+            self.price_base = self.avg_prices
+        price_index = self.avg_prices / self.price_base if self.price_base and self.avg_prices else 1.0
+        # 'sector_real_output': deflate by the firm's own sector price level, so a sector whose price rises as its
+        # output falls emits less (the economy-wide index would leave its real output, and emissions, nearly unchanged)
+        sector_index = {}
+        if self.PARAMS['EMISSIONS_BASE'] == 'sector_real_output':
+            for sector, p in self.stats.sector_prices(self.firms).items():
+                self.sector_price_base.setdefault(sector, p)
+                sector_index[sector] = p / self.sector_price_base[sector]
         # Tradable firms price against the tradable average, capped at import parity, with no price response to refused
         # demand; the others against the non-tradable average
         tradables = set(self.PARAMS['TRADABLE_SECTORS'])
@@ -579,8 +596,9 @@ class Simulation:
                 relevance_unemployment,
                 tax_transport)
             # Firms update generated externalities, based on own sector and this month's revenue
-            firm.create_externalities(self.regions, tax_emission, self.PARAMS['EMISSIONS_PARAM'],
-                                      self.PARAMS['EMISSIONS_BASE'])
+            firm.create_externalities(self.regions, 0 if firm.sector in tax_exempt else tax_emission,
+                                      self.PARAMS['EMISSIONS_PARAM'], self.PARAMS['EMISSIONS_BASE'],
+                                      sector_index.get(firm.sector, 1.0) if sector_index else price_index)
             # Tax firms before profits: (revenue - salaries paid)
             firm.pay_taxes(self.regions, tax_firm)
             # Profits are after taxes

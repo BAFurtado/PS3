@@ -4,13 +4,12 @@ Emissions policy: every scenario x capital x seed in one resumable queue, 2010-2
 Scenarios (each differs from NO_POLICY only after the eco policy starts, STARTING_DAY + ECO_POLICY_DAYS, 2014-12):
     NO_POLICY                 control: every policy flag off for the whole run (DiD / event-study counterfactual)
     TAX                       flat emission tax only
-    SUBSIDIES                 flat eco-investment subsidies only
-    TARGETED_SUBSIDIES        sector-weighted subsidies (TARGETED_SECTORS: Agriculture, Transport, Utilities)
     TAX_SUBSIDIES             tax + flat subsidies
-    TAX_TARGETED_SUBSIDIES    tax + sector-weighted subsidies
     TAX_RECYCLING             tax with revenue recycled to bottom-quartile households
     TAX_RECYCLING_SUBSIDIES   recycling + flat subsidies
-    TAX_RECYCLING_TARGETED    recycling + sector-weighted subsidies
+Targeted (sector-weighted) subsidies were dropped: with Agriculture exempt from the tax, only Utilities and Transport
+invest, so they matched the flat ones. Subsidies alone were dropped too: with no tax firms have nothing to abate, so
+the scenario equals NO_POLICY.
 
 Seeds are paired: run i of every scenario and capital uses seed SEED + i, so a treated run and the NO_POLICY run at
 the same capital and i differ only by the policy. Population: one per capital, shared by every scenario and seed,
@@ -26,11 +25,19 @@ Modes (cwd = repository root):
                                                       marked DONE, are skipped)
         cities=26|sp            city set (default 26)
         part=K/N                the K-th of N contiguous slices of the queue, for N servers (default 1/1)
+    python runner_emissions.py calibra CPUS [lam=V1,V2,...] [mu=V1,V2,...] [step=V1,V2,...] [tax=V1,V2,...]
+                                                      ECO_INVESTMENT_LAMBDA x ECO_INVESTMENT_DISCOUNT x
+                                                      ENVIRONMENTAL_EFFICIENCY_STEP x TAX_EMISSION grid (a list left
+                                                      out keeps its default, tax left out keeps TAX; the tax applies
+                                                      to the taxed scenarios only): NO_POLICY, TAX, TAX_SUBSIDIES in
+                                                      Goiania and Aracaju, seeds 0-1, full horizon, into
+                                                      output/emissions_calibra4/lam_<L>_mu_<M>[_step_<S>][_tax_<T>]/;
+                                                      resumable like lote
     python runner_emissions.py conferir [FOLDER]      finished runs per scenario and city, identity with NO_POLICY
                                                       before the policy start
 
-Output: output/emissions/<scenario>/<CITY>/<i>/ with stats.csv, regional.csv and firms.parquet saved every January
-(no agents or families); the queue manifest and log of each batch go to output/emissions/queue_<cities>_<K>of<N>/.
+Output: output/emissions/<scenario>/<CITY>/<i>/ with stats.csv, regional.csv, and firms.parquet and agents.parquet
+saved every January (no families); the queue manifest and log of each batch go to output/emissions/queue_<cities>_<K>of<N>/.
 Local conf/params.py and conf/run.py are ignored: every value comes from conf/default plus the overrides below.
 """
 import copy
@@ -56,21 +63,17 @@ SEED = 1000
 RUNS = 10
 END = datetime.date(2030, 1, 1)
 OUTPUT = 'output/emissions'
+# Emission tax in model units per tCO2e (1 unit = R$1,000): .2 is about R$200/tCO2e, within the US$25-50 range
+TAX = .2
 
 _OFF = {'TAX_EMISSION': 0, 'ECO_INVESTMENT_SUBSIDIES': 0, 'TARGETED_SUBSIDIES': False, 'CARBON_TAX_RECYCLING': False}
 SCENARIOS = {
     'NO_POLICY': _OFF,
-    'TAX': {**_OFF, 'TAX_EMISSION': 1},
-    'SUBSIDIES': {**_OFF, 'ECO_INVESTMENT_SUBSIDIES': 0.2},
-    'TARGETED_SUBSIDIES': {**_OFF, 'ECO_INVESTMENT_SUBSIDIES': 0.2, 'TARGETED_SUBSIDIES': True},
-    'TAX_SUBSIDIES': {**_OFF, 'TAX_EMISSION': 1, 'ECO_INVESTMENT_SUBSIDIES': 0.2},
-    'TAX_TARGETED_SUBSIDIES': {**_OFF, 'TAX_EMISSION': 1, 'ECO_INVESTMENT_SUBSIDIES': 0.2,
-                               'TARGETED_SUBSIDIES': True},
-    'TAX_RECYCLING': {**_OFF, 'TAX_EMISSION': 1, 'CARBON_TAX_RECYCLING': True},
-    'TAX_RECYCLING_SUBSIDIES': {**_OFF, 'TAX_EMISSION': 1, 'ECO_INVESTMENT_SUBSIDIES': 0.2,
+    'TAX': {**_OFF, 'TAX_EMISSION': TAX},
+    'TAX_SUBSIDIES': {**_OFF, 'TAX_EMISSION': TAX, 'ECO_INVESTMENT_SUBSIDIES': 0.2},
+    'TAX_RECYCLING': {**_OFF, 'TAX_EMISSION': TAX, 'CARBON_TAX_RECYCLING': True},
+    'TAX_RECYCLING_SUBSIDIES': {**_OFF, 'TAX_EMISSION': TAX, 'ECO_INVESTMENT_SUBSIDIES': 0.2,
                                 'CARBON_TAX_RECYCLING': True},
-    'TAX_RECYCLING_TARGETED': {**_OFF, 'TAX_EMISSION': 1, 'ECO_INVESTMENT_SUBSIDIES': 0.2,
-                               'TARGETED_SUBSIDIES': True, 'CARBON_TAX_RECYCLING': True},
 }
 REFERENCE = 'NO_POLICY'
 
@@ -81,12 +84,26 @@ CAPITALS = ['RIO DE JANEIRO', 'BELO HORIZONTE', 'PORTO ALEGRE', 'BRASILIA', 'REC
             'RIO BRANCO', 'PALMAS']
 CITY_SETS = {'26': CAPITALS, 'sp': ['SAO PAULO']}
 
+# calibra mode: ECO_INVESTMENT_LAMBDA x ECO_INVESTMENT_DISCOUNT x TAX_EMISSION grid, values given on the command line.
+# Records kept: _calibra, the mu sweep of the input-saving model; _calibra2, the mu sweep with emissions on nominal
+# revenue (EMISSIONS_BASE 'output'); _calibra3, the tax and step sweeps with 'real_output'; _calibra4, the same with
+# 'sector_real_output', which set the defaults (lam 20, mu .992, step .995) and TAX
+CALIBRA_ROOT = OUTPUT + '_calibra4'
+CALIBRA_CITIES = ['GOIANIA', 'ARACAJU']
+CALIBRA_SEEDS = [0, 1]
+CALIBRA_SCENARIOS = ['NO_POLICY', 'TAX', 'TAX_SUBSIDIES']
+# option -> parameter (TAX_EMISSION is set only in the scenarios that levy a tax). step is the efficiency multiplier
+# of a success, as ENVIRONMENTAL_EFFICIENCY_STEP: .995 is a 0.5% cut
+CALIBRA_GRID = {'lam': 'ECO_INVESTMENT_LAMBDA', 'mu': 'ECO_INVESTMENT_DISCOUNT',
+                'step': 'ENVIRONMENTAL_EFFICIENCY_STEP', 'tax': 'TAX_EMISSION'}
+
 conf.RUN.update({
     'OUTPUT_PATH': OUTPUT,
     'KEEP_RANDOM_SEED': False,
     'SEED': SEED,
     'FORCE_NEW_POPULATION': False,
-    'SAVE_DATA': ['firms'],
+    # agents: worker-level labour outcomes (employer, wage) for the agent-level results
+    'SAVE_DATA': ['firms', 'agents'],
     'SAVE_DATA_PERIDIOCITY': 'ANNUALLY',
     'PLOT_EACH_RUN': False,
     'SAVE_PLOTS_FIGURES': False,
@@ -98,10 +115,14 @@ logger = logging.getLogger('main')
 
 def check_defaults():
     """Settings the scenarios rely on without overriding them."""
-    assert conf.PARAMS['TARGETED_SECTORS'] == ['Agriculture', 'Transport', 'Utilities'], \
-        'conf/default/params.py TARGETED_SECTORS drifted from what this runner assumes'
     assert conf.PARAMS['CARBON_RECYCLING_QUANTILE'] == 0.25, \
         'conf/default/params.py CARBON_RECYCLING_QUANTILE drifted from what this runner assumes'
+    assert conf.PARAMS['TAX_EXEMPT_SECTORS'] == ['Agriculture'], \
+        'conf/default/params.py TAX_EXEMPT_SECTORS drifted from what this runner assumes'
+    calibrated = {'ECO_INVESTMENT_LAMBDA': 20, 'ECO_INVESTMENT_DISCOUNT': .992, 'ENVIRONMENTAL_EFFICIENCY_STEP': .995,
+                  'EMISSIONS_BASE': 'sector_real_output'}
+    for k, v in calibrated.items():
+        assert conf.PARAMS[k] == v, 'conf/default/params.py {} is {!r}, calibrated {!r}'.format(k, conf.PARAMS[k], v)
 
 
 def policy_start(params=None):
@@ -115,10 +136,10 @@ def run_path(root, scenario, city, i):
     return os.path.join(root, scenario, city, str(i))
 
 
-def queue(cities, indices):
+def queue(cities, indices, scenarios=None):
     """(scenario, city, i) seed by seed, largest city first, so a batch stopped halfway holds complete sets of
     scenarios."""
-    return [(s, city, i) for i in indices for city in cities for s in SCENARIOS]
+    return [(s, city, i) for i in indices for city in cities for s in (scenarios or SCENARIOS)]
 
 
 # ── Population ────────────────────────────────────────────────────────────────
@@ -210,6 +231,60 @@ def run(root, items, cpus, manifest_dir, params=None):
     summary(root, items)
 
 
+def calibra_grid(args):
+    """[(folder name, params, tax)] for every combination of the lam=..., mu=..., step=... and tax=... lists. A
+    missing lam or mu keeps its conf/default value. A missing step keeps its default and a missing tax keeps TAX (tax
+    None); either is then left out of the folder name, so folders of earlier sweeps keep their names."""
+    lists = {}
+    for a in args:
+        k, sep, v = a.partition('=')
+        if not sep or k not in CALIBRA_GRID:
+            sys.exit('Unknown option {!r}. Options: {}'.format(a, ' '.join(k + '=V1,V2,...' for k in CALIBRA_GRID)))
+        lists[k] = [float(x) for x in v.split(',')]
+    for k in ('lam', 'mu'):
+        lists.setdefault(k, [conf.PARAMS[CALIBRA_GRID[k]]])
+    for k in ('step', 'tax'):
+        lists.setdefault(k, [None])
+    grid = []
+    for lam in lists['lam']:
+        for mu in lists['mu']:
+            for step in lists['step']:
+                for tax in lists['tax']:
+                    params = {'ECO_INVESTMENT_LAMBDA': lam, 'ECO_INVESTMENT_DISCOUNT': mu}
+                    name = 'lam_{}_mu_{}'.format(lam, mu)
+                    if step is not None:
+                        params['ENVIRONMENTAL_EFFICIENCY_STEP'] = step
+                        name += '_step_{}'.format(step)
+                    if tax is not None:
+                        name += '_tax_{}'.format(tax)
+                    grid.append((name, params, tax))
+    return grid
+
+
+def calibra(grid, cpus):
+    """CALIBRA_SCENARIOS x CALIBRA_CITIES x CALIBRA_SEEDS for each point of the grid, full horizon, into
+    <CALIBRA_ROOT>/lam_<lam>_mu_<mu>[_tax_<tax>]/. The tax applies only to the scenarios that levy one, so NO_POLICY
+    stays untaxed. One population per city for the whole sweep, in <CALIBRA_ROOT>/populations/."""
+    from main import save_jobs, _run_jobs_parallel
+    items = queue(CALIBRA_CITIES, CALIBRA_SEEDS, CALIBRA_SCENARIOS)
+    prepare_populations(CALIBRA_ROOT, CALIBRA_CITIES)
+    jobs = []
+    for name, params, tax in grid:
+        for s in CALIBRA_SCENARIOS:
+            p = dict(params)
+            if tax is not None and SCENARIOS[s]['TAX_EMISSION']:
+                p['TAX_EMISSION'] = tax
+            jobs += build_jobs(os.path.join(CALIBRA_ROOT, name), [it for it in items if it[0] == s], p)
+    logger.info('%s: %d of %d runs to do (finished ones skipped), %d at a time',
+                [g[0] for g in grid], len(jobs), len(items) * len(grid), cpus)
+    save_jobs(CALIBRA_ROOT, jobs, cpus)
+    _run_jobs_parallel(jobs, cpus)
+    check_populations(CALIBRA_ROOT, CALIBRA_CITIES)
+    for name, _, _ in grid:
+        logger.info(name)
+        summary(os.path.join(CALIBRA_ROOT, name), items)
+
+
 def summary(root, items):
     missing = Counter((city, s) for s, city, i in items
                       if not os.path.exists(os.path.join(run_path(root, s, city, i), 'DONE')))
@@ -298,6 +373,15 @@ if __name__ == '__main__':
         log_to(root)
         run(root, queue(['PALMAS'], [0]), int(sys.argv[2]), root, test_params)
         conferir(root, policy_start(test_params))
+    elif mode == 'calibra':
+        if len(sys.argv) < 4:
+            sys.exit('usage: python runner_emissions.py calibra CPUS [lam=V1,V2,...] [mu=V1,V2,...] [step=V1,V2,...] [tax=V1,V2,...]')
+        grid = calibra_grid(sys.argv[3:])
+        log_to(CALIBRA_ROOT)
+        calibra(grid, int(sys.argv[2]))
+        for name, _, _ in grid:
+            print('\n==', name)
+            conferir(os.path.join(CALIBRA_ROOT, name))
     elif mode == 'lote':
         cities, k, n = options(sys.argv[3:])
         items = queue(CITY_SETS[cities], list(range(RUNS)))

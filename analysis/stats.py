@@ -120,6 +120,14 @@ class Statistics(object):
                     groups[firm.sector in tradables].append(item.price)
         return tuple(np.mean(g) if g else 0 for g in (groups[1], groups[0]))
 
+    def sector_prices(self, firms):
+        """Average price by sector, with the inclusion rule of update_price (sectors with no firm included are left out)"""
+        prices = {}
+        for firm in firms.values():
+            if firm.num_employees > 0 and not firm.pool:
+                prices.setdefault(firm.sector, []).extend(item.price for item in firm.inventory.values())
+        return {s: np.mean(p) for s, p in prices.items() if p}
+
     def update_price(self, firms, mid_simulation_calculus=False):
         """Compute average price and inflation over the firms with staff, stocked out or not"""
         prices = [item.price for firm in firms.values() for item in firm.inventory.values()
