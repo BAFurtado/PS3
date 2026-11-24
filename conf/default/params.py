@@ -72,6 +72,11 @@ ON_THE_JOB_SEARCH = 'off'
 # last CONSTRUCTION_ACC_CASH_FLOW months with staff, months without pay included, this month's while it has none.
 # Pay itself is unchanged.
 CONSTRUCTION_OFFER = 'month'
+# A builder's wage bill. 'month': the Construction labour share of this month's value added after land recovery
+# (Firm.wage_base), nothing in a month when it is not positive. 'trailing': the labour share of the mean value added
+# after land over the last CONSTRUCTION_ACC_CASH_FLOW months, negative months included, at least zero; the offer
+# follows it.
+CONSTRUCTION_PAY = 'month'
 # Firms that pay no wages for this many consecutive months fire one worker per adjustment (0 = off).
 # Tolerates short revenue droughts from erratic, small-sample demand; sheds staff only when they persist.
 FIRE_UNPAID_MONTHS = 3
@@ -300,6 +305,10 @@ VOT_WAGE_SHARE = 0.5
 # 'region': house prices respond to their region's vacancy, shrunk toward the municipality's by empirical Bayes
 # (world/location.regional_vacancy). 'acp': the vacancy of all houses in the run.
 VACANCY_SCOPE = 'acp'
+# 'region': a builder values a project in a region at that region's vacancy (world/location.regional_vacancy, last
+# month's), the same vacancy factor house prices use under VACANCY_SCOPE 'region'. 'acp': at the vacancy of all houses.
+# The chance of planning at all follows the vacancy of all houses either way.
+BUILD_VACANCY_SCOPE = 'acp'
 # LOANS ##############################################################################
 # Maximum age of borrower at the end of the contract
 MAX_LOAN_AGE = 70
@@ -424,6 +433,11 @@ LICENSE_MIN_CITY_MONTHLY = 10
 CONSTRUCTION_ACC_CASH_FLOW = 12
 # Cost of lot in PERCENTAGE of construction
 LOT_COST = 0.15
+# 'share': land is LOT_COST of the house's value (House.land_cost), under RENT_LEVEL census_ap plus the region's rent
+# factor above the ACP's. 'residual': the reference value is the same house at the ACP's rent factor and at the mean
+# region index over all houses, land is the house's value less (1 - LOT_COST) of the reference value, at least zero,
+# so the builder's margin is the same in every region valued above the reference.
+LAND_RULE = 'share'
 # Initial percentage of vacant houses
 HOUSE_VACANCY = 0.1
 # MAX_NUMBER OF HOUSES IN STOCK
@@ -558,6 +572,11 @@ FARE_INCOME_SHARE = 0.06
 # None, or the FARE_INCOME_SHARE of the future network: the share moves from FARE_INCOME_SHARE to this value with the
 # share of the future network in force (0 on the base network, the phi of a TRANSPORT_SCHEDULE, 1 on a named state)
 FARE_INCOME_SHARE_FUTURE = None
+# Operating subsidy of a lower fare (TRANSPORT_MONEY 'fare', GOV_REVISED). 'off', or 'gap': each month, for every
+# transit commuter paid that month, the bill at FARE_INCOME_SHARE less the bill in force goes into the commuter's home
+# region's transport treasure and comes out of the home municipality's public investment at that month's settlement.
+# What the investment cannot pay comes from outside the ACP (public_transfers).
+FARE_SUBSIDY = 'off'
 # None, or [first year, last year, share]: in each month of those years, share percent of the month's GDP of the run's
 # municipalities comes in from outside the ACP and buys production from the ACP's construction firms
 # (Funds.buy_public_works)

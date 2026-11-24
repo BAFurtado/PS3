@@ -9,6 +9,7 @@ from numpy import median
 from copy import deepcopy
 from .rentmarket import RentalMarket, collect_rent
 from world.location import regional_vacancy
+from agents.house import House
 
 
 class HousingMarket:
@@ -45,6 +46,12 @@ class HousingMarket:
         regional = None
         if sim.PARAMS.get('VACANCY_SCOPE', 'acp') == 'region':
             regional = regional_vacancy(sim.houses.values())
+        if sim.PARAMS.get('BUILD_VACANCY_SCOPE', 'acp') == 'region':
+            # Read by ConstructionFirm.plan_house next month
+            sim.build_vacancy = regional if regional is not None else regional_vacancy(sim.houses.values())
+        if sim.PARAMS.get('LAND_RULE', 'share') == 'residual':
+            # Read by ConstructionFirm.plan_house next month
+            House.set_land_index(sim.houses.values(), sim.regions)
 
         occupy = sim.PARAMS.get('HOUSING_PURCHASE', 'occupy') == 'occupy'
         for house in sim.houses.values():

@@ -55,6 +55,10 @@ class Funds:
         self.gov_pay = {str(r.cod_mun): {'federal': r.federal, 'estadual': r.estadual} for r in pay.itertuples()}
         # GOV_EXTERNAL_FUNDING: money paid in from outside the ACP for federal and state public staff, cumulative
         self.external_public_funding = 0.0
+        # FARE_SUBSIDY 'gap': the subsidy each municipality owes at the next settlement, and this month's total paid
+        self.fare_subsidy_due = defaultdict(float)
+        self.fare_subsidy_month = 0.0
+        self.fare_subsidy_external_month = 0.0
         # PUBLIC_WORKS: money received and not yet spent, and the works bought this month
         self.public_works_money = 0.0
         self.public_works_bought = 0.0
@@ -1041,6 +1045,7 @@ class Funds:
                 investment += extra
             else:
                 investment = self.real_public_spending(mun, investment)
+            investment = self.charge_fare_subsidy(mun, ids, investment, regions)
             self.gov_budget_diag[mun] = dict(budget=budget, external=external, target=target, wage=wage, staff=staff,
                                              payroll=payroll, investment=investment, outside=outside)
 
@@ -1049,6 +1054,28 @@ class Funds:
                 for f in spenders:
                     f.investment_fund += investment / len(spenders)
         self.pending_public_money = defaultdict(lambda: defaultdict(float))
+        # A subsidy owed by a municipality with no public revenue this month comes from outside the ACP
+        self.external_fare_subsidy(sum(self.fare_subsidy_due.values()))
+        self.fare_subsidy_due.clear()
+
+    def charge_fare_subsidy(self, mun, ids, investment, regions):
+        """FARE_SUBSIDY 'gap': the subsidy the municipality owes comes out of this settlement's public investment,
+        recorded as negative applied money in its regions alike; what the investment cannot pay comes from outside
+        the ACP. Returns the investment left."""
+        due = self.fare_subsidy_due.pop(mun, 0.0)
+        if due <= 0:
+            return investment
+        cut = min(due, max(0.0, investment))
+        for id in ids:
+            regions[id].update_applied_taxes(-cut / len(ids), 'fare_subsidy')
+        self.external_fare_subsidy(due - cut)
+        return investment - cut
+
+    def external_fare_subsidy(self, amount):
+        if amount > 0:
+            self.fare_subsidy_external_month += amount
+            self.external_public_funding += amount
+            self.sim.ledger['public_transfers'] += amount
 
     def recycle_carbon_tax(self,regions):
         # group families by municipality using existing regional structure

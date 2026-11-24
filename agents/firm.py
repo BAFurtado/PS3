@@ -850,6 +850,10 @@ class ConstructionFirm(Firm):
     # per worker of the last offer_months months with staff
     offer_months = 0
     pay_history = None
+    # CONSTRUCTION_PAY 'trailing' (set by Simulation): months of value added the wage bill averages, 0 = this month's;
+    # the value added after land of the last pay_months months
+    pay_months = 0
+    value_added_history = None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -935,18 +939,23 @@ class ConstructionFirm(Firm):
         # prices get discounted (down to -35%), so a saturated market should look less
         # profitable to firms deciding whether to build, not just less likely to be
         # attempted (build_sensitivity above).
-        vacancy_factor = max(min(
-            1 + (params['VACANCY_PRICE_REFERENCE'] - vacancy) * params['OFFER_SIZE_ON_PRICE'],
-            params['MAX_OFFER_PREMIUM']), params['MAX_OFFER_DISCOUNT'])
+        def vacancy_factor_at(v):
+            return max(min(1 + (params['VACANCY_PRICE_REFERENCE'] - v) * params['OFFER_SIZE_ON_PRICE'],
+                           params['MAX_OFFER_PREMIUM']), params['MAX_OFFER_DISCOUNT'])
+        vacancy_factor = vacancy_factor_at(vacancy)
+        # BUILD_VACANCY_SCOPE 'region': each region at its own vacancy (Housing.update_for_sale)
+        build_vacancy = getattr(sim, 'build_vacancy', None) \
+            if params.get('BUILD_VACANCY_SCOPE', 'acp') == 'region' else None
 
         profitable_regions = []
         free_cash = self.free_cash() - params.get('FIRM_CAPITAL_MONTHS', 0) * self.capacity_value(
             params['PRODUCTIVITY_EXPONENT'], params['PRODUCTIVITY_MAGNITUDE_DIVISOR'])
         values = sim.house_values
         for r in regions:
-            expected_price = building_quality * r.index * building_size * vacancy_factor * House.scale(r.id)
+            factor = vacancy_factor if build_vacancy is None else vacancy_factor_at(build_vacancy.get(r.id, vacancy))
+            expected_price = building_quality * r.index * building_size * factor * House.scale(r.id)
             # Land at LOT_COST of the house's value (House.land_cost), building at its money cost
-            land = House.land_cost(r.id, building_quality * r.index * building_size, params["LOT_COST"])
+            land = House.land_cost(r.id, building_quality * r.index * building_size, params["LOT_COST"], r.index)
             works = values.build_cost(r.id, building_size, building_quality, self.productivity)
             profit = expected_price - works - land
 
@@ -987,7 +996,7 @@ class ConstructionFirm(Firm):
         # Buy license
         region.licenses -= 1
         # Land at LOT_COST of the house's value (House.land_cost)
-        cost_of_land = House.land_cost(region.id, quality * region.index * size, params["LOT_COST"])
+        cost_of_land = House.land_cost(region.id, quality * region.index * size, params["LOT_COST"], region.index)
         self.total_balance -= cost_of_land
         region.collect_taxes(cost_of_land, "transaction")
         if params.get('FIRM_CAPITAL_MONTHS', 0) > 0:
@@ -1016,7 +1025,7 @@ class ConstructionFirm(Firm):
         for r in regions:
             if r.licenses <= 0 or self.total_balance <= r.license_price:
                 continue
-            land = House.land_cost(r.id, r.index * size, params["LOT_COST"])
+            land = House.land_cost(r.id, r.index * size, params["LOT_COST"], r.index)
             works = sim.house_values.build_cost(r.id, size, 1, self.productivity) * works_factor[r.id[:2]]
             if ceiling - works - land > 0 and free_cash >= land:
                 profitable.append((r, works))
@@ -1121,6 +1130,11 @@ class ConstructionFirm(Firm):
                 date += relativedelta.relativedelta(months=+1)
 
     def wage_base(self, unemployment, relevance_unemployment):
+        if self.pay_months and self.value_added_history:
+            # CONSTRUCTION_PAY 'trailing': the sector's labour share of the mean value added after land over the last
+            # pay_months months, at least zero, per employee
+            mean = max(sum(self.value_added_history) / len(self.value_added_history), 0.0)
+            return mean * Firm.wage_shares[self.sector] / max(self.num_employees, 1)
         # This month's land recovery is a cost before wages, like inputs; not booked as input_cost, so GDP is unchanged
         land = self.land_schedule.get(self.present, 0.0) if self.land_schedule else 0.0
         self.input_cost += land
@@ -1163,6 +1177,13 @@ class ConstructionFirm(Firm):
         if house_revenue == 0 and self.monthly_planned_revenue:
             house_revenue = min(self.monthly_planned_revenue[-1], max(self.free_cash(), 0))
         self.revenue += house_revenue
+        if self.pay_months:
+            if self.value_added_history is None or self.value_added_history.maxlen != self.pay_months:
+                self.value_added_history = deque(self.value_added_history or (), maxlen=self.pay_months)
+            # This month's value added after land, as Firm.wage_base measures it (start-up advance included)
+            land = self.land_schedule.get(self.present, 0.0) if self.land_schedule else 0.0
+            effective_revenue = self.revenue if self.revenue > 0 else self.total_balance * self.cold_start_share
+            self.value_added_history.append(effective_revenue - self.input_cost - land)
         if self.offer_months and self.employees:
             if self.pay_history is None or self.pay_history.maxlen != self.offer_months:
                 self.pay_history = deque(self.pay_history or (), maxlen=self.offer_months)

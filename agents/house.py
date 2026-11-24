@@ -17,6 +17,8 @@ class House:
     area_scale = {}
     # RENT_LEVEL 'census_ap': the ACP's factor per region id, against which land takes the region's premium
     land_base = {}
+    # LAND_RULE 'residual': the mean region index over all houses, the index of the reference value
+    land_index = None
 
     @staticmethod
     def scale(region_id):
@@ -24,13 +26,23 @@ class House:
         return House.price_scale * House.area_scale.get(region_id, 1.0)
 
     @staticmethod
-    def land_cost(region_id, units, lot):
+    def set_land_index(houses, regions):
+        """LAND_RULE 'residual': the mean over houses of their region's index"""
+        indices = [regions[h.region_id].index for h in houses]
+        House.land_index = sum(indices) / len(indices) if indices else None
+
+    @staticmethod
+    def land_cost(region_id, units, lot, index=None):
         """Land for `units` of size x quality x index: `lot` of the house's value. With land_base (RENT_LEVEL
         'census_ap') the land also takes the region's value above the ACP level, value - (1 - lot) x the value at
-        the ACP factor, at least zero, so the builder's margin does not grow with the region's factor"""
-        if not House.land_base:
+        the ACP factor, at least zero, so the builder's margin does not grow with the region's factor.
+        LAND_RULE 'residual' (land_index set, `index` the region's): the reference value is the same house at the
+        ACP factor and at land_index, so the land also takes the value of the region's index above the mean"""
+        if not House.land_base and House.land_index is None:
             return units * House.scale(region_id) * lot
         base = House.price_scale * House.land_base.get(region_id, House.area_scale.get(region_id, 1.0))
+        if House.land_index is not None and index:
+            return max(0.0, units * House.scale(region_id) - (1 - lot) * units * House.land_index / index * base)
         return max(0.0, units * (House.scale(region_id) - (1 - lot) * base))
 
     def __init__(self, _id, address, size, price, region_id, quality,

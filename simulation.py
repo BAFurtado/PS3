@@ -276,6 +276,7 @@ class Simulation:
             house.price *= House.price_scale
         House.area_scale = {}
         House.land_base = {}
+        House.land_index = None
         rent_level = self.PARAMS.get('RENT_LEVEL', 'legacy')
         if rent_level in ('census', 'census_ap'):
             if rent_level == 'census_ap':
@@ -287,6 +288,8 @@ class Simulation:
                 house.price *= factor
                 if house.rent_data is not None:
                     house.rent_data = house.rent_data[0] * factor, house.rent_data[1]
+        if self.PARAMS.get('LAND_RULE', 'share') == 'residual':
+            House.set_land_index(self.houses.values(), self.regions)
         # Also for a population loaded from file
         set_sector_productivity(self, self.firms.values())
         Agent.wage_profile = self.wage_profile()
@@ -336,10 +339,18 @@ class Simulation:
         # CONSTRUCTION_OFFER 'trailing': months of pay a builder's offer averages, 0 for this month's pay
         ConstructionFirm.offer_months = (int(self.PARAMS['CONSTRUCTION_ACC_CASH_FLOW'])
                                          if self.PARAMS.get('CONSTRUCTION_OFFER', 'month') == 'trailing' else 0)
+        # CONSTRUCTION_PAY 'trailing': months of value added a builder's wage bill averages, 0 for this month's
+        ConstructionFirm.pay_months = (int(self.PARAMS['CONSTRUCTION_ACC_CASH_FLOW'])
+                                       if self.PARAMS.get('CONSTRUCTION_PAY', 'month') == 'trailing' else 0)
         Firm.vale_transporte = self.PARAMS['PUBLIC_TRANSIT_COST']
         # TRANSPORT_MONEY 'fare': the monthly fare bill (set_fare_bill), None otherwise
         self.fare_mode = self.PARAMS.get('TRANSPORT_MONEY', 'distance') == 'fare'
         Firm.fare_bill = 0.0 if self.fare_mode else None
+        # FARE_SUBSIDY 'gap': the bill at FARE_INCOME_SHARE less the bill in force (set_fare_bill)
+        self.fare_gap = 0.0
+        self.fare_subsidy = self.PARAMS.get('FARE_SUBSIDY', 'off') == 'gap'
+        if self.fare_subsidy and not (self.fare_mode and self.PARAMS.get('GOV_REVISED', False)):
+            raise ValueError("FARE_SUBSIDY 'gap' needs TRANSPORT_MONEY 'fare' and GOV_REVISED")
         # CAR_OWNERSHIP 'census': car status by ACP and wage decile, Census 2010 (world/cars.py); 'census2022': that
         # table at the Census 2022 private-vehicle share of commuters; 'deciles' draws it from
         # WAGE_TO_CAR_OWNERSHIP_QUANTILES for job candidates with a wage
@@ -507,7 +518,23 @@ class Simulation:
         wages = [a.last_wage * (1.0 if self.firms[a.firm_id].pool else self.salary_factor)
                  for a in self.agents.values()
                  if a.firm_id is not None and a.firm_id in self.firms and a.last_wage is not None and a.last_wage > 0]
-        Firm.fare_bill = self.fare_share() * float(np.mean(wages)) if wages else 0.0
+        mean = float(np.mean(wages)) if wages else 0.0
+        Firm.fare_bill = self.fare_share() * mean if wages else 0.0
+        self.fare_gap = max(0.0, self.PARAMS['FARE_INCOME_SHARE'] - self.fare_share()) * mean
+
+    def pay_fare_subsidy(self):
+        """FARE_SUBSIDY 'gap': for each agent without a private vehicle paid a wage this month (firm employee or
+        own-account worker), fare_gap goes into its home region's transport treasure and is owed by the home
+        municipality's public investment (Funds.charge_fare_subsidy)"""
+        self.funds.fare_subsidy_month = self.funds.fare_subsidy_external_month = 0.0
+        if self.fare_gap <= 0:
+            return
+        for agent in self.agents.values():
+            if agent.wage_paid > 0 and not agent.has_car and agent.firm_id is not None and agent.family is not None:
+                region_id = agent.family.house.region_id
+                self.regions[region_id].collect_taxes(self.fare_gap, 'transport')
+                self.funds.fare_subsidy_due[region_id[:7]] += self.fare_gap
+                self.funds.fare_subsidy_month += self.fare_gap
 
     def fare_share(self):
         """FARE_INCOME_SHARE, moved toward FARE_INCOME_SHARE_FUTURE by the share of the future network in force: 0 on
@@ -703,6 +730,8 @@ class Simulation:
                 self.regional_market,
                 self.regions,
                 self.seed_np)
+        if self.fare_subsidy:
+            self.pay_fare_subsidy()
 
         pay_out_national(self)
         self.social_transfers.pay(self)

@@ -1624,6 +1624,37 @@ check("CONSTRUCTION_OFFER: 'month' (default) offers this month's pay; 'trailing'
       and np.isclose(_co_offer, np.mean(_co_pays[-3:])) and _co_offer > 0,
       f"pays {_co_pays}, history {_co_hist}, offer {_co_offer}")
 
+# CONSTRUCTION_PAY: 'month' (default) pays the labour share of this month's value added after land; 'trailing' the
+# labour share of the mean value added of the last pay_months months, negative months included, at least zero
+from collections import defaultdict as _cp_dd  # noqa: E402
+_cp_saved = (ConstructionFirm.pay_months, _bld.value_added_history, _bld.revenue, _bld.input_cost, _bld.employees,
+             _co_Firm.make_payment, _bld.cash_flow, _bld.monthly_planned_revenue, _bld.land_schedule,
+             ConstructionFirm.offer_months)
+_cp_default = ConstructionFirm.pay_months == 0
+ConstructionFirm.offer_months = 0
+_co_Firm.make_payment = lambda self, *a, **k: None
+_bld.cash_flow, _bld.monthly_planned_revenue, _bld.land_schedule = _cp_dd(float), [], None
+_bld.employees = dict(_bld.employees) or {'placeholder': None}
+_bld.value_added_history = None
+_bld.make_payment(sim.regions, 0.05, sim.PARAMS['PRODUCTIVITY_EXPONENT'], sim.PARAMS['TAX_LABOR'], 0.0)
+_cp_off = _bld.value_added_history is None
+ConstructionFirm.pay_months = 3
+_cp_share = _co_Firm.wage_shares[_bld.sector] / max(_bld.num_employees, 1)
+_cp_pays = []
+for _cp_rev, _cp_inp in ((1000.0, 0.0), (1000.0, 4000.0), (2000.0, 0.0), (3000.0, 0.0)):
+    _bld.revenue, _bld.input_cost = _cp_rev, _cp_inp
+    _bld.make_payment(sim.regions, 0.05, sim.PARAMS['PRODUCTIVITY_EXPONENT'], sim.PARAMS['TAX_LABOR'], 0.0)
+    _cp_pays.append(_bld.wage_base(0.05, 0.0))
+_cp_hist = list(_bld.value_added_history)
+(ConstructionFirm.pay_months, _bld.value_added_history, _bld.revenue, _bld.input_cost, _bld.employees,
+ _co_Firm.make_payment, _bld.cash_flow, _bld.monthly_planned_revenue, _bld.land_schedule,
+ ConstructionFirm.offer_months) = _cp_saved
+check("CONSTRUCTION_PAY: 'month' (default) keeps no history; 'trailing' pays the labour share of the mean of the last "
+      "3 months' value added, a negative month included, never below zero",
+      _cp_default and _cp_off and _cp_hist == [-3000.0, 2000.0, 3000.0]
+      and np.allclose(_cp_pays, [1000.0 * _cp_share, 0.0, 0.0, 2000.0 / 3 * _cp_share]),
+      f"pays {_cp_pays}, history {_cp_hist}")
+
 # Social transfers: per municipality round(b x A) RGPS to the oldest, BPC to those without RGPS (65+ first), Bolsa
 # Família to the poorest families; what members receive equals the ledger inflow, and it enters permanent income
 from world.social_transfers import SocialTransfers
@@ -2128,6 +2159,61 @@ check("TRANSPORT_MONEY 'fare': own-account worker without a private vehicle owes
       and abs(_op_m[0].wage_paid - 10.0) < 1e-9 and _op.total_balance == 0.0,
       f"dues {[m.fare_due for m in _op_m]}, pay {[round(m.wage_paid, 2) for m in _op_m]}")
 
+# FARE_SUBSIDY 'gap': each transit commuter paid this month brings fare_gap into its home region's transport treasure,
+# owed by its home municipality; car owners and the unpaid bring nothing
+from collections import defaultdict as _fs_dd
+_fs_regions = {r: SimpleNamespace(treasure=_fs_dd(float)) for r in ('1111111001', '2222222001')}
+
+
+def _fs_collector(reg):
+    def collect(amount, key):
+        reg.treasure[key] += amount
+    return collect
+
+
+for _fs_r in _fs_regions.values():
+    _fs_r.collect_taxes = _fs_collector(_fs_r)
+
+
+def _fs_agent(home, paid, car):
+    return SimpleNamespace(wage_paid=paid, has_car=car, firm_id=1,
+                           family=SimpleNamespace(house=SimpleNamespace(region_id=home)))
+
+
+_fs_sim = SimpleNamespace(fare_gap=2.0, regions=_fs_regions,
+                          funds=SimpleNamespace(fare_subsidy_due=_fs_dd(float), fare_subsidy_month=9.0,
+                                                fare_subsidy_external_month=9.0),
+                          agents=dict(enumerate([_fs_agent('1111111001', 5.0, False),
+                                                 _fs_agent('1111111001', 5.0, True),
+                                                 _fs_agent('1111111001', 0.0, False),
+                                                 _fs_agent('2222222001', 5.0, False)])))
+Simulation.pay_fare_subsidy(_fs_sim)
+check("FARE_SUBSIDY 'gap': fare_gap per transit commuter paid, into the home region's treasure, owed by its mun.",
+      _fs_regions['1111111001'].treasure['transport'] == 2.0 and _fs_regions['2222222001'].treasure['transport'] == 2.0
+      and dict(_fs_sim.funds.fare_subsidy_due) == {'1111111': 2.0, '2222222': 2.0}
+      and _fs_sim.funds.fare_subsidy_month == 4.0 and _fs_sim.funds.fare_subsidy_external_month == 0.0,
+      f"due {dict(_fs_sim.funds.fare_subsidy_due)}, month {_fs_sim.funds.fare_subsidy_month}")
+
+# FARE_SUBSIDY 'gap': the subsidy owed comes out of the settlement's public investment, recorded as negative applied
+# money; what the investment cannot pay comes from outside the ACP
+from world.funds import Funds as _FSFunds
+_fsf = SimpleNamespace(fare_subsidy_due=_fs_dd(float), external_public_funding=0.0, fare_subsidy_external_month=0.0,
+                       sim=SimpleNamespace(ledger=_fs_dd(float)))
+_fsf.external_fare_subsidy = lambda amount: _FSFunds.external_fare_subsidy(_fsf, amount)
+_fsf_reg = {r: SimpleNamespace(applied=0.0) for r in ('1111111001', '1111111002', '2222222001')}
+for _fs_r in _fsf_reg.values():
+    _fs_r.update_applied_taxes = (lambda reg: lambda amount, key: setattr(reg, 'applied', reg.applied + amount))(_fs_r)
+_fsf.fare_subsidy_due.update({'1111111': 4.0, '2222222': 5.0})
+_fsf_i1 = _FSFunds.charge_fare_subsidy(_fsf, '1111111', ['1111111001', '1111111002'], 10.0, _fsf_reg)
+_fsf_i2 = _FSFunds.charge_fare_subsidy(_fsf, '2222222', ['2222222001'], 3.0, _fsf_reg)
+_fsf_i3 = _FSFunds.charge_fare_subsidy(_fsf, '3333333', ['3333333001'], 7.0, _fsf_reg)
+check("FARE_SUBSIDY 'gap': public investment falls by the subsidy owed; the shortfall comes from outside",
+      _fsf_i1 == 6.0 and _fsf_i2 == 0.0 and _fsf_i3 == 7.0 and _fsf_reg['1111111001'].applied == -2.0
+      and _fsf_reg['2222222001'].applied == -3.0 and _fsf.external_public_funding == 2.0
+      and _fsf.sim.ledger['public_transfers'] == 2.0 and _fsf.fare_subsidy_external_month == 2.0
+      and not _fsf.fare_subsidy_due,
+      f"investment {_fsf_i1}, {_fsf_i2}, {_fsf_i3}, external {_fsf.external_public_funding}")
+
 # PUBLIC_WORKS: the month's share of GDP comes in, buys idle production at the firm's price, the rest stays
 from world.funds import Funds as _PWFunds
 _pw_calls = []
@@ -2394,6 +2480,43 @@ check("House values: rent level kept, cost by Sinapi state and CUB standards, bu
       _hv_ok_level and _hv_ok_cost and _hv_ok_plan,
       f"level {_hv_ok_level} cost {_hv_ok_cost} plan {_hv_ok_plan}")
 
+# BUILD_VACANCY_SCOPE 'region': a builder values each region at its own vacancy, so with works at the house's value
+# at the neutral vacancy factor only the region below VACANCY_PRICE_REFERENCE pays; 'acp': both regions at the
+# vacancy of all houses (0 here), both pay
+def _bv_choices(scope, draws=20):
+    old = sim.house_values, _hv_House.__dict__['land_cost'], getattr(sim, 'build_vacancy', None), sim.seed.getstate()
+    regs = []
+    for rid in ('A', 'B'):
+        r = _hv_copy.copy(sim.regions[_hv_rid])
+        r.id, r.treasure = rid, defaultdict(float)
+        regs.append(r)
+    sim.house_values = SimpleNamespace(
+        build_cost=lambda rid, size, q, prod: q * regs[0].index * size * _hv_House.scale(rid))
+    _hv_House.land_cost = staticmethod(lambda rid, units, lot, index=None: 0.0)
+    sim.build_vacancy = {'A': 0.30, 'B': 0.0}
+    params = dict(sim.PARAMS, BUILD_VACANCY_SCOPE=scope)
+    chosen = []
+    for k in range(draws):
+        b = _hv_copy.copy(_hv_b)
+        b.building, b.houses_for_sale, b.monthly_planned_revenue = defaultdict(dict), [], []
+        b.cash_flow, b.land_schedule, b.total_balance = {}, None, 1e9
+        for r in regs:
+            r.licenses = 1
+        b.plan_house(regs, params, sim, np.random.RandomState(k), 0.0)
+        plan = next(iter(b.building.values()), None)
+        chosen.append(plan['region'] if plan else None)
+    sim.house_values, _hv_House.land_cost, sim.build_vacancy = old[:3]
+    sim.seed.setstate(old[3])
+    if old[2] is None:
+        del sim.build_vacancy
+    return chosen
+
+
+_bv_on, _bv_off = _bv_choices('region'), _bv_choices('acp')
+check("BUILD_VACANCY_SCOPE 'region': builders plan only where the region's vacancy makes the project pay; 'acp' both",
+      set(_bv_on) == {'B'} and {'A', 'B'} <= set(_bv_off), f"region {sorted(set(map(str, _bv_on)))}, "
+      f"acp {sorted(set(map(str, _bv_off)))}")
+
 # RENT_LEVEL 'census': the ACP factor brings the mean rent of the rented houses to the Census mean rent of its renters,
 # and House.scale applies it on top of the national scale
 _rl = _hv.census_rent_scale(sim.houses.values(), sim.regions)
@@ -2491,6 +2614,18 @@ check("House.land_cost: legacy share without land_base; with it the margin is th
       _lc_legacy and abs(_lc_margin[0] - _lc_margin[1]) < 1e-6 * abs(_lc_margin[0])
       and abs(_hv_House.land_cost('A', 10.0, .15) - 10.0 * _hv_House.price_scale * .15) < 1e-9
       and _hv_House.land_cost('C', 10.0, .15) == 0.0, f"margins {_lc_margin}")
+# LAND_RULE 'residual': the reference is the same house (size x quality 10) at the ACP factor and land_index, so
+# value - land is the same at every index above the reference, land at the reference is LOT_COST of it, and zero
+# below (1 - lot) of it
+_lc_index = _hv_House.land_index
+_hv_House.land_index = 1.0
+_lc_res = [10.0 * i * _hv_House.scale(r) - _hv_House.land_cost(r, 10.0 * i, .15, i) for r, i in (('A', 1.2), ('B', 1.5))]
+check("House.land_cost residual: the margin is the same at every index and factor above the reference, LOT_COST "
+      "of the value at the reference, zero below it",
+      abs(_lc_res[0] - _lc_res[1]) < 1e-6 * abs(_lc_res[0])
+      and abs(_hv_House.land_cost('A', 10.0, .15, 1.0) - 10.0 * _hv_House.price_scale * .15) < 1e-9
+      and _hv_House.land_cost('A', 8.0, .15, .8) == 0.0, f"margins {_lc_res}")
+_hv_House.land_index = _lc_index
 _hv_House.area_scale, _hv_House.land_base = _lc_saved
 
 # Marriage: the population counters follow every agent who moves to another household

@@ -551,7 +551,7 @@ class Output:
     def __init__(self, sim, output_path):
         all_files = ['stats', 'regional', 'time', 'firms', 'banks',
                      'houses', 'agents', 'families', 'grave', 'construction',
-                     'head', 'neighbourhood', 'sales', 'job_moves']
+                     'head', 'neighbourhood', 'sales', 'job_moves', 'fare_subsidy']
 
         self.sim = sim
         self.times = []
@@ -744,6 +744,11 @@ class Output:
         stats_row["ext_recycled"] = 0.0
         stats_row["ext_net_position"] = ext.net_position
         stats_row["ext_public_funding"] = sim.funds.external_public_funding
+        if getattr(sim, 'fare_subsidy', False):
+            # FARE_SUBSIDY 'gap': the month's subsidy paid and the part the budgets could not pay (from outside)
+            with open(self.fare_subsidy_path, 'a') as fp:
+                fp.write('%s;%.6f;%.6f\n' % (sim.clock.days, sim.funds.fare_subsidy_month,
+                                             sim.funds.fare_subsidy_external_month))
         stock = money_stock(sim)
         stats_row["money_total"] = sum(stock.values())
         for k, v in stock.items():

@@ -6,9 +6,10 @@ starts on the Rede Base of the ENMU zone matrices (2054, morning peak, tools/tra
     otimizado   the Rede Futura, Cenario Otimizado, phased in from START, with the Otimizado fare
 The network moves from Base to the future state in YEARS equal yearly steps from START-01. The Otimizado fare:
 FARE_INCOME_SHARE times the area's ENMU fare ratio Otimizado / Padrao (input/enmu_investment.csv), moving with the
-network. The infrastructure capex is not spent in the model (PUBLIC_WORKS off). Every run of padrao and otimizado
-equals the base run of the same area and seed before START-01. The matrices use trips weights. Teresina also runs the
-three scenarios with area weights (base_area, padrao_area, otimizado_area).
+network, and the home municipality's public investment pays Transport the fare at the Padrao share less the Otimizado
+one (FARE_SUBSIDY gap). The infrastructure capex is not spent in the model (PUBLIC_WORKS off). Every run of padrao and
+otimizado equals the base run of the same area and seed before START-01. The matrices use trips weights. Teresina
+also runs the three scenarios with area weights (base_area, padrao_area, otimizado_area).
 Settings of every run: CAR_OWNERSHIP census2022, LOCATION_CHOICE logit, VACANCY_SCOPE region, TRANSPORT_MONEY fare,
 RENT_LEVEL census_ap, HOUSING_BIDDING filatova, LABOUR_FLOWS education, COMMUTE_ACCEPTANCE census2022 (acceptance=
 option), the other settings at the code defaults. Seeds SEED + i (i = 0-9,
@@ -58,6 +59,8 @@ COMMON = {
     'TRANSPORT_TIME': False,
     'LOCATION_CHOICE': 'logit',
     'VACANCY_SCOPE': 'region',
+    'BUILD_VACANCY_SCOPE': 'region',
+    'CONSTRUCTION_PAY': 'trailing',
     'TRANSPORT_MONEY': 'fare',
     'RENT_LEVEL': 'census_ap',
     'HOUSING_BIDDING': 'filatova',
@@ -105,6 +108,7 @@ def city_params(scenario, city, start=START):
     p = {'TRANSPORT_FUTURE': name, 'TRANSPORT_SCHEDULE': linear_phase_in(start, YEARS)}
     if name == 'otimizado':
         p['FARE_INCOME_SHARE_FUTURE'] = R.conf.PARAMS['FARE_INCOME_SHARE'] * row.fare_otimizado / row.fare_padrao
+        p['FARE_SUBSIDY'] = 'gap'
     return p
 
 

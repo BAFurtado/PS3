@@ -18,7 +18,8 @@ pairs (phi of each January times future minus base minutes, transit commuters; c
 state), and minutes_no_car_resorting the rest of the effect (who works where and lives where). minutes_q1 to
 minutes_q5: mean minutes of the employed by quintile of their family's permanent income per member, quintiles drawn
 within each run and January. transport_* are the Transport sector's firms. families_savings, money_imports,
-money_profits_out and firms_total_profit trace where the fare money goes.
+money_profits_out and firms_total_profit trace where the fare money goes. fare_subsidy_gdp: the Otimizado operating
+subsidy (FARE_SUBSIDY gap) in percent of GDP, fare_subsidy_external_gdp the part public investment could not pay.
 Missing parquet files (runs saved with fewer files, runner_enmu.py save=) leave their metrics empty.
 
 Output in ROOT/analise/: efeitos.csv (long), efeitos_<CITY>.txt (tables), ap_precos.csv and ap_spearman.csv (house
@@ -65,6 +66,8 @@ METRICS = {
     'transport_revenue': ('sector', 'pct'),
     'transport_employees': ('sector', 'pct'),
     'transport_wages_paid': ('sector', 'pct'),
+    'fare_subsidy_gdp': ('stats', 'diff'),
+    'fare_subsidy_external_gdp': ('stats', 'diff'),
     'constr_employees': ('construction', 'pct'),
     'constr_wages_paid': ('construction', 'pct'),
     'constr_balance': ('construction', 'pct'),
@@ -93,8 +96,16 @@ def runs(root):
 
 
 def read_stats(d):
+    """stats.csv with a year column and the fare subsidy (fare_subsidy.csv, FARE_SUBSIDY gap) in percent of GDP,
+    0 in runs without it"""
     t = pd.read_csv(os.path.join(d, 'stats.csv'), sep=';', header=None, names=STATS_COLUMNS)
     t['year'] = pd.to_datetime(t.month).dt.year
+    t['fare_subsidy_gdp'] = t['fare_subsidy_external_gdp'] = 0.0
+    path = os.path.join(d, 'fare_subsidy.csv')
+    if os.path.exists(path):
+        f = pd.read_csv(path, sep=';', header=None, names=['month', 'subsidy', 'external']).set_index('month')
+        t['fare_subsidy_gdp'] = 100 * t.month.map(f.subsidy).fillna(0.0) / t.gdp_level
+        t['fare_subsidy_external_gdp'] = 100 * t.month.map(f.external).fillna(0.0) / t.gdp_level
     return t
 
 
