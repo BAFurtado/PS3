@@ -10,7 +10,8 @@ network. The infrastructure capex is not spent in the model (PUBLIC_WORKS off). 
 equals the base run of the same area and seed before START-01. The matrices use trips weights. Teresina also runs the
 three scenarios with area weights (base_area, padrao_area, otimizado_area).
 Settings of every run: CAR_OWNERSHIP census2022, LOCATION_CHOICE logit, VACANCY_SCOPE region, TRANSPORT_MONEY fare,
-RENT_LEVEL census_ap, HOUSING_BIDDING filatova, LABOUR_FLOWS education, the other settings at the code defaults. Seeds SEED + i (i = 0-9,
+RENT_LEVEL census_ap, HOUSING_BIDDING filatova, LABOUR_FLOWS education, COMMUTE_ACCEPTANCE census2022 (acceptance=
+option), the other settings at the code defaults. Seeds SEED + i (i = 0-9,
 the seeds of runner_mcmv2026). Saved: stats, regional, and the parquet files of the save= option every January
 (default agents, families, houses and firms).
 
@@ -22,12 +23,14 @@ Modes (cwd = repository root):
         part=K/N       the K-th of N contiguous slices of the queue (default 1/1)
         seeds=N        the first N seeds only (default 10)
         area=0         without the area-weights scenarios of Teresina
-        acceptance=X   COMMUTE_ACCEPTANCE X in every run, output in output/enmu2026_rede_X
+        acceptance=X   COMMUTE_ACCEPTANCE X in every run (default census2022), output in output/enmu2026_rede_X,
+                       or output/enmu2026_rede for off
         save=A,B       the parquet files saved every January: agents, family, house, firms (firms also writes
                        construction), or none (default agents,family,house,firms); stats and regional always
     python runner_enmu.py conferir [acceptance=X]   finished runs, identity with the reference before START-01
 
-Output: output/enmu2026_rede/<scenario>/<CITY>/<i>/; queue manifest and log in output/enmu2026_rede/queue_<K>of<N>/.
+Output: output/enmu2026_rede_census2022/<scenario>/<CITY>/<i>/; queue manifest and log in
+output/enmu2026_rede_census2022/queue_<K>of<N>/.
 Needs the private matrices input/transport/travel_times_<ACP>__<weights>.parquet. Local conf/params.py and
 conf/run.py are ignored.
 """
@@ -60,6 +63,7 @@ COMMON = {
     'HOUSING_BIDDING': 'filatova',
     'LABOUR_FLOWS': 'education',
 }
+ACCEPTANCE = 'census2022'
 SAVE_DEFAULT = ['agents', 'family', 'house', 'firms']
 SAVE_NAMES = {'agents', 'family', 'house', 'firms', 'sales', 'neighbourhood', 'grave', 'head', 'banks'}
 # The save= option reaches the workers through this variable, which spawned workers (Windows) inherit
@@ -122,7 +126,7 @@ def check_inputs(cities):
 
 
 def options(args):
-    opts = {'cities': ','.join(CITIES), 'part': '1/1', 'seeds': str(R.RUNS), 'area': '1', 'acceptance': 'off',
+    opts = {'cities': ','.join(CITIES), 'part': '1/1', 'seeds': str(R.RUNS), 'area': '1', 'acceptance': ACCEPTANCE,
             'save': ','.join(SAVE_DEFAULT)}
     for a in args:
         key, sep, v = a.partition('=')
@@ -196,7 +200,8 @@ if __name__ == '__main__':
         root = OUTPUT + '_teste'
         names = add_scenarios()
         check_inputs(['TERESINA'])
-        run(root, queue(names, ['TERESINA'], [0]), int(sys.argv[2]), root, dict(COMMON, TOTAL_DAYS=730), start=2011)
+        run(root, queue(names, ['TERESINA'], [0]), int(sys.argv[2]), root,
+            dict(COMMON, TOTAL_DAYS=730, COMMUTE_ACCEPTANCE=ACCEPTANCE), start=2011)
         R.conferir(root, datetime.date(2011, 1, 1))
         differences(root, datetime.date(2011, 1, 1))
     elif mode == 'lote' and len(sys.argv) >= 3:

@@ -1,7 +1,7 @@
 """
 Validation of the ENMU base runs (runner_enmu.py, scenario base) against the Census, below the metro average.
 
-    python analysis/enmu/validacao.py [ROOT]          ROOT default output/enmu2026_rede
+    python analysis/enmu/validacao.py [ROOT]          ROOT default output/enmu2026_rede_census2022
 
 Model side: the employees of each base run (employed agents with commute minutes above 0; own-account pool members
 have 0 and are left out), January snapshots, mean over seeds of the shares. Mode: car or motorcycle owners commute by
@@ -36,7 +36,7 @@ import pandas as pd
 
 sys.path.insert(0, os.getcwd())
 
-ROOT = sys.argv[1] if len(sys.argv) > 1 else 'output/enmu2026_rede'
+ROOT = sys.argv[1] if len(sys.argv) > 1 else 'output/enmu2026_rede_census2022'
 OUT = os.path.join(ROOT, 'validacao')
 SCENARIO = 'base'
 YEARS_2022 = (2022, 2023)

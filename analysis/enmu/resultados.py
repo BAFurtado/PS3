@@ -1,7 +1,7 @@
 """
 Paired effects of the ENMU batch (runner_enmu.py): every scenario against its reference, seed by seed, in each area.
 
-    python analysis/enmu/resultados.py [ROOT]          ROOT default output/enmu2026_rede
+    python analysis/enmu/resultados.py [ROOT]          ROOT default output/enmu2026_rede_census2022
 
 Effects (same area, same seed):
     rede_padrao    padrao - base          the Padrao network
@@ -36,7 +36,7 @@ from analysis.output import OUTPUT_DATA_SPEC  # noqa: E402
 import world.transport as T  # noqa: E402
 from runner_enmu import START, YEARS  # noqa: E402
 
-ROOT = sys.argv[1] if len(sys.argv) > 1 else 'output/enmu2026_rede'
+ROOT = sys.argv[1] if len(sys.argv) > 1 else 'output/enmu2026_rede_census2022'
 OUT = os.path.join(ROOT, 'analise')
 STATS_COLUMNS = OUTPUT_DATA_SPEC['stats']['columns']
 WINDOWS = {'2024-30': (2024, 2030), '2031-37': (2031, 2037), '2038-39': (2038, 2039)}
