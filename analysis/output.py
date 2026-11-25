@@ -821,12 +821,7 @@ class Output:
             agents_by_mun[mun_id].append(agent)
 
         for family in sim.families.values():
-            # TODO: sometimes family.region_id is None?
-            if family.region_id:
-                mun_id = family.region_id[:7]
-                families_by_mun[mun_id].append(family)
-            else:
-                families_by_mun[family.region_id].append(family)
+            families_by_mun[family.region_id[:7]].append(family)
 
         # Pre-compute firm revenue per municipality in O(n_firms) — avoids O(n_firms × n_muns) loop
         mun_firm_revenue = defaultdict(float)

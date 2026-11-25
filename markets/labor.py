@@ -490,9 +490,13 @@ class LaborMarket:
         self.candidates += [agent for agent in agents.values()
                             if agent.firm_id is None and participation.is_active(agent)]
 
+    def gov_target(self, sim):
+        """Government headcount of the current year (RAIS) at the population's scale"""
+        return ceil(self.gov_employees[self.gov_employees.ano == sim.clock.year].qtde_vinc_ativos.sum() *
+                    sim.PARAMS['PERCENTAGE_ACTUAL_POP'])
+
     def gov_hire_fire(self, sim):
-        total_gov_employees = ceil(self.gov_employees[self.gov_employees.ano == sim.clock.year].qtde_vinc_ativos.sum() *
-                                   sim.PARAMS['PERCENTAGE_ACTUAL_POP'])
+        total_gov_employees = self.gov_target(sim)
         gov_firms = [firm for firm in sim.firms.values()
                      if firm.sector == 'Government']
         total_employment = sum([f.num_employees for f in gov_firms])
@@ -521,8 +525,10 @@ class LaborMarket:
                         fired += 1
 
     def hire_fire(self, firms, firm_enter_freq, initialize=False, fire_unpaid_months=0, planned_growth=False,
-                  replace_separations=False, gov_headcount_only=False, shed_excess=False):
-        """Firms adjust their labor force based on profit. With gov_headcount_only, Government firms are skipped.
+                  replace_separations=False, gov_headcount_only=False, shed_excess=False, startup_quota=None):
+        """Firms adjust their labor force based on profit. With initialize, each firm other than Government posts one
+        vacancy, and with startup_quota ({firm id: staff}) only while its staff is below its quota.
+        With gov_headcount_only, Government firms are skipped.
         With planned_growth a growing firm posts as many vacancies as its production plan needs. With replace_separations, a firm that is not shrinking
         also re-posts one vacancy for each worker it lost to natural separation or death since its last adjustment.
         With shed_excess, a firm
@@ -539,7 +545,8 @@ class LaborMarket:
             if random_value[i] < firm_enter_freq:
                 fired_before = n_fired
                 if initialize:
-                    if firm.sector != 'Government':
+                    if firm.sector != 'Government' and (startup_quota is None
+                                                        or firm.num_employees < startup_quota.get(firm.id, 0)):
                         self.add_post(firm)
                     continue
                 elif gov_headcount_only and firm.sector == 'Government':

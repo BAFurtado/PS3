@@ -24,6 +24,7 @@ from agents import Agent, House
 from agents.firm import Firm, ConstructionFirm, plans_sales, import_parity, import_price
 from world.transport import TransportNetwork, CommuteAcceptance
 from world.participation import Participation
+from world.startup_jobs import startup_quotas
 from world.social_transfers import SocialTransfers
 from world.own_account import OwnAccountPools, posting_education
 from world.house_values import HouseValues
@@ -397,13 +398,20 @@ class Simulation:
         self.own_account.start(self.labor_market.candidates, target)
         self.labor_market.candidates = [c for c in self.labor_market.candidates if c.firm_id is None]
         actual = self.labor_market.num_candidates
+        # STARTUP_JOBS 'census': the firm jobs still missing to the target, less Government's, placed by municipality
+        startup_quota = None
+        if self.PARAMS.get('STARTUP_JOBS', 'off') == 'census':
+            gov_staff = sum(f.num_employees for f in self.firms.values() if f.sector == 'Government')
+            gov_missing = max(0, self.labor_market.gov_target(self) - gov_staff)
+            jobs = max(0, math.ceil(actual - target * total) - gov_missing)
+            startup_quota = startup_quotas(self.firms.values(), self.geo.processing_acps, jobs)
         while actual / total > target:
             before = actual
             # Government is staffed to its RAIS headcount by gov_hire_fire, not by one post per firm:
             # otherwise it takes start-up hires in proportion to its firm count, and sheds the excess in month 1.
             self.labor_market.gov_hire_fire(self)
             n_gov = len(self.labor_market.available_postings)
-            self.labor_market.hire_fire(self.firms, 1, initialize=True)
+            self.labor_market.hire_fire(self.firms, 1, initialize=True, startup_quota=startup_quota)
             # No more posts than the jobs still missing to the target
             self.labor_market.cap_postings(n_gov, math.ceil(actual - target * total))
             # assign_post matches no one with fewer than two postings

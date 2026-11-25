@@ -49,6 +49,11 @@ SIZE_MARKET = 5
 # the same sample, in the order of its strategy (price or distance), until the money is spent. False (old model): the
 # rest goes back to savings. Refused quantity stays recorded at each firm that refused it (its demand signal).
 HOUSEHOLD_RETRY = False
+# 'municipality': for HOUSEHOLD_LOCAL_SECTORS a household draws its SIZE_MARKET firms from the stocked firms of its own
+# municipality, and from the whole ACP when its municipality has none. 'acp': from the whole ACP for every sector.
+HOUSEHOLD_MARKET = 'acp'
+# Sectors bought in the household's municipality under HOUSEHOLD_MARKET 'municipality'
+HOUSEHOLD_LOCAL_SECTORS = ['Trade', 'OtherServices']
 # Number of firms to buy from in the INTERMEDIATE market
 INTERMEDIATE_SIZE_MARKET = 10
 # Frequency firms enter the market
@@ -185,6 +190,15 @@ HIRING_SAMPLE_SIZE = 20
 # POSTING_EDUCATION level first, then by qualification, then by job value. Firm-proposing deferred acceptance: a seeker
 # keeps the offer of highest job value (LaborMarket.job_value). Needs POSTING_EDUCATION 'census' and COMMUTE_ACCEPTANCE.
 HIRING_RULE = 'score'
+# 'census': at start-up each firm other than Government posts while its staff is below its quota: its municipality's
+# share of Census 2010 employees with or without carteira by place of work, public administration left out
+# (input/census_jobs_workplace_2010.csv), of the firm jobs to fill, split equally among the municipality's firms
+# (world/startup_jobs.py). 'off': every such firm posts one vacancy a round until the unemployment target.
+STARTUP_JOBS = 'off'
+# 'census': a municipality whose share of the start-up firms (RAIS 2010 establishments by weighting area x
+# PERCENTAGE_ACTUAL_POP) falls short of its share of the same Census 2010 employees gets the missing firms, spread over
+# its weighting areas by population, sectors other than Government by the ACP shares (world/startup_jobs.py). 'rais': RAIS counts only.
+STARTUP_FIRMS = 'rais'
 
 # Reduction size in case of eco innovation success: multiplies firm parameters
 ENVIRONMENTAL_EFFICIENCY_STEP = .99

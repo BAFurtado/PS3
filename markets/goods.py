@@ -142,6 +142,14 @@ class RegionalMarket:
             sector: [f for f in firms if f.inventory[0].quantity > 0]
             for sector, firms in sector_map.items()
         }
+        # HOUSEHOLD_MARKET 'municipality': {(sector, municipality code): stocked firms} for HOUSEHOLD_LOCAL_SECTORS
+        local_firms = None
+        if self.sim.PARAMS.get('HOUSEHOLD_MARKET', 'acp') == 'municipality':
+            local = set(self.sim.PARAMS['HOUSEHOLD_LOCAL_SECTORS'])
+            local_firms = defaultdict(list)
+            for sector in local:
+                for f in firms_by_sector.get(sector, ()):
+                    local_firms[(sector, f.region_id[:7])].append(f)
         seed_np = self.sim.seed_np
         for family in self.sim.families.values():
             consumption = family.consume(
@@ -154,7 +162,8 @@ class RegionalMarket:
                 self.sim.clock.year,
                 self.sim.clock.months,
                 self.if_origin,
-                firms_by_sector
+                firms_by_sector,
+                local_firms
             )
             for key, value in consumption.items():
                 self.monthly_hh_consumption[key] += value

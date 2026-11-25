@@ -903,6 +903,27 @@ check("HOUSEHOLD_RETRY: short-served households buy the rest from the next stock
       and _cases[(True, True)] == ([1.0, 2.0, 0.0], 0.0, 0.0) and _cases[(True, False)] == ([1.0, 0.0, 1.0], 0.0, 0.0),
       f"{_cases}")
 
+
+# HOUSEHOLD_MARKET 'municipality': the Trade sample comes from the family's municipality; a family whose municipality
+# has no stocked Trade firm buys from the whole ACP
+def _hm_case(region):
+    firms = [_ShelfFirm('a', 1.0, 10.0), _ShelfFirm('L', 3.0, 10.0)]
+    house = SimpleNamespace(address=None, _firm_distances={'a': 1.0, 'L': 2.0})
+    fam = SimpleNamespace(savings=0.0, house=house, region_id=region, average_utility=0.0,
+                          decision_on_consumption=lambda *a: 3.0)
+    rm = SimpleNamespace(final_demand={'HouseholdConsumption': {'Trade': 1.0}}, household_no_stock=0.0,
+                         household_unserved=0.0, household_import_share={}, monthly_hh_intended=defaultdict(float),
+                         pools=_NO_POOLS)
+    seed = SimpleNamespace(randint=lambda a, b: 1, sample=None)
+    Family.consume(fam, rm, seed, None, None, {}, dict(sim.PARAMS, SIZE_MARKET=5), 2010, 1, False, {'Trade': firms},
+                   {('Trade', '2222222'): [firms[1]]})
+    return [round(10 - f.inventory[0].quantity, 9) for f in firms]
+
+
+_hm = (_hm_case('2222222001'), _hm_case('3333333001'))
+check("HOUSEHOLD_MARKET 'municipality': local sample from the family's municipality, whole ACP when it has none",
+      _hm == ([0.0, 1.0], [3.0, 0.0]), f"{_hm}")
+
 # Tradable spending no local firm served (refused, or no stocked firm) is bought outside at 1 plus freight and counted
 # as consumption; non-tradable spending refused goes back to savings
 _sh_ext = External(SimpleNamespace(PARAMS=sim.PARAMS, ledger=defaultdict(float)), 0.0)
@@ -3122,6 +3143,54 @@ check("OGU_AFTER_DOSE: the OGU_INVESTMENT share to the last year, the after shar
       and abs(_od[2031] - .09 / 100 * _od_gdp[2031]) < 1e-9 * max(_od[2031], 1) and _od[2031] > 0,
       f"{_od}")
 sim.PARAMS.update(_od_saved)
+
+# ── STARTUP_JOBS 'census' ────────────────────────────────────────────────────
+# Two municipalities with Census shares 3:1, three firms in the first and one in the second, 8 jobs: quotas 2 and 2;
+# Government and pools get none; a firm at its quota does not post at start-up
+import tempfile as _sj_tmp
+import world.startup_jobs as _sj
+from types import SimpleNamespace as _sj_ns
+_sj_firms = ([_sj_ns(id='a%d' % i, sector='Trade', own_account=False, region_id='1111111001') for i in range(3)]
+             + [_sj_ns(id='b', sector='Trade', own_account=False, region_id='2222222001'),
+                _sj_ns(id='g', sector='Government', own_account=False, region_id='1111111001'),
+                _sj_ns(id='p', sector='Trade', own_account=True, region_id='1111111001')])
+with _sj_tmp.NamedTemporaryFile('w', suffix='.csv', delete=False) as _sj_f:
+    _sj_f.write('acp;work_mun;persons\nX;1111111;300\nX;2222222;100\nY;3333333;500\n')
+_sj_file, _sj.FILE = _sj.FILE, _sj_f.name
+_sj_q = _sj.startup_quotas(_sj_firms, ['X'], 8)
+try:
+    _sj.startup_quotas(_sj_firms, ['Z'], 8)
+    _sj_err = False
+except ValueError:
+    _sj_err = True
+_sj.FILE = _sj_file
+os.remove(_sj_f.name)
+_sj_lm = sim.labor_market
+_sj_full = next(f for f in sim.firms.values() if f.sector == 'Trade' and not f.own_account)
+_sj_open = next(f for f in sim.firms.values() if f.sector == 'Manufacturing' and not f.own_account)
+_sj_lm.available_postings = []
+_sj_lm.hire_fire({_sj_full.id: _sj_full, _sj_open.id: _sj_open}, 1, initialize=True,
+                 startup_quota={_sj_full.id: _sj_full.num_employees, _sj_open.id: _sj_open.num_employees + 1})
+_sj_posted = list(_sj_lm.available_postings)
+_sj_lm.available_postings = []
+check("STARTUP_JOBS 'census': municipal Census share split equally among its firms, Government and pools left out, "
+      "a firm at its quota does not post, unknown ACP refused",
+      _sj_q == {'a0': 2, 'a1': 2, 'a2': 2, 'b': 2} and _sj_posted == [_sj_open] and _sj_err,
+      f"quotas {_sj_q}, posted {[f.id for f in _sj_posted]}, error {_sj_err}")
+
+# ── STARTUP_FIRMS 'census' ───────────────────────────────────────────────────
+# Census shares 3:1, 9 firms (8 in the first municipality, 1 in the second): the second's share is round(2.25) = 2,
+# so it gets 1 firm, placed in its more populous region; the first, above its share, gets none
+with _sj_tmp.NamedTemporaryFile('w', suffix='.csv', delete=False) as _sf_f:
+    _sf_f.write('acp;work_mun;persons\nX;1111111;300\nX;2222222;100\nY;3333333;500\n')
+_sf_file, _sj.FILE = _sj.FILE, _sf_f.name
+_sf_q = _sj.census_firm_quotas({'1111111001': 5, '1111111002': 3, '2222222001': 1, '2222222002': 0},
+                               {'1111111001': 50, '1111111002': 50, '2222222001': 10, '2222222002': 30}, ['X'])
+_sj.FILE = _sf_file
+os.remove(_sf_f.name)
+check("STARTUP_FIRMS 'census': a municipality below its Census share gets the missing firms in its more populous "
+      "region, none removed elsewhere",
+      _sf_q == {'2222222002': 1}, f"added {_sf_q}")
 
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")

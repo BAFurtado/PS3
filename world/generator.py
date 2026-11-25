@@ -37,6 +37,7 @@ from .firms import FirmData, set_sector_productivity
 from .own_account import level
 from .population import region_counts
 from .shapes import prepare_shapes
+from .startup_jobs import census_firm_quotas
 
 logger = logging.getLogger("generator")
 
@@ -142,6 +143,13 @@ class Generator:
         # Initial firms' sectors are apportioned once for the whole ACP, then dealt to regions (see sector_deck).
         firm_quotas = {rid: self.region_num_firms(rid) for rid in regions}
         self.firm_deck = self.sector_deck(sum(firm_quotas.values()))
+        # STARTUP_FIRMS 'census': firms added to municipalities below their Census share, sectors other than Government
+        added = dict()
+        if self.sim.PARAMS.get('STARTUP_FIRMS', 'rais') == 'census':
+            population = {rid: sum(region_counts(self.sim.pops, rid, self.sim.PARAMS['PERCENTAGE_ACTUAL_POP']).values())
+                          for rid in regions}
+            added = census_firm_quotas(firm_quotas, population, self.sim.geo.processing_acps)
+        self.added_deck = self.sector_deck(sum(added.values()), drop=('Government',), every_sector=False)
 
         for region_id, region in regions.items():
             logger.info("Generating region {}".format(region_id))
@@ -169,10 +177,12 @@ class Generator:
                 num_families = max(1, int(num_agents / self.sim.PARAMS["MEMBERS_PER_FAMILY"]))
             num_houses = int(num_families * (1 + self.sim.PARAMS["HOUSE_VACANCY"]))
             num_firms = firm_quotas[region_id]
+            num_added = added.get(region_id, 0)
 
             regional_families = self.create_families(num_families)
             regional_houses = self.create_houses(num_houses, region)
-            regional_firms = self.create_firms(num_firms, region, self.deal_sectors(num_firms))
+            regional_firms = self.create_firms(num_firms + num_added, region,
+                                               self.deal_sectors(num_firms) + self.deal_added(num_added))
 
             regional_agents, regional_families = self.allocate_to_family(
                 regional_agents, regional_families
@@ -518,20 +528,22 @@ class Generator:
     def region_num_firms(self, region_id):
         return int(self.firm_data.num_emp_t0.get(int(region_id), 0) * self.sim.PARAMS["PERCENTAGE_ACTUAL_POP"])
 
-    def sector_deck(self, n):
-        """Sectors of the ACP's n initial firms, shuffled. Counts follow the RAIS shares at ACP level
-        (largest-remainder rounding), with at least one firm in every sector present in RAIS, so that no sector
-        of the input-output matrix is left without firms. Rounding per region (math.ceil) used to give every
-        sector at least one firm in every region, inflating thin sectors (Mining ~84x in Belém)."""
-        p = self.sector_shares()
+    def sector_deck(self, n, drop=(), every_sector=True):
+        """Sectors of n initial firms, shuffled. Counts follow the ACP shares (sector_shares) without the sectors in
+        drop, by largest remainder. every_sector: at least one firm in every sector present, so that no sector
+        of the input-output matrix is left without firms."""
+        p = self.sector_shares().drop(list(drop), errors='ignore')
         p = p[p > 0]
+        if drop:
+            p = p / p.sum()
         if n <= 0:
             return []
-        quota = p * max(n, len(p))
+        total = max(n, len(p)) if every_sector else n
+        quota = p * total
         counts = np.floor(quota).astype(int)
-        remainder = int(max(n, len(p)) - counts.sum())
+        remainder = int(total - counts.sum())
         counts[(quota - counts).sort_values(ascending=False).index[:remainder]] += 1
-        for s in counts.index[counts == 0]:
+        for s in (counts.index[counts == 0] if every_sector else []):
             counts[s] = 1
             counts[counts.idxmax()] -= 1
         deck = [s for s in counts.index for _ in range(counts[s])]
@@ -539,6 +551,10 @@ class Generator:
 
     def deal_sectors(self, num_firms):
         dealt, self.firm_deck = self.firm_deck[:num_firms], self.firm_deck[num_firms:]
+        return dealt
+
+    def deal_added(self, num_firms):
+        dealt, self.added_deck = self.added_deck[:num_firms], self.added_deck[num_firms:]
         return dealt
 
     def create_firms(self, num_firms, region, firm_sectors=None):

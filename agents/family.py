@@ -329,8 +329,10 @@ class Family:
         return consumption
 
     def consume(self, regional_market, seed, seed_np, central, regions, params, year, month,
-                if_origin, firms_by_sector):
-        """Consumption from goods and services firms, based on criteria of price or distance.
+                if_origin, firms_by_sector, local_firms=None):
+        """Consumption from goods and services firms, based on criteria of price or distance. With local_firms
+        ({(sector, municipality code): stocked firms}), the sample of a sector listed there comes from the family's
+        municipality when it has such firms.
         Family general consumption depends on its permanent income, based on members wages, working life expectancy
         and real estate and savings interest
         """
@@ -394,6 +396,8 @@ class Family:
                 money_this_sector -= paid
 
             sector_firms = firms_by_sector.get(sector)
+            if local_firms is not None:
+                sector_firms = local_firms.get((sector, self.region_id[:7])) or sector_firms
             if not sector_firms:
                 regional_market.household_no_stock += money_this_sector
                 if sector in shortage_sectors:
