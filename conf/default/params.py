@@ -167,12 +167,24 @@ PUBLIC_TAXES_OUT = False
 # Education of a vacancy. 'off': none. 'census': each vacancy draws its level from the Census 2010 employees of its
 # sector in the run's municipalities and is filled from applicants of that level; it stays open if none applies.
 POSTING_EDUCATION = 'off'
+# 'census': each sector's output per worker (input/sector_productivity.csv, builders 1) is divided by its Census 2010
+# employees' mean qualification ** PRODUCTIVITY_EXPONENT over the all-employee mean (world/firms.education_factors).
+# 'off': as the file.
+SECTOR_PRODUCTIVITY_EDUCATION = 'off'
 # Percentage of employees' firms hired by distance
 PCT_DISTANCE_HIRING = 0.2
 # GOV_REVISED False: Government's wage share exp(-unemployment x this)
 RELEVANCE_UNEMPLOYMENT_SALARIES = 1.5
 # Candidate sample size for the labor market
 HIRING_SAMPLE_SIZE = 20
+# 'score': each posting scores a sample of HIRING_SAMPLE_SIZE seekers, a global greedy pass matches by score, then
+# COMMUTE_ACCEPTANCE. 'applications': each seeker applies to HIRING_SAMPLE_SIZE postings drawn without replacement with
+# weight A[last sector, posting sector] x P(commute minutes), A the PME 2010 sector moves (input/
+# pme_sector_transitions_2010.csv, j2j rows for employees, u2e for the unemployed, Census sector mix of the seeker's
+# level for a seeker never employed), P the COMMUTE_ACCEPTANCE curve. Each posting ranks its applicants of its
+# POSTING_EDUCATION level first, then by qualification, then by job value. Firm-proposing deferred acceptance: a seeker
+# keeps the offer of highest job value (LaborMarket.job_value). Needs POSTING_EDUCATION 'census' and COMMUTE_ACCEPTANCE.
+HIRING_RULE = 'score'
 
 # Reduction size in case of eco innovation success: multiplies firm parameters
 ENVIRONMENTAL_EFFICIENCY_STEP = .99

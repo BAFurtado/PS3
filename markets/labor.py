@@ -7,6 +7,7 @@ import pandas as pd
 
 FLOWS = 'input/labour_flows_2010.csv'
 FLOWS_LEVEL = 'input/labour_flows_level_2010.csv'
+TRANSITIONS = 'input/pme_sector_transitions_2010.csv'
 # ON_THE_JOB_SEARCH: commute time valued at half the gross wage rate (Small 2012, Valuation of travel time, Economics
 # of Transportation, p.5), two trips on 22 working days a month, the wage rate the monthly wage over 220 hours (the
 # CLT monthly divisor)
@@ -67,6 +68,10 @@ class LaborMarket:
         self.moves = defaultdict(int)
         self.wage_args = (0.0, 0.0)
         self.current_wage = {}
+        # HIRING_RULE 'applications': {kind: {origin sector: {destination sector: share}}} and the Census sector mix
+        # by level
+        self.transitions = None
+        self.sector_mix = None
 
     def compute_max_distance(self):
         centroids = [r.addresses.centroid for r in self.sim.regions.values()]
@@ -130,6 +135,12 @@ class LaborMarket:
         # Candidates consider distance when they deduce cost of mobility from potential wage bundle
         # Division between qualification and proximity is done randomly
         self.seed_np.shuffle(self.available_postings)
+        if self.transitions is not None:
+            self.match_applications(params)
+            self.available_postings = []
+            self.candidates = []
+            self.on_the_job = set()
+            return
         if len(self.available_postings) >= 2:
             split = int(len(self.available_postings) * (1 - pct_distance_hiring))
             by_qual = self.available_postings[0:split]
@@ -323,6 +334,112 @@ class LaborMarket:
             cand_still_looking = [c for c in self.candidates if c not in done_cands]
             return cand_still_looking
         return None
+
+    def load_applications(self, mun_codes):
+        """HIRING_RULE 'applications': the PME 2010 sector moves as row shares (input/pme_sector_transitions_2010.csv)
+        and the run's Census sector mix by level (world/own_account.sector_mix)"""
+        from world.own_account import sector_mix
+        t = pd.read_csv(TRANSITIONS, sep=';')
+        self.transitions = {}
+        for (kind, origin), g in t.groupby(['kind', 'origin']):
+            self.transitions.setdefault(kind, {})[origin] = (g.set_index('destination').persons
+                                                             / g.persons.sum()).to_dict()
+        self.sector_mix = sector_mix(mun_codes)
+
+    def application_shares(self, agent, employed):
+        """{sector: share} of the agent's applications before commuting: the PME row of its last sector (j2j for an
+        employee, u2e for the unemployed, the other kind for an origin without a row), else the Census sector mix of
+        its level"""
+        from world.own_account import level
+        origin = agent.last_sector
+        kinds = ('j2j', 'u2e') if employed else ('u2e', 'j2j')
+        for kind in kinds:
+            row = self.transitions.get(kind, {}).get(origin)
+            if row is not None:
+                return row
+        return self.sector_mix.get(level(agent), self.sector_mix[None])
+
+    def match_applications(self, params):
+        """HIRING_RULE 'applications': applications weighted by sector moves and commute, postings ranked by their
+        level and qualification, firm-proposing deferred acceptance on job value (Gale and Shapley 1962, College
+        admissions and the stability of marriage, American Mathematical Monthly)"""
+        from world.own_account import level
+        postings = self.available_postings
+        seekers = [c for c in self.candidates if not (c in self.on_the_job and c.firm_id is None)]
+        if not postings or not seekers:
+            return
+        transport = self.sim.transport
+        acceptance = self.sim.commute_acceptance
+        education = self.sim.posting_education
+        offers = {}
+        for f in postings:
+            if f.id not in offers:
+                offers[f.id] = f.offer_wage(*self.wage_args)
+        wage = [offers[f.id] for f in postings]
+        posting_level = []
+        for f in postings:
+            levels, p = education.get(f.sector, education[None])
+            posting_level.append(levels[self.seed_np.choice(len(levels), p=p)])
+        sectors = sorted({f.sector for f in postings})
+        sector_index = np.array([sectors.index(f.sector) for f in postings])
+        regions = sorted({f.region_id for f in postings})
+        region_index = np.array([regions.index(f.region_id) for f in postings])
+        k = int(params['HIRING_SAMPLE_SIZE'])
+        weights = {}
+        applicants = defaultdict(list)
+        value = {}
+        reservation = {}
+        for i, c in enumerate(seekers):
+            employed = c in self.on_the_job
+            home = c.family.house.region_id
+            key = (home, bool(c.has_car), employed, c.last_sector, level(c) if c.last_sector is None else None)
+            if key not in weights:
+                shares = self.application_shares(c, employed)
+                a = np.array([shares.get(s, 0.0) for s in sectors])[sector_index]
+                p = np.array([acceptance.probability(transport.minutes_between(home, r, c.has_car), home, c.has_car)
+                              for r in regions])[region_index]
+                weights[key] = a * p
+            w = weights[key]
+            if employed:
+                w = np.where(np.array([f.id == c.firm_id for f in postings]), 0.0, w)
+                current = self.sim.firms.get(c.firm_id)
+                if current is not None:
+                    if current.id not in self.current_wage:
+                        self.current_wage[current.id] = current.offer_wage(*self.wage_args)
+                    reservation[i] = self.job_value(c, current, self.current_wage[current.id])
+            n = int(np.count_nonzero(w))
+            if n == 0:
+                continue
+            for j in self.seed_np.choice(len(postings), min(k, n), replace=False, p=w / w.sum()):
+                applicants[j].append(i)
+                value[(i, j)] = self.job_value(c, postings[j], wage[j])
+        ranked = {}
+        for j, lst in applicants.items():
+            ranked[j] = sorted(lst, key=lambda i: (level(seekers[i]) == posting_level[j], seekers[i].qualification,
+                                                   value[(i, j)]), reverse=True)
+        held = {}
+        nxt = defaultdict(int)
+        free = list(ranked)
+        while free:
+            j = free.pop()
+            lst = ranked[j]
+            while nxt[j] < len(lst):
+                i = lst[nxt[j]]
+                nxt[j] += 1
+                v = value[(i, j)]
+                if i in reservation and v <= reservation[i]:
+                    continue
+                h = held.get(i)
+                if h is None or v > h[0]:
+                    held[i] = (v, j)
+                    if h is not None:
+                        free.append(h[1])
+                    break
+        for i, (_, j) in held.items():
+            c = seekers[i]
+            if c in self.on_the_job:
+                self.leave_for(c)
+            self.apply_assign(c, postings[j])
 
     def job_value(self, agent, firm, wage):
         """ON_THE_JOB_SEARCH: the wage less the money cost of the commute and its time, valued at VALUE_OF_TIME of

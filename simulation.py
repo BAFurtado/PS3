@@ -377,6 +377,10 @@ class Simulation:
         self.salary_factor = Firm.salary_share / (1 - self.PARAMS['TAX_LABOR']) if 'SALARY_SHARE' in self.PARAMS else 1.0
         if self.PARAMS.get('POSTING_EDUCATION', 'off') == 'census':
             self.posting_education = posting_education(self.mun_to_regions)
+        if self.PARAMS.get('HIRING_RULE', 'score') == 'applications':
+            if self.posting_education is None or self.commute_acceptance is None:
+                raise ValueError("HIRING_RULE 'applications' needs POSTING_EDUCATION 'census' and COMMUTE_ACCEPTANCE")
+            self.labor_market.load_applications(self.mun_to_regions)
         self.own_account = OwnAccountPools(self)
         self.regional_market.pools = self.own_account
         # The pool's share of value added is no longer firms'

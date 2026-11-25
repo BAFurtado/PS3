@@ -36,6 +36,18 @@ def posting_education(mun_codes):
     return out
 
 
+def sector_mix(mun_codes):
+    """HIRING_RULE 'applications': {Census education level: {sector: share}} of the Census 2010 employees (V6930 1-3)
+    aged 17-69 in the run's municipalities (input/own_account_2010.csv); key None: all levels, for a level without
+    employees there"""
+    t = pd.read_csv(FILE, sep=';')
+    t = t[t.cod_mun.isin([int(m) for m in mun_codes]) & (t.position == 'employee') & (t.sector != 'Unknown')]
+    out = {None: t.groupby('sector').persons.sum()}
+    for lv, g in t.groupby('level'):
+        out[int(lv)] = g.groupby('sector').persons.sum()
+    return {k: (m[m > 0] / m[m > 0].sum()).to_dict() for k, m in out.items() if m.sum() > 0}
+
+
 class OwnAccountCensus:
     """The run's Census 2010 own-account share of the employed aged 17-69 of each education level and the own-account
     sector mix of each level (input/own_account_2010.csv, auxiliary/own_account.py)"""

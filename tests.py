@@ -1558,6 +1558,36 @@ _fin.sector_productivity, _bld.sector_productivity = _sp_saved
 check("Sector productivity: capacity x sector factor, builders 1",
       np.isclose(_ratio, _SP[_fin.sector]) and _bld_factor == 1.0,
       f"{_fin.sector} ratio {_ratio} vs {_SP[_fin.sector]}, builder {_bld_factor}")
+# SECTOR_PRODUCTIVITY_EDUCATION 'census': the factor m / m_s scales the file's productivity (builders' 1), pools keep
+# theirs, and the employee-weighted mean of m_s x factor is m
+from world.firms import education_factors
+from world.education import YEARS as _YEARS
+_ef = education_factors(sim.PARAMS)
+_oa = pd.read_csv('input/own_account_2010.csv', sep=';')
+_oa = _oa[(_oa.position == 'employee') & (_oa.sector != 'Unknown')]
+_val = {l: np.mean([y ** sim.PARAMS['PRODUCTIVITY_EXPONENT'] for y in ys]) for l, ys in _YEARS.items()}
+_oa = _oa.assign(q=_oa.level.map(_val) * _oa.persons)
+_ms = _oa.groupby('sector').q.sum() / _oa.groupby('sector').persons.sum()
+_m = _oa.q.sum() / _oa.persons.sum()
+_pool = next((f for f in sim.firms.values() if getattr(f, 'pool', False)), None)
+_saved_spe = sim.PARAMS.get('SECTOR_PRODUCTIVITY_EDUCATION', 'off')
+_sp_saved = (_fin.sector_productivity, _bld.sector_productivity, _pool.sector_productivity if _pool else None)
+sim.PARAMS['SECTOR_PRODUCTIVITY_EDUCATION'] = 'census'
+sim._education_factors = None
+set_sector_productivity(sim, [f for f in (_fin, _bld, _pool) if f is not None])
+_spe_fin, _spe_bld = _fin.sector_productivity, _bld.sector_productivity
+_spe_pool = _pool.sector_productivity if _pool else None
+sim.PARAMS['SECTOR_PRODUCTIVITY_EDUCATION'] = _saved_spe
+sim._education_factors = None
+_fin.sector_productivity, _bld.sector_productivity = _sp_saved[:2]
+if _pool:
+    _pool.sector_productivity = _sp_saved[2]
+check("SECTOR_PRODUCTIVITY_EDUCATION 'census': productivity x m / m_s, builders m / m_s, pools unchanged",
+      np.isclose(_spe_fin, _SP[_fin.sector] * _m / _ms[_fin.sector])
+      and np.isclose(_spe_bld, _m / _ms['Construction'])
+      and (_pool is None or np.isclose(_spe_pool, 1.0 if _pool.sector == 'Construction' else _SP[_pool.sector]))
+      and all(np.isclose(_ef[s], _m / _ms[s]) for s in _ms.index),
+      f"{_fin.sector} {_spe_fin:.3f}, builder {_spe_bld:.3f}, pool {_spe_pool}")
 
 # SECTOR_SHARES 'census': Census employee shares sum to 1 in every ACP, in the sectors of 'ibge12', the generator reads
 # them
@@ -2334,6 +2364,48 @@ check("POSTING_EDUCATION 'census': vacancy filled from its level only, open when
       len(_pe_hired) == 1 and _pe_level(_pe_hired[0]) == 1 and not _pe_none and None in _pe_census
       and all(abs(p.sum() - 1) < 1e-9 for _, p in _pe_census.values()),
       f"hired {[_pe_level(a) for a in _pe_hired]}, none-level hires {len(_pe_none)}")
+
+# HIRING_RULE 'applications': both postings want level 4 and rank the graduate first; the graduate keeps the higher
+# offer, the other posting takes the next applicant; a seeker whose sector row has no posting sector does not apply
+from types import SimpleNamespace as _ap_ns
+_ap_lm = sim.labor_market
+_ap_low = next(f for f in sim.firms.values() if f.sector == 'Trade' and not f.own_account)
+_ap_high = next(f for f in sim.firms.values() if f.sector not in ('Trade', 'Construction', 'Government')
+                and not f.own_account and not getattr(f, 'pool', False))
+_ap_h, _ap_l, _ap_z = _pe_high[0], _pe_low[0], _pe_low[1]
+_ap_saved = (sim.transport, sim.commute_acceptance, sim.posting_education, getattr(sim, 'fare_mode', False),
+             [a.last_sector for a in (_ap_h, _ap_l, _ap_z)])
+sim.transport = _ap_ns(matrix=None, minutes_between=lambda o, d, car=False: 10.0)
+sim.commute_acceptance = _ap_ns(probability=lambda m, r, car=False: 1.0)
+sim.posting_education = {None: ([4], np.array([1.0]))}
+sim.fare_mode = True
+_ap_low.offer_wage = lambda *a: 50.0
+_ap_high.offer_wage = lambda *a: 100.0
+_ap_lm.transitions = {'u2e': {'Mining': {'Agriculture': 1.0}}, 'j2j': {}}
+_ap_lm.sector_mix = {None: {_ap_low.sector: 0.5, _ap_high.sector: 0.5}}
+_ap_h.last_sector = _ap_l.last_sector = None
+_ap_z.last_sector = 'Mining'
+_ap_lm.available_postings = [_ap_low, _ap_high]
+_ap_lm.candidates = [_ap_l, _ap_z, _ap_h]
+_ap_lm.on_the_job = set()
+_ap_lm.match_applications(sim.PARAMS)
+_ap_out = (_ap_h.firm_id == _ap_high.id, _ap_l.firm_id == _ap_low.id, _ap_z.firm_id is None,
+           _ap_h.last_sector == _ap_high.sector)
+for _a, _f in ((_ap_h, _ap_high), (_ap_l, _ap_low)):
+    if _a.firm_id == _f.id:
+        _f.obit(_a)
+    _a.firm_id = None
+for _f in (_ap_low, _ap_high):
+    _f.pending_replacements = 0
+    del _f.offer_wage
+sim.transport, sim.commute_acceptance, sim.posting_education, sim.fare_mode, _ap_ls = _ap_saved
+for _a, _s in zip((_ap_h, _ap_l, _ap_z), _ap_ls):
+    _a.last_sector = _s
+_ap_lm.transitions = _ap_lm.sector_mix = None
+_ap_lm.available_postings, _ap_lm.candidates = [], []
+check("HIRING_RULE 'applications': posting level ranked first, seeker keeps the higher offer, the rejected posting "
+      "takes its next applicant, no application without sector weight; last_sector set at hire",
+      all(_ap_out), f"graduate at high-wage firm, low at low, Mining seeker jobless, last sector: {_ap_out}")
 
 # Public investment unchanged during the base window, then its base real level at this month's
 # price, the difference booked as a public transfer from outside

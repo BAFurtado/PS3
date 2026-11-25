@@ -769,6 +769,7 @@ class Firm:
         # Employees are instances of Agents
         self.employees[employee.id] = employee
         employee.firm_id = self.id
+        employee.last_sector = self.sector
 
     def obit(self, employee):
         del self.employees[employee.id]

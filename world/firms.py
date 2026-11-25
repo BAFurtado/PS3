@@ -128,12 +128,37 @@ def project_floor(sim):
 SECTOR_PRODUCTIVITY = pd.read_csv('input/sector_productivity.csv', sep=';').set_index('sector')['productivity']
 
 
+def education_factors(params):
+    """SECTOR_PRODUCTIVITY_EDUCATION 'census': {sector: m / m_s}, m_s the mean qualification ** PRODUCTIVITY_EXPONENT
+    of the sector's Census 2010 employees (V6930 1-3, aged 17-69) in all municipalities of input/own_account_2010.csv,
+    m the same mean over all their employees. Each level's years of study are those the generator assigns
+    (world/education.YEARS), equally likely. A sector staffed at its Census education mix produces its national
+    output per job."""
+    from world.education import YEARS
+    pe = params['PRODUCTIVITY_EXPONENT']
+    value = {level: float(np.mean([y ** pe for y in years])) for level, years in YEARS.items()}
+    t = pd.read_csv('input/own_account_2010.csv', sep=';')
+    t = t[(t.position == 'employee') & (t.sector != 'Unknown')]
+    t = t.assign(q=t.level.map(value) * t.persons)
+    by_sector = t.groupby('sector').q.sum() / t.groupby('sector').persons.sum()
+    overall = t.q.sum() / t.persons.sum()
+    return (overall / by_sector).to_dict()
+
+
 def set_sector_productivity(sim, firms):
     """Each firm's output per unit of labour is its sector's national output per job relative to the mean
-    (input/sector_productivity.csv), except builders, whose cost is in money (world/house_values.py)"""
-
+    (input/sector_productivity.csv), except builders, whose cost is in money (world/house_values.py). Under
+    SECTOR_PRODUCTIVITY_EDUCATION 'census' both are divided by the sector's Census education (education_factors);
+    own-account pools keep theirs."""
+    factors = None
+    if sim.PARAMS.get('SECTOR_PRODUCTIVITY_EDUCATION', 'off') == 'census':
+        if getattr(sim, '_education_factors', None) is None:
+            sim._education_factors = education_factors(sim.PARAMS)
+        factors = sim._education_factors
     for f in firms:
         f.sector_productivity = 1.0 if f.sector == 'Construction' else float(SECTOR_PRODUCTIVITY[f.sector])
+        if factors is not None and not getattr(f, 'pool', False):
+            f.sector_productivity *= factors.get(f.sector, 1.0)
 
 
 def set_productivity_level(sim):

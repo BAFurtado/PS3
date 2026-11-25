@@ -48,6 +48,8 @@ class Agent:
     earnings = None
     # (age coefficient, age-squared coefficient, residual sd, run seed), set by Simulation
     wage_profile = None
+    # Sector of the agent's last employer, kept through unemployment (Firm.add_employee)
+    last_sector = None
 
     # Class for Agents. Citizens of the model
     # Agents live in families, work in firms, consume
