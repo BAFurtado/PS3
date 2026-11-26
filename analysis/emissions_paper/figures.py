@@ -1,22 +1,17 @@
-"""
-Main figure of the emissions paper: does the carbon tax cut emissions through innovation or contraction, where,
-why, and at what cost?
+"""Figures of the emissions paper, in the order of the results section. Each figure function takes the processed
+tables (data.load) and returns (figure, {name: table of the numbers behind it}); save() writes both.
 
-    a  Emissions under the tax, % of NO_POLICY, all capitals pooled: total and its LMDI split into intensity
-       (innovation) and scale (contraction), January of each year
-    b  Map of the capitals: circle area = baseline emissions, colour = share of the cut that comes from innovation
-    c  Why: share of baseline emissions in the sectors that can innovate (Utilities, Transport) against that share
-    d  Cost by instrument: emissions against GDP, % of NO_POLICY, one point per tax scenario
+    (i)   General emissions and economic impacts
+          fig_main       dashboard: emissions paths and their innovation/contraction split, map of the capitals,
+                         sectoral mix against the innovation share, cost by instrument
+    (ii)  Regional and sectoral effects                          (to do: fig_sectors, fig_regions, metamodel)
+    (iii) Agent-level outcomes                                   (to do: fig_firms, fig_labour)
 
-Panels a-c compare TAX with NO_POLICY run by run (same capital and seed); d compares every tax scenario.
-Bands and bars are 95% intervals across seeds of the pooled (all capitals) change.
+Preview and adjust in figures.ipynb (same folder). From the repository root, every figure at once:
 
-    python -m analysis.emissions_paper.fig_main [ROOT] [--out DIR] [--window 2025 2029] [--outline SHP]
+    python -m analysis.emissions_paper.figures [ROOT] [--out DIR] [--outline SHP]
 
-ROOT defaults to output/emissions. Writes fig_main.pdf, fig_main.png and the numbers behind them
-(fig_main_paths.csv, fig_main_cities.csv, fig_main_cost.csv) to --out (default figures_emissions_paper/).
---outline: a shapefile of Brazil's states (e.g. IBGE BR_UF_2022) drawn under the map; without it the map shows
-the capitals only.
+ROOT defaults to output/emissions; --out to figures_emissions_paper/.
 """
 import argparse
 import os
@@ -28,12 +23,16 @@ from matplotlib.gridspec import GridSpec
 from scipy import stats as sps
 
 from analysis.emissions_paper import style
-from analysis.emissions_paper.data import REFERENCE, load
+from analysis.emissions_paper.data import BASELINE_YEAR, REFERENCE, load
 from analysis.emissions_paper.decomposition import innovation_share, lmdi
 
-SCENARIO = 'TAX'
+# ── Settings ──────────────────────────────────────────────────────────────────
+
+OUT = 'figures_emissions_paper'
+SCENARIO = 'TAX'                       # the scenario of the single-scenario panels
 POLICY_START = 2014 + 11 / 12          # December 2014: STARTING_DAY + ECO_POLICY_DAYS (runner_emissions.policy_start)
-BASELINE_YEAR = 2014                    # January snapshot before the tax, identical in every scenario
+LATE = (2025, 2029)                    # window of the long-run effects (emissions, innovation share)
+COST = (2016, 2025)                    # window of the GDP cost: the loss is transient and gone by 2026-29
 RESPONSIVE = ['Utilities', 'Transport']  # the sectors whose tax per real of revenue is high enough to innovate
 DEFAULT_OUTLINE = 'input/shapes/BR_UF_2022.shp'
 MAP_LABELS = ['MANAUS', 'BRASILIA', 'RECIFE', 'RIO DE JANEIRO', 'PORTO ALEGRE']  # spread out, so they do not collide
@@ -55,10 +54,19 @@ DISPLAY = {
 }
 
 
-# ── Numbers ───────────────────────────────────────────────────────────────────
+# ── Shared helpers ────────────────────────────────────────────────────────────
+
+def save(fig, numbers, name, out=OUT):
+    """Write <out>/<name>.pdf and .png, and each table of numbers to <out>/<name>_<key>.csv."""
+    os.makedirs(out, exist_ok=True)
+    for ext in ('pdf', 'png'):
+        fig.savefig(os.path.join(out, '{}.{}'.format(name, ext)))
+    for key, t in numbers.items():
+        t.to_csv(os.path.join(out, '{}_{}.csv'.format(name, key)), index=False)
+
 
 def seed_interval(values):
-    """Mean and 95% t-interval across seeds."""
+    """Mean and 95% t-interval across seeds: the spread of the simulation, not a test of the model."""
     v = np.asarray(values, float)
     v = v[~np.isnan(v)]
     if len(v) < 2:
@@ -69,14 +77,22 @@ def seed_interval(values):
 
 def effects(batch, scenario=SCENARIO):
     """Sector-level LMDI effects of `scenario` against NO_POLICY, on the city-seed pairs finished in both."""
-    pairs = batch.pairs(scenario)
-    if not pairs:
+    sec = batch.paired('sectors', scenario)
+    if sec.empty:
         raise SystemExit('No {} run with a matching {} run'.format(scenario, REFERENCE))
-    sec = batch.sectors[[(c, s) in pairs for c, s in zip(batch.sectors.city, batch.sectors.seed)]]
     return lmdi(sec[sec.scenario == scenario], sec[sec.scenario == REFERENCE])
 
 
-def paths(eff):
+def policy_line(ax, label=True):
+    ax.axvline(POLICY_START, color=style.MUTED, lw=0.8, ls=(0, (3, 2)))
+    if label:
+        ax.annotate('tax starts', xy=(POLICY_START, 0), xycoords=('data', 'axes fraction'), xytext=(-3, 3),
+                    textcoords='offset points', ha='right', va='bottom', fontsize=7.5, color=style.MUTED)
+
+
+# ══ (i) General emissions and economic impacts ════════════════════════════════
+
+def main_paths(eff):
     """Pooled change by year, % of NO_POLICY emissions: total, intensity, scale (mean and interval over seeds)."""
     by_seed = eff.groupby(['seed', 'year'])[['E_T', 'E_N', 'intensity', 'scale']].sum()
     pct = pd.DataFrame({'total': 100 * (by_seed.E_T / by_seed.E_N - 1),
@@ -88,7 +104,7 @@ def paths(eff):
     return pd.DataFrame(rows)
 
 
-def cities(eff, batch, window):
+def main_cities(eff, batch, window=LATE):
     """Per capital, over the window: innovation share of the cut, total change, baseline emissions, and the share of
     baseline emissions in RESPONSIVE sectors."""
     w = eff[eff.year.between(*window)].groupby(['city', 'seed'])[['E_T', 'E_N', 'intensity', 'scale']].sum()
@@ -105,22 +121,20 @@ def cities(eff, batch, window):
     return out.join(batch.coords.set_index('city')).reset_index()
 
 
-def cost(batch, window):
-    """Pooled emissions and GDP over the window, % of NO_POLICY, for every tax scenario (mean and interval)."""
-    st = batch.stats[batch.stats.month.dt.year.between(*window)]
+def main_cost(batch, windows=(('emissions', LATE), ('gdp', COST))):
+    """Pooled emissions and GDP, % of NO_POLICY, for every tax scenario (mean and interval over seeds), each over its
+    own window: emissions in the long run, GDP over the years the cost lasts."""
     rows = []
-    for s in sorted(x for x in st.scenario.unique() if x != REFERENCE):
-        pairs = batch.pairs(s)
-        keep = st[[(c, d) in pairs for c, d in zip(st.city, st.seed)]]
-        agg = keep.groupby(['scenario', 'seed', 'city'])[['emissions', 'gdp_level']].mean().groupby(
-            ['scenario', 'seed']).sum()
-        t, r = agg.xs(s, level='scenario'), agg.xs(REFERENCE, level='scenario')
-        for col in ('emissions', 'gdp_level'):
-            rows.append({'scenario': s, 'variable': col, **seed_interval(100 * (t[col] / r[col] - 1))})
+    for s in batch.scenarios:
+        st = batch.paired('stats', s)
+        for col, (a, b) in windows:
+            agg = (st[st.month.dt.year.between(a, b)].groupby(['scenario', 'seed', 'city'])[col].mean()
+                   .groupby(['scenario', 'seed']).sum())
+            t, r = agg.xs(s, level='scenario'), agg.xs(REFERENCE, level='scenario')
+            rows.append({'scenario': s, 'variable': col, 'window': '{}-{}'.format(a, b),
+                         **seed_interval(100 * (t / r - 1))})
     return pd.DataFrame(rows)
 
-
-# ── Panels ────────────────────────────────────────────────────────────────────
 
 def panel_paths(ax, p):
     parts = [('total', style.INK, 'total'), ('intensity', style.BLUE, 'innovation'),
@@ -139,9 +153,7 @@ def panel_paths(ax, p):
     for (x, y, text, color, part), ly in zip(ends, style.spread([e[1] for e in ends], 0.07 * (hi - lo))):
         ax.annotate(text, xy=(x, y), xytext=(x + 0.6, ly), textcoords='data', va='center', fontsize=8,
                     color=color, fontweight='bold' if part == 'total' else 'normal', annotation_clip=False)
-    ax.axvline(POLICY_START, color=style.MUTED, lw=0.8, ls=(0, (3, 2)))
-    ax.annotate('tax starts', xy=(POLICY_START, 0), xycoords=('data', 'axes fraction'), xytext=(-3, 3),
-                textcoords='offset points', ha='right', va='bottom', fontsize=7.5, color=style.MUTED)
+    policy_line(ax)
     ax.set_xlim(p.year.min() - 0.3, p.year.max() + 0.3)
     ax.set_xticks(range(int(p.year.min()), int(p.year.max()) + 1, 5))
     style.panel_title(ax, 'a', 'Emissions under the tax', '% of the no-policy run, all capitals, January of each year')
@@ -202,14 +214,14 @@ def panel_mix(ax, c):
 
 
 def panel_cost(cell, fig, k):
-    """Two dot strips sharing the scenario rows, as in fig_whom: emissions and GDP, % of NO_POLICY. A filled dot
-    is a change whose interval excludes zero."""
+    """Two dot strips sharing the scenario rows: emissions and GDP, % of NO_POLICY, each over its window. A filled
+    dot is a change whose seed interval excludes zero."""
     order = [s for s in SCENARIO_LABELS if s in set(k.scenario)]
     sub = cell.subgridspec(1, 2, wspace=0.12)
     axes = [fig.add_subplot(sub[0, 0]), None]
     axes[1] = fig.add_subplot(sub[0, 1], sharey=axes[0])
     rows = np.arange(len(order))[::-1]
-    for ax, variable, title in zip(axes, ('emissions', 'gdp_level'), ('Emissions', 'GDP')):
+    for ax, variable, title in zip(axes, ('emissions', 'gdp'), ('Emissions', 'GDP')):
         d = k[k.variable == variable].set_index('scenario').loc[order]
         for y, (s, r) in zip(rows, d.iterrows()):
             if y % 2 == 0:
@@ -222,46 +234,55 @@ def panel_cost(cell, fig, k):
         ax.grid(True, axis='x')
         ax.grid(False, axis='y')
         ax.set_ylim(-0.5, len(order) - 0.5)
-        ax.set_xlabel(title + ', %', fontsize=8)
+        ax.set_xlabel('{}, {}, %'.format(title, d.window.iloc[0].replace('-', '–')), fontsize=8)
     axes[0].set_yticks(rows)
     axes[0].set_yticklabels([SCENARIO_LABELS[s] for s in order], fontsize=7.5)
     plt.setp(axes[1].get_yticklabels(), visible=False)
     style.panel_title(axes[0], 'd', 'Cost by instrument', '% of the no-policy run, all capitals')
 
 
-# ── Figure ────────────────────────────────────────────────────────────────────
-
-def main():
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('root', nargs='?', default='output/emissions')
-    ap.add_argument('--out', default='figures_emissions_paper')
-    ap.add_argument('--window', nargs=2, type=int, default=[2025, 2029], metavar=('FIRST', 'LAST'),
-                    help='years averaged in panels b-d (January snapshots for b-c, every month for d)')
-    ap.add_argument('--outline', default=DEFAULT_OUTLINE if os.path.exists(DEFAULT_OUTLINE) else None)
-    args = ap.parse_args()
-
-    style.apply()
-    batch = load(args.root)
+def fig_main(batch, outline=None):
     eff = effects(batch)
-    p, c, k = paths(eff), cities(eff, batch, args.window), cost(batch, args.window)
-
+    p, c, k = main_paths(eff), main_cities(eff, batch), main_cost(batch)
     fig = plt.figure(figsize=(7.4, 7.0))
     gs = GridSpec(2, 2, figure=fig, width_ratios=[1.1, 1], hspace=0.62, wspace=0.62,
                   left=0.08, right=0.95, top=0.9, bottom=0.08)
     panel_paths(fig.add_subplot(gs[0, 0]), p)
-    panel_map(fig.add_subplot(gs[0, 1]), c, args.outline)
+    panel_map(fig.add_subplot(gs[0, 1]), c, outline)
     panel_mix(fig.add_subplot(gs[1, 0]), c)
     panel_cost(gs[1, 1], fig, k)
+    return fig, {'paths': p, 'cities': c, 'cost': k}
 
-    os.makedirs(args.out, exist_ok=True)
-    for ext in ('pdf', 'png'):
-        fig.savefig(os.path.join(args.out, 'fig_main.' + ext))
-    p.to_csv(os.path.join(args.out, 'fig_main_paths.csv'), index=False)
-    c.to_csv(os.path.join(args.out, 'fig_main_cities.csv'), index=False)
-    k.to_csv(os.path.join(args.out, 'fig_main_cost.csv'), index=False)
-    pairs = len(batch.pairs(SCENARIO))
-    print('fig_main from {} ({} TAX/NO_POLICY pairs, window {}-{}) -> {}'.format(
-        args.root, pairs, *args.window, args.out))
+
+# ══ (ii) Regional and sectoral effects ════════════════════════════════════════
+# fig_sectors   by sector over time: innovation vs contraction, quantity, price, exits, margins
+# fig_regions   each capital's cut split into sector mix (composition) and within-sector response
+# metamodel     capital x scenario effects on sectoral mix and mechanism variables, scenario FE, Shapley R2 shares
+
+
+# ══ (iii) Agent-level outcomes ════════════════════════════════════════════════
+# fig_firms     matched 2014 firm cohort by size and margin decile: innovation, exit, revenue share
+# fig_labour    unemployment and employment paths; 2014 workers of taxed sectors: re-employment, wages; Gini
+
+
+# ── All figures ───────────────────────────────────────────────────────────────
+
+FIGURES = {'fig_main': fig_main}
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument('root', nargs='?', default='output/emissions')
+    ap.add_argument('--out', default=OUT)
+    ap.add_argument('--outline', default=DEFAULT_OUTLINE if os.path.exists(DEFAULT_OUTLINE) else None)
+    args = ap.parse_args()
+    style.apply()
+    batch = load(args.root)
+    for name, make in FIGURES.items():
+        fig, numbers = make(batch, outline=args.outline) if name == 'fig_main' else make(batch)
+        save(fig, numbers, name, args.out)
+        plt.close(fig)
+        print(name, '->', args.out)
 
 
 if __name__ == '__main__':

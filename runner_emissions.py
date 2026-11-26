@@ -63,8 +63,11 @@ SEED = 1000
 RUNS = 10
 END = datetime.date(2030, 1, 1)
 OUTPUT = 'output/emissions'
-# Emission tax in model units per tCO2e (1 unit = R$1,000): .2 is about R$200/tCO2e, within the US$25-50 range
-TAX = .2
+# Emission tax in model units per tCO2e (1 unit = R$1,000): .4 is about R$400/tCO2e (~US$70-75, ~EUR65), the EU ETS
+# price level of 2023-25 and within the Paris-consistent range of the High-Level Commission on Carbon Prices
+# (US$50-100 by 2030). At R$200 (the first batch, 2026-11) no sector's margin fell below the tax, so nothing contracted;
+# at R$400 Transport's (~15.6% margin, ~19% tax) does.
+TAX = .4
 
 _OFF = {'TAX_EMISSION': 0, 'ECO_INVESTMENT_SUBSIDIES': 0, 'TARGETED_SUBSIDIES': False, 'CARBON_TAX_RECYCLING': False}
 SCENARIOS = {
