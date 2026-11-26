@@ -65,6 +65,9 @@ COMMON = {
     'RENT_LEVEL': 'census_ap',
     'HOUSING_BIDDING': 'filatova',
     'LABOUR_FLOWS': 'education',
+    'MCMV_ALLOCATION': 'metro',
+    'MCMV_COMMISSION': True,
+    'SECTOR_DECK': 'municipality',
 }
 ACCEPTANCE = 'census2022'
 SAVE_DEFAULT = ['agents', 'family', 'house', 'firms']

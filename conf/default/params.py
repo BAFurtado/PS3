@@ -115,6 +115,11 @@ CONSTRUCTION_PLAN = 'pipeline'
 # is national output per job relative to the mean, IBGE national accounts 2015 (input/sector_productivity.csv);
 # builders keep 1.
 SECTOR_SHARES = 'ibge12'
+# Initial firms' sectors by municipality. 'acp': one deck for the whole ACP dealt to its regions, so every
+# municipality gets the ACP mix. 'municipality': each municipality's deck keeps the ACP count by sector and the
+# municipality's firm count, fitted to Census 2010 employees by municipality of work and sector
+# (input/sector_employees_municipality.csv, world/generator.py municipal_decks). Firms entering later keep the ACP shares.
+SECTOR_DECK = 'acp'
 # Firms refill workers lost to natural separation or death (one post each) unless shrinking. False = off.
 REPLACE_SEPARATIONS = True
 # Growing firms post the vacancies their production plan needs (gap between sales plus stock target and current

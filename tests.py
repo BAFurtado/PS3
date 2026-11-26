@@ -3192,6 +3192,27 @@ check("STARTUP_FIRMS 'census': a municipality below its Census share gets the mi
       "region, none removed elsewhere",
       _sf_q == {'2222222002': 1}, f"added {_sf_q}")
 
+# ── SECTOR_DECK 'municipality' ────────────────────────────────────────────────
+import world.generator as _gen  # noqa: E402
+from types import SimpleNamespace as _SN  # noqa: E402
+with _sj_tmp.NamedTemporaryFile('w', suffix='.csv', delete=False) as _sd_f:
+    _sd_f.write('cod_mun;sector;employees\n1111111;Trade;900\n1111111;Manufacturing;100\n'
+                '2222222;Manufacturing;300\n2222222;Trade;100\n')
+_sd_file, _gen.SECTOR_EMPLOYEES = _gen.SECTOR_EMPLOYEES, _sd_f.name
+_sd_self = _SN(firm_deck=['Trade'] * 6 + ['Manufacturing'] * 4 + ['Agriculture'] * 2,
+               seed_np=np.random.RandomState(0))
+_sd = _gen.Generator.municipal_decks(_sd_self, {'1111111001': 4, '1111111002': 3, '2222222001': 3, '3333333001': 2})
+_gen.SECTOR_EMPLOYEES = _sd_file
+os.remove(_sd_f.name)
+_sd_c = {m: pd.Series(d).value_counts().to_dict() for m, d in _sd.items()}
+_sd_cols = pd.Series([s for d in _sd.values() for s in d]).value_counts().to_dict()
+check("SECTOR_DECK 'municipality': decks keep each municipality's firm count and the ACP count by sector, "
+      "Manufacturing goes where the Census puts it",
+      {m: len(d) for m, d in _sd.items()} == {'1111111': 7, '2222222': 3, '3333333': 2}
+      and _sd_cols == {'Trade': 6, 'Manufacturing': 4, 'Agriculture': 2}
+      and _sd_c['2222222'].get('Manufacturing', 0) >= 2 and _sd_c['1111111'].get('Trade', 0) >= 5,
+      f"decks {_sd_c}")
+
 # ── summary ──────────────────────────────────────────────────────────────────
 print(f"\n{'─' * 50}")
 print(f"Results: {PASS} PASS  |  {FAIL} FAIL  |  {PASS + FAIL} total")

@@ -63,6 +63,8 @@ perc_firms_sector_ibge12 = pd.read_csv('input/sector_shares_ibge12.csv', sep=';'
 # Census 2010 employee shares in the same classification (auxiliary/sector_shares_census.py)
 perc_firms_sector_census = pd.read_csv('input/sector_shares_census.csv', sep=';')
 house_qual_areap = pd.read_csv('input/dpp_2010_quali.csv', dtype={'areap': str})
+# Census 2010 employees by municipality of work and sector (auxiliary/sector_employees_municipality.py)
+SECTOR_EMPLOYEES = 'input/sector_employees_municipality.csv'
 
 
 class Generator:
@@ -143,6 +145,9 @@ class Generator:
         # Initial firms' sectors are apportioned once for the whole ACP, then dealt to regions (see sector_deck).
         firm_quotas = {rid: self.region_num_firms(rid) for rid in regions}
         self.firm_deck = self.sector_deck(sum(firm_quotas.values()))
+        self.mun_decks = None
+        if self.sim.PARAMS.get('SECTOR_DECK', 'acp') == 'municipality':
+            self.mun_decks = self.municipal_decks(firm_quotas)
         # STARTUP_FIRMS 'census': firms added to municipalities below their Census share, sectors other than Government
         added = dict()
         if self.sim.PARAMS.get('STARTUP_FIRMS', 'rais') == 'census':
@@ -182,7 +187,7 @@ class Generator:
             regional_families = self.create_families(num_families)
             regional_houses = self.create_houses(num_houses, region)
             regional_firms = self.create_firms(num_firms + num_added, region,
-                                               self.deal_sectors(num_firms) + self.deal_added(num_added))
+                                               self.deal_sectors(num_firms, region_id) + self.deal_added(num_added))
 
             regional_agents, regional_families = self.allocate_to_family(
                 regional_agents, regional_families
@@ -549,7 +554,61 @@ class Generator:
         deck = [s for s in counts.index for _ in range(counts[s])]
         return list(self.seed_np.permutation(deck))
 
-    def deal_sectors(self, num_firms):
+    def municipal_decks(self, firm_quotas):
+        """{municipality: shuffled sectors of its initial firms} for SECTOR_DECK 'municipality'. The municipality x
+        sector firm counts keep two margins, the ACP deck's count by sector (sector_deck) and each municipality's
+        firm count (firm_quotas), and are fitted by iterative proportional fitting to Census 2010 employees by
+        municipality of work and sector (input/sector_employees_municipality.csv). A municipality without Census
+        employees in the deck's sectors starts from the ACP shares. Integer counts: floors, then the cells with the
+        largest remainders while both their municipality and their sector still lack firms."""
+        rows = defaultdict(int)
+        for rid, n in firm_quotas.items():
+            rows[rid[:7]] += n
+        rows = pd.Series(rows).sort_index()
+        rows = rows[rows > 0]
+        cols = pd.Series(self.firm_deck).value_counts().sort_index()
+        if rows.empty or cols.empty:
+            return {m: [] for m in rows.index}
+        table = pd.read_csv(SECTOR_EMPLOYEES, sep=';', dtype={'cod_mun': str})
+        seed = (table[table.cod_mun.isin(rows.index)]
+                .pivot_table(index='cod_mun', columns='sector', values='employees', aggfunc='sum')
+                .reindex(index=rows.index, columns=cols.index).fillna(0.0))
+        empty = seed.sum(axis=1) == 0
+        seed.loc[empty] = (cols / cols.sum()).values
+        fit = seed.values.astype(float)
+        r, c = rows.values.astype(float), cols.values.astype(float)
+        for _ in range(500):
+            fit *= (r / np.maximum(fit.sum(axis=1), 1e-300))[:, None]
+            fit *= c / np.maximum(fit.sum(axis=0), 1e-300)
+            if np.abs(fit.sum(axis=1) - r).max() < 1e-6:
+                break
+        counts = np.floor(fit).astype(int)
+        need_r = rows.values - counts.sum(axis=1)
+        need_c = cols.values - counts.sum(axis=0)
+        order = np.dstack(np.unravel_index(np.argsort(-(fit - counts), axis=None), fit.shape))[0]
+        for i, j in order:
+            if need_r[i] > 0 and need_c[j] > 0:
+                counts[i, j] += 1
+                need_r[i] -= 1
+                need_c[j] -= 1
+        for i in np.flatnonzero(need_r > 0):
+            for j in np.flatnonzero(need_c > 0):
+                k = min(need_r[i], need_c[j])
+                counts[i, j] += k
+                need_r[i] -= k
+                need_c[j] -= k
+        decks = dict()
+        for i, mun in enumerate(rows.index):
+            deck = [s for j, s in enumerate(cols.index) for _ in range(counts[i, j])]
+            decks[mun] = list(self.seed_np.permutation(deck))
+        return decks
+
+    def deal_sectors(self, num_firms, region_id=None):
+        if self.mun_decks is not None and region_id is not None:
+            mun = region_id[:7]
+            deck = self.mun_decks.get(mun, [])
+            dealt, self.mun_decks[mun] = deck[:num_firms], deck[num_firms:]
+            return dealt
         dealt, self.firm_deck = self.firm_deck[:num_firms], self.firm_deck[num_firms:]
         return dealt
 
