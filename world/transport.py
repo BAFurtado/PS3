@@ -24,6 +24,7 @@ import pandas as pd
 STANDARD_DIR = 'input/transport'
 STANDARD_COLUMNS = ['acp', 'ap_orig', 'ap_dest', 'state', 'minutes']
 CONGESTION = 'input/car_congestion_2022.csv'
+CENSUS_RATIO = 'input/transport/census_ratio_2022__%s.parquet'
 
 # Partner files in their original layout: ACP -> (path, {column: state})
 PARTNER_FILES = {
@@ -62,6 +63,26 @@ def read_acp_matrix(acp, weights=None):
         wide = raw.rename(columns={'code_weighting_orig': 'ap_orig', 'code_weighting_dest': 'ap_dest', **columns})
         return wide.set_index(['ap_orig', 'ap_dest'])[list(columns.values())]
     return None
+
+
+def census_scale(wide, ratio):
+    """TRANSPORT_BASE 'census2022': every state of a pair (o, d) times R(o, municipality of d, transit), the car minutes
+    times R(o, municipality of d, private) (auxiliary/census_minutes.py)"""
+    keys = pd.MultiIndex.from_arrays([wide.index.get_level_values('ap_orig').astype(str),
+                                      wide.index.get_level_values('ap_dest').astype(str).str[:7]])
+    wide = wide.copy()
+    for mode in ('transit', 'private'):
+        r = ratio[ratio['mode'] == mode].set_index(['ap_orig', 'work_mun'])
+        factor = r.ratio.reindex(keys).to_numpy()
+        # A flow with zero matrix minutes takes the Census mean minutes instead
+        minutes = r.census.where(r.ratio.isna()).reindex(keys).to_numpy()
+        if (np.isnan(factor) & np.isnan(minutes)).any():
+            raise ValueError('%d pairs without a Census %s ratio' % (int((np.isnan(factor) & np.isnan(minutes)).sum()),
+                                                                     mode))
+        for col in wide.columns:
+            if (col == 'car') == (mode == 'private'):
+                wide[col] = np.where(np.isnan(factor), minutes, wide[col].to_numpy() * factor)
+    return wide
 
 
 def to_standard(wide, acp):
@@ -122,7 +143,14 @@ class TransportNetwork:
             wide = read_acp_matrix(acp, weights)
             if wide is not None:
                 matrices[acp] = wide
-        if params.get('CAR_CONGESTION', 'census') == 'census' and weights:
+        census_base = params.get('TRANSPORT_BASE', 'partner') == 'census2022'
+        if census_base:
+            if not weights:
+                raise ValueError("TRANSPORT_BASE 'census2022' needs TRANSPORT_WEIGHTS")
+            ratio = pd.read_parquet(CENSUS_RATIO % weights)
+            for acp in list(matrices):
+                matrices[acp] = census_scale(matrices[acp], ratio[ratio.acp == acp])
+        elif params.get('CAR_CONGESTION', 'census') == 'census' and weights:
             # Free-flow car minutes times the ACP's congestion factor (auxiliary/car_congestion.py)
             kappa = pd.read_csv(CONGESTION, sep=';')
             kappa = kappa[kappa.weights == weights].drop_duplicates('acp', keep='last').set_index('acp').kappa
@@ -235,7 +263,8 @@ class TransportNetwork:
         return True
 
 
-ACCEPTANCE = {'census': 'input/commute_acceptance_2010.csv', 'census2022': 'input/commute_acceptance_2022.csv'}
+ACCEPTANCE = {'census': 'input/commute_acceptance_2010.csv', 'census2022': 'input/commute_acceptance_2022.csv',
+              'census2022_census_base': 'input/commute_acceptance_2022_census_base.csv'}
 
 
 class CommuteAcceptance:

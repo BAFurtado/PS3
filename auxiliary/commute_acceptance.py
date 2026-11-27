@@ -22,6 +22,10 @@ above, weights E_r x c_r x J_s for private and E_r x (1 - c_r) x J_s for transit
 
     python auxiliary/commute_acceptance.py 2022 [weights] [ACP ...]
 writes input/commute_acceptance_2022.csv: acp;weights;mode;t50;t_scale;band;observed;offered;fitted
+
+    python auxiliary/commute_acceptance.py 2022census [weights] [ACP ...]
+the same on the Census-scaled minutes of TRANSPORT_BASE 'census2022' (no congestion factor), writes
+input/commute_acceptance_2022_census_base.csv
 """
 import os
 import sys
@@ -33,6 +37,7 @@ from scipy.optimize import minimize
 DATA = '/home/furtado/MyModels/censo2010/data/amostra'
 OUT = 'input/commute_acceptance_2010.csv'
 OUT_2022 = 'input/commute_acceptance_2022.csv'
+CENSUS_BASE = False
 MODE_2022 = 'input/commute_mode_2022.csv'
 MODE_GROUP = {'car': 'private', 'motorcycle': 'private', 'taxi': 'private', 'motorcycle_taxi': 'private',
               'bus': 'transit', 'brt': 'transit', 'van': 'transit', 'rail': 'transit'}
@@ -97,9 +102,16 @@ def offered_by_mode(acp, weights, people):
     """{'private': (car minutes, weights), 'transit': (transit minutes, weights)}, positive weights only, and the share
     of the ACP's regions with census commuters"""
     m = pd.read_parquet('input/transport/travel_times_%s__%s.parquet' % (acp.replace(' ', '_'), weights))
-    m = m.pivot_table(index=['ap_orig', 'ap_dest'], columns='state', values='minutes').reset_index()
-    kappa = pd.read_csv('input/car_congestion_2022.csv', sep=';')
-    m['car'] = m.car * float(kappa[(kappa.acp == acp) & (kappa.weights == weights)].kappa.iloc[-1])
+    m = m.pivot_table(index=['ap_orig', 'ap_dest'], columns='state', values='minutes')
+    if CENSUS_BASE:
+        sys.path.insert(0, os.getcwd())
+        from world.transport import CENSUS_RATIO, census_scale
+        ratio = pd.read_parquet(CENSUS_RATIO % weights)
+        m = census_scale(m, ratio[ratio.acp == acp]).reset_index()
+    else:
+        m = m.reset_index()
+        kappa = pd.read_csv('input/car_congestion_2022.csv', sep=';')
+        m['car'] = m.car * float(kappa[(kappa.acp == acp) & (kappa.weights == weights)].kappa.iloc[-1])
     firms = pd.read_csv('input/firms_by_APs2010_t0_full.csv', sep=';')
     jobs = dict(zip(firms.AP.astype(str), firms.num_firms))
     by_area = people.groupby('area').apply(lambda g: pd.Series({'E': g.w.sum(), 'c': np.average(g.car, weights=g.w)}),
@@ -203,7 +215,11 @@ def main_2022(weights='trips', *acps):
 
 
 if __name__ == '__main__':
-    if sys.argv[1:2] == ['2022']:
+    if sys.argv[1:2] == ['2022census']:
+        # Offered times from the Census-scaled matrices (TRANSPORT_BASE 'census2022')
+        CENSUS_BASE, OUT_2022 = True, 'input/commute_acceptance_2022_census_base.csv'
+        main_2022(*sys.argv[2:])
+    elif sys.argv[1:2] == ['2022']:
         main_2022(*sys.argv[2:])
     else:
         main(*sys.argv[1:])

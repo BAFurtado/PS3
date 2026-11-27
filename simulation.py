@@ -365,6 +365,11 @@ class Simulation:
         if acceptance != 'off':
             if self.transport.matrix is None or not self.PARAMS.get('TRANSPORT_WEIGHTS'):
                 raise ValueError("COMMUTE_ACCEPTANCE %r needs TRANSPORT_WEIGHTS and its travel-time matrix" % acceptance)
+            if self.PARAMS.get('TRANSPORT_BASE', 'partner') == 'census2022':
+                if acceptance != 'census2022':
+                    raise ValueError("TRANSPORT_BASE 'census2022' needs COMMUTE_ACCEPTANCE 'census2022' or 'off'")
+                # P(t) fitted on the Census-scaled minutes
+                acceptance = 'census2022_census_base'
             self.commute_acceptance = CommuteAcceptance(self.geo.processing_acps, self.PARAMS['TRANSPORT_WEIGHTS'],
                                                         acceptance)
         # LOCATION_CHOICE 'logit': families trade housing for commuting time (world/location.py)
@@ -378,6 +383,8 @@ class Simulation:
         self.salary_factor = Firm.salary_share / (1 - self.PARAMS['TAX_LABOR']) if 'SALARY_SHARE' in self.PARAMS else 1.0
         if self.PARAMS.get('POSTING_EDUCATION', 'off') == 'census':
             self.posting_education = posting_education(self.mun_to_regions)
+        if self.PARAMS.get('HIRING_SAMPLE', 'metro') in ('commute', 'commute_only') and self.commute_acceptance is None:
+            raise ValueError("HIRING_SAMPLE %r needs COMMUTE_ACCEPTANCE" % self.PARAMS['HIRING_SAMPLE'])
         if self.PARAMS.get('HIRING_RULE', 'score') == 'applications':
             if self.posting_education is None or self.commute_acceptance is None:
                 raise ValueError("HIRING_RULE 'applications' needs POSTING_EDUCATION 'census' and COMMUTE_ACCEPTANCE")

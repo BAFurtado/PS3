@@ -2428,6 +2428,72 @@ check("HIRING_RULE 'applications': posting level ranked first, seeker keeps the 
       "takes its next applicant, no application without sector weight; last_sector set at hire",
       all(_ap_out), f"graduate at high-wage firm, low at low, Mining seeker jobless, last sector: {_ap_out}")
 
+# HIRING_SAMPLE 'commute': a sample of one, drawn with weight P(t), takes the one near seeker out of 41
+_hs_lm = sim.labor_market
+_hs_firm = _pe_firm
+_hs_near = _pe_jobless[0]
+_hs_home = _hs_near.family.house.region_id
+_hs_far = [a for a in _pe_jobless if a.family.house.region_id != _hs_home][:40]
+_hs_saved = (sim.transport, sim.commute_acceptance, sim.PARAMS['HIRING_SAMPLE_SIZE'], sim.PARAMS.get('HIRING_SAMPLE'))
+sim.transport = _ap_ns(matrix=None, minutes_between=lambda o, d, car=False: 5.0 if o == _hs_home else 90.0)
+sim.commute_acceptance = _ap_ns(probability=lambda m, r, car=False: 1.0 if m < 30 else 1e-9)
+sim.PARAMS['HIRING_SAMPLE_SIZE'], sim.PARAMS['HIRING_SAMPLE'] = 1, 'commute'
+_hs_group, _hs_weights = _hs_lm.commute_sampler([_hs_near] + _hs_far)
+_hs_w = _hs_weights(_hs_firm.region_id)[_hs_group]
+_hs_lm.candidates = _hs_far[:20] + [_hs_near] + _hs_far[20:]
+_hs_lm.on_the_job = set()
+_hs_lm.matching_firm_offers([(_hs_firm, 1.0)], sim.PARAMS)
+_hs_hired = [a for a in [_hs_near] + _hs_far if a.firm_id == _hs_firm.id]
+for _a in _hs_hired:
+    _hs_firm.obit(_a)
+    _a.firm_id = None
+sim.transport, sim.commute_acceptance, sim.PARAMS['HIRING_SAMPLE_SIZE'] = _hs_saved[:3]
+if _hs_saved[3] is None:
+    del sim.PARAMS['HIRING_SAMPLE']
+else:
+    sim.PARAMS['HIRING_SAMPLE'] = _hs_saved[3]
+_hs_lm.candidates = []
+check("HIRING_SAMPLE 'commute': seekers weighted by P(t) of their commute; the near seeker is drawn and hired",
+      len(_hs_far) == 40 and _hs_w[0] == 1.0 and (_hs_w[1:] == 1e-9).all() and _hs_hired == [_hs_near],
+      f"far {len(_hs_far)}, hired near {_hs_hired == [_hs_near]}")
+
+# HIRING_SAMPLE 'commute_only': no acceptance draw, so a far seeker with P(t) = 1e-9 is hired when no one else applies;
+# 'commute' rejects the seeker
+_hs_out = {}
+for _mode in ('commute', 'commute_only'):
+    sim.transport = _ap_ns(matrix=None, minutes_between=lambda o, d, car=False: 90.0)
+    sim.commute_acceptance = _ap_ns(probability=lambda m, r, car=False: 1e-9)
+    sim.PARAMS['HIRING_SAMPLE_SIZE'], sim.PARAMS['HIRING_SAMPLE'] = 1, _mode
+    _hs_lm.candidates = [_hs_far[0]]
+    _hs_lm.on_the_job = set()
+    _hs_lm.matching_firm_offers([(_hs_firm, 1.0)], sim.PARAMS)
+    _hs_out[_mode] = _hs_far[0].firm_id == _hs_firm.id
+    if _hs_out[_mode]:
+        _hs_firm.obit(_hs_far[0])
+        _hs_far[0].firm_id = None
+sim.transport, sim.commute_acceptance, sim.PARAMS['HIRING_SAMPLE_SIZE'] = _hs_saved[:3]
+if _hs_saved[3] is None:
+    del sim.PARAMS['HIRING_SAMPLE']
+else:
+    sim.PARAMS['HIRING_SAMPLE'] = _hs_saved[3]
+_hs_lm.candidates = []
+check("HIRING_SAMPLE 'commute_only': no acceptance draw after the commute-weighted sample",
+      _hs_out == {'commute': False, 'commute_only': True}, f"hired {_hs_out}")
+
+# TRANSPORT_BASE 'census2022': transit states times the transit ratio, car times the private ratio, zero matrix minutes
+# replaced by the Census minutes of the flow
+from world.transport import census_scale as _cs
+_cs_wide = pd.DataFrame({'base': [10.0, 0.0], 'padrao': [8.0, 0.0], 'car': [5.0, 4.0]},
+                        index=pd.MultiIndex.from_tuples([('1000001001', '2000002001'), ('1000001001', '1000001002')],
+                                                        names=['ap_orig', 'ap_dest']))
+_cs_ratio = pd.DataFrame({'ap_orig': ['1000001001'] * 4, 'work_mun': ['2000002', '1000001'] * 2,
+                          'mode': ['transit', 'transit', 'private', 'private'],
+                          'ratio': [0.5, np.nan, 2.0, 3.0], 'census': [99.0, 30.0, 99.0, 99.0]})
+_cs_out = _cs(_cs_wide, _cs_ratio)
+check("TRANSPORT_BASE 'census2022': matrix minutes scaled by the Census ratio, zero minutes take the Census minutes",
+      _cs_out.base.tolist() == [5.0, 30.0] and _cs_out.padrao.tolist() == [4.0, 30.0]
+      and _cs_out.car.tolist() == [10.0, 12.0], f"{_cs_out.to_dict('list')}")
+
 # Public investment unchanged during the base window, then its base real level at this month's
 # price, the difference booked as a public transfer from outside
 _gs_f = sim.funds

@@ -195,6 +195,12 @@ HIRING_SAMPLE_SIZE = 20
 # POSTING_EDUCATION level first, then by qualification, then by job value. Firm-proposing deferred acceptance: a seeker
 # keeps the offer of highest job value (LaborMarket.job_value). Needs POSTING_EDUCATION 'census' and COMMUTE_ACCEPTANCE.
 HIRING_RULE = 'score'
+# 'commute': under HIRING_RULE 'score', each posting draws its HIRING_SAMPLE_SIZE seekers without replacement with weight
+# P(t) of the COMMUTE_ACCEPTANCE curve, t the seeker's one-way minutes to the firm. 'metro': every seeker in the metro
+# with equal weight. 'commute_only': the 'commute' sample, a score without the commute term (CB_COMMUTING 0) and no
+# acceptance draw, so a posting takes its sampled seekers in draw order. 'commute' and 'commute_only' need
+# COMMUTE_ACCEPTANCE.
+HIRING_SAMPLE = 'metro'
 # 'census': at start-up each firm other than Government posts while its staff is below its quota: its municipality's
 # share of Census 2010 employees with or without carteira by place of work, public administration left out
 # (input/census_jobs_workplace_2010.csv), of the firm jobs to fill, split equally among the municipality's firms
@@ -320,6 +326,13 @@ COMMUTE_ACCEPTANCE = 'off'
 # makes the car-to-transit time ratio that of the Census 2022 commutes (input/car_congestion_2022.csv,
 # auxiliary/car_congestion.py). 'off': free flow.
 CAR_CONGESTION = 'census'
+# 'census2022': the matrix minutes of each origin weighting area to each municipality scaled to the Census 2022 reported
+# minutes of that flow, by mode (input/transport/census_ratio_2022__<TRANSPORT_WEIGHTS>.parquet, auxiliary/
+# census_minutes.py), every state of a pair by the same transit ratio and the car minutes by the private ratio, so the
+# partner networks set the change between states and the Census the base level. CAR_CONGESTION is then unused, and
+# COMMUTE_ACCEPTANCE 'census2022' reads its curves fitted on these minutes (input/commute_acceptance_2022_census_base.csv).
+# 'partner': the matrices as delivered.
+TRANSPORT_BASE = 'partner'
 # 'logit': buyers and renters choose among the houses they can pay for by housing-service value minus the family's
 # commuting time cost plus a Gumbel draw, settled renters move only to a house of higher value, and the time cost as a
 # share of income adds to the need to enter the housing market (world/location.py). Needs a travel-time matrix.

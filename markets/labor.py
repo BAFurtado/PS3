@@ -283,20 +283,37 @@ class LaborMarket:
         wage_min, wage_max = min(wages), max(wages)
 
         education = self.sim.posting_education
+        sample_size = int(params['HIRING_SAMPLE_SIZE'])
+        hiring_sample = params.get('HIRING_SAMPLE', 'metro')
+        sampler = self.commute_sampler(candidates) if hiring_sample in ('commute', 'commute_only') else None
+        if hiring_sample == 'commute_only':
+            # The sample carries the commute: no commute term in the score, no acceptance draw
+            beta = 0.0
         if education is not None:
             from world.own_account import level
             by_level = defaultdict(list)
-            for c in candidates:
+            by_level_pos = defaultdict(list)
+            for i, c in enumerate(candidates):
                 by_level[level(c)].append(c)
+                by_level_pos[level(c)].append(i)
         for firm, wage in lst_firms:
             pool = candidates
+            pos = None
             if education is not None:
                 # POSTING_EDUCATION 'census': the vacancy's level, from its sector's employees; open if none applies
                 levels, p = education.get(firm.sector, education[None])
-                pool = by_level.get(levels[self.seed_np.choice(len(levels), p=p)])
+                lev = levels[self.seed_np.choice(len(levels), p=p)]
+                pool = by_level.get(lev)
                 if not pool:
                     continue
-            sampled_candidates = self.seed.sample(pool, min(len(pool), int(params['HIRING_SAMPLE_SIZE'])))
+                pos = by_level_pos[lev]
+            if sampler is None:
+                sampled_candidates = self.seed.sample(pool, min(len(pool), sample_size))
+            else:
+                group, weights = sampler
+                w = weights(firm.region_id)[group if pos is None else group[pos]]
+                pick = self.seed_np.choice(len(pool), min(len(pool), sample_size), replace=False, p=w / w.sum())
+                sampled_candidates = [pool[i] for i in pick]
             scores = self.compute_scores_cobb_douglas_vectorized(
                 sampled_candidates, firm, wage,
                 qual_min, qual_max, dist_max, wage_min, wage_max,
@@ -308,7 +325,7 @@ class LaborMarket:
 
         # Then, the criteria is used to order all candidates
         offers = sorted(offers, key=lambda o: o[2], reverse=True)
-        acceptance = getattr(self.sim, 'commute_acceptance', None)
+        acceptance = getattr(self.sim, 'commute_acceptance', None) if hiring_sample != 'commute_only' else None
         for firm, candidate, score in offers:
             if firm not in done_firms and candidate not in done_cands:
                 employed = candidate in self.on_the_job
@@ -334,6 +351,26 @@ class LaborMarket:
             cand_still_looking = [c for c in self.candidates if c not in done_cands]
             return cand_still_looking
         return None
+
+    def commute_sampler(self, candidates):
+        """HIRING_SAMPLE 'commute': a seeker's weight in a posting's sample is P(t) of the COMMUTE_ACCEPTANCE curve, t
+        its one-way minutes to the firm (car minutes for car owners). Returns each candidate's (home, car) group index and
+        a function of the firm's region giving the weight of every group."""
+        acceptance, transport = self.sim.commute_acceptance, self.sim.transport
+        keys = [(c.family.house.region_id, bool(c.has_car)) for c in candidates]
+        groups = list(dict.fromkeys(keys))
+        index = {g: i for i, g in enumerate(groups)}
+        group = np.array([index[k] for k in keys])
+        cache = {}
+
+        def weights(region_id):
+            w = cache.get(region_id)
+            if w is None:
+                w = np.array([acceptance.probability(transport.minutes_between(home, region_id, car), home, car)
+                              for home, car in groups])
+                cache[region_id] = w
+            return w
+        return group, weights
 
     def load_applications(self, mun_codes):
         """HIRING_RULE 'applications': the PME 2010 sector moves as row shares (input/pme_sector_transitions_2010.csv)
